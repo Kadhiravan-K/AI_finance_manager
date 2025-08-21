@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Account } from '../types';
+import CustomSelect from './CustomSelect';
 
 interface AccountSelectorProps {
   accounts: Account[];
@@ -21,25 +22,24 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, selectedAcc
     }
   };
   
+  const accountOptions = [
+    { value: 'all', label: 'All Accounts' },
+    ...accounts.map(account => ({ value: account.id, label: account.name }))
+  ];
+
   return (
     <div className="mb-6 bg-slate-800/50 p-4 rounded-xl shadow-lg border border-slate-700/50 transition-all duration-300 hover:bg-slate-800 hover:shadow-xl hover:border-slate-600">
       <div className="flex items-center space-x-4">
-        <select
-          value={selectedAccountId}
-          onChange={(e) => onAccountChange(e.target.value)}
-          className="flex-grow bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-inner shadow-slate-900/50"
-          aria-label="Select Account"
-        >
-          <option value="all">All Accounts</option>
-          {accounts.map(account => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex-grow">
+          <CustomSelect
+            value={selectedAccountId}
+            onChange={onAccountChange}
+            options={accountOptions}
+          />
+        </div>
         <button 
           onClick={() => setShowAddForm(!showAddForm)}
-          className="p-2 bg-slate-700/80 rounded-lg hover:bg-slate-700 transition-colors"
+          className="p-2 bg-slate-700/80 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
           aria-label={showAddForm ? 'Cancel adding account' : 'Add new account'}
           >
            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-white transition-transform duration-300 ${showAddForm ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

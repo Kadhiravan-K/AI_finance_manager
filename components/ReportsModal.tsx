@@ -3,7 +3,8 @@ import { Transaction, Category, TransactionType, ReportPeriod, CustomDateRange }
 import CategoryPieChart from './CategoryPieChart';
 import CategoryBarChart from './CategoryBarChart';
 import TimeSeriesBarChart from './TimeSeriesBarChart';
-import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import CustomDatePicker from './CustomDatePicker';
+import ModalHeader from './ModalHeader';
 
 interface ReportsModalProps {
   isOpen: boolean;
@@ -69,16 +70,7 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ isOpen, onClose, transactio
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-lg flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="p-4 border-b border-slate-700/50 flex-shrink-0 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Financial Reports</h2>
-            <p className="text-sm text-slate-400">{getTitle()}</p>
-          </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
+        <ModalHeader title="Financial Reports" onClose={onClose} icon="📊" />
         
         {/* Controls */}
         <div className="p-4 border-b border-slate-700/50 flex-shrink-0 flex flex-wrap gap-4 justify-between items-center">
@@ -99,14 +91,15 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ isOpen, onClose, transactio
         </div>
          {period === 'custom' && (
             <div className="p-4 border-b border-slate-700/50 flex-shrink-0 flex items-center justify-center gap-4 animate-fadeInUp">
-                <input type="date" value={customDateRange.start ? customDateRange.start.toISOString().split('T')[0] : ''} onChange={e => setCustomDateRange(prev => ({...prev, start: e.target.value ? new Date(e.target.value) : null}))} className="bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white"/>
+                <CustomDatePicker value={customDateRange.start} onChange={date => setCustomDateRange(prev => ({...prev, start: date}))} />
                 <span className="text-slate-400">to</span>
-                <input type="date" value={customDateRange.end ? customDateRange.end.toISOString().split('T')[0] : ''} onChange={e => setCustomDateRange(prev => ({...prev, end: e.target.value ? new Date(e.target.value) : null}))} className="bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white"/>
+                <CustomDatePicker value={customDateRange.end} onChange={date => setCustomDateRange(prev => ({...prev, end: date}))} />
             </div>
         )}
 
         {/* Content */}
         <div className="flex-grow p-4 overflow-y-auto">
+          <h3 className="text-xl font-bold text-center mb-4">{getTitle()}</h3>
           {filteredTransactions.length === 0 ? (
             <div className="flex items-center justify-center h-full text-slate-400">
                 <p>No data available for this period.</p>

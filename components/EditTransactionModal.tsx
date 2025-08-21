@@ -3,6 +3,8 @@ import { Transaction, TransactionType, Account, Category, Payee } from '../types
 import { SettingsContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
+import CustomSelect from './CustomSelect';
+import CustomDatePicker from './CustomDatePicker';
 
 interface EditTransactionModalProps {
   transaction: Transaction;
@@ -32,19 +34,9 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     }
   }, [transaction, categories]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    
-    let newFormData = { ...formData };
+  const handleChange = (name: string, value: string | number | TransactionType) => {
+    let newFormData = { ...formData, [name]: value };
 
-    if (name === 'amount') {
-        newFormData.amount = parseFloat(value);
-    } else if (name === 'date') {
-        newFormData.date = new Date(value).toISOString();
-    } else {
-        newFormData = { ...newFormData, [name]: value };
-    }
-    
     if (name === 'type') {
         setSelectedParentId(null);
         newFormData.categoryId = '';
@@ -53,8 +45,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     setFormData(newFormData);
   };
   
-  const handleParentCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const parentId = e.target.value;
+  const handleParentCategoryChange = (parentId: string) => {
       setSelectedParentId(parentId);
       
       const subCategories = categories.filter(c => c.parentId === parentId);
@@ -117,7 +108,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
               id="description"
               name="description"
               value={formData.description}
-              onChange={handleChange}
+              onChange={(e) => handleChange('description', e.target.value)}
               className={inputStyle}
             />
           </div>
@@ -137,50 +128,39 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 id="amount"
                 name="amount"
                 value={formData.amount}
-                onChange={handleChange}
+                onChange={(e) => handleChange('amount', parseFloat(e.target.value))}
                 step="0.01"
                 className={inputStyle}
               />
             </div>
             <div>
-              <label htmlFor="date" className={labelStyle}>Date</label>
-              <input
-                type="date"
-                id="date"
-                name="date"
-                value={formData.date.split('T')[0]}
-                onChange={handleChange}
-                className={inputStyle}
+              <label className={labelStyle}>Date</label>
+              <CustomDatePicker
+                value={new Date(formData.date)}
+                onChange={(date) => handleChange('date', date.toISOString())}
               />
             </div>
           </div>
            <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="parentCategory" className={labelStyle}>Category</label>
-              <select
-                id="parentCategory"
-                name="parentCategory"
+              <label className={labelStyle}>Category</label>
+              <CustomSelect
                 value={selectedParentId || ''}
                 onChange={handleParentCategoryChange}
-                className={inputStyle}
-              >
-                <option value="" disabled>Select Category</option>
-                {parentCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-              </select>
+                options={parentCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))}
+                placeholder="Select Category"
+              />
             </div>
              <div>
-              <label htmlFor="categoryId" className={labelStyle}>Subcategory</label>
-              <select
-                id="categoryId"
-                name="categoryId"
+              <label className={labelStyle}>Subcategory</label>
+              <CustomSelect
                 value={formData.categoryId}
-                onChange={handleChange}
+                onChange={(value) => handleChange('categoryId', value)}
+                options={subCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))}
+                placeholder="-"
                 disabled={subCategories.length === 0}
-                className={`${inputStyle} disabled:bg-slate-700/50 disabled:cursor-not-allowed`}
-              >
-                <option value={selectedParentId || ''} disabled={subCategories.length > 0}>-</option>
-                {subCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-              </select>
+                defaultValue={selectedParentId || ''}
+              />
             </div>
           </div>
           <div>
@@ -189,38 +169,32 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
               id="notes"
               name="notes"
               value={formData.notes || ''}
-              onChange={handleChange}
+              onChange={(e) => handleChange('notes', e.target.value)}
               rows={2}
               className={`${inputStyle} resize-none`}
             />
           </div>
-          <div>
-              <label htmlFor="type" className={labelStyle}>Type</label>
-              <select
-                id="type"
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                className={inputStyle}
-              >
-                <option value={TransactionType.EXPENSE}>Expense</option>
-                <option value={TransactionType.INCOME}>Income</option>
-              </select>
-            </div>
-          <div>
-              <label htmlFor="accountId" className={labelStyle}>Account</label>
-              <select
-                id="accountId"
-                name="accountId"
-                value={formData.accountId}
-                onChange={handleChange}
-                className={inputStyle}
-              >
-                {accounts.map(account => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+                <label className={labelStyle}>Type</label>
+                <CustomSelect
+                  value={formData.type}
+                  onChange={(value) => handleChange('type', value as TransactionType)}
+                  options={[
+                    { value: TransactionType.EXPENSE, label: 'Expense' },
+                    { value: TransactionType.INCOME, label: 'Income' },
+                  ]}
+                />
+              </div>
+            <div>
+                <label className={labelStyle}>Account</label>
+                <CustomSelect
+                  value={formData.accountId}
+                  onChange={(value) => handleChange('accountId', value)}
+                  options={accounts.map(account => ({ value: account.id, label: account.name }))}
+                />
+              </div>
+          </div>
           <div className="flex justify-end space-x-3 pt-4 border-t border-slate-700/50 mt-4">
             <button
               type="button"

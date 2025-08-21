@@ -1,7 +1,5 @@
-
-
 import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal } from '../types';
 import { parseTransactionText } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import QuickAddForm from './PromptForm';
@@ -20,6 +18,9 @@ import CategoryManagerModal from './CategoryManagerModal';
 import EditCategoryModal from './EditCategoryModal';
 import PayeesModal from './PayeesModal';
 import ExportModal from './ExportModal';
+import SenderManagerModal from './SenderManagerModal';
+import SpamWarningCard from './SpamWarningCard';
+import GoalsModal from './GoalsModal';
 
 const generateCategories = (): Category[] => {
   const categories: Category[] = [];
@@ -163,6 +164,8 @@ const generateCategories = (): Category[] => {
   add(TransactionType.EXPENSE, 'Courier / Delivery Charges', 'Miscellaneous', '📦');
   add(TransactionType.EXPENSE, 'Legal / Documentation Fees', 'Miscellaneous', '📄');
   add(TransactionType.EXPENSE, 'Unexpected Expenses', 'Miscellaneous', '❗');
+
+  add(TransactionType.EXPENSE, 'Goal Contributions', null, '🎯');
   return categories;
 };
 const DEFAULT_CATEGORIES = generateCategories();
@@ -189,15 +192,18 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
   const [text, setText] = useState<string>('');
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
   const [accounts, setAccounts] = useLocalStorage<Account[]>('finance-tracker-accounts', DEFAULT_ACCOUNTS);
-  const { categories, setCategories, payees, setPayees } = useContext(SettingsContext);
+  const { categories, setCategories, payees, setPayees, senders, setSenders } = useContext(SettingsContext);
   const [budgets, setBudgets] = useLocalStorage<Budget[]>('finance-tracker-budgets', []);
   const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('finance-tracker-recurring', []);
+  const [goals, setGoals] = useLocalStorage<Goal[]>('finance-tracker-goals', []);
   const [selectedAccountId, setSelectedAccountId] = useLocalStorage<string>('finance-tracker-selected-account-id', accounts[0]?.id || 'all');
   
   const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
   const [error, setError] = useState<string>('');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [spamWarning, setSpamWarning] = useState<SpamWarning | null>(null);
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -205,15 +211,16 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
   const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
 
   useEffect(() => {
-    const storedCategories = localStorage.getItem('finance-tracker-categories');
-    if (!storedCategories) {
+    // This effect is now primarily for initializing categories for first-time users.
+    // The useLocalStorage hook handles the async loading of all data.
+    if (categories.length === 0) {
         setCategories(DEFAULT_CATEGORIES);
     }
     const currentSelected = accounts.find((acc: Account) => acc.id === selectedAccountId);
     if (!currentSelected && selectedAccountId !== 'all' && accounts.length > 0) {
         setSelectedAccountId(accounts[0].id);
     }
-  }, [accounts, selectedAccountId, setSelectedAccountId, setCategories]);
+  }, [accounts, selectedAccountId, setSelectedAccountId, categories, setCategories]);
   
   const findOrCreateCategory = useCallback((fullName: string, type: TransactionType): string => {
       const parts = fullName.split('/').map(p => p.trim());
@@ -249,48 +256,78 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       return finalCategoryId;
   }, [categories, setCategories]);
 
+  const saveTransaction = useCallback((data: any, senderId?: string) => {
+    let categoryId = '';
+    let description = data.description;
+
+    const matchingPayee = data.payeeIdentifier ? payees.find(p => p.identifier.toLowerCase() === data.payeeIdentifier?.toLowerCase()) : null;
+        
+    if(matchingPayee) {
+        categoryId = matchingPayee.defaultCategoryId;
+        description = matchingPayee.name;
+    } else {
+        categoryId = findOrCreateCategory(data.categoryName, data.type);
+    }
+    
+    const newTransaction: Transaction = {
+      id: data.id,
+      accountId: selectedAccountId,
+      description: description,
+      amount: data.amount,
+      type: data.type,
+      categoryId: categoryId,
+      date: data.date,
+      notes: data.notes,
+      payeeIdentifier: data.payeeIdentifier,
+      senderId: senderId,
+    };
+    setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setStatus(ProcessingStatus.SUCCESS);
+    setText('');
+    setSpamWarning(null);
+  }, [selectedAccountId, findOrCreateCategory, setTransactions, payees]);
+
   const handleAddTransaction = useCallback(async () => {
     if (selectedAccountId === 'all') {
       setError('Please select a specific account to add a transaction.');
       return setStatus(ProcessingStatus.ERROR);
     }
     if (!text.trim()) {
-      setError('Please paste a transaction message or use quick add format (e.g., "Lunch 500").');
+      setError('Paste message or Quick Add: "Lunch 500"');
       return setStatus(ProcessingStatus.ERROR);
     }
 
     setStatus(ProcessingStatus.LOADING);
     setError('');
+    setSpamWarning(null);
 
     try {
       const parsed = await parseTransactionText(text);
       if (parsed) {
-        let categoryId = '';
-        let description = parsed.description;
-
-        const matchingPayee = parsed.payeeIdentifier ? payees.find(p => p.identifier.toLowerCase() === parsed.payeeIdentifier?.toLowerCase()) : null;
+        const senderIdentifier = parsed.senderName?.toLowerCase();
+        const existingSender = senderIdentifier ? senders.find(s => s.identifier.toLowerCase() === senderIdentifier) : undefined;
         
-        if(matchingPayee) {
-            categoryId = matchingPayee.defaultCategoryId;
-            description = matchingPayee.name;
-        } else {
-            categoryId = findOrCreateCategory(parsed.categoryName, parsed.type);
+        if (existingSender?.type === 'blocked') {
+          setError(`Message from blocked sender "${existingSender.name}" ignored.`);
+          setStatus(ProcessingStatus.ERROR);
+          return;
         }
 
-        const newTransaction: Transaction = {
-          id: parsed.id,
-          accountId: selectedAccountId,
-          description: description,
-          amount: parsed.amount,
-          type: parsed.type,
-          categoryId: categoryId,
-          date: parsed.date,
-          notes: parsed.notes,
-          payeeIdentifier: parsed.payeeIdentifier
-        };
-        setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setStatus(ProcessingStatus.SUCCESS);
-        setText('');
+        if (existingSender?.type === 'trusted') {
+          saveTransaction(parsed, existingSender.id);
+          return;
+        }
+        
+        // New sender or no sender found, check for spam
+        if (parsed.isSpam && parsed.spamConfidence > 0.7) {
+            setSpamWarning({ parsedData: parsed, rawText: text });
+            setStatus(ProcessingStatus.IDLE);
+            setText('');
+            return;
+        }
+
+        saveTransaction(parsed);
+
       } else {
         setError('This does not seem to be a valid financial transaction.');
         setStatus(ProcessingStatus.ERROR);
@@ -300,7 +337,25 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       setError(errorMessage);
       setStatus(ProcessingStatus.ERROR);
     }
-  }, [text, selectedAccountId, findOrCreateCategory, setTransactions, payees]);
+  }, [text, selectedAccountId, saveTransaction, senders]);
+
+  const handleSpamApproval = (trustSender: boolean) => {
+    if (!spamWarning) return;
+    
+    let senderId: string | undefined = undefined;
+
+    if (trustSender && spamWarning.parsedData.senderName) {
+      const newSender: Sender = {
+        id: self.crypto.randomUUID(),
+        identifier: spamWarning.parsedData.senderName,
+        name: spamWarning.parsedData.senderName,
+        type: 'trusted',
+      };
+      setSenders(prev => [...prev, newSender]);
+      senderId = newSender.id;
+    }
+    saveTransaction(spamWarning.parsedData, senderId);
+  };
 
   const handleAddAccount = (name: string) => {
     const newAccount = { id: self.crypto.randomUUID(), name };
@@ -415,6 +470,38 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     }
   };
 
+  const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
+    const goal = goals.find(g => g.id === goalId);
+    if (!goal) return;
+
+    // Find the dedicated "Goal Contributions" category
+    let goalCategoryId = categories.find(c => c.name === 'Goal Contributions' && c.type === TransactionType.EXPENSE)?.id;
+    if (!goalCategoryId) {
+      // Create it if it doesn't exist
+      goalCategoryId = findOrCreateCategory('Goal Contributions', TransactionType.EXPENSE);
+    }
+    
+    // Create an expense transaction for the contribution
+    const contributionTransaction: Transaction = {
+      id: self.crypto.randomUUID(),
+      accountId: accountId,
+      description: `Contribution to "${goal.name}"`,
+      amount: amount,
+      type: TransactionType.EXPENSE,
+      categoryId: goalCategoryId,
+      date: new Date().toISOString(),
+    };
+
+    setTransactions(prev => [contributionTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+    // Update the goal's current amount
+    setGoals(prev => prev.map(g => 
+      g.id === goalId 
+        ? { ...g, currentAmount: g.currentAmount + amount } 
+        : g
+    ));
+  };
+
 
   const filteredTransactions = useMemo(() => {
     let result = transactions;
@@ -490,6 +577,13 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
         onAccountChange={setSelectedAccountId}
         onAddAccount={handleAddAccount}
       />
+      {spamWarning && (
+        <SpamWarningCard 
+            warning={spamWarning}
+            onApprove={handleSpamApproval}
+            onDiscard={() => setSpamWarning(null)}
+        />
+      )}
       <div className="flex-grow overflow-y-auto mb-4 pr-1">
         <FinanceDisplay
             status={status}
@@ -499,6 +593,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             budgets={budgets}
             recurringTransactions={recurringTransactions}
             onPayRecurring={handlePayRecurring}
+            goals={goals}
             error={error}
             income={dashboardData.income}
             expense={dashboardData.expense}
@@ -510,6 +605,8 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             setDateFilter={setDateFilter}
             customDateRange={customDateRange}
             setCustomDateRange={setCustomDateRange}
+            isBalanceVisible={isBalanceVisible}
+            setIsBalanceVisible={setIsBalanceVisible}
         />
       </div>
       <div className="flex-shrink-0 pt-2">
@@ -577,12 +674,19 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             categories={categories}
           />
       )}
+      {activeModal === 'senderManager' && (
+        <SenderManagerModal
+            isOpen={true}
+            onClose={() => setActiveModal('settings')}
+        />
+      )}
       {activeModal === 'export' && (
         <ExportModal 
           onClose={() => setActiveModal('settings')}
           transactions={transactions}
           accounts={accounts}
           categories={categories}
+          senders={senders}
         />
       )}
       {activeModal === 'reports' && (
@@ -611,6 +715,16 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
           setRecurringTransactions={setRecurringTransactions}
           categories={categories}
           accounts={accounts}
+        />
+      )}
+       {activeModal === 'goals' && (
+        <GoalsModal
+          isOpen={true}
+          onClose={handleCloseActiveModal}
+          goals={goals}
+          setGoals={setGoals}
+          accounts={accounts}
+          onContribute={handleContributeToGoal}
         />
       )}
     </div>

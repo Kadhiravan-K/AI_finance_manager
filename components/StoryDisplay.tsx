@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
 import UpcomingBills from './UpcomingBills';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import GoalsSummary from './GoalsSummary';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -13,6 +14,7 @@ interface FinanceDisplayProps {
   categories: Category[];
   budgets: Budget[];
   recurringTransactions: RecurringTransaction[];
+  goals: Goal[];
   onPayRecurring: (item: RecurringTransaction) => void;
   error: string;
   income: number;
@@ -25,6 +27,8 @@ interface FinanceDisplayProps {
   setDateFilter: (filter: DateRange) => void;
   customDateRange: CustomDateRange;
   setCustomDateRange: React.Dispatch<React.SetStateAction<CustomDateRange>>;
+  isBalanceVisible: boolean;
+  setIsBalanceVisible: (visible: boolean) => void;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => {
@@ -57,7 +61,7 @@ const formatDateGroup = (dateString: string) => {
     });
 };
 
-const DashboardCard = ({ title, amount, colorClass, children }: {title: string, amount: number, colorClass: string, children: React.ReactNode}) => {
+const DashboardCard = ({ title, amount, colorClass, isVisible, children }: {title: string, amount: number, colorClass: string, isVisible: boolean, children: React.ReactNode}) => {
     const formatCurrency = useCurrencyFormatter();
     return (
         <div className={`p-4 rounded-xl glass-card transition-all duration-300 hover:bg-slate-800/80 hover:shadow-xl hover:-translate-y-1 hover:border-slate-600`}>
@@ -65,30 +69,30 @@ const DashboardCard = ({ title, amount, colorClass, children }: {title: string, 
               <span>{title}</span>
               {children}
             </div>
-            <p className={`text-2xl font-bold ${colorClass}`}>{formatCurrency(amount)}</p>
+            <p className={`text-2xl font-bold ${colorClass}`}>{isVisible ? formatCurrency(amount) : '••••'}</p>
         </div>
     );
 };
 
 
-const Dashboard = ({ income, expense }: { income: number, expense: number }) => {
+const Dashboard = ({ income, expense, isVisible }: { income: number, expense: number, isVisible: boolean }) => {
     const balance = income - expense;
     return (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left mb-6">
-            <DashboardCard title="Income" amount={income} colorClass="text-emerald-400">
+            <DashboardCard title="Income" amount={income} colorClass="text-emerald-400" isVisible={isVisible}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
             </DashboardCard>
-            <DashboardCard title="Expenses" amount={expense} colorClass="text-rose-400">
+            <DashboardCard title="Expenses" amount={expense} colorClass="text-rose-400" isVisible={isVisible}>
                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 12H6" /></svg>
             </DashboardCard>
-            <DashboardCard title="Balance" amount={balance} colorClass={`${balance >= 0 ? 'text-slate-200' : 'text-rose-400'}`}>
+            <DashboardCard title="Balance" amount={balance} colorClass={`${balance >= 0 ? 'text-slate-200' : 'text-rose-400'}`} isVisible={isVisible}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 6-3 6m18-12l-3 6 3 6" /></svg>
             </DashboardCard>
         </div>
     );
 }
 
-const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete, style }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, style: React.CSSProperties }) => {
+const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete, style, isVisible }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, style: React.CSSProperties, isVisible: boolean }) => {
     const isIncome = transaction.type === TransactionType.INCOME;
     const isTransfer = !!transaction.transferId;
     const formatCurrency = useCurrencyFormatter();
@@ -107,7 +111,7 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
                 <span className={`font-semibold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    {isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}
                 </span>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
                     {!isTransfer && (
@@ -124,7 +128,7 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, categories, budgets, recurringTransactions, onPayRecurring, error, income, expense, onEdit, onDelete, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, categories, budgets, recurringTransactions, goals, onPayRecurring, error, income, expense, onEdit, onDelete, isBalanceVisible, setIsBalanceVisible, ...filterProps }) => {
     
     const groupedTransactions = useMemo(() => {
         return transactions.reduce((acc, t) => {
@@ -151,9 +155,20 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
 
     return (
         <div>
-            <Dashboard income={income} expense={expense} />
+            <div className="flex justify-between items-center mb-1">
+                <h2 className="text-xl font-bold text-white">Dashboard</h2>
+                <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 text-slate-400 hover:text-white" aria-label="Toggle balance visibility">
+                    {isBalanceVisible ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a10.05 10.05 0 015.396-6.175M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2 2l20 20" /></svg>
+                    )}
+                </button>
+            </div>
+            <Dashboard income={income} expense={expense} isVisible={isBalanceVisible} />
             <UpcomingBills recurringTransactions={recurringTransactions} onPay={onPayRecurring} categories={categories} />
-            <BudgetsSummary budgets={budgets} transactions={allTransactions} categories={categories} />
+            <GoalsSummary goals={goals} isVisible={isBalanceVisible} />
+            <BudgetsSummary budgets={budgets} transactions={allTransactions} categories={categories} isVisible={isBalanceVisible} />
             {renderContent()}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -189,7 +204,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
                                 {groupedTransactions[dateKey].map((t, index) => {
                                     const category = getCategory(t.categoryId, categories);
                                     const categoryPath = getCategoryPath(t.categoryId, categories);
-                                    return <TransactionItem key={t.id} transaction={t} category={category} categoryPath={categoryPath} onEdit={onEdit} onDelete={onDelete} style={{ '--stagger-index': index } as React.CSSProperties} />;
+                                    return <TransactionItem key={t.id} transaction={t} category={category} categoryPath={categoryPath} onEdit={onEdit} onDelete={onDelete} style={{ '--stagger-index': index } as React.CSSProperties} isVisible={isBalanceVisible} />;
                                 })}
                             </ul>
                         </div>

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Payee, Category } from '../types';
+import ModalHeader from './ModalHeader';
+import CustomSelect from './CustomSelect';
 
 interface PayeesModalProps {
   isOpen: boolean;
@@ -49,17 +51,14 @@ const PayeesModal: React.FC<PayeesModalProps> = ({ isOpen, onClose, payees, setP
 
 
   if (!isOpen) return null;
+  
+  const categoryOptions = categories.map(c => ({ value: c.id, label: `${getCategoryPath(c.id)} (${c.type})` }));
 
   return (
-    <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
-      <div className="flex justify-between items-center mb-6 flex-shrink-0">
-        <h2 className="text-2xl font-bold text-white">Manage Payees</h2>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
+    <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
+      <ModalHeader title="Manage Payees" onClose={onClose} icon="🏢" />
       
-      <div className="flex-grow overflow-y-auto pr-2 space-y-2 mb-4">
+      <div className="flex-grow overflow-y-auto p-6 space-y-2">
         {payees.map(payee => (
           <div key={payee.id} className="p-3 bg-slate-700/50 rounded-lg flex items-center justify-between">
             <div>
@@ -72,16 +71,19 @@ const PayeesModal: React.FC<PayeesModalProps> = ({ isOpen, onClose, payees, setP
             </div>
           </div>
         ))}
+         {payees.length === 0 && <p className="text-center text-slate-400 py-8">No payees saved yet.</p>}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-shrink-0 pt-4 border-t border-slate-700 space-y-3">
+      <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-slate-700 space-y-3 bg-slate-800/50 rounded-b-xl">
         <h3 className="font-semibold">{editingPayee ? 'Edit Payee' : 'Add New Payee'}</h3>
-        <input type="text" placeholder="Name (e.g., Coffee Shop)" value={formState.name} onChange={e => setFormState(p => ({...p, name: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md" required />
-        <input type="text" placeholder="Unique Identifier (UPI, A/C No.)" value={formState.identifier} onChange={e => setFormState(p => ({...p, identifier: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md" required />
-        <select value={formState.defaultCategoryId} onChange={e => setFormState(p => ({...p, defaultCategoryId: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md" required>
-            <option value="" disabled>Select Default Category</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{getCategoryPath(c.id)} ({c.type})</option>)}
-        </select>
+        <input type="text" placeholder="Name (e.g., Coffee Shop)" value={formState.name} onChange={e => setFormState(p => ({...p, name: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
+        <input type="text" placeholder="Unique Identifier (UPI, A/C No.)" value={formState.identifier} onChange={e => setFormState(p => ({...p, identifier: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
+        <CustomSelect 
+          value={formState.defaultCategoryId}
+          onChange={value => setFormState(p => ({...p, defaultCategoryId: value}))}
+          options={categoryOptions}
+          placeholder="Select Default Category"
+        />
         <div className="flex justify-end space-x-2">
           {editingPayee && <button type="button" onClick={handleCancel} className="px-4 py-2 rounded-lg bg-slate-600">Cancel</button>}
           <button type="submit" className="px-4 py-2 rounded-lg bg-emerald-600">{editingPayee ? 'Save' : 'Add'}</button>

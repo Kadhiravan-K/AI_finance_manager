@@ -30,6 +30,14 @@ export interface Budget {
     month: string; 
 }
 
+export interface Goal {
+    id: string;
+    name: string;
+    icon: string;
+    targetAmount: number;
+    currentAmount: number;
+}
+
 export interface Transaction {
     id: string;
     accountId: string;
@@ -41,6 +49,7 @@ export interface Transaction {
     notes?: string;
     transferId?: string;
     payeeIdentifier?: string;
+    senderId?: string;
 }
 
 export interface Payee {
@@ -49,6 +58,31 @@ export interface Payee {
     name: string;
     defaultCategoryId: string;
 }
+
+export type SenderType = 'trusted' | 'blocked';
+
+export interface Sender {
+    id: string;
+    identifier: string; // The raw sender name from the message, e.g., "VK-AMZPAY"
+    name: string; // User-defined name for this sender
+    type: SenderType;
+}
+
+export interface SpamWarning {
+    parsedData: { 
+        id: string; 
+        description: string; 
+        amount: number; 
+        type: TransactionType; 
+        categoryName: string; 
+        date: string; 
+        notes?: string;
+        payeeIdentifier?: string;
+        senderName?: string;
+    };
+    rawText: string;
+}
+
 
 export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -78,4 +112,4 @@ export interface CustomDateRange {
 
 export type ReportPeriod = 'week' | 'month' | 'year' | 'custom';
 
-export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | null;
+export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | null;

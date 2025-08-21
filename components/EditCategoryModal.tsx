@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Category, TransactionType } from '../types';
+import ModalHeader from './ModalHeader';
+import CustomSelect from './CustomSelect';
 
 interface EditCategoryModalProps {
   category: Category;
@@ -16,17 +18,14 @@ const secondaryButtonStyle = "px-4 py-2 rounded-lg text-slate-300 bg-slate-700 h
 const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categories, onSave, onCancel }) => {
   const [formData, setFormData] = useState<Category>(category);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    
+  const handleChange = (name: string, value: string | TransactionType) => {
     let newFormData = { ...formData, [name]: value };
 
     if (name === 'type') {
-      // If type changes, parent is no longer valid
       newFormData.parentId = null;
     }
     
-    if(name === 'parentId' && value === '') {
+    if (name === 'parentId' && value === '') {
         newFormData.parentId = null;
     }
 
@@ -39,9 +38,18 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
   };
 
   const parentOptions = useMemo(() => {
-    // Cannot be its own parent
-    return categories.filter(c => c.id !== formData.id && c.type === formData.type && !c.parentId);
+    return [
+        { value: '', label: 'Make this a Top-Level Category'},
+        ...categories
+            .filter(c => c.id !== formData.id && c.type === formData.type && !c.parentId)
+            .map(c => ({ value: c.id, label: c.name }))
+    ];
   }, [categories, formData.type, formData.id]);
+  
+  const typeOptions = [
+      { value: TransactionType.EXPENSE, label: 'Expense' },
+      { value: TransactionType.INCOME, label: 'Income' },
+  ];
 
   return (
     <div
@@ -51,11 +59,11 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
       role="dialog"
     >
       <div
-        className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-700/50 opacity-0 animate-scaleIn"
+        className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-slate-700/50 opacity-0 animate-scaleIn"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold text-white mb-6">Edit Category</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <ModalHeader title="Edit Category" onClose={onCancel} />
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div className="grid grid-cols-6 gap-3">
              <div className="col-span-1">
               <label htmlFor="icon" className={labelStyle}>Icon</label>
@@ -64,7 +72,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
                 id="icon"
                 name="icon"
                 value={formData.icon || ''}
-                onChange={handleChange}
+                onChange={(e) => handleChange('icon', e.target.value)}
                 maxLength={2}
                 className={`${inputStyle} text-center`}
               />
@@ -76,36 +84,26 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={(e) => handleChange('name', e.target.value)}
                 className={inputStyle}
               />
             </div>
           </div>
           <div>
-            <label htmlFor="type" className={labelStyle}>Type</label>
-            <select
-              id="type"
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className={inputStyle}
-            >
-              <option value={TransactionType.EXPENSE}>Expense</option>
-              <option value={TransactionType.INCOME}>Income</option>
-            </select>
+            <label className={labelStyle}>Type</label>
+            <CustomSelect
+                value={formData.type}
+                onChange={(v) => handleChange('type', v as TransactionType)}
+                options={typeOptions}
+            />
           </div>
           <div>
-            <label htmlFor="parentId" className={labelStyle}>Parent Category</label>
-            <select
-              id="parentId"
-              name="parentId"
-              value={formData.parentId || ''}
-              onChange={handleChange}
-              className={inputStyle}
-            >
-              <option value="">Make this a Top-Level Category</option>
-              {parentOptions.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-            </select>
+            <label className={labelStyle}>Parent Category</label>
+            <CustomSelect
+                value={formData.parentId || ''}
+                onChange={(v) => handleChange('parentId', v)}
+                options={parentOptions}
+            />
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button

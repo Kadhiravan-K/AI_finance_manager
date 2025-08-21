@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { RecurringTransaction, Category, Account, TransactionType, Frequency } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import ModalHeader from './ModalHeader';
+import CustomSelect from './CustomSelect';
+import CustomDatePicker from './CustomDatePicker';
 
 interface ScheduledPaymentsModalProps {
   isOpen: boolean;
@@ -72,16 +75,20 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
 
   if (!isOpen) return null;
 
+  const categoryOptions = categories.map(c => ({ value: c.id, label: `${getCategoryPath(c.id)} (${c.type})` }));
+  const accountOptions = accounts.map(a => ({ value: a.id, label: a.name }));
+  const frequencyOptions = [
+      { value: 'daily', label: 'Daily' },
+      { value: 'weekly', label: 'Weekly' },
+      { value: 'monthly', label: 'Monthly' },
+      { value: 'yearly', label: 'Yearly' },
+  ];
+
   return (
-    <div className="glass-card rounded-xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
-      <div className="flex justify-between items-center mb-6 flex-shrink-0">
-        <h2 className="text-2xl font-bold text-white">Scheduled Payments</h2>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
+    <div className="glass-card rounded-xl shadow-2xl w-full max-w-2xl p-0 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
+      <ModalHeader title="Scheduled Payments" onClose={onClose} icon="📅" />
       
-      <div className="flex-grow overflow-y-auto pr-2 space-y-2 mb-4">
+      <div className="flex-grow overflow-y-auto p-6 space-y-2">
         {recurringTransactions.map(item => (
           <div key={item.id} className="p-3 bg-slate-700/50 rounded-lg flex items-center justify-between">
             <div>
@@ -94,31 +101,22 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
             </div>
           </div>
         ))}
+        {recurringTransactions.length === 0 && <p className="text-center text-slate-400 py-8">No scheduled payments yet.</p>}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-shrink-0 pt-4 border-t border-slate-700 space-y-3">
+      <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-slate-700 space-y-3 bg-slate-800/50 rounded-b-xl">
         <h3 className="font-semibold">{editingItem ? 'Edit Payment' : 'Add New Scheduled Payment'}</h3>
         <div className="grid grid-cols-2 gap-3">
-            <input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md" required />
-            <input type="number" placeholder="Amount" value={formState.amount} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value)}))} className="w-full bg-slate-700/80 p-2 rounded-md" required />
+            <input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
+            <input type="number" placeholder="Amount" value={formState.amount || ''} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
         </div>
         <div className="grid grid-cols-2 gap-3">
-            <select value={formState.accountId} onChange={e => setFormState(p => ({...p, accountId: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md" required>
-                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-            <select value={formState.categoryId} onChange={e => setFormState(p => ({...p, categoryId: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md" required>
-                <option value="" disabled>Select Category</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{getCategoryPath(c.id)} ({c.type})</option>)}
-            </select>
+            <CustomSelect options={accountOptions} value={formState.accountId} onChange={v => setFormState(p => ({...p, accountId: v}))} placeholder="Select Account" />
+            <CustomSelect options={categoryOptions} value={formState.categoryId} onChange={v => setFormState(p => ({...p, categoryId: v}))} placeholder="Select Category" />
         </div>
         <div className="grid grid-cols-2 gap-3">
-            <select value={formState.frequency} onChange={e => setFormState(p => ({...p, frequency: e.target.value as Frequency}))} className="w-full bg-slate-700/80 p-2 rounded-md" required>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-            </select>
-            <input type="date" value={formState.startDate} onChange={e => setFormState(p => ({...p, startDate: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md" required />
+            <CustomSelect options={frequencyOptions} value={formState.frequency} onChange={v => setFormState(p => ({...p, frequency: v as Frequency}))} />
+            <CustomDatePicker value={new Date(formState.startDate)} onChange={date => setFormState(p => ({...p, startDate: date.toISOString().split('T')[0]}))} />
         </div>
         <div className="flex justify-end space-x-2">
           {editingItem && <button type="button" onClick={handleCancel} className="px-4 py-2 rounded-lg bg-slate-600">Cancel</button>}

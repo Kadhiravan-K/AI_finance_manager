@@ -6,9 +6,10 @@ interface BudgetsSummaryProps {
   budgets: Budget[];
   transactions: Transaction[];
   categories: Category[];
+  isVisible: boolean;
 }
 
-const BudgetsSummary: React.FC<BudgetsSummaryProps> = ({ budgets, transactions, categories }) => {
+const BudgetsSummary: React.FC<BudgetsSummaryProps> = ({ budgets, transactions, categories, isVisible }) => {
   const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0 });
   const currentMonth = new Date().toISOString().slice(0, 7);
 
@@ -65,7 +66,8 @@ const BudgetsSummary: React.FC<BudgetsSummaryProps> = ({ budgets, transactions, 
                 {budget.categoryName}
               </span>
               <span className="text-slate-400">
-                {formatCurrency(budget.spent)} / <span className="text-slate-200">{formatCurrency(budget.amount)}</span>
+                {isVisible ? `${formatCurrency(budget.spent)} / ` : '•••• / '}
+                <span className="text-slate-200">{isVisible ? formatCurrency(budget.amount) : '••••'}</span>
               </span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2.5">

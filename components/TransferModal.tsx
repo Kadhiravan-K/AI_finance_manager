@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Account } from '../types';
+import ModalHeader from './ModalHeader';
+import CustomSelect from './CustomSelect';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -36,6 +38,8 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
 
   if (!isOpen) return null;
 
+  const accountOptions = accounts.map(account => ({ value: account.id, label: account.name }));
+
   return (
     <div
       className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4"
@@ -44,78 +48,70 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
       role="dialog"
     >
       <div
-        className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-700/50 opacity-0 animate-scaleIn"
+        className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-slate-700/50 opacity-0 animate-scaleIn"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold text-white mb-6">Transfer Funds</h2>
-        {error && <p className="text-rose-400 text-sm mb-4 text-center animate-pulse">{error}</p>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="fromAccount" className={labelStyle}>From</label>
-              <select
-                id="fromAccount"
-                value={fromAccountId}
-                onChange={e => setFromAccountId(e.target.value)}
-                className={inputStyle}
-              >
-                {accounts.map(account => (
-                  <option key={account.id} value={account.id}>{account.name}</option>
-                ))}
-              </select>
+        <ModalHeader title="Transfer Funds" onClose={onClose} />
+        <div className="p-6">
+          {error && <p className="text-rose-400 text-sm mb-4 text-center animate-pulse">{error}</p>}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelStyle}>From</label>
+                <CustomSelect
+                  value={fromAccountId}
+                  onChange={setFromAccountId}
+                  options={accountOptions}
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>To</label>
+                <CustomSelect
+                  value={toAccountId}
+                  onChange={setToAccountId}
+                  options={accountOptions}
+                />
+              </div>
             </div>
             <div>
-              <label htmlFor="toAccount" className={labelStyle}>To</label>
-              <select
-                id="toAccount"
-                value={toAccountId}
-                onChange={e => setToAccountId(e.target.value)}
+              <label htmlFor="amount" className={labelStyle}>Amount</label>
+              <input
+                type="number"
+                id="amount"
+                value={amount}
+                onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                step="0.01"
+                placeholder="0.00"
                 className={inputStyle}
-              >
-                {accounts.map(account => (
-                  <option key={account.id} value={account.id}>{account.name}</option>
-                ))}
-              </select>
+              />
             </div>
-          </div>
-          <div>
-            <label htmlFor="amount" className={labelStyle}>Amount</label>
-            <input
-              type="number"
-              id="amount"
-              value={amount}
-              onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
-              step="0.01"
-              placeholder="0.00"
-              className={inputStyle}
-            />
-          </div>
-          <div>
-            <label htmlFor="notes" className={labelStyle}>Notes (Optional)</label>
-            <textarea
-              id="notes"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              className={`${inputStyle} resize-none`}
-            />
-          </div>
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className={secondaryButtonStyle}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={primaryButtonStyle}
-            >
-              Transfer
-            </button>
-          </div>
-        </form>
+            <div>
+              <label htmlFor="notes" className={labelStyle}>Notes (Optional)</label>
+              <textarea
+                id="notes"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={2}
+                className={`${inputStyle} resize-none`}
+              />
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className={secondaryButtonStyle}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className={primaryButtonStyle}
+              >
+                Transfer
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DateRange, CustomDateRange } from '../types';
+import CustomSelect from './CustomSelect';
+import CustomDatePicker from './CustomDatePicker';
 
 interface TransactionFiltersProps {
   searchQuery: string;
@@ -26,10 +28,13 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
     setShowCustom(dateFilter === 'custom');
   }, [dateFilter]);
   
-  const handleDateFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = e.target.value as DateRange;
-      setDateFilter(value);
-  }
+  const dateFilterOptions = [
+    { value: 'all', label: 'All Time' },
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'custom', label: 'Custom Range' },
+  ];
 
   return (
     <div className="p-4 rounded-xl glass-card space-y-4">
@@ -44,26 +49,20 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <select value={dateFilter} onChange={handleDateFilterChange} className={inputStyle}>
-          <option value="all">All Time</option>
-          <option value="today">Today</option>
-          <option value="week">This Week</option>
-          <option value="month">This Month</option>
-          <option value="custom">Custom Range</option>
-        </select>
+        <CustomSelect
+          value={dateFilter}
+          onChange={(value) => setDateFilter(value as DateRange)}
+          options={dateFilterOptions}
+        />
         {showCustom && (
             <div className="sm:col-span-2 grid grid-cols-2 gap-4 opacity-0 animate-fadeInUp">
-              <input
-                type="date"
-                value={customDateRange.start ? customDateRange.start.toISOString().split('T')[0] : ''}
-                onChange={e => setCustomDateRange(prev => ({ ...prev, start: e.target.value ? new Date(e.target.value) : null }))}
-                className={inputStyle}
+              <CustomDatePicker
+                value={customDateRange.start}
+                onChange={date => setCustomDateRange(prev => ({ ...prev, start: date }))}
               />
-              <input
-                type="date"
-                value={customDateRange.end ? customDateRange.end.toISOString().split('T')[0] : ''}
-                onChange={e => setCustomDateRange(prev => ({ ...prev, end: e.target.value ? new Date(e.target.value) : null }))}
-                className={inputStyle}
+              <CustomDatePicker
+                value={customDateRange.end}
+                onChange={date => setCustomDateRange(prev => ({ ...prev, end: date }))}
               />
             </div>
         )}

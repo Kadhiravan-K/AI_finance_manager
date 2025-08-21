@@ -1,4 +1,4 @@
-import { Transaction, Account, Category } from '../types';
+import { Transaction, Account, Category, Sender } from '../types';
 
 const getCategoryPath = (categoryId: string, categories: Category[]): string => {
     const path: string[] = [];
@@ -10,11 +10,18 @@ const getCategoryPath = (categoryId: string, categories: Category[]): string => 
     return path.join(' / ') || 'Uncategorized';
 };
 
+// Security enhancement: Sanitize cells to prevent CSV Injection
 const escapeCsvCell = (cell: string | number | undefined | null): string => {
     if (cell === undefined || cell === null) {
         return '';
     }
-    const cellString = String(cell);
+    let cellString = String(cell);
+    
+    // If the cell starts with a character that could trigger a formula in a spreadsheet, prepend a single quote
+    if (['=', '+', '-', '@'].includes(cellString.charAt(0))) {
+        cellString = `'` + cellString;
+    }
+
     if (cellString.includes(',') || cellString.includes('"') || cellString.includes('\n')) {
         return `"${cellString.replace(/"/g, '""')}"`;
     }
@@ -25,6 +32,7 @@ export const exportTransactionsToCsv = (
     transactions: Transaction[],
     accounts: Account[],
     categories: Category[],
+    senders: Sender[],
     startDateStr: string,
     endDateStr: string
 ) => {
@@ -42,11 +50,12 @@ export const exportTransactionsToCsv = (
     });
 
     const headers = [
-        'Date', 'Account', 'Description', 'Income', 'Expense', 'Category', 'Notes'
+        'Date', 'Account', 'Description', 'Income', 'Expense', 'Category', 'Sender', 'Notes'
     ];
 
     const rows = filteredTransactions.map(t => {
         const account = accounts.find(a => a.id === t.accountId);
+        const sender = t.senderId ? senders.find(s => s.id === t.senderId) : null;
         return [
             new Date(t.date).toLocaleDateString(),
             account ? account.name : 'Unknown',
@@ -54,6 +63,7 @@ export const exportTransactionsToCsv = (
             t.type === 'income' ? t.amount : '',
             t.type === 'expense' ? t.amount : '',
             getCategoryPath(t.categoryId, categories),
+            sender ? sender.name : '',
             t.notes || ''
         ].map(escapeCsvCell).join(',');
     });
