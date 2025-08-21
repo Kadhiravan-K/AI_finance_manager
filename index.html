@@ -126,6 +126,14 @@
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
       }
 
+      /* Custom Form Controls */
+      input[type="date"] {
+        border-radius: 0.5rem;
+      }
+      input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.6);
+      }
+
       /* Custom Select Dropdown */
       select {
         -webkit-appearance: none;
@@ -136,6 +144,7 @@
         background-position: right 0.75rem center;
         background-size: 1.25em 1.25em;
         padding-right: 2.5rem; /* Make room for the arrow */
+        border-radius: 0.5rem;
       }
     </style>
     <script type="importmap">
@@ -144,6 +153,7 @@
     "@google/genai": "https://esm.sh/@google/genai@^1.15.0",
     "react/": "https://esm.sh/react@^19.1.1/",
     "react": "https://esm.sh/react@^19.1.1",
+    "react-dom/client": "https://esm.sh/react-dom@^19.1.1/client",
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/"
   }
 }

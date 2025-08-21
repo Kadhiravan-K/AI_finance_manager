@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType } from '../types';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface BudgetsModalProps {
   isOpen: boolean;
@@ -10,13 +11,10 @@ interface BudgetsModalProps {
   onSaveBudget: (categoryId: string, amount: number) => void;
 }
 
-const CurrencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-});
-
 const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories, transactions, budgets, onSaveBudget }) => {
   const [budgetAmounts, setBudgetAmounts] = useState<Record<string, string>>({});
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const formatCurrency = useCurrencyFormatter();
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
@@ -55,11 +53,23 @@ const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories
     }
   };
   
-  const topLevelCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(categoryId)) {
+            newSet.delete(categoryId);
+        } else {
+            newSet.add(categoryId);
+        }
+        return newSet;
+    });
+  };
+  
+  const topLevelCategories = useMemo(() => categories.filter(c => !c.parentId && c.type === TransactionType.EXPENSE), [categories]);
 
   if (!isOpen) return null;
 
-  const renderCategoryBudget = (category: Category, level = 0) => {
+  const renderCategoryBudget = (category: Category) => {
     const budget = budgets.find(b => b.categoryId === category.id && b.month === currentMonth);
     const spent = monthlySpending[category.id] || 0;
     const percentage = budget ? (spent / budget.amount) * 100 : 0;
@@ -69,44 +79,56 @@ const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories
     if (percentage > 100) progressBarColor = 'bg-rose-500';
 
     const children = categories.filter(c => c.parentId === category.id);
+    const isExpanded = expandedCategories.has(category.id);
 
     return (
-      <div key={category.id} style={{ marginLeft: `${level * 1}rem` }}>
-        <div className="p-3 bg-slate-700/50 rounded-lg my-2 transition-colors hover:bg-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 font-medium">
-              <span className="text-lg">{category.icon}</span>
-              {category.name}
-            </span>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                placeholder={budget ? CurrencyFormatter.format(budget.amount) : 'Set Budget'}
-                value={budgetAmounts[category.id] || ''}
-                onChange={(e) => handleBudgetChange(category.id, e.target.value)}
-                onBlur={() => handleBudgetSave(category.id)}
-                className="w-28 text-right bg-slate-800 border border-slate-600 rounded-md py-1 px-2 focus:ring-1 focus:ring-emerald-500"
-              />
+      <div key={category.id} className="bg-slate-700/50 rounded-lg my-2 transition-colors hover:bg-slate-700">
+        <div 
+          className="p-3 flex items-center justify-between cursor-pointer"
+          onClick={() => toggleCategory(category.id)}
+        >
+          <span className="flex items-center gap-2 font-medium">
+            <span className="text-lg">{category.icon}</span>
+            {category.name}
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              placeholder={budget ? formatCurrency(budget.amount) : 'Set Budget'}
+              value={budgetAmounts[category.id] || ''}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleBudgetChange(category.id, e.target.value)
+              }}
+              onBlur={(e) => {
+                e.stopPropagation();
+                handleBudgetSave(category.id);
+              }}
+              onClick={e => e.stopPropagation()}
+              className="w-28 text-right bg-slate-800 border border-slate-600 rounded-md py-1 px-2 focus:ring-1 focus:ring-emerald-500"
+            />
+            {children.length > 0 && (
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+            )}
+          </div>
+        </div>
+        {budget && (
+          <div className="px-3 pb-3">
+            <div className="flex justify-between text-xs text-slate-400 mb-1">
+              <span>{formatCurrency(spent)}</span>
+              <span>{formatCurrency(budget.amount)}</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${progressBarColor} transition-all duration-500`}
+                style={{ width: `${Math.min(percentage, 100)}%` }}
+              ></div>
             </div>
           </div>
-          {budget && (
-            <div className="mt-2">
-              <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>{CurrencyFormatter.format(spent)}</span>
-                <span>{CurrencyFormatter.format(budget.amount)}</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full ${progressBarColor} transition-all duration-500`}
-                  style={{ width: `${Math.min(percentage, 100)}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-        </div>
-        {children.length > 0 && (
-          <div className="border-l-2 border-slate-700 pl-2">
-            {children.map(child => renderCategoryBudget(child, level + 1))}
+        )}
+        {isExpanded && children.length > 0 && (
+          <div className="pl-6 pr-3 pb-3 border-t border-slate-600/50 pt-2">
+            {children.map(child => renderCategoryBudget(child))}
           </div>
         )}
       </div>

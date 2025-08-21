@@ -1,17 +1,25 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget } from '../types';
+
+
+import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal } from '../types';
 import { parseTransactionText } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
-import TransactionForm from './PromptForm';
+import QuickAddForm from './PromptForm';
 import FinanceDisplay from './StoryDisplay';
 import AccountSelector from './AccountSelector';
 import EditTransactionModal from './EditTransactionModal';
-import CategoryManagerModal from './CategoryManagerModal';
-import EditCategoryModal from './EditCategoryModal';
 import TransferModal from './TransferModal';
 import ReportsModal from './ReportsModal';
 import BudgetsModal from './BudgetsModal';
-
+import SettingsModal from './SettingsModal';
+import ScheduledPaymentsModal from './ScheduledPaymentsModal';
+import { SettingsContext } from '../contexts/SettingsContext';
+import { calculateNextDueDate } from '../utils/date';
+import AppSettingsModal from './AppSettingsModal';
+import CategoryManagerModal from './CategoryManagerModal';
+import EditCategoryModal from './EditCategoryModal';
+import PayeesModal from './PayeesModal';
+import ExportModal from './ExportModal';
 
 const generateCategories = (): Category[] => {
   const categories: Category[] = [];
@@ -146,7 +154,7 @@ const generateCategories = (): Category[] => {
   add(TransactionType.EXPENSE, 'Gifts', 'Events & Occasions', '🎁');
   add(TransactionType.EXPENSE, 'Marriage Functions', 'Events & Occasions', '💍');
   add(TransactionType.EXPENSE, 'Birthday Treats', 'Events & Occasions', '🎂');
-  add(TransactionType.EXPENSE, 'Festival Celebrations', 'Events & Occasions', '🪔');
+  add(TransactionType.EXPENSE, 'Festival Celebrations', 'Events & Occasions', '🔔');
 
   add(TransactionType.EXPENSE, 'Miscellaneous', null, '🧰');
   add(TransactionType.EXPENSE, 'Donations / Charity', 'Miscellaneous', '🤲');
@@ -170,31 +178,20 @@ const DEFAULT_ACCOUNTS = () => {
 
 
 interface FinanceTrackerProps {
-  isCategoryManagerOpen: boolean;
-  onCloseCategoryManager: () => void;
-  isTransferModalOpen: boolean;
-  onCloseTransferModal: () => void;
-  isReportsModalOpen: boolean;
-  onCloseReportsModal: () => void;
-  isBudgetsModalOpen: boolean;
-  onCloseBudgetsModal: () => void;
+  activeModal: ActiveModal;
+  setActiveModal: (modal: ActiveModal) => void;
 }
 
 const FinanceTracker: React.FC<FinanceTrackerProps> = ({ 
-  isCategoryManagerOpen, 
-  onCloseCategoryManager,
-  isTransferModalOpen,
-  onCloseTransferModal,
-  isReportsModalOpen,
-  onCloseReportsModal,
-  isBudgetsModalOpen,
-  onCloseBudgetsModal,
+  activeModal,
+  setActiveModal,
 }) => {
   const [text, setText] = useState<string>('');
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
   const [accounts, setAccounts] = useLocalStorage<Account[]>('finance-tracker-accounts', DEFAULT_ACCOUNTS);
-  const [categories, setCategories] = useLocalStorage<Category[]>('finance-tracker-categories', DEFAULT_CATEGORIES);
+  const { categories, setCategories, payees, setPayees } = useContext(SettingsContext);
   const [budgets, setBudgets] = useLocalStorage<Budget[]>('finance-tracker-budgets', []);
+  const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('finance-tracker-recurring', []);
   const [selectedAccountId, setSelectedAccountId] = useLocalStorage<string>('finance-tracker-selected-account-id', accounts[0]?.id || 'all');
   
   const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
@@ -208,13 +205,15 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
   const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
 
   useEffect(() => {
-    // This effect ensures that if accounts are loaded for the first time,
-    // the selected account is set to the first one.
+    const storedCategories = localStorage.getItem('finance-tracker-categories');
+    if (!storedCategories) {
+        setCategories(DEFAULT_CATEGORIES);
+    }
     const currentSelected = accounts.find((acc: Account) => acc.id === selectedAccountId);
     if (!currentSelected && selectedAccountId !== 'all' && accounts.length > 0) {
         setSelectedAccountId(accounts[0].id);
     }
-  }, [accounts, selectedAccountId, setSelectedAccountId]);
+  }, [accounts, selectedAccountId, setSelectedAccountId, setCategories]);
   
   const findOrCreateCategory = useCallback((fullName: string, type: TransactionType): string => {
       const parts = fullName.split('/').map(p => p.trim());
@@ -256,7 +255,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       return setStatus(ProcessingStatus.ERROR);
     }
     if (!text.trim()) {
-      setError('Please paste a transaction message.');
+      setError('Please paste a transaction message or use quick add format (e.g., "Lunch 500").');
       return setStatus(ProcessingStatus.ERROR);
     }
 
@@ -266,16 +265,28 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     try {
       const parsed = await parseTransactionText(text);
       if (parsed) {
-        const categoryId = findOrCreateCategory(parsed.categoryName, parsed.type);
+        let categoryId = '';
+        let description = parsed.description;
+
+        const matchingPayee = parsed.payeeIdentifier ? payees.find(p => p.identifier.toLowerCase() === parsed.payeeIdentifier?.toLowerCase()) : null;
+        
+        if(matchingPayee) {
+            categoryId = matchingPayee.defaultCategoryId;
+            description = matchingPayee.name;
+        } else {
+            categoryId = findOrCreateCategory(parsed.categoryName, parsed.type);
+        }
+
         const newTransaction: Transaction = {
           id: parsed.id,
           accountId: selectedAccountId,
-          description: parsed.description,
+          description: description,
           amount: parsed.amount,
           type: parsed.type,
           categoryId: categoryId,
           date: parsed.date,
           notes: parsed.notes,
+          payeeIdentifier: parsed.payeeIdentifier
         };
         setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         setStatus(ProcessingStatus.SUCCESS);
@@ -289,7 +300,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       setError(errorMessage);
       setStatus(ProcessingStatus.ERROR);
     }
-  }, [text, selectedAccountId, findOrCreateCategory, setTransactions]);
+  }, [text, selectedAccountId, findOrCreateCategory, setTransactions, payees]);
 
   const handleAddAccount = (name: string) => {
     const newAccount = { id: self.crypto.randomUUID(), name };
@@ -336,7 +347,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     };
     
     setTransactions(prev => [incomeTransaction, expenseTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    onCloseTransferModal();
+    setActiveModal(null);
   };
 
   const handleDeleteTransaction = (id: string) => {
@@ -357,24 +368,6 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     setEditingTransaction(null);
   };
   
-  const handleAddNewCategory = (category: Omit<Category, 'id'>) => {
-    const newCategory = { ...category, id: self.crypto.randomUUID() };
-    setCategories(prev => [...prev, newCategory]);
-  };
-
-  const handleUpdateCategory = (updatedCategory: Category) => {
-    setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
-    setEditingCategory(null);
-  };
-  
-  const handleDeleteCategory = (categoryId: string) => {
-    const childIds = categories.filter(c => c.parentId === categoryId).map(c => c.id);
-    const idsToDelete = [categoryId, ...childIds];
-    // Also remove budgets associated with deleted categories
-    setBudgets(prev => prev.filter(b => !idsToDelete.includes(b.categoryId)));
-    setCategories(prev => prev.filter(c => !idsToDelete.includes(c.id)));
-  };
-
   const handleSaveBudget = (categoryId: string, amount: number) => {
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -386,6 +379,42 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
         return [...prev, { categoryId, amount, month }];
     });
   };
+
+  const handlePayRecurring = (item: RecurringTransaction) => {
+      const newTransaction: Transaction = {
+          id: self.crypto.randomUUID(),
+          accountId: item.accountId,
+          description: item.description,
+          amount: item.amount,
+          type: item.type,
+          categoryId: item.categoryId,
+          date: new Date().toISOString(),
+          notes: item.notes,
+      };
+      setTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+      const nextDueDate = calculateNextDueDate(item.nextDueDate, item.frequency);
+      setRecurringTransactions(prev => prev.map(r => r.id === item.id ? { ...r, nextDueDate: nextDueDate.toISOString() } : r));
+  };
+  
+  const handleAddNewCategory = (category: Omit<Category, 'id'>) => {
+    const newCategory = { ...category, id: self.crypto.randomUUID() };
+    setCategories(prev => [...prev, newCategory]);
+  };
+
+  const handleUpdateCategory = (updatedCategory: Category) => {
+    setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+    setEditingCategory(null);
+  };
+  
+  const handleDeleteCategory = (categoryId: string) => {
+    if (window.confirm("Are you sure you want to delete this category? This will also delete all its subcategories.")) {
+      const childIds = categories.filter(c => c.parentId === categoryId).map(c => c.id);
+      const idsToDelete = [categoryId, ...childIds];
+      setCategories(prev => prev.filter(c => !idsToDelete.includes(c.id)));
+    }
+  };
+
 
   const filteredTransactions = useMemo(() => {
     let result = transactions;
@@ -427,7 +456,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
                 break;
             case 'custom':
                 startDate = customDateRange.start;
-                endDate = customDateRange.end ? new Date(customDateRange.end.getTime() + 86400000) : null; // Add one day to end date
+                endDate = customDateRange.end ? new Date(customDateRange.end.getTime() + 86400000) : null;
                 break;
         }
 
@@ -451,6 +480,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
   }, [filteredTransactions]);
 
   const isFormDisabled = selectedAccountId === 'all' || status === ProcessingStatus.LOADING;
+  const handleCloseActiveModal = () => setActiveModal(null);
 
   return (
     <div className="flex flex-col flex-grow h-full">
@@ -464,9 +494,11 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
         <FinanceDisplay
             status={status}
             transactions={filteredTransactions}
+            allTransactions={transactions}
             categories={categories}
             budgets={budgets}
-            allTransactions={transactions}
+            recurringTransactions={recurringTransactions}
+            onPayRecurring={handlePayRecurring}
             error={error}
             income={dashboardData.income}
             expense={dashboardData.expense}
@@ -481,7 +513,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
         />
       </div>
       <div className="flex-shrink-0 pt-2">
-        <TransactionForm
+        <QuickAddForm
           text={text}
           setText={setText}
           onSubmit={handleAddTransaction}
@@ -496,52 +528,90 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
           onSave={handleUpdateTransaction}
           onCancel={() => setEditingTransaction(null)}
           accounts={accounts}
-          categories={categories}
         />
       )}
-      {isTransferModalOpen && (
+      {activeModal === 'transfer' && (
         <TransferModal
-            isOpen={isTransferModalOpen}
-            onClose={onCloseTransferModal}
+            isOpen={true}
+            onClose={handleCloseActiveModal}
             accounts={accounts}
             onTransfer={handleAccountTransfer}
         />
       )}
-      {isCategoryManagerOpen && (
-        <CategoryManagerModal
-          isOpen={isCategoryManagerOpen}
-          onClose={onCloseCategoryManager}
-          categories={categories}
-          onAddNewCategory={handleAddNewCategory}
-          onEditCategory={setEditingCategory}
-          onDeleteCategory={handleDeleteCategory}
-        />
+      {activeModal === 'settings' && (
+          <SettingsModal
+            onClose={handleCloseActiveModal}
+            setActiveModal={setActiveModal}
+          />
       )}
-      {editingCategory && (
-        <EditCategoryModal
-            category={editingCategory}
+       {activeModal === 'appSettings' && (
+          <AppSettingsModal
+            isOpen={true}
+            onClose={() => setActiveModal('settings')}
+          />
+      )}
+       {activeModal === 'categories' && (
+          <CategoryManagerModal
+            isOpen={true}
+            onClose={() => setActiveModal('settings')}
             categories={categories}
-            onSave={handleUpdateCategory}
-            onCancel={() => setEditingCategory(null)}
+            onAddNewCategory={handleAddNewCategory}
+            onEditCategory={setEditingCategory}
+            onDeleteCategory={handleDeleteCategory}
+          />
+      )}
+       {editingCategory && (
+          <EditCategoryModal 
+            category={editingCategory} 
+            categories={categories} 
+            onSave={handleUpdateCategory} 
+            onCancel={() => setEditingCategory(null)} 
+          />
+      )}
+       {activeModal === 'payees' && (
+          <PayeesModal
+            isOpen={true}
+            onClose={() => setActiveModal('settings')}
+            payees={payees}
+            setPayees={setPayees}
+            categories={categories}
+          />
+      )}
+      {activeModal === 'export' && (
+        <ExportModal 
+          onClose={() => setActiveModal('settings')}
+          transactions={transactions}
+          accounts={accounts}
+          categories={categories}
         />
       )}
-      {isReportsModalOpen && (
+      {activeModal === 'reports' && (
           <ReportsModal
-            isOpen={isReportsModalOpen}
-            onClose={onCloseReportsModal}
+            isOpen={true}
+            onClose={handleCloseActiveModal}
             transactions={transactions}
             categories={categories}
           />
       )}
-      {isBudgetsModalOpen && (
+      {activeModal === 'budgets' && (
           <BudgetsModal
-            isOpen={isBudgetsModalOpen}
-            onClose={onCloseBudgetsModal}
+            isOpen={true}
+            onClose={handleCloseActiveModal}
             categories={categories.filter(c => c.type === TransactionType.EXPENSE)}
             transactions={transactions}
             budgets={budgets}
             onSaveBudget={handleSaveBudget}
           />
+      )}
+      {activeModal === 'scheduled' && (
+        <ScheduledPaymentsModal
+          isOpen={true}
+          onClose={handleCloseActiveModal}
+          recurringTransactions={recurringTransactions}
+          setRecurringTransactions={setRecurringTransactions}
+          categories={categories}
+          accounts={accounts}
+        />
       )}
     </div>
   );

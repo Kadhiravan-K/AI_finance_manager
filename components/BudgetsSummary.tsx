@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType } from '../types';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface BudgetsSummaryProps {
   budgets: Budget[];
@@ -7,13 +8,8 @@ interface BudgetsSummaryProps {
   categories: Category[];
 }
 
-const CurrencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 0,
-});
-
 const BudgetsSummary: React.FC<BudgetsSummaryProps> = ({ budgets, transactions, categories }) => {
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0 });
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   const budgetData = useMemo(() => {
@@ -69,7 +65,7 @@ const BudgetsSummary: React.FC<BudgetsSummaryProps> = ({ budgets, transactions, 
                 {budget.categoryName}
               </span>
               <span className="text-slate-400">
-                {CurrencyFormatter.format(budget.spent)} / <span className="text-slate-200">{CurrencyFormatter.format(budget.amount)}</span>
+                {formatCurrency(budget.spent)} / <span className="text-slate-200">{formatCurrency(budget.amount)}</span>
               </span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2.5">

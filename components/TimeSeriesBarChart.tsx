@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Transaction, ReportPeriod, TransactionType } from '../types';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface TimeSeriesBarChartProps {
   title: string;
@@ -8,13 +9,9 @@ interface TimeSeriesBarChartProps {
   type: TransactionType;
 }
 
-const CurrencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-});
-
 const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transactions, period, type }) => {
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0 });
+
   const chartData = useMemo(() => {
     const dataMap: Record<string, number> = {};
     
@@ -23,8 +20,8 @@ const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transact
       let key = '';
       if (period === 'year') {
         key = date.toLocaleString('default', { month: 'short' });
-      } else { // week or month
-        key = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+      } else { // week or month or custom
+        key = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
       }
       
       if (!dataMap[key]) dataMap[key] = 0;
@@ -37,11 +34,10 @@ const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transact
       const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       sortedData.sort(([a], [b]) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
     } else {
-        // Sort by date for week/month view
+        // Sort by date for week/month/custom view
         sortedData.sort(([a], [b]) => {
-            // A bit of a hack to extract the date part for sorting
-            const dateA = new Date(`${a.split(' ')[1]} ${new Date().getFullYear()}`);
-            const dateB = new Date(`${b.split(' ')[1]} ${new Date().getFullYear()}`);
+            const dateA = new Date(a);
+            const dateB = new Date(b);
             return dateA.getTime() - dateB.getTime();
         });
     }
@@ -73,11 +69,11 @@ const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transact
                 style={{ height: `${chartData.data[index].height}%`, animation: 'growUp 1s ease-out forwards' }}
               >
                   <div className="absolute bottom-full mb-1 w-max px-2 py-1 bg-slate-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    {CurrencyFormatter.format(chartData.data[index].amount)}
+                    {formatCurrency(chartData.data[index].amount)}
                   </div>
               </div>
             </div>
-            <span className="text-xs text-slate-400 mt-2">{label}</span>
+            <span className="text-xs text-slate-400 mt-2 text-center">{label}</span>
           </div>
         )) : <p className="w-full text-center text-slate-400">No trend data for this period.</p>}
       </div>

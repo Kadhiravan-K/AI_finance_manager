@@ -64,12 +64,23 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({ isOpen, onC
   const renderTopLevelList = (type: TransactionType) => {
     const topLevel = categories.filter(c => c.type === type && !c.parentId);
     return topLevel.map(parent => (
-        <div key={parent.id} onClick={() => handleParentClick(parent)} className="flex items-center justify-between p-2 bg-slate-700/50 rounded-lg group cursor-pointer hover:bg-slate-700 transition-all duration-200 hover:scale-[1.02]">
-          <span className="flex items-center gap-3">
-            <span className="text-xl w-6 text-center">{parent.icon || '📁'}</span>
-            <span className="font-medium text-slate-200">{parent.name}</span>
-          </span>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+        <div key={parent.id} className="flex items-center justify-between p-2 bg-slate-700/50 rounded-lg group transition-all duration-200 hover:bg-slate-700 hover:scale-[1.02]">
+            <div onClick={() => handleParentClick(parent)} className="flex-grow flex items-center gap-3 cursor-pointer">
+                <span className="text-xl w-6 text-center">{parent.icon || '📁'}</span>
+                <span className="font-medium text-slate-200">{parent.name}</span>
+            </div>
+            <div className="flex items-center space-x-1 flex-shrink-0">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onEditCategory(parent); }} 
+                    className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                    aria-label={`Edit ${parent.name} category`}
+                >
+                    Edit
+                </button>
+                <div onClick={() => handleParentClick(parent)} className="p-1 cursor-pointer">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                </div>
+            </div>
         </div>
     ));
   };

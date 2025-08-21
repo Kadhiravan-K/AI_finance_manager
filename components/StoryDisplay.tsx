@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
+import UpcomingBills from './UpcomingBills';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -10,6 +12,8 @@ interface FinanceDisplayProps {
   allTransactions: Transaction[];
   categories: Category[];
   budgets: Budget[];
+  recurringTransactions: RecurringTransaction[];
+  onPayRecurring: (item: RecurringTransaction) => void;
   error: string;
   income: number;
   expense: number;
@@ -22,12 +26,6 @@ interface FinanceDisplayProps {
   customDateRange: CustomDateRange;
   setCustomDateRange: React.Dispatch<React.SetStateAction<CustomDateRange>>;
 }
-
-const CurrencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD', // This can be changed to any currency
-    minimumFractionDigits: 2,
-});
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => {
     return categories.find(c => c.id === categoryId);
@@ -59,15 +57,18 @@ const formatDateGroup = (dateString: string) => {
     });
 };
 
-const DashboardCard = ({ title, amount, colorClass, children }: {title: string, amount: number, colorClass: string, children: React.ReactNode}) => (
-    <div className={`p-4 rounded-xl glass-card transition-all duration-300 hover:bg-slate-800/80 hover:shadow-xl hover:-translate-y-1 hover:border-slate-600`}>
-        <div className="flex items-center justify-between text-sm text-slate-400 mb-1">
-          <span>{title}</span>
-          {children}
+const DashboardCard = ({ title, amount, colorClass, children }: {title: string, amount: number, colorClass: string, children: React.ReactNode}) => {
+    const formatCurrency = useCurrencyFormatter();
+    return (
+        <div className={`p-4 rounded-xl glass-card transition-all duration-300 hover:bg-slate-800/80 hover:shadow-xl hover:-translate-y-1 hover:border-slate-600`}>
+            <div className="flex items-center justify-between text-sm text-slate-400 mb-1">
+              <span>{title}</span>
+              {children}
+            </div>
+            <p className={`text-2xl font-bold ${colorClass}`}>{formatCurrency(amount)}</p>
         </div>
-        <p className={`text-2xl font-bold ${colorClass}`}>{CurrencyFormatter.format(amount)}</p>
-    </div>
-);
+    );
+};
 
 
 const Dashboard = ({ income, expense }: { income: number, expense: number }) => {
@@ -90,6 +91,7 @@ const Dashboard = ({ income, expense }: { income: number, expense: number }) => 
 const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete, style }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, style: React.CSSProperties }) => {
     const isIncome = transaction.type === TransactionType.INCOME;
     const isTransfer = !!transaction.transferId;
+    const formatCurrency = useCurrencyFormatter();
 
     return (
         <li style={style} className="flex items-center justify-between glass-card p-3 rounded-xl group transition-all duration-300 hover:bg-slate-800/80 hover:shadow-xl hover:-translate-y-1 hover:shadow-slate-900/50 hover:border-slate-600">
@@ -105,7 +107,7 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
                 <span className={`font-semibold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {isIncome ? '+' : '-'}{CurrencyFormatter.format(transaction.amount)}
+                    {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
                 </span>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
                     {!isTransfer && (
@@ -122,7 +124,7 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, categories, budgets, error, income, expense, onEdit, onDelete, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, categories, budgets, recurringTransactions, onPayRecurring, error, income, expense, onEdit, onDelete, ...filterProps }) => {
     
     const groupedTransactions = useMemo(() => {
         return transactions.reduce((acc, t) => {
@@ -150,6 +152,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
     return (
         <div>
             <Dashboard income={income} expense={expense} />
+            <UpcomingBills recurringTransactions={recurringTransactions} onPay={onPayRecurring} categories={categories} />
             <BudgetsSummary budgets={budgets} transactions={allTransactions} categories={categories} />
             {renderContent()}
             

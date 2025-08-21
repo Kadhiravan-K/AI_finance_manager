@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Transaction, TransactionType, Category } from '../types';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface CategoryPieChartProps {
   title: string;
@@ -18,19 +19,6 @@ const COLORS = [
   '#ec4899', // pink-500
   '#64748b', // slate-500
 ];
-
-const TotalCurrencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-});
-
-const ItemCurrencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-});
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => {
     return categories.find(c => c.id === categoryId);
@@ -73,6 +61,9 @@ const PieSlice = ({ percentage, startPercentage, color }: { percentage: number, 
 
 
 const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type }) => {
+  const formatTotal = useCurrencyFormatter();
+  const formatItem = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
   const categoryData = useMemo(() => {
     const filtered = transactions.filter(t => t.type === type);
     const totals = filtered.reduce((acc, t) => {
@@ -121,7 +112,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
     <div className={cardBaseStyle}>
       <h3 className="text-lg font-bold mb-4 text-slate-200">
           {title}
-          <span className="block text-sm font-normal text-slate-400">{TotalCurrencyFormatter.format(categoryData.totalAmount)}</span>
+          <span className="block text-sm font-normal text-slate-400">{formatTotal(categoryData.totalAmount)}</span>
       </h3>
       <div className="grid grid-cols-2 items-center gap-4">
         <div className="relative w-full aspect-square">
@@ -141,7 +132,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
                         <span className="text-lg flex-shrink-0">{category.icon || '📁'}</span>
                         <span className="text-slate-300 truncate" title={category.name}>{category.name}</span>
                     </div>
-                    <span className="font-semibold text-slate-400 ml-2 flex-shrink-0">{ItemCurrencyFormatter.format(category.amount)}</span>
+                    <span className="font-semibold text-slate-400 ml-2 flex-shrink-0">{formatItem(category.amount)}</span>
                 </div>
             ))}
         </div>

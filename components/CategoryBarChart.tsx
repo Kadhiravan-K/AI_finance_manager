@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Transaction, TransactionType, Category } from '../types';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface CategoryBarChartProps {
   title: string;
@@ -11,12 +12,6 @@ interface CategoryBarChartProps {
 const COLORS = [
   '#10b981', '#3b82f6', '#ef4444', '#f97316', '#8b5cf6', '#eab308', '#ec4899', '#64748b'
 ];
-
-const CurrencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-});
 
 const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
     let current = categories.find(c => c.id === categoryId);
@@ -30,6 +25,8 @@ const getTopLevelCategory = (categoryId: string, categories: Category[]): Catego
 };
 
 const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions, categories, type }) => {
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0 });
+
   const categoryData = useMemo(() => {
     const topLevelTotals: Record<string, { total: number; icon: string, name: string }> = {};
 
@@ -87,7 +84,7 @@ const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions
                 <span className="text-lg">{category.icon}</span>
                 {category.name}
               </span>
-              <span className="text-slate-200 font-semibold">{CurrencyFormatter.format(category.amount)}</span>
+              <span className="text-slate-200 font-semibold">{formatCurrency(category.amount)}</span>
             </div>
             <div className="w-full bg-slate-700/50 rounded-full h-4 relative overflow-hidden">
               <div
