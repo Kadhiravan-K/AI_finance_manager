@@ -2,16 +2,18 @@ import React from 'react';
 
 interface HeaderProps {
   onOpenTransfer: () => void;
+  isOnline: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onOpenTransfer }) => {
+const Header: React.FC<HeaderProps> = ({ onOpenTransfer, isOnline }) => {
   return (
-    <header className="bg-slate-900/70 backdrop-blur-lg shadow-lg p-4 flex-shrink-0 border-b border-slate-700/50">
+    <header className="relative bg-slate-900/70 backdrop-blur-lg shadow-lg p-4 flex-shrink-0 border-b border-slate-700/50">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-xl shadow-lg shadow-emerald-500/20">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white">
+                <path d="M3 17L9 11L13 15L21 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 7H21V14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight truncate">Personal Finance Hub</h1>
@@ -24,6 +26,11 @@ const Header: React.FC<HeaderProps> = ({ onOpenTransfer }) => {
           </button>
         </div>
       </div>
+      {!isOnline && (
+        <div className="absolute top-full left-0 right-0 bg-rose-600 text-white text-xs text-center py-1 offline-indicator z-20">
+            Offline Mode
+        </div>
+      )}
     </header>
   );
 };

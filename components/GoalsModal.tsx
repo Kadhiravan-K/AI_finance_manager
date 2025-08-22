@@ -101,6 +101,8 @@ const GoalsModal: React.FC<GoalsModalProps> = ({ isOpen, onClose, goals, setGoal
                          <div className="grid grid-cols-2 gap-2">
                              <input 
                                 type="number" 
+                                min="0.01"
+                                step="0.01"
                                 placeholder="Amount" 
                                 value={contributionState.amount}
                                 onChange={e => setContributionState(s => s ? {...s, amount: e.target.value} : null)}
@@ -134,7 +136,7 @@ const GoalsModal: React.FC<GoalsModalProps> = ({ isOpen, onClose, goals, setGoal
                 <input type="text" placeholder="🏆" value={newGoal.icon} onChange={e => setNewGoal(p => ({...p, icon: e.target.value}))} className="w-16 bg-slate-700 p-2 rounded-md text-center border border-slate-600" maxLength={2} />
                 <input type="text" placeholder="Goal Name (e.g., New Laptop)" value={newGoal.name} onChange={e => setNewGoal(p => ({...p, name: e.target.value}))} className="flex-grow bg-slate-700 p-2 rounded-md border border-slate-600" required />
               </div>
-              <input type="number" placeholder="Target Amount" value={newGoal.targetAmount} onChange={e => setNewGoal(p => ({...p, targetAmount: e.target.value}))} className="w-full bg-slate-700 p-2 rounded-md border border-slate-600" required />
+              <input type="number" min="0.01" step="0.01" placeholder="Target Amount" value={newGoal.targetAmount} onChange={e => setNewGoal(p => ({...p, targetAmount: e.target.value}))} className="w-full bg-slate-700 p-2 rounded-md border border-slate-600" required />
               <div className="flex justify-end space-x-2">
                 <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 rounded-lg bg-slate-600">Cancel</button>
                 <button type="submit" className="px-4 py-2 rounded-lg bg-emerald-600">Create Goal</button>

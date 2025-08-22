@@ -10,9 +10,17 @@ export enum TransactionType {
     EXPENSE = 'expense',
 }
 
+export enum AccountType {
+    DEPOSITORY = 'depository', // Checking, Savings, Cash
+    CREDIT = 'credit',       // Credit Cards
+    INVESTMENT = 'investment', // Brokerage accounts
+}
+
 export interface Account {
     id: string;
     name: string;
+    accountType: AccountType;
+    creditLimit?: number;
 }
 
 export interface Category {
@@ -44,6 +52,8 @@ export interface SplitDetail {
     amount: number;
     isSettled: boolean;
     settledDate?: string;
+    percentage?: string;
+    shares?: string;
 }
 
 export interface Transaction {
@@ -59,6 +69,16 @@ export interface Transaction {
     payeeIdentifier?: string;
     senderId?: string;
     splitDetails?: SplitDetail[];
+}
+
+export interface InvestmentHolding {
+    id: string;
+    accountId: string; // The investment account this belongs to
+    name: string;      // e.g., "Apple Inc."
+    ticker?: string;   // e.g., "AAPL"
+    quantity: number;
+    averageCost: number; // The average price paid per share/unit
+    currentValue: number; // The total current market value of this holding
 }
 
 export interface Payee {
@@ -103,6 +123,12 @@ export interface SpamWarning {
     rawText: string;
 }
 
+export interface FeedbackItem {
+    id: string;
+    message: string;
+    timestamp: string;
+}
+
 
 export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -119,9 +145,11 @@ export interface RecurringTransaction {
     notes?: string;
 }
 
+export type Theme = 'light' | 'dark';
 
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
+    theme: Theme;
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -132,4 +160,20 @@ export interface CustomDateRange {
 
 export type ReportPeriod = 'week' | 'month' | 'year' | 'custom';
 
-export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | 'contacts' | null;
+export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | 'contacts' | 'feedback' | 'investments' | 'privacyConsent' | 'onboarding' | null;
+
+// For Backup
+export interface AppState {
+    transactions: Transaction[];
+    accounts: Account[];
+    categories: Category[];
+    budgets: Budget[];
+    recurringTransactions: RecurringTransaction[];
+    goals: Goal[];
+    investmentHoldings: InvestmentHolding[];
+    payees: Payee[];
+    senders: Sender[];
+    contactGroups: ContactGroup[];
+    contacts: Contact[];
+    settings: Settings;
+}

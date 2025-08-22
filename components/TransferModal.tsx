@@ -81,6 +81,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
                 value={amount}
                 onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
                 step="0.01"
+                min="0.01"
                 placeholder="0.00"
                 className={inputStyle}
               />

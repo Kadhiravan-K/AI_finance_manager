@@ -9,7 +9,7 @@ interface FooterProps {
 const FooterNavButton = ({ icon, label, onClick, isActive }: { icon: React.ReactNode, label: string, onClick?: () => void, isActive: boolean }) => (
   <button 
     onClick={onClick} 
-    className={`flex flex-col items-center justify-center space-y-1 transition-all duration-200 w-1/6 ${isActive ? 'text-emerald-400 scale-110' : 'text-slate-400 hover:text-emerald-400'}`}
+    className={`flex flex-col items-center justify-center space-y-1 transition-all duration-200 ${isActive ? 'text-emerald-400 scale-110' : 'text-slate-400 hover:text-emerald-400'}`}
   >
     {icon}
     <span className="text-xs font-medium">{label}</span>
@@ -34,6 +34,12 @@ const Footer: React.FC<FooterProps> = ({ activeModal, setActiveModal }) => {
           isActive={activeModal === 'reports'}
           label="Reports"
           icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
+        />
+        <FooterNavButton 
+          onClick={() => handleNavClick('investments')}
+          isActive={activeModal === 'investments'}
+          label="Investments"
+          icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
         />
         <FooterNavButton 
           onClick={() => handleNavClick('goals')}

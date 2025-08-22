@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
@@ -7,6 +7,8 @@ import UpcomingBills from './UpcomingBills';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import GoalsSummary from './GoalsSummary';
 import DebtsSummary from './DebtsSummary';
+import NetWorthSummary from './NetWorthSummary';
+import PortfolioSummary from './PortfolioSummary';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -17,6 +19,7 @@ interface FinanceDisplayProps {
   budgets: Budget[];
   recurringTransactions: RecurringTransaction[];
   goals: Goal[];
+  investmentHoldings: InvestmentHolding[];
   onPayRecurring: (item: RecurringTransaction) => void;
   error: string;
   income: number;
@@ -141,7 +144,7 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, onPayRecurring, error, income, expense, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, income, expense, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, ...filterProps }) => {
     
     const groupedTransactions = useMemo(() => {
         return transactions.reduce((acc, t) => {
@@ -179,6 +182,8 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
                 </button>
             </div>
             <Dashboard income={income} expense={expense} isVisible={isBalanceVisible} />
+            <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />
+            <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />
             <DebtsSummary transactions={allTransactions} accounts={accounts} onSettle={onSettleDebt} isVisible={isBalanceVisible}/>
             <UpcomingBills recurringTransactions={recurringTransactions} onPay={onPayRecurring} categories={categories} />
             <GoalsSummary goals={goals} isVisible={isBalanceVisible} />

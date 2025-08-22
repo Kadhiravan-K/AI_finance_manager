@@ -46,8 +46,7 @@ const transactionSchema = {
         },
         type: {
             type: Type.STRING,
-            enum: ['income', 'expense'],
-            description: "The type of transaction: 'income' for money received, 'expense' for money spent.",
+            description: "The type of transaction. MUST be either 'income' for money received or 'expense' for money spent.",
         },
         category: {
             type: Type.STRING,

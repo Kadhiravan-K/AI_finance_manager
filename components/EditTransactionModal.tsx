@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
 import { Transaction, TransactionType, Account, Category, Payee, SplitDetail, Contact } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -24,21 +24,13 @@ const secondaryButtonStyle = "px-4 py-2 rounded-lg text-slate-300 bg-slate-700 h
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 
-interface Participant {
-  id: string;
-  contactId: string; // From the main contacts list
-  name: string;
-  amount: number;
-  percentage: string;
-  shares: string;
-}
-
 interface Item {
     id: string; // client-side UUID
     description: string;
     amount: string;
     categoryId: string;
     parentId: string | null;
+    splitMode: SplitMode;
     splitDetails: SplitDetail[];
 }
 
@@ -48,11 +40,11 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const formatCurrency = useCurrencyFormatter({currencyDisplay: 'narrowSymbol'});
   
-  // Itemized Splitting state
   const [isItemized, setIsItemized] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [splittingItemId, setSplittingItemId] = useState<string | null>(null);
-  const [showContactPicker, setShowContactPicker] = useState<string | null>(null); // holds item id
+  const [showContactPicker, setShowContactPicker] = useState<string | null>(null);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setFormData(transaction);
@@ -60,22 +52,81 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     setSelectedParentId(initialCategory?.parentId || (initialCategory ? initialCategory.id : null));
   }, [transaction, categories]);
   
-  // Initialize items when itemization is turned on
   useEffect(() => {
     if (isItemized && items.length === 0) {
       const initialCategory = categories.find(c => c.id === transaction.categoryId);
+      const youSplit: SplitDetail = { 
+        id: 'you', 
+        personName: 'You', 
+        amount: transaction.amount, 
+        isSettled: true,
+        shares: '1',
+        percentage: '100'
+      };
       setItems([{
         id: self.crypto.randomUUID(),
         description: transaction.description,
         amount: String(transaction.amount),
         categoryId: transaction.categoryId,
         parentId: initialCategory?.parentId || null,
-        splitDetails: transaction.splitDetails || [{ id: 'you', personName: 'You', amount: transaction.amount, isSettled: true }]
+        splitMode: 'equally',
+        splitDetails: transaction.splitDetails && transaction.splitDetails.length > 0 ? transaction.splitDetails : [youSplit]
       }]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isItemized, transaction]);
 
+  const calculateSplits = useCallback((participants: SplitDetail[], totalAmount: number, mode: SplitMode): SplitDetail[] => {
+    let newParticipants = [...participants];
+    const numParticipants = newParticipants.length;
+    if (numParticipants === 0) return [];
+
+    switch (mode) {
+        case 'equally':
+            const splitAmount = totalAmount / numParticipants;
+            newParticipants = newParticipants.map(p => ({ ...p, amount: splitAmount }));
+            break;
+        case 'percentage':
+            let totalPercentage = newParticipants.reduce((sum, p) => sum + (parseFloat(p.percentage || '0') || 0), 0);
+            if (totalPercentage === 0) totalPercentage = 100; // Avoid division by zero
+            newParticipants = newParticipants.map(p => {
+                const percentage = parseFloat(p.percentage || '0') || 0;
+                return { ...p, amount: (percentage / totalPercentage) * totalAmount };
+            });
+            break;
+        case 'shares':
+            let totalShares = newParticipants.reduce((sum, p) => sum + (parseFloat(p.shares || '0') || 0), 0);
+            if (totalShares === 0) totalShares = numParticipants; // Avoid division by zero
+            newParticipants = newParticipants.map(p => {
+                const shares = parseFloat(p.shares || '0') || 0;
+                return { ...p, amount: (shares / totalShares) * totalAmount };
+            });
+            break;
+        case 'manual':
+            const zeroAmountParticipants = newParticipants.filter(p => p.amount === 0);
+            if (zeroAmountParticipants.length === 1) {
+                const nonZeroParticipants = newParticipants.filter(p => p.amount !== 0);
+                const sumOfNonZero = nonZeroParticipants.reduce((sum, p) => sum + p.amount, 0);
+                
+                // Check if the sum of non-zero amounts is a valid number and less than the total
+                if (!isNaN(sumOfNonZero) && sumOfNonZero < totalAmount) {
+                    const remainder = totalAmount - sumOfNonZero;
+                    const participantToFill = zeroAmountParticipants[0];
+                    const index = newParticipants.findIndex(p => p.id === participantToFill.id);
+                    if (index !== -1) {
+                        // Create a new array with the updated participant
+                        newParticipants = [
+                            ...newParticipants.slice(0, index),
+                            { ...newParticipants[index], amount: remainder },
+                            ...newParticipants.slice(index + 1),
+                        ];
+                    }
+                }
+            }
+            break;
+    }
+    return newParticipants;
+  }, []);
 
   const handleChange = (name: keyof Transaction, value: any) => {
     let newFormData = { ...formData, [name]: value };
@@ -100,7 +151,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
             description: item.description,
             amount: parseFloat(item.amount) || 0,
             type: TransactionType.EXPENSE,
-            categoryId: item.categoryId,
+            categoryId: item.categoryId || item.parentId!,
             date: formData.date,
             notes: formData.notes,
             payeeIdentifier: formData.payeeIdentifier,
@@ -111,7 +162,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
         onSave({
             action: 'split-and-replace',
             originalTransactionId: transaction.id,
-            newTransactions: newTransactions.filter(t => t.amount > 0), // Don't save zero-amount items
+            newTransactions: newTransactions.filter(t => t.amount > 0),
         });
     } else {
         onSave(formData);
@@ -131,7 +182,18 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
 
   // Item management
   const handleItemChange = (itemId: string, field: keyof Item, value: any) => {
-    setItems(prevItems => prevItems.map(item => (item.id === itemId ? { ...item, [field]: value } : item)));
+    setItems(prevItems => prevItems.map(item => {
+      if (item.id === itemId) {
+        let updatedItem = { ...item, [field]: value };
+        // If amount or split mode changes, recalculate
+        if (field === 'amount' || field === 'splitMode') {
+            const totalAmount = parseFloat(updatedItem.amount) || 0;
+            updatedItem.splitDetails = calculateSplits(updatedItem.splitDetails, totalAmount, updatedItem.splitMode);
+        }
+        return updatedItem;
+      }
+      return item;
+    }));
   };
 
   const handleAddItem = () => {
@@ -141,6 +203,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
       amount: '0',
       categoryId: '',
       parentId: null,
+      splitMode: 'equally',
       splitDetails: []
     }]);
   };
@@ -149,25 +212,84 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     setItems(prev => prev.filter(item => item.id !== itemId));
   };
   
-  // Per-item split management
-  const handleAddParticipant = (itemId: string, contact: Contact) => {
-      setItems(prev => prev.map(item => {
-          if (item.id === itemId && !item.splitDetails.some(p => p.personName === contact.name)) {
-              return { ...item, splitDetails: [...item.splitDetails, { id: contact.id, personName: contact.name, amount: 0, isSettled: false }] };
-          }
-          return item;
-      }));
-      setShowContactPicker(null);
+  const handleAddParticipants = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const newParticipants: SplitDetail[] = [];
+    selectedContacts.forEach(contactId => {
+        if (!item.splitDetails.some(p => p.id === contactId)) {
+            const contact = contacts.find(c => c.id === contactId);
+            if (contact) {
+                newParticipants.push({
+                    id: contact.id,
+                    personName: contact.name,
+                    amount: 0,
+                    isSettled: false,
+                    shares: '1',
+                    percentage: '0',
+                });
+            }
+        }
+    });
+    
+    const updatedParticipants = [...item.splitDetails, ...newParticipants];
+    const totalAmount = parseFloat(item.amount) || 0;
+
+    setItems(prev => prev.map(i => i.id === itemId ? {
+        ...i,
+        splitDetails: calculateSplits(updatedParticipants, totalAmount, i.splitMode)
+    } : i));
+
+    setShowContactPicker(null);
+    setSelectedContacts(new Set());
   };
 
-  const handleRemoveParticipant = (itemId: string, personName: string) => {
-      setItems(prev => prev.map(item => {
-          if (item.id === itemId) {
-              return { ...item, splitDetails: item.splitDetails.filter(p => p.personName !== personName) };
-          }
-          return item;
-      }));
+  const handleRemoveParticipant = (itemId: string, personId: string) => {
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+      const updatedParticipants = item.splitDetails.filter(p => p.id !== personId);
+      const totalAmount = parseFloat(item.amount) || 0;
+
+      setItems(prev => prev.map(i => i.id === itemId ? {
+        ...i,
+        splitDetails: calculateSplits(updatedParticipants, totalAmount, i.splitMode)
+      } : i));
   };
+  
+  const handleSplitDetailChange = (itemId: string, personId: string, field: 'percentage' | 'shares' | 'amount', value: string) => {
+     const item = items.find(i => i.id === itemId);
+     if(!item) return;
+
+     let newDetails = item.splitDetails.map(p => p.id === personId ? {...p, [field]: value} : p);
+     
+     if (item.splitMode === 'manual') {
+         newDetails = newDetails.map(p => p.id === personId ? {...p, amount: parseFloat(value) || 0} : p);
+     }
+     
+     const totalAmount = parseFloat(item.amount) || 0;
+     setItems(prev => prev.map(i => i.id === itemId ? {...i, splitDetails: calculateSplits(newDetails, totalAmount, i.splitMode) } : i));
+  }
+
+  const handleShareChange = (itemId: string, personId: string, delta: number) => {
+     const item = items.find(i => i.id === itemId);
+     if(!item) return;
+     const person = item.splitDetails.find(p => p.id === personId);
+     if (!person) return;
+     const currentShares = parseFloat(person.shares || '1') || 1;
+     const newShares = Math.max(0.5, currentShares + delta); // Set a minimum share
+     handleSplitDetailChange(itemId, personId, 'shares', String(newShares));
+  }
+   const handlePercentageChange = (itemId: string, personId: string, delta: number) => {
+     const item = items.find(i => i.id === itemId);
+     if(!item) return;
+     const person = item.splitDetails.find(p => p.id === personId);
+     if (!person) return;
+     const currentPercentage = parseFloat(person.percentage || '0') || 0;
+     const newPercentage = Math.max(0, currentPercentage + delta);
+     handleSplitDetailChange(itemId, personId, 'percentage', String(newPercentage));
+  }
+
 
   const isPayeeSaved = useMemo(() => {
     if (!formData.payeeIdentifier) return true;
@@ -180,6 +302,94 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const itemsTotal = useMemo(() => items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0), [items]);
   const isSaveDisabled = isItemized && Math.abs(itemsTotal - formData.amount) > 0.01;
 
+  const renderSplitManager = (item: Item) => {
+    const totalAssigned = item.splitDetails.reduce((sum, p) => sum + p.amount, 0);
+    const itemAmount = parseFloat(item.amount) || 0;
+    const remainder = itemAmount - totalAssigned;
+
+    const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
+        <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}>
+        {children}
+        </button>
+    );
+
+    return (
+        <div className="p-4 bg-slate-900/40 rounded-lg space-y-4 border border-slate-700/50 shadow-lg animate-slideFadeIn">
+            <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg">
+                <TabButton active={item.splitMode === 'equally'} onClick={() => handleItemChange(item.id, 'splitMode', 'equally')}>Equally</TabButton>
+                <TabButton active={item.splitMode === 'percentage'} onClick={() => handleItemChange(item.id, 'splitMode', 'percentage')}>%</TabButton>
+                <TabButton active={item.splitMode === 'shares'} onClick={() => handleItemChange(item.id, 'splitMode', 'shares')}>Shares</TabButton>
+                <TabButton active={item.splitMode === 'manual'} onClick={() => handleItemChange(item.id, 'splitMode', 'manual')}>Manual</TabButton>
+            </div>
+
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                {item.splitDetails.map(p => (
+                    <div key={p.id} className="flex items-center gap-2 p-1.5 bg-slate-900/40 rounded-lg">
+                        <span className="font-semibold flex-grow truncate text-sm pl-1">{p.personName}</span>
+                        
+                        {item.splitMode === 'percentage' && (
+                            <div className="flex items-center gap-1">
+                                <button type="button" onClick={() => handlePercentageChange(item.id, p.id, -5)} className="control-button control-button-minus">-</button>
+                                <div className="relative w-16">
+                                    <input type="number" value={p.percentage || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1" />
+                                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 text-xs">%</span>
+                                </div>
+                                <button type="button" onClick={() => handlePercentageChange(item.id, p.id, 5)} className="control-button control-button-plus">+</button>
+                            </div>
+                        )}
+                        {item.splitMode === 'shares' && (
+                             <div className="flex items-center gap-1">
+                                <button type="button" onClick={() => handleShareChange(item.id, p.id, -0.5)} className="control-button control-button-minus">-</button>
+                                <input type="number" step="0.5" value={p.shares || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner" />
+                                <button type="button" onClick={() => handleShareChange(item.id, p.id, 0.5)} className="control-button control-button-plus">+</button>
+                            </div>
+                        )}
+
+                        {item.splitMode === 'manual' ?
+                            <input type="number" min="0" step="0.01" value={p.amount || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 bg-slate-700/80 p-1 rounded-md text-right no-spinner" />
+                            :
+                            <span className="w-24 text-right font-mono text-sm">{formatCurrency(p.amount)}</span>
+                        }
+                        {p.id !== 'you' && <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} className="text-rose-400 text-xl leading-none px-1 flex-shrink-0">&times;</button>}
+                    </div>
+                ))}
+            </div>
+            
+             <div className="relative">
+                <button type="button" onClick={() => setShowContactPicker(showContactPicker === item.id ? null : item.id)} className="w-full text-left p-1.5 bg-slate-700/80 rounded-md border border-slate-600 text-sky-300 hover:bg-slate-700 text-xs">
+                    + Add Person...
+                </button>
+                {showContactPicker === item.id && (
+                    <div className="absolute bottom-full mb-1 w-full z-20 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-40 flex flex-col">
+                        <div className="overflow-y-auto">
+                            {contactGroups.map(group => (
+                                <div key={group.id}>
+                                    <h4 className="text-xs font-bold text-slate-400 p-2 bg-slate-900/50 sticky top-0">{group.name}</h4>
+                                    {contacts.filter(c => c.groupId === group.id).map(contact => (
+                                        <label key={contact.id} className="flex items-center w-full text-left px-3 py-2 text-slate-200 hover:bg-emerald-600/50 text-sm cursor-pointer">
+                                            <input type="checkbox" checked={selectedContacts.has(contact.id)} onChange={() => setSelectedContacts(prev => {
+                                                const newSet = new Set(prev);
+                                                if (newSet.has(contact.id)) newSet.delete(contact.id);
+                                                else newSet.add(contact.id);
+                                                return newSet;
+                                            })} className="mr-2 h-4 w-4 bg-slate-600 border-slate-500 rounded text-emerald-500 focus:ring-emerald-500"/>
+                                            {contact.name}
+                                        </label>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                         <button type="button" onClick={() => handleAddParticipants(item.id)} className="w-full text-center p-2 text-sm bg-emerald-600/80 hover:bg-emerald-600 rounded-b-md sticky bottom-0">Add Selected</button>
+                    </div>
+                )}
+            </div>
+            <div className="text-xs text-slate-400 text-right">
+                Remaining: <span className={`font-mono ${Math.abs(remainder) > 0.01 ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(remainder)}</span>
+            </div>
+        </div>
+    );
+  }
+
   const renderItem = (item: Item) => {
     const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
     
@@ -189,49 +399,23 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 <div className="flex-grow space-y-2">
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputStyle} />
                     <div className="grid grid-cols-2 gap-2">
-                        <input type="number" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={inputStyle} />
+                        <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={inputStyle + " no-spinner"} />
                         <div>
-                             <CustomSelect value={item.parentId || ''} onChange={val => handleItemChange(item.id, 'parentId', val)} options={parentCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Category"/>
+                             <CustomSelect value={item.parentId || ''} onChange={val => {
+                                 const subCats = categories.filter(c => c.parentId === val);
+                                 handleItemChange(item.id, 'parentId', val);
+                                 handleItemChange(item.id, 'categoryId', subCats.length > 0 ? '' : val);
+                             }} options={parentCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Category"/>
                         </div>
                     </div>
-                    {item.parentId && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Subcategory" defaultValue={item.parentId || ''} />}
+                    {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Subcategory" defaultValue={item.parentId || ''} />}
                 </div>
                 <div className="flex flex-col space-y-1">
                      <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-md font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500' : 'bg-slate-600'}`}>Manage Split</button>
                      {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="px-2 py-1 text-xs rounded-md bg-rose-600/80 font-semibold">Remove</button>}
                 </div>
             </div>
-            {splittingItemId === item.id && (
-                <div className="p-2 bg-slate-800/50 rounded-md space-y-2 animate-fadeInUp">
-                    {/* Simplified split view for now */}
-                    <p className="text-xs text-slate-400">Splitting: {formatCurrency(parseFloat(item.amount) || 0)}</p>
-                    {item.splitDetails.map(sd => (
-                        <div key={sd.id} className="flex justify-between items-center text-sm">
-                            <span>{sd.personName}</span>
-                            {sd.personName !== 'You' && <button onClick={() => handleRemoveParticipant(item.id, sd.personName)} className="text-rose-400">&times;</button>}
-                        </div>
-                    ))}
-                     <div className="relative">
-                        <button type="button" onClick={() => setShowContactPicker(showContactPicker === item.id ? null : item.id)} className="w-full text-left p-1 bg-slate-700/80 rounded-md border border-slate-600 text-sky-300 hover:bg-slate-700 text-xs">
-                            + Add Person...
-                        </button>
-                        {showContactPicker === item.id && (
-                            <div className="absolute bottom-full mb-1 w-full z-10 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-32 overflow-y-auto">
-                               {contactGroups.map(group => (
-                                   <div key={group.id}>
-                                        <h4 className="text-xs font-bold text-slate-400 p-2 bg-slate-900/50 sticky top-0">{group.name}</h4>
-                                        {contacts.filter(c => c.groupId === group.id).map(contact => (
-                                            <button type="button" key={contact.id} onClick={() => handleAddParticipant(item.id, contact)} className="w-full text-left px-3 py-2 text-slate-200 hover:bg-emerald-600/50 text-sm">
-                                                {contact.name}
-                                            </button>
-                                        ))}
-                                   </div>
-                               ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            {splittingItemId === item.id && renderSplitManager(item)}
         </div>
     );
   };
@@ -261,7 +445,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 <div className="grid grid-cols-2 gap-4">
                         <div>
                         <label htmlFor="amount" className={labelStyle}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
-                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" className={inputStyle}/>
+                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={inputStyle}/>
                         </div>
                         <div>
                             <label className={labelStyle}>Type</label>

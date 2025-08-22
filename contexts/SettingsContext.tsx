@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode } from 'react';
-import { Settings, Payee, Category, Sender, Contact, ContactGroup } from '../types';
+import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 
 interface SettingsContextType {
@@ -18,7 +18,7 @@ interface SettingsContextType {
 }
 
 export const SettingsContext = createContext<SettingsContextType>({
-  settings: { currency: 'INR' },
+  settings: { currency: 'INR', theme: 'dark' },
   setSettings: () => {},
   payees: [],
   setPayees: () => {},
@@ -40,7 +40,7 @@ const DEFAULT_CONTACT_GROUPS: ContactGroup[] = [
 
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useLocalStorage<Settings>('finance-tracker-settings', { currency: 'INR' });
+  const [settings, setSettings] = useLocalStorage<Settings>('finance-tracker-settings', { currency: 'INR', theme: 'dark' });
   const [payees, setPayees] = useLocalStorage<Payee[]>('finance-tracker-payees', []);
   const [categories, setCategories] = useLocalStorage<Category[]>('finance-tracker-categories', []);
   const [senders, setSenders] = useLocalStorage<Sender[]>('finance-tracker-senders', []);

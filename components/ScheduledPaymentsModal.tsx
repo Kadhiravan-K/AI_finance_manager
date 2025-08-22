@@ -41,7 +41,9 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
   };
 
   const handleDelete = (id: string) => {
-    setRecurringTransactions(prev => prev.filter(p => p.id !== id));
+    if (window.confirm("Are you sure you want to delete this scheduled payment?")) {
+      setRecurringTransactions(prev => prev.filter(p => p.id !== id));
+    }
   };
   
   const getCategoryPath = (categoryId: string): string => {
@@ -108,7 +110,7 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
         <h3 className="font-semibold">{editingItem ? 'Edit Payment' : 'Add New Scheduled Payment'}</h3>
         <div className="grid grid-cols-2 gap-3">
             <input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
-            <input type="number" placeholder="Amount" value={formState.amount || ''} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
+            <input type="number" min="0.01" step="0.01" placeholder="Amount" value={formState.amount || ''} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
         </div>
         <div className="grid grid-cols-2 gap-3">
             <CustomSelect options={accountOptions} value={formState.accountId} onChange={v => setFormState(p => ({...p, accountId: v}))} placeholder="Select Account" />

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, SplitDetail } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings } from '../types';
 import { parseTransactionText } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import QuickAddForm from './PromptForm';
@@ -22,6 +22,8 @@ import SenderManagerModal from './SenderManagerModal';
 import SpamWarningCard from './SpamWarningCard';
 import GoalsModal from './GoalsModal';
 import ContactsManagerModal from './ContactsManagerModal';
+import FeedbackModal from './FeedbackModal';
+import InvestmentsModal from './InvestmentsModal';
 
 
 const generateCategories = (): Category[] => {
@@ -37,6 +39,7 @@ const generateCategories = (): Category[] => {
     });
   };
  // INCOME
+  add(TransactionType.INCOME, 'Opening Balance', null, '🏦');
   add(TransactionType.INCOME, 'Family Contributions', null, '👨‍👩‍👧‍👦');
   add(TransactionType.INCOME, 'Father', 'Family Contributions', '👨');
   add(TransactionType.INCOME, 'Mother', 'Family Contributions', '👩');
@@ -69,6 +72,9 @@ const generateCategories = (): Category[] => {
   
   add(TransactionType.INCOME, 'Transfers', null, '↔️');
   add(TransactionType.EXPENSE, 'Transfers', null, '↔️');
+  
+  add(TransactionType.INCOME, 'Investments', null, '📈');
+  add(TransactionType.INCOME, 'Sell', 'Investments', '➖');
 
 
   // EXPENSES
@@ -172,38 +178,38 @@ const generateCategories = (): Category[] => {
   
   add(TransactionType.EXPENSE, 'Money Lent', null, '💸');
   add(TransactionType.EXPENSE, 'Split Expense', 'Money Lent', '➗');
+  
+  add(TransactionType.EXPENSE, 'Investments', null, '📈');
+  add(TransactionType.EXPENSE, 'Buy', 'Investments', '➕');
 
   return categories;
 };
 const DEFAULT_CATEGORIES = generateCategories();
 
-const DEFAULT_ACCOUNTS = () => {
-    const defaultBank = { id: self.crypto.randomUUID(), name: 'Bank Account' };
-    const defaultSavings = { id: self.crypto.randomUUID(), name: 'Savings' };
-    const defaultCash = { id: self.crypto.randomUUID(), name: 'Cash' };
-    const defaultGPay = { id: self.crypto.randomUUID(), name: 'GPay' };
-    const defaultDebitCard = { id: self.crypto.randomUUID(), name: 'Debit Card' };
-    return [defaultBank, defaultSavings, defaultCash, defaultGPay, defaultDebitCard];
-};
+const DEFAULT_ACCOUNTS = (): Account[] => [];
 
 
 interface FinanceTrackerProps {
   activeModal: ActiveModal;
   setActiveModal: (modal: ActiveModal) => void;
+  isOnline: boolean;
 }
 
 const FinanceTracker: React.FC<FinanceTrackerProps> = ({ 
   activeModal,
   setActiveModal,
+  isOnline,
 }) => {
   const [text, setText] = useState<string>('');
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
   const [accounts, setAccounts] = useLocalStorage<Account[]>('finance-tracker-accounts', DEFAULT_ACCOUNTS);
-  const { categories, setCategories, payees, setPayees, senders, setSenders } = useContext(SettingsContext);
+  const { settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts } = useContext(SettingsContext);
   const [budgets, setBudgets] = useLocalStorage<Budget[]>('finance-tracker-budgets', []);
   const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('finance-tracker-recurring', []);
   const [goals, setGoals] = useLocalStorage<Goal[]>('finance-tracker-goals', []);
-  const [selectedAccountId, setSelectedAccountId] = useLocalStorage<string>('finance-tracker-selected-account-id', accounts[0]?.id || 'all');
+  const [investmentHoldings, setInvestmentHoldings] = useLocalStorage<InvestmentHolding[]>('finance-tracker-investments', []);
+  const [selectedAccountId, setSelectedAccountId] = useLocalStorage<string>('finance-tracker-selected-account-id', 'all');
+  const [feedbackQueue, setFeedbackQueue] = useLocalStorage<FeedbackItem[]>('finance-tracker-feedback-queue', []);
   
   const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
   const [error, setError] = useState<string>('');
@@ -211,6 +217,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [spamWarning, setSpamWarning] = useState<SpamWarning | null>(null);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -223,12 +230,28 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     if (categories.length === 0) {
         setCategories(DEFAULT_CATEGORIES);
     }
-    const currentSelected = accounts.find((acc: Account) => acc.id === selectedAccountId);
-    if (!currentSelected && selectedAccountId !== 'all' && accounts.length > 0) {
-        setSelectedAccountId(accounts[0].id);
-    }
-  }, [accounts, selectedAccountId, setSelectedAccountId, categories, setCategories]);
+  }, [categories, setCategories]);
   
+  // Effect to process feedback queue when online
+  useEffect(() => {
+    if (isOnline && feedbackQueue.length > 0) {
+        console.log(`Connection restored. Sending ${feedbackQueue.length} queued feedback items.`);
+        // Simulate sending all items. In a real app, you'd make API calls here.
+        const sendPromises = feedbackQueue.map(item => {
+            console.log("Simulating send for feedback:", item);
+            return new Promise(resolve => setTimeout(resolve, 500)); // Simulate network latency
+        });
+
+        Promise.all(sendPromises).then(() => {
+            console.log("All queued feedback sent successfully.");
+            setFeedbackQueue([]); // Clear the queue
+        }).catch(err => {
+            console.error("Failed to send queued feedback:", err);
+            // Optionally, you could decide not to clear the queue on failure
+        });
+    }
+  }, [isOnline, feedbackQueue, setFeedbackQueue]);
+
   const findOrCreateCategory = useCallback((fullName: string, type: TransactionType): string => {
       const parts = fullName.split('/').map(p => p.trim());
       let parentId: string | null = null;
@@ -364,10 +387,27 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     saveTransaction(spamWarning.parsedData, senderId);
   };
 
-  const handleAddAccount = (name: string) => {
-    const newAccount = { id: self.crypto.randomUUID(), name };
+  const handleAddAccount = (name: string, accountType: AccountType, creditLimit?: number, openingBalance?: number) => {
+    const newAccount = { id: self.crypto.randomUUID(), name, accountType, creditLimit };
     setAccounts(prev => [...prev, newAccount]);
-    setSelectedAccountId(newAccount.id);
+    
+    if (openingBalance && openingBalance > 0) {
+        const openingBalanceCategory = findOrCreateCategory('Opening Balance', TransactionType.INCOME);
+        const openingTransaction: Transaction = {
+            id: self.crypto.randomUUID(),
+            accountId: newAccount.id,
+            description: 'Opening Balance',
+            amount: openingBalance,
+            type: TransactionType.INCOME,
+            categoryId: openingBalanceCategory,
+            date: new Date().toISOString(),
+        };
+        setTransactions(prev => [openingTransaction, ...prev]);
+    }
+
+    if(accounts.length === 0){
+        setSelectedAccountId(newAccount.id);
+    }
   };
   
   const handleAccountTransfer = (fromAccountId: string, toAccountId: string, amount: number, notes?: string) => {
@@ -413,6 +453,10 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
   };
 
   const handleDeleteTransaction = (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this transaction?")) {
+      return;
+    }
+    
     const transactionToDelete = transactions.find(t => t.id === id);
     if (!transactionToDelete) return;
 
@@ -516,7 +560,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       date: new Date().toISOString(),
     };
 
-    setTransactions(prev => [contributionTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setTransactions(prev => [contributionTransaction, ...prev].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
 
     // Update the goal's current amount
     setGoals(prev => prev.map(g => 
@@ -557,6 +601,113 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       return [incomeTransaction, ...newTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     });
   };
+
+   const handleSendFeedback = async (message: string): Promise<{ queued: boolean }> => {
+    setIsSendingFeedback(true);
+    const feedbackItem: FeedbackItem = {
+        id: self.crypto.randomUUID(),
+        message,
+        timestamp: new Date().toISOString(),
+    };
+
+    let wasQueued = false;
+    if (isOnline) {
+        // In a real app, this would be an API call.
+        console.log("Simulating sending feedback directly to server:", feedbackItem);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    } else {
+        console.log("Offline. Queuing feedback for later.", feedbackItem);
+        setFeedbackQueue(prev => [...prev, feedbackItem]);
+        wasQueued = true;
+    }
+    
+    setIsSendingFeedback(false);
+    return { queued: wasQueued };
+  };
+
+  const handleBuyInvestment = (investmentAccountId: string, name: string, quantity: number, price: number, fromAccountId: string) => {
+    const cost = quantity * price;
+    
+    const buyCategoryId = findOrCreateCategory('Investments/Buy', TransactionType.EXPENSE);
+    const expenseTransaction: Transaction = {
+      id: self.crypto.randomUUID(),
+      accountId: fromAccountId,
+      description: `Buy ${quantity} ${name}`,
+      amount: cost,
+      type: TransactionType.EXPENSE,
+      categoryId: buyCategoryId,
+      date: new Date().toISOString(),
+    };
+    setTransactions(prev => [expenseTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    
+    const existingHolding = investmentHoldings.find(h => h.accountId === investmentAccountId && h.name.toLowerCase() === name.toLowerCase());
+    if (existingHolding) {
+      const totalQuantity = existingHolding.quantity + quantity;
+      const totalCost = (existingHolding.quantity * existingHolding.averageCost) + cost;
+      const newAverageCost = totalCost / totalQuantity;
+      setInvestmentHoldings(prev => prev.map(h => h.id === existingHolding.id ? { ...h, quantity: totalQuantity, averageCost: newAverageCost, currentValue: h.currentValue + cost } : h));
+    } else {
+      const newHolding: InvestmentHolding = {
+        id: self.crypto.randomUUID(),
+        accountId: investmentAccountId,
+        name,
+        quantity,
+        averageCost: price,
+        currentValue: cost,
+      };
+      setInvestmentHoldings(prev => [...prev, newHolding]);
+    }
+  };
+
+  const handleSellInvestment = (holdingId: string, quantity: number, price: number, toAccountId: string) => {
+    const holding = investmentHoldings.find(h => h.id === holdingId);
+    if (!holding) return;
+
+    const proceeds = quantity * price;
+    const sellCategoryId = findOrCreateCategory('Investments/Sell', TransactionType.INCOME);
+    const incomeTransaction: Transaction = {
+      id: self.crypto.randomUUID(),
+      accountId: toAccountId,
+      description: `Sell ${quantity} ${holding.name}`,
+      amount: proceeds,
+      type: TransactionType.INCOME,
+      categoryId: sellCategoryId,
+      date: new Date().toISOString(),
+    };
+    setTransactions(prev => [incomeTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+    const newQuantity = holding.quantity - quantity;
+    if (newQuantity <= 0) {
+      setInvestmentHoldings(prev => prev.filter(h => h.id !== holdingId));
+    } else {
+      // Recalculate currentValue based on remaining quantity and old average cost (market value changes)
+      const remainingValue = newQuantity * (holding.currentValue / holding.quantity);
+      setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? { ...h, quantity: newQuantity, currentValue: remainingValue } : h));
+    }
+  };
+  
+  const handleUpdateHoldingValue = (holdingId: string, newCurrentValue: number) => {
+    setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? { ...h, currentValue: newCurrentValue } : h));
+  };
+  
+  const handleRestoreBackup = (state: AppState) => {
+      setTransactions(state.transactions);
+      setAccounts(state.accounts);
+      setCategories(state.categories);
+      setBudgets(state.budgets);
+      setRecurringTransactions(state.recurringTransactions);
+      setGoals(state.goals);
+      setInvestmentHoldings(state.investmentHoldings);
+      setPayees(state.payees);
+      setSenders(state.senders);
+      setContactGroups(state.contactGroups);
+      setContacts(state.contacts);
+      setSettings(state.settings);
+      // Select the first account if one exists after restore
+      setSelectedAccountId(state.accounts[0]?.id || 'all');
+      alert("Data restored successfully!");
+  };
+
 
   const filteredTransactions = useMemo(() => {
     let result = transactions;
@@ -621,7 +772,11 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     }, { income: 0, expense: 0 });
   }, [filteredTransactions]);
 
-  const isFormDisabled = selectedAccountId === 'all' || status === ProcessingStatus.LOADING;
+  const appState: AppState = useMemo(() => ({
+    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings]);
+
+  const isFormDisabled = (selectedAccountId === 'all' && accounts.length > 0) || status === ProcessingStatus.LOADING;
   const handleCloseActiveModal = () => setActiveModal(null);
 
   return (
@@ -650,6 +805,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             recurringTransactions={recurringTransactions}
             onPayRecurring={handlePayRecurring}
             goals={goals}
+            investmentHoldings={investmentHoldings}
             error={error}
             income={dashboardData.income}
             expense={dashboardData.expense}
@@ -673,7 +829,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
           onSubmit={handleAddTransaction}
           isLoading={status === ProcessingStatus.LOADING}
           isDisabled={isFormDisabled}
-          disabledReason={selectedAccountId === 'all' ? 'Select an account to add transactions' : undefined}
+          disabledReason={selectedAccountId === 'all' && accounts.length > 0 ? 'Select an account to add transactions' : undefined}
         />
       </div>
       {editingTransaction && (
@@ -702,6 +858,8 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
           <AppSettingsModal
             isOpen={true}
             onClose={() => setActiveModal('settings')}
+            appState={appState}
+            onRestore={handleRestoreBackup}
           />
       )}
        {activeModal === 'categories' && (
@@ -752,6 +910,13 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
           senders={senders}
         />
       )}
+      {activeModal === 'feedback' && (
+          <FeedbackModal 
+            onClose={() => setActiveModal('settings')}
+            onSend={handleSendFeedback}
+            isSending={isSendingFeedback}
+          />
+      )}
       {activeModal === 'reports' && (
           <ReportsModal
             isOpen={true}
@@ -788,6 +953,17 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
           setGoals={setGoals}
           accounts={accounts}
           onContribute={handleContributeToGoal}
+        />
+      )}
+      {activeModal === 'investments' && (
+        <InvestmentsModal
+            isOpen={true}
+            onClose={handleCloseActiveModal}
+            accounts={accounts}
+            holdings={investmentHoldings}
+            onBuy={handleBuyInvestment}
+            onSell={handleSellInvestment}
+            onUpdateValue={handleUpdateHoldingValue}
         />
       )}
     </div>

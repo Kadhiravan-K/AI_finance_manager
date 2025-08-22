@@ -26,7 +26,9 @@ const PayeesModal: React.FC<PayeesModalProps> = ({ isOpen, onClose, payees, setP
   };
 
   const handleDelete = (id: string) => {
-    setPayees(prev => prev.filter(p => p.id !== id));
+    if (window.confirm("Are you sure you want to delete this payee?")) {
+      setPayees(prev => prev.filter(p => p.id !== id));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

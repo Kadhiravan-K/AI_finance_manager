@@ -72,7 +72,9 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ isOpen, onC
       }
   };
   const handleDeleteContact = (contactId: string) => {
-      setContacts(prev => prev.filter(c => c.id !== contactId));
+      if (window.confirm("Are you sure you want to delete this contact?")) {
+        setContacts(prev => prev.filter(c => c.id !== contactId));
+      }
   }
 
 

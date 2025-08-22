@@ -28,6 +28,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActiveModal }
             <button onClick={() => handleNav('contacts')} className="w-full text-left p-4 bg-slate-700/50 rounded-lg flex items-center justify-between hover:bg-slate-700 transition-colors"><span>Manage Contacts</span><span>👥</span></button>
             <button onClick={() => handleNav('senderManager')} className="w-full text-left p-4 bg-slate-700/50 rounded-lg flex items-center justify-between hover:bg-slate-700 transition-colors"><span>Manage Senders</span><span>🛡️</span></button>
             <button onClick={() => handleNav('export')} className="w-full text-left p-4 bg-slate-700/50 rounded-lg flex items-center justify-between hover:bg-slate-700 transition-colors"><span>Export Data</span><span>📄</span></button>
+            <button onClick={() => handleNav('feedback')} className="w-full text-left p-4 bg-slate-700/50 rounded-lg flex items-center justify-between hover:bg-slate-700 transition-colors"><span>Send Feedback</span><span>📨</span></button>
         </div>
         </div>
     </div>

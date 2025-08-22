@@ -24,7 +24,9 @@ const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ isOpen, onClose
   };
 
   const handleDelete = (id: string) => {
-    setSenders(prev => prev.filter(s => s.id !== id));
+    if (window.confirm("Are you sure you want to delete this sender?")) {
+      setSenders(prev => prev.filter(s => s.id !== id));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
