@@ -54,28 +54,28 @@ const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transact
     };
   }, [transactions, period]);
 
-  const cardBaseStyle = "my-3 p-4 bg-slate-800/50 rounded-xl shadow-lg border border-slate-700/50";
-  const colorClass = type === TransactionType.INCOME ? 'bg-emerald-500' : 'bg-rose-500';
+  const cardBaseStyle = "my-3 p-4 bg-subtle rounded-xl shadow-lg border border-divider";
+  const color = type === TransactionType.INCOME ? 'var(--color-accent-emerald)' : 'var(--color-accent-rose)';
 
   return (
     <div className={cardBaseStyle}>
-      <h3 className="text-lg font-bold mb-4 text-slate-200">{title}</h3>
+      <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
       <div className="flex justify-between items-end h-64 space-x-2">
         {chartData.labels.length > 0 ? chartData.labels.map((label, index) => (
           <div key={label} className="flex-1 flex flex-col items-center justify-end h-full group">
             <div className="relative w-full h-full flex items-end justify-center">
               <div
-                className={`w-3/4 rounded-t-md ${colorClass} transition-all duration-300 group-hover:opacity-80`}
-                style={{ height: `${chartData.data[index].height}%`, animation: 'growUp 1s ease-out forwards' }}
+                className="w-3/4 rounded-t-md transition-all duration-300 group-hover:opacity-80"
+                style={{ height: `${chartData.data[index].height}%`, animation: 'growUp 1s ease-out forwards', backgroundColor: color }}
               >
-                  <div className="absolute bottom-full mb-1 w-max px-2 py-1 bg-slate-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="absolute bottom-full mb-1 w-max px-2 py-1 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)' }}>
                     {formatCurrency(chartData.data[index].amount)}
                   </div>
               </div>
             </div>
-            <span className="text-xs text-slate-400 mt-2 text-center">{label}</span>
+            <span className="text-xs text-secondary mt-2 text-center">{label}</span>
           </div>
-        )) : <p className="w-full text-center text-slate-400">No trend data for this period.</p>}
+        )) : <p className="w-full text-center text-secondary">No trend data for this period.</p>}
       </div>
       <style>{`
         @keyframes growUp {

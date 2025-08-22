@@ -16,40 +16,28 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (valu
 
         if (item) {
           try {
-            // Attempt to decrypt first
+            // Attempt to decrypt the stored item.
             const decryptedValue = await decrypt(item);
             if (isMounted) {
               setStoredValue(decryptedValue as T);
             }
-          } catch (decryptionError) {
-            // Decryption failed. This is likely old, unencrypted data.
-            console.warn(`Decryption failed for key "${key}". Attempting to migrate unencrypted data.`);
-            try {
-              // Try to parse it as plain JSON
-              const oldData = JSON.parse(item);
-              if (isMounted) {
-                // Set state with the old data to prevent data loss
-                setStoredValue(oldData as T);
-                console.log(`Successfully migrated data for key "${key}".`);
-
-                // Re-encrypt and save the migrated data in the background
-                encrypt(oldData).then(encryptedValue => {
-                  window.localStorage.setItem(key, encryptedValue);
-                  console.log(`Data for key "${key}" is now encrypted.`);
-                });
-              }
-            } catch (jsonParseError) {
-              // The data is not decryptable and not valid JSON. It's likely corrupted.
-              console.error(`Failed to migrate data for key "${key}" as it's corrupted. Resetting to initial value.`, jsonParseError);
-              // Fallback to initial value
-              const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
-              if (isMounted) setStoredValue(valueToStore);
-              const encryptedValue = await encrypt(valueToStore);
-              window.localStorage.setItem(key, encryptedValue);
-            }
+          } catch (error) {
+            // If decryption fails, the data is considered corrupted or the key has changed.
+            // This is a critical failure for this data slice. We must reset to a known good state.
+            console.error(
+              `Decryption failed for key "${key}". The data may be corrupted or the encryption key has changed. Resetting to initial value to prevent application instability.`, 
+              error
+            );
+            // Fallback to the initial value to ensure the app remains functional.
+            const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
+            if (isMounted) setStoredValue(valueToStore);
+            
+            // Re-encrypt and save the known good initial state.
+            const encryptedValue = await encrypt(valueToStore);
+            window.localStorage.setItem(key, encryptedValue);
           }
         } else {
-            // If no item, encrypt and store the initial value for future use
+            // If no item, encrypt and store the initial value for future use.
              const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
              if (isMounted) setStoredValue(valueToStore); // ensure state is consistent
              const encryptedValue = await encrypt(valueToStore);

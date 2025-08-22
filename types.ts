@@ -44,6 +44,7 @@ export interface Goal {
     icon: string;
     targetAmount: number;
     currentAmount: number;
+    productLink?: string;
 }
 
 export interface SplitDetail {
@@ -160,7 +161,7 @@ export interface CustomDateRange {
 
 export type ReportPeriod = 'week' | 'month' | 'year' | 'custom';
 
-export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | 'contacts' | 'feedback' | 'investments' | 'privacyConsent' | 'onboarding' | null;
+export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | 'contacts' | 'feedback' | 'investments' | 'privacyConsent' | 'onboarding' | 'calculator' | 'quickAdd' | null;
 
 // For Backup
 export interface AppState {

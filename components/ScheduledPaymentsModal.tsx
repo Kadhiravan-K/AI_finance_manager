@@ -77,7 +77,7 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
 
   if (!isOpen) return null;
 
-  const categoryOptions = categories.map(c => ({ value: c.id, label: `${getCategoryPath(c.id)} (${c.type})` }));
+  const categoryOptions = categories.filter(c => c.type === formState.type).map(c => ({ value: c.id, label: `${getCategoryPath(c.id)}` }));
   const accountOptions = accounts.map(a => ({ value: a.id, label: a.name }));
   const frequencyOptions = [
       { value: 'daily', label: 'Daily' },
@@ -85,44 +85,71 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
       { value: 'monthly', label: 'Monthly' },
       { value: 'yearly', label: 'Yearly' },
   ];
+  const typeOptions = [
+      {value: TransactionType.EXPENSE, label: 'Expense'},
+      {value: TransactionType.INCOME, label: 'Income'},
+  ]
 
   return (
-    <div className="glass-card rounded-xl shadow-2xl w-full max-w-2xl p-0 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
+    <div className="glass-card rounded-xl shadow-2xl w-full max-w-2xl p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
       <ModalHeader title="Scheduled Payments" onClose={onClose} icon="📅" />
       
-      <div className="flex-grow overflow-y-auto p-6 space-y-2">
+      <div className="flex-grow overflow-y-auto p-6 space-y-2 pb-24">
         {recurringTransactions.map(item => (
-          <div key={item.id} className="p-3 bg-slate-700/50 rounded-lg flex items-center justify-between">
+          <div key={item.id} className="p-3 bg-subtle rounded-lg flex items-center justify-between">
             <div>
-              <p className="font-semibold text-white">{item.description} - <span className={item.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}>{formatCurrency(item.amount)}</span></p>
-              <p className="text-xs text-slate-400">Next due: {new Date(item.nextDueDate).toLocaleDateString()}</p>
+              <p className="font-semibold text-primary">{item.description} - <span className={item.type === 'income' ? 'text-[var(--color-accent-emerald)]' : 'text-[var(--color-accent-rose)]'}>{formatCurrency(item.amount)}</span></p>
+              <p className="text-xs text-secondary">Next due: {new Date(item.nextDueDate).toLocaleDateString()}</p>
             </div>
             <div className="space-x-2">
-              <button onClick={() => handleEdit(item)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-md">Edit</button>
-              <button onClick={() => handleDelete(item.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-md">Delete</button>
+              <button onClick={() => handleEdit(item)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
+              <button onClick={() => handleDelete(item.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
             </div>
           </div>
         ))}
-        {recurringTransactions.length === 0 && <p className="text-center text-slate-400 py-8">No scheduled payments yet.</p>}
+        {recurringTransactions.length === 0 && <p className="text-center text-secondary py-8">No scheduled payments yet.</p>}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-slate-700 space-y-3 bg-slate-800/50 rounded-b-xl">
-        <h3 className="font-semibold">{editingItem ? 'Edit Payment' : 'Add New Scheduled Payment'}</h3>
-        <div className="grid grid-cols-2 gap-3">
-            <input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
-            <input type="number" min="0.01" step="0.01" placeholder="Amount" value={formState.amount || ''} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full bg-slate-700/80 p-2 rounded-md border border-slate-600" required />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-            <CustomSelect options={accountOptions} value={formState.accountId} onChange={v => setFormState(p => ({...p, accountId: v}))} placeholder="Select Account" />
-            <CustomSelect options={categoryOptions} value={formState.categoryId} onChange={v => setFormState(p => ({...p, categoryId: v}))} placeholder="Select Category" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-            <CustomSelect options={frequencyOptions} value={formState.frequency} onChange={v => setFormState(p => ({...p, frequency: v as Frequency}))} />
+      <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-divider space-y-3 bg-subtle rounded-b-xl">
+        <h3 className="font-semibold text-primary">{editingItem ? 'Edit Payment' : 'Add New Scheduled Payment'}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-secondary mb-1 block">Start Date</label>
             <CustomDatePicker value={new Date(formState.startDate)} onChange={date => setFormState(p => ({...p, startDate: date.toISOString().split('T')[0]}))} />
+          </div>
+          <div>
+            <label className="text-xs text-secondary mb-1 block">Frequency</label>
+            <CustomSelect options={frequencyOptions} value={formState.frequency} onChange={v => setFormState(p => ({...p, frequency: v as Frequency}))} />
+          </div>
         </div>
-        <div className="flex justify-end space-x-2">
-          {editingItem && <button type="button" onClick={handleCancel} className="px-4 py-2 rounded-lg bg-slate-600">Cancel</button>}
-          <button type="submit" className="px-4 py-2 rounded-lg bg-emerald-600">{editingItem ? 'Save' : 'Add'}</button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-secondary mb-1 block">Account</label>
+            <CustomSelect options={accountOptions} value={formState.accountId} onChange={v => setFormState(p => ({...p, accountId: v}))} placeholder="Select Account" />
+          </div>
+          <div>
+            <label className="text-xs text-secondary mb-1 block">Amount</label>
+            <input type="number" min="0.01" step="0.01" placeholder="Amount" value={formState.amount || ''} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full input-base p-2 rounded-full" required />
+          </div>
+        </div>
+         <div>
+            <label className="text-xs text-secondary mb-1 block">Description</label>
+            <input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full input-base p-2 rounded-full" required />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label className="text-xs text-secondary mb-1 block">Type</label>
+                <CustomSelect options={typeOptions} value={formState.type} onChange={v => setFormState(p => ({...p, type: v as TransactionType, categoryId: ''}))} />
+            </div>
+             <div>
+                <label className="text-xs text-secondary mb-1 block">Category</label>
+                <CustomSelect options={categoryOptions} value={formState.categoryId} onChange={v => setFormState(p => ({...p, categoryId: v}))} placeholder="Select Category" />
+            </div>
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-2">
+          {editingItem && <button type="button" onClick={handleCancel} className="button-secondary px-4 py-2">Cancel</button>}
+          <button type="submit" className="button-primary px-4 py-2">{editingItem ? 'Save' : 'Add'}</button>
         </div>
       </form>
     </div>

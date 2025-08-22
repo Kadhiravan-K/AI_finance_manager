@@ -50,20 +50,20 @@ const NetWorthSummary: React.FC<NetWorthSummaryProps> = ({ accounts, allTransact
   }, [accounts, allTransactions, holdings]);
 
   return (
-    <div className="mb-6 p-4 rounded-xl glass-card">
-      <h3 className="font-bold text-lg mb-3 text-slate-200">Net Worth</h3>
+    <div className="mb-6 p-4 rounded-xl glass-card animate-fadeInUp" style={{animationDelay: '100ms'}}>
+      <h3 className="font-bold text-lg mb-3 text-primary">Net Worth</h3>
       <div className="grid grid-cols-3 gap-4 text-center">
         <div>
-          <p className="text-sm text-slate-400">Assets</p>
+          <p className="text-sm text-secondary">Assets</p>
           <p className="font-bold text-lg text-emerald-400">{isVisible ? formatCurrency(netWorthData.assets) : '••••'}</p>
         </div>
         <div>
-          <p className="text-sm text-slate-400">Liabilities</p>
+          <p className="text-sm text-secondary">Liabilities</p>
           <p className="font-bold text-lg text-rose-400">{isVisible ? formatCurrency(netWorthData.liabilities) : '••••'}</p>
         </div>
         <div>
-          <p className="text-sm text-slate-400">Net Worth</p>
-          <p className="font-bold text-lg text-white">{isVisible ? formatCurrency(netWorthData.netWorth) : '••••'}</p>
+          <p className="text-sm text-secondary">Net Worth</p>
+          <p className="font-bold text-lg text-primary">{isVisible ? formatCurrency(netWorthData.netWorth) : '••••'}</p>
         </div>
       </div>
     </div>

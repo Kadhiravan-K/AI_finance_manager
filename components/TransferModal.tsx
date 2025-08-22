@@ -10,10 +10,7 @@ interface TransferModalProps {
   onTransfer: (fromAccountId: string, toAccountId: string, amount: number, notes?: string) => void;
 }
 
-const inputStyle = "w-full bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-inner shadow-slate-900/50 transition-all duration-200";
-const labelStyle = "block text-sm font-medium text-slate-400 mb-1";
-const primaryButtonStyle = "px-4 py-2 rounded-lg text-white font-semibold bg-gradient-to-br from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 transition-all duration-200 transform active:scale-[0.98] disabled:from-slate-700 disabled:to-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed";
-const secondaryButtonStyle = "px-4 py-2 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600/80 transition-colors";
+const labelStyle = "block text-sm font-medium text-secondary mb-1";
 
 const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts, onTransfer }) => {
   const [fromAccountId, setFromAccountId] = useState<string>(accounts[0]?.id || '');
@@ -48,7 +45,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
       role="dialog"
     >
       <div
-        className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-slate-700/50 opacity-0 animate-scaleIn"
+        className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-divider opacity-0 animate-scaleIn"
         onClick={e => e.stopPropagation()}
       >
         <ModalHeader title="Transfer Funds" onClose={onClose} />
@@ -83,7 +80,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
                 step="0.01"
                 min="0.01"
                 placeholder="0.00"
-                className={inputStyle}
+                className="input-base w-full rounded-full py-2 px-3"
               />
             </div>
             <div>
@@ -93,20 +90,20 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 rows={2}
-                className={`${inputStyle} resize-none`}
+                className="input-base w-full rounded-lg py-2 px-3 resize-none"
               />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className={secondaryButtonStyle}
+                className="button-secondary px-4 py-2"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className={primaryButtonStyle}
+                className="button-primary px-4 py-2"
               >
                 Transfer
               </button>

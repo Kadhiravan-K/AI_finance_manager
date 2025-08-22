@@ -12,9 +12,7 @@ interface ExportModalProps {
   senders: Sender[];
 }
 
-const labelStyle = "block text-sm font-medium text-slate-400 mb-1";
-const primaryButtonStyle = "px-4 py-2 rounded-lg text-white font-semibold bg-gradient-to-br from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 transition-all duration-200 transform active:scale-[0.98]";
-const secondaryButtonStyle = "px-4 py-2 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600/80 transition-colors";
+const labelStyle = "block text-sm font-medium text-secondary mb-1";
 
 const ExportModal: React.FC<ExportModalProps> = ({ onClose, transactions, accounts, categories, senders }) => {
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -34,12 +32,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose, transactions, accoun
       role="dialog"
     >
       <div
-        className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-slate-700/50 opacity-0 animate-scaleIn"
+        className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-divider opacity-0 animate-scaleIn"
         onClick={e => e.stopPropagation()}
       >
         <ModalHeader title="Export Data" onClose={onClose} icon="📄" />
         <div className="space-y-4 pt-4 p-6">
-            <p className="text-sm text-slate-400">Select a date range to export your transaction data as a CSV file. Leave blank to export all transactions.</p>
+            <p className="text-sm text-secondary">Select a date range to export your transaction data as a CSV file. Leave blank to export all transactions.</p>
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className={labelStyle}>Start Date</label>
@@ -54,14 +52,14 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose, transactions, accoun
                 <button
                     type="button"
                     onClick={onClose}
-                    className={secondaryButtonStyle}
+                    className="button-secondary px-4 py-2"
                 >
                     Cancel
                 </button>
                 <button
                     type="button"
                     onClick={handleExport}
-                    className={primaryButtonStyle}
+                    className="button-primary px-4 py-2"
                 >
                     Export as CSV
                 </button>

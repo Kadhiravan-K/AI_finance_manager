@@ -60,14 +60,14 @@ const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions
     };
   }, [transactions, categories, type]);
 
-  const cardBaseStyle = "my-3 p-4 bg-slate-800/50 rounded-xl shadow-lg border border-slate-700/50";
+  const cardBaseStyle = "my-3 p-4 bg-subtle rounded-xl shadow-lg border border-divider";
 
   if (categoryData.categories.length === 0) {
     return (
         <div className={`${cardBaseStyle} h-full flex flex-col`}>
-             <h3 className="text-lg font-bold text-slate-200">{title}</h3>
+             <h3 className="text-lg font-bold text-primary">{title}</h3>
              <div className="flex-grow flex items-center justify-center">
-                <p className="text-sm text-slate-400 mt-2 text-center py-8">No data available.</p>
+                <p className="text-sm text-secondary mt-2 text-center py-8">No data available.</p>
              </div>
         </div>
     );
@@ -75,18 +75,18 @@ const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions
 
   return (
     <div className={cardBaseStyle}>
-      <h3 className="text-lg font-bold mb-4 text-slate-200">{title}</h3>
+      <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
       <div className="space-y-3">
         {categoryData.categories.map((category, i) => (
           <div key={category.id} className="group">
             <div className="flex justify-between items-center text-sm mb-1">
-              <span className="flex items-center gap-2 text-slate-300 font-medium">
+              <span className="flex items-center gap-2 text-primary font-medium">
                 <span className="text-lg">{category.icon}</span>
                 {category.name}
               </span>
-              <span className="text-slate-200 font-semibold">{formatCurrency(category.amount)}</span>
+              <span className="text-primary font-semibold">{formatCurrency(category.amount)}</span>
             </div>
-            <div className="w-full bg-slate-700/50 rounded-full h-4 relative overflow-hidden">
+            <div className="w-full rounded-full h-4 relative overflow-hidden" style={{ backgroundColor: 'rgba(127,127,127,0.2)'}}>
               <div
                 className="h-4 rounded-full transition-all duration-1000 ease-out"
                 style={{ 

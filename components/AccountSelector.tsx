@@ -38,7 +38,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, selectedAcc
   ];
 
   return (
-    <div className="mb-6 bg-slate-800/50 p-4 rounded-xl shadow-lg border border-slate-700/50 transition-all duration-300 hover:bg-slate-800 hover:shadow-xl hover:border-slate-600">
+    <div className="mb-6 p-4 rounded-xl glass-card relative z-30">
       <div className="flex items-center space-x-4">
         <div className="flex-grow">
           <CustomSelect
@@ -49,10 +49,10 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, selectedAcc
         </div>
         <button 
           onClick={() => setShowAddForm(!showAddForm)}
-          className="p-2 bg-slate-700/80 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
+          className="p-2 bg-subtle rounded-full hover-bg-stronger transition-colors flex-shrink-0"
           aria-label={showAddForm ? 'Cancel adding account' : 'Add new account'}
           >
-           <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-white transition-transform duration-300 ${showAddForm ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
+           <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-300 text-primary ${showAddForm ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
         </button>
@@ -65,7 +65,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, selectedAcc
                 value={newAccountName}
                 onChange={(e) => setNewAccountName(e.target.value)}
                 placeholder="New account name"
-                className="flex-grow bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-inner shadow-slate-900/50"
+                className="flex-grow rounded-lg py-2 px-3 shadow-inner input-base"
                 aria-label="New account name"
                 required
               />
@@ -82,12 +82,12 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, selectedAcc
                     value={creditLimit}
                     onChange={(e) => setCreditLimit(e.target.value)}
                     placeholder="Credit Limit (Optional)"
-                    className="w-full bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-inner shadow-slate-900/50"
+                    className="w-full rounded-lg py-2 px-3 shadow-inner input-base"
                 />
               </div>
           )}
           <div className="flex justify-end">
-            <button type="submit" className="bg-gradient-to-br from-emerald-500 to-green-600 text-white font-bold py-2 px-4 rounded-lg hover:from-emerald-600 hover:to-green-700 disabled:from-slate-700 disabled:to-slate-600 disabled:text-slate-400 transition-all duration-200 transform active:scale-[0.98]" disabled={!newAccountName.trim()}>
+            <button type="submit" className="button-primary font-bold py-2 px-4" disabled={!newAccountName.trim()}>
                 Add Account
             </button>
           </div>

@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useMemo, useContext } from 're
 import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings } from '../types';
 import { parseTransactionText } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
-import QuickAddForm from './PromptForm';
 import FinanceDisplay from './StoryDisplay';
 import AccountSelector from './AccountSelector';
 import EditTransactionModal from './EditTransactionModal';
@@ -24,6 +23,8 @@ import GoalsModal from './GoalsModal';
 import ContactsManagerModal from './ContactsManagerModal';
 import FeedbackModal from './FeedbackModal';
 import InvestmentsModal from './InvestmentsModal';
+import CalculatorModal from './CalculatorModal';
+import QuickAddModal from './QuickAddModal';
 
 
 const generateCategories = (): Category[] => {
@@ -315,7 +316,8 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     setStatus(ProcessingStatus.SUCCESS);
     setText('');
     setSpamWarning(null);
-  }, [selectedAccountId, findOrCreateCategory, setTransactions, payees]);
+    setActiveModal(null);
+  }, [selectedAccountId, findOrCreateCategory, setTransactions, payees, setActiveModal]);
 
   const handleAddTransaction = useCallback(async () => {
     if (selectedAccountId === 'all') {
@@ -780,57 +782,47 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
   const handleCloseActiveModal = () => setActiveModal(null);
 
   return (
-    <div className="flex flex-col flex-grow h-full">
-       <AccountSelector
-        accounts={accounts}
-        selectedAccountId={selectedAccountId}
-        onAccountChange={setSelectedAccountId}
-        onAddAccount={handleAddAccount}
-      />
-      {spamWarning && (
-        <SpamWarningCard 
-            warning={spamWarning}
-            onApprove={handleSpamApproval}
-            onDiscard={() => setSpamWarning(null)}
+    <>
+       <div className="p-4">
+        <AccountSelector
+          accounts={accounts}
+          selectedAccountId={selectedAccountId}
+          onAccountChange={setSelectedAccountId}
+          onAddAccount={handleAddAccount}
         />
-      )}
-      <div className="flex-grow overflow-y-auto mb-4 pr-1">
-        <FinanceDisplay
-            status={status}
-            transactions={filteredTransactions}
-            allTransactions={transactions}
-            accounts={accounts}
-            categories={categories}
-            budgets={budgets}
-            recurringTransactions={recurringTransactions}
-            onPayRecurring={handlePayRecurring}
-            goals={goals}
-            investmentHoldings={investmentHoldings}
-            error={error}
-            income={dashboardData.income}
-            expense={dashboardData.expense}
-            onEdit={setEditingTransaction}
-            onDelete={handleDeleteTransaction}
-            onSettleDebt={handleSettleDebt}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            dateFilter={dateFilter}
-            setDateFilter={setDateFilter}
-            customDateRange={customDateRange}
-            setCustomDateRange={setCustomDateRange}
-            isBalanceVisible={isBalanceVisible}
-            setIsBalanceVisible={setIsBalanceVisible}
-        />
-      </div>
-      <div className="flex-shrink-0 pt-2">
-        <QuickAddForm
-          text={text}
-          setText={setText}
-          onSubmit={handleAddTransaction}
-          isLoading={status === ProcessingStatus.LOADING}
-          isDisabled={isFormDisabled}
-          disabledReason={selectedAccountId === 'all' && accounts.length > 0 ? 'Select an account to add transactions' : undefined}
-        />
+        {spamWarning && (
+          <SpamWarningCard 
+              warning={spamWarning}
+              onApprove={handleSpamApproval}
+              onDiscard={() => setSpamWarning(null)}
+          />
+        )}
+          <FinanceDisplay
+              status={status}
+              transactions={filteredTransactions}
+              allTransactions={transactions}
+              accounts={accounts}
+              categories={categories}
+              budgets={budgets}
+              recurringTransactions={recurringTransactions}
+              onPayRecurring={handlePayRecurring}
+              goals={goals}
+              investmentHoldings={investmentHoldings}
+              error={error}
+              income={dashboardData.income}
+              expense={dashboardData.expense}
+              onEdit={setEditingTransaction}
+              onDelete={handleDeleteTransaction}
+              onSettleDebt={handleSettleDebt}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              dateFilter={dateFilter}
+              setDateFilter={setDateFilter}
+              customDateRange={customDateRange}
+              setCustomDateRange={setCustomDateRange}
+              isBalanceVisible={isBalanceVisible}
+              setIsBalanceVisible={setIsBalanceVisible}
+          />
       </div>
       {editingTransaction && (
         <EditTransactionModal
@@ -838,6 +830,17 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
           onSave={handleUpdateTransaction}
           onCancel={() => setEditingTransaction(null)}
           accounts={accounts}
+        />
+      )}
+      {activeModal === 'quickAdd' && (
+        <QuickAddModal
+            onClose={handleCloseActiveModal}
+            text={text}
+            setText={setText}
+            onSubmit={handleAddTransaction}
+            isLoading={status === ProcessingStatus.LOADING}
+            isDisabled={isFormDisabled}
+            disabledReason={selectedAccountId === 'all' && accounts.length > 0 ? 'Select an account' : undefined}
         />
       )}
       {activeModal === 'transfer' && (
@@ -966,7 +969,10 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             onUpdateValue={handleUpdateHoldingValue}
         />
       )}
-    </div>
+      {activeModal === 'calculator' && (
+        <CalculatorModal onClose={handleCloseActiveModal} />
+      )}
+    </>
   );
 };
 

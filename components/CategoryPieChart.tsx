@@ -93,14 +93,14 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
     };
   }, [transactions, categories, type]);
 
-  const cardBaseStyle = "my-3 p-4 bg-slate-800/50 rounded-xl shadow-lg border border-slate-700/50 transition-all duration-300 hover:bg-slate-800 hover:shadow-xl hover:-translate-y-1 hover:border-slate-600";
+  const cardBaseStyle = "my-3 p-4 bg-subtle rounded-xl shadow-lg border border-divider";
 
   if (categoryData.categories.length === 0) {
     return (
         <div className={`${cardBaseStyle} h-full flex flex-col`}>
-             <h3 className="text-lg font-bold text-slate-200">{title}</h3>
+             <h3 className="text-lg font-bold text-primary">{title}</h3>
              <div className="flex-grow flex items-center justify-center">
-                <p className="text-sm text-slate-400 mt-2 text-center py-8">No {type} data to display.</p>
+                <p className="text-sm text-secondary mt-2 text-center py-8">No {type} data to display.</p>
              </div>
         </div>
     );
@@ -110,9 +110,9 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
 
   return (
     <div className={cardBaseStyle}>
-      <h3 className="text-lg font-bold mb-4 text-slate-200">
+      <h3 className="text-lg font-bold mb-4 text-primary">
           {title}
-          <span className="block text-sm font-normal text-slate-400">{formatTotal(categoryData.totalAmount)}</span>
+          <span className="block text-sm font-normal text-secondary">{formatTotal(categoryData.totalAmount)}</span>
       </h3>
       <div className="grid grid-cols-2 items-center gap-4">
         <div className="relative w-full aspect-square">
@@ -126,13 +126,13 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
         </div>
         <div className="w-full space-y-1 self-start max-h-40 overflow-y-auto pr-1">
             {categoryData.categories.map((category, i) => (
-                <div key={category.name} className="flex items-center justify-between text-sm p-1 rounded-md transition-colors hover:bg-slate-700/50">
+                <div key={category.name} className="flex items-center justify-between text-sm p-1 rounded-md transition-colors hover-bg-stronger">
                     <div className="flex items-center space-x-2 overflow-hidden">
                         <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
                         <span className="text-lg flex-shrink-0">{category.icon || '📁'}</span>
-                        <span className="text-slate-300 truncate" title={category.name}>{category.name}</span>
+                        <span className="text-primary truncate" title={category.name}>{category.name}</span>
                     </div>
-                    <span className="font-semibold text-slate-400 ml-2 flex-shrink-0">{formatItem(category.amount)}</span>
+                    <span className="font-semibold text-secondary ml-2 flex-shrink-0">{formatItem(category.amount)}</span>
                 </div>
             ))}
         </div>

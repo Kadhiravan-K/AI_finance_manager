@@ -64,16 +64,16 @@ const DebtsSummary: React.FC<DebtsSummaryProps> = ({ transactions, accounts, onS
   const accountOptions = accounts.map(a => ({ value: a.id, label: a.name }));
 
   return (
-    <div className="mb-6 p-4 rounded-xl glass-card">
-      <h3 className="font-bold text-lg mb-3 text-sky-400">Debts (Owed to You)</h3>
-      <div className="text-slate-300 font-semibold mb-3">Total Owed: <span className="text-white">{isVisible ? formatCurrency(totalOwed) : '••••'}</span></div>
+    <div className="mb-6 p-4 rounded-xl glass-card animate-fadeInUp" style={{animationDelay: '200ms'}}>
+      <h3 className="font-bold text-lg mb-3" style={{color: 'var(--color-accent-sky)'}}>Debts (Owed to You)</h3>
+      <div className="text-primary font-semibold mb-3">Total Owed: <span className="text-primary">{isVisible ? formatCurrency(totalOwed) : '••••'}</span></div>
       <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
         {unsettledDebts.map(debt => (
-          <div key={debt.id} className="p-2 bg-slate-700/30 rounded-lg">
+          <div key={debt.id} className="p-2 bg-subtle rounded-lg">
             <div className="flex items-center justify-between">
                 <div>
-                    <p className="font-semibold text-slate-200">{debt.personName} owes {isVisible ? formatCurrency(debt.amount) : '••••'}</p>
-                    <p className="text-xs text-slate-400">For: {debt.transactionDescription}</p>
+                    <p className="font-semibold text-primary">{debt.personName} owes {isVisible ? formatCurrency(debt.amount) : '••••'}</p>
+                    <p className="text-xs text-secondary">For: {debt.transactionDescription}</p>
                 </div>
                 {settlingDebt?.id !== debt.id && (
                     <button onClick={() => handleSettleClick(debt)} className="px-3 py-1 text-sm font-semibold bg-emerald-600 text-white rounded-md hover:bg-emerald-500 transition-colors">
@@ -82,7 +82,7 @@ const DebtsSummary: React.FC<DebtsSummaryProps> = ({ transactions, accounts, onS
                 )}
             </div>
             {settlingDebt?.id === debt.id && (
-                <div className="mt-2 pt-2 border-t border-slate-600/50 flex items-center gap-2 animate-fadeInUp">
+                <div className="mt-2 pt-2 border-t border-divider flex items-center gap-2 animate-fadeInUp">
                     <div className="flex-grow">
                         <CustomSelect options={accountOptions} value={settlementAccountId} onChange={setSettlementAccountId} />
                     </div>

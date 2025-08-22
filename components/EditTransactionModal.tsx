@@ -17,10 +17,8 @@ interface EditTransactionModalProps {
   accounts: Account[];
 }
 
-const inputStyle = "w-full bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-inner shadow-slate-900/50 transition-all duration-200";
-const labelStyle = "block text-sm font-medium text-slate-400 mb-1";
-const primaryButtonStyle = "px-4 py-2 rounded-lg text-white font-semibold bg-gradient-to-br from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 transition-all duration-200 transform active:scale-[0.98] disabled:from-slate-700 disabled:to-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed";
-const secondaryButtonStyle = "px-4 py-2 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600/80 transition-colors";
+const inputBaseClasses = "w-full rounded-lg py-2 px-3 shadow-inner transition-all duration-200 input-base";
+const labelBaseClasses = "block text-sm font-medium text-secondary mb-1";
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 
@@ -108,13 +106,11 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 const nonZeroParticipants = newParticipants.filter(p => p.amount !== 0);
                 const sumOfNonZero = nonZeroParticipants.reduce((sum, p) => sum + p.amount, 0);
                 
-                // Check if the sum of non-zero amounts is a valid number and less than the total
                 if (!isNaN(sumOfNonZero) && sumOfNonZero < totalAmount) {
                     const remainder = totalAmount - sumOfNonZero;
                     const participantToFill = zeroAmountParticipants[0];
                     const index = newParticipants.findIndex(p => p.id === participantToFill.id);
                     if (index !== -1) {
-                        // Create a new array with the updated participant
                         newParticipants = [
                             ...newParticipants.slice(0, index),
                             { ...newParticipants[index], amount: remainder },
@@ -185,7 +181,6 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     setItems(prevItems => prevItems.map(item => {
       if (item.id === itemId) {
         let updatedItem = { ...item, [field]: value };
-        // If amount or split mode changes, recalculate
         if (field === 'amount' || field === 'splitMode') {
             const totalAmount = parseFloat(updatedItem.amount) || 0;
             updatedItem.splitDetails = calculateSplits(updatedItem.splitDetails, totalAmount, updatedItem.splitMode);
@@ -308,14 +303,14 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const remainder = itemAmount - totalAssigned;
 
     const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
-        <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}>
+        <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
         {children}
         </button>
     );
 
     return (
-        <div className="p-4 bg-slate-900/40 rounded-lg space-y-4 border border-slate-700/50 shadow-lg animate-slideFadeIn">
-            <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg">
+        <div className="p-4 bg-subtle rounded-lg space-y-4 border border-divider shadow-lg animate-slideFadeIn">
+            <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
                 <TabButton active={item.splitMode === 'equally'} onClick={() => handleItemChange(item.id, 'splitMode', 'equally')}>Equally</TabButton>
                 <TabButton active={item.splitMode === 'percentage'} onClick={() => handleItemChange(item.id, 'splitMode', 'percentage')}>%</TabButton>
                 <TabButton active={item.splitMode === 'shares'} onClick={() => handleItemChange(item.id, 'splitMode', 'shares')}>Shares</TabButton>
@@ -324,15 +319,15 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
 
             <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                 {item.splitDetails.map(p => (
-                    <div key={p.id} className="flex items-center gap-2 p-1.5 bg-slate-900/40 rounded-lg">
-                        <span className="font-semibold flex-grow truncate text-sm pl-1">{p.personName}</span>
+                    <div key={p.id} className="flex items-center gap-2 p-1.5 bg-subtle rounded-lg">
+                        <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span>
                         
                         {item.splitMode === 'percentage' && (
                             <div className="flex items-center gap-1">
                                 <button type="button" onClick={() => handlePercentageChange(item.id, p.id, -5)} className="control-button control-button-minus">-</button>
                                 <div className="relative w-16">
-                                    <input type="number" value={p.percentage || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1" />
-                                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 text-xs">%</span>
+                                    <input type="number" value={p.percentage || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1 text-primary" />
+                                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-tertiary text-xs">%</span>
                                 </div>
                                 <button type="button" onClick={() => handlePercentageChange(item.id, p.id, 5)} className="control-button control-button-plus">+</button>
                             </div>
@@ -340,15 +335,15 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                         {item.splitMode === 'shares' && (
                              <div className="flex items-center gap-1">
                                 <button type="button" onClick={() => handleShareChange(item.id, p.id, -0.5)} className="control-button control-button-minus">-</button>
-                                <input type="number" step="0.5" value={p.shares || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner" />
+                                <input type="number" step="0.5" value={p.shares || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" />
                                 <button type="button" onClick={() => handleShareChange(item.id, p.id, 0.5)} className="control-button control-button-plus">+</button>
                             </div>
                         )}
 
                         {item.splitMode === 'manual' ?
-                            <input type="number" min="0" step="0.01" value={p.amount || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 bg-slate-700/80 p-1 rounded-md text-right no-spinner" />
+                            <input type="number" min="0" step="0.01" value={p.amount || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
                             :
-                            <span className="w-24 text-right font-mono text-sm">{formatCurrency(p.amount)}</span>
+                            <span className="w-24 text-right font-mono text-sm text-primary">{formatCurrency(p.amount)}</span>
                         }
                         {p.id !== 'you' && <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} className="text-rose-400 text-xl leading-none px-1 flex-shrink-0">&times;</button>}
                     </div>
@@ -356,34 +351,34 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
             </div>
             
              <div className="relative">
-                <button type="button" onClick={() => setShowContactPicker(showContactPicker === item.id ? null : item.id)} className="w-full text-left p-1.5 bg-slate-700/80 rounded-md border border-slate-600 text-sky-300 hover:bg-slate-700 text-xs">
+                <button type="button" onClick={() => setShowContactPicker(showContactPicker === item.id ? null : item.id)} className="w-full text-left p-1.5 rounded-full border border-divider hover-bg-stronger text-xs text-center" style={{ color: 'var(--color-accent-sky)' }}>
                     + Add Person...
                 </button>
                 {showContactPicker === item.id && (
-                    <div className="absolute bottom-full mb-1 w-full z-20 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-40 flex flex-col">
+                    <div className="absolute bottom-full mb-1 w-full z-20 glass-card rounded-lg shadow-lg max-h-40 flex flex-col">
                         <div className="overflow-y-auto">
                             {contactGroups.map(group => (
                                 <div key={group.id}>
-                                    <h4 className="text-xs font-bold text-slate-400 p-2 bg-slate-900/50 sticky top-0">{group.name}</h4>
+                                    <h4 className="text-xs font-bold text-secondary p-2 bg-subtle sticky top-0">{group.name}</h4>
                                     {contacts.filter(c => c.groupId === group.id).map(contact => (
-                                        <label key={contact.id} className="flex items-center w-full text-left px-3 py-2 text-slate-200 hover:bg-emerald-600/50 text-sm cursor-pointer">
+                                        <label key={contact.id} className="flex items-center w-full text-left px-3 py-2 text-primary hover-bg-stronger text-sm cursor-pointer">
                                             <input type="checkbox" checked={selectedContacts.has(contact.id)} onChange={() => setSelectedContacts(prev => {
                                                 const newSet = new Set(prev);
                                                 if (newSet.has(contact.id)) newSet.delete(contact.id);
                                                 else newSet.add(contact.id);
                                                 return newSet;
-                                            })} className="mr-2 h-4 w-4 bg-slate-600 border-slate-500 rounded text-emerald-500 focus:ring-emerald-500"/>
+                                            })} className="mr-2 h-4 w-4 rounded focus:ring-emerald-500" style={{ backgroundColor: 'var(--color-bg-input)', borderColor: 'var(--color-border-input)', color: 'var(--color-accent-emerald)'}}/>
                                             {contact.name}
                                         </label>
                                     ))}
                                 </div>
                             ))}
                         </div>
-                         <button type="button" onClick={() => handleAddParticipants(item.id)} className="w-full text-center p-2 text-sm bg-emerald-600/80 hover:bg-emerald-600 rounded-b-md sticky bottom-0">Add Selected</button>
+                         <button type="button" onClick={() => handleAddParticipants(item.id)} className="w-full text-center p-2 text-sm text-white rounded-b-lg sticky bottom-0" style={{ backgroundColor: 'var(--color-accent-emerald)' }}>Add Selected</button>
                     </div>
                 )}
             </div>
-            <div className="text-xs text-slate-400 text-right">
+            <div className="text-xs text-secondary text-right">
                 Remaining: <span className={`font-mono ${Math.abs(remainder) > 0.01 ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(remainder)}</span>
             </div>
         </div>
@@ -394,12 +389,12 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
     
     return (
-        <div key={item.id} className="p-3 bg-slate-900/40 rounded-lg space-y-3 border border-slate-700/50">
+        <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
             <div className="flex items-start gap-2">
                 <div className="flex-grow space-y-2">
-                    <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputStyle} />
+                    <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
                     <div className="grid grid-cols-2 gap-2">
-                        <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={inputStyle + " no-spinner"} />
+                        <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner`} />
                         <div>
                              <CustomSelect value={item.parentId || ''} onChange={val => {
                                  const subCats = categories.filter(c => c.parentId === val);
@@ -411,8 +406,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Subcategory" defaultValue={item.parentId || ''} />}
                 </div>
                 <div className="flex flex-col space-y-1">
-                     <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-md font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500' : 'bg-slate-600'}`}>Manage Split</button>
-                     {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="px-2 py-1 text-xs rounded-md bg-rose-600/80 font-semibold">Remove</button>}
+                     <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Manage Split</button>
+                     {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="px-2 py-1 text-xs rounded-full font-semibold text-white" style={{ backgroundColor: 'var(--color-accent-rose)'}}>Remove</button>}
                 </div>
             </div>
             {splittingItemId === item.id && renderSplitManager(item)}
@@ -423,17 +418,17 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel} aria-modal="true" role="dialog">
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-slate-700/50 opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <ModalHeader title="Edit Transaction" onClose={onCancel} />
         <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto">
            {/* Row 1: Account & Date */}
            <div className="grid grid-cols-2 gap-4">
                <div>
-                <label className={labelStyle}>Account</label>
+                <label className={labelBaseClasses}>Account</label>
                 <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
               </div>
               <div>
-                <label className={labelStyle}>Date</label>
+                <label className={labelBaseClasses}>Date</label>
                 <CustomDatePicker value={new Date(formData.date)} onChange={(date) => handleChange('date', date.toISOString())}/>
               </div>
            </div>
@@ -444,80 +439,80 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 {/* Row 2: Amount & Type */}
                 <div className="grid grid-cols-2 gap-4">
                         <div>
-                        <label htmlFor="amount" className={labelStyle}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
-                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={inputStyle}/>
+                        <label htmlFor="amount" className={labelBaseClasses}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
+                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={inputBaseClasses}/>
                         </div>
                         <div>
-                            <label className={labelStyle}>Type</label>
+                            <label className={labelBaseClasses}>Type</label>
                             <CustomSelect value={formData.type} onChange={(value) => handleChange('type', value as TransactionType)} options={[{ value: TransactionType.EXPENSE, label: 'Expense' }, { value: TransactionType.INCOME, label: 'Income' }]}/>
                         </div>
                 </div>
                 {/* Row 3: Category & Subcategory */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                    <label className={labelStyle}>Category</label>
+                    <label className={labelBaseClasses}>Category</label>
                     <CustomSelect value={selectedParentId || ''} onChange={handleParentCategoryChange} options={parentCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Select Category"/>
                     </div>
                     <div>
-                    <label className={labelStyle}>Subcategory</label>
+                    <label className={labelBaseClasses}>Subcategory</label>
                     <CustomSelect value={formData.categoryId} onChange={(value) => handleChange('categoryId', value)} options={subCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="-" disabled={subCategories.length === 0} defaultValue={selectedParentId || ''}/>
                     </div>
                 </div>
                 {/* Row 4: Description */}
                 <div>
-                    <label htmlFor="description" className={labelStyle}>Description</label>
-                    <input type="text" id="description" name="description" value={formData.description} onChange={(e) => handleChange('description', e.target.value)} className={inputStyle}/>
+                    <label htmlFor="description" className={labelBaseClasses}>Description</label>
+                    <input type="text" id="description" name="description" value={formData.description} onChange={(e) => handleChange('description', e.target.value)} className={inputBaseClasses}/>
                 </div>
             </div>
            ) : (
              <div className="space-y-4 animate-fadeInUp">
                 <div>
-                    <label className={labelStyle}>Total Amount</label>
-                    <input type="number" value={formData.amount} readOnly className={`${inputStyle} opacity-70 cursor-not-allowed`} />
+                    <label className={labelBaseClasses}>Total Amount</label>
+                    <input type="number" value={formData.amount} readOnly className={`${inputBaseClasses} opacity-70 cursor-not-allowed`} />
                 </div>
              </div>
            )}
 
           {formData.payeeIdentifier && (
-              <div className="p-2 bg-slate-700/50 rounded-lg flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Identifier: <code className="text-slate-300">{formData.payeeIdentifier}</code></span>
-                  <button type="button" onClick={handleSavePayee} disabled={isPayeeSaved} className="text-xs px-2 py-1 bg-emerald-600/50 text-emerald-200 rounded-md hover:bg-emerald-600 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed">
+              <div className="p-2 bg-subtle rounded-lg flex items-center justify-between text-sm">
+                  <span className="text-secondary">Identifier: <code className="text-primary">{formData.payeeIdentifier}</code></span>
+                  <button type="button" onClick={handleSavePayee} disabled={isPayeeSaved} className="text-xs px-2 py-1 rounded-full hover:bg-emerald-600 disabled:cursor-not-allowed" style={{ backgroundColor: isPayeeSaved ? 'var(--color-bg-button-secondary)' : 'rgba(16, 185, 129, 0.5)', color: isPayeeSaved ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)'}}>
                       {isPayeeSaved ? 'Saved' : 'Save Payee'}
                   </button>
               </div>
           )}
           <div>
-            <label htmlFor="notes" className={labelStyle}>Notes (Optional)</label>
-            <textarea id="notes" name="notes" value={formData.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} rows={2} className={`${inputStyle} resize-none`}/>
+            <label htmlFor="notes" className={labelBaseClasses}>Notes (Optional)</label>
+            <textarea id="notes" name="notes" value={formData.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} rows={2} className={`${inputBaseClasses} resize-none`}/>
           </div>
           {/* Itemized Split Section */}
           {formData.type === TransactionType.EXPENSE && (
-              <div className="pt-4 border-t border-slate-700/50">
+              <div className="pt-4 border-t border-divider">
                 <div className="flex items-center justify-between">
-                    <label htmlFor="isItemized" className="font-medium text-slate-300">Itemize & Split Transaction</label>
-                    <button type="button" onClick={() => setIsItemized(!isItemized)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${isItemized ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+                    <label htmlFor="isItemized" className="font-medium text-primary">Itemize & Split Transaction</label>
+                    <button type="button" onClick={() => setIsItemized(!isItemized)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${isItemized ? 'bg-emerald-500' : 'bg-subtle'}`}>
                         <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${isItemized ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                 </div>
                 {isItemized && (
-                    <div className="mt-4 space-y-3 p-3 bg-slate-800/40 rounded-lg animate-fadeInUp">
+                    <div className="mt-4 space-y-3 p-3 rounded-lg animate-fadeInUp modal-content-area">
                        <div className="space-y-2">{items.map(item => renderItem(item))}</div>
-                       <button type="button" onClick={handleAddItem} className="w-full text-center p-2 text-sm bg-slate-700/80 rounded-md border border-dashed border-slate-600 text-sky-300 hover:bg-slate-700">
+                       <button type="button" onClick={handleAddItem} className="w-full text-center p-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger" style={{ color: 'var(--color-accent-sky)' }}>
                            + Add Item
                        </button>
                         {/* Summary */}
-                        <div className="text-xs space-y-1 pt-2 border-t border-slate-700/50">
-                             <div className="flex justify-between"><span className="text-slate-400">Total of Items:</span> <span className={`font-mono ${isSaveDisabled ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(itemsTotal)}</span></div>
-                             <div className="flex justify-between"><span className="text-slate-400">Remaining:</span> <span className="font-mono">{formatCurrency(formData.amount - itemsTotal)}</span></div>
-                             {isSaveDisabled && <p className="text-rose-400 text-center text-xs pt-1">Total of items must match the transaction amount.</p>}
+                        <div className="text-xs space-y-1 pt-2 border-t border-divider">
+                             <div className="flex justify-between"><span className="text-secondary">Total of Items:</span> <span className={`font-mono ${isSaveDisabled ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(itemsTotal)}</span></div>
+                             <div className="flex justify-between"><span className="text-secondary">Remaining:</span> <span className="font-mono text-primary">{formatCurrency(formData.amount - itemsTotal)}</span></div>
+                             {isSaveDisabled && <p className="text-center text-xs pt-1" style={{color: 'var(--color-accent-rose)'}}>Total of items must match the transaction amount.</p>}
                         </div>
                     </div>
                 )}
               </div>
           )}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-slate-700/50 mt-4">
-            <button type="button" onClick={onCancel} className={secondaryButtonStyle}>Cancel</button>
-            <button type="submit" disabled={!formData.categoryId && !isItemized || isSaveDisabled} className={primaryButtonStyle}>Save Changes</button>
+          <div className="flex justify-end space-x-3 pt-4 border-t border-divider mt-4">
+            <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+            <button type="submit" disabled={(!formData.categoryId && !isItemized) || isSaveDisabled} className="button-primary px-4 py-2">Save Changes</button>
           </div>
         </form>
       </div>

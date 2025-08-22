@@ -55,24 +55,24 @@ const BudgetsSummary: React.FC<BudgetsSummaryProps> = ({ budgets, transactions, 
   };
 
   return (
-    <div className="mb-6 p-4 rounded-xl glass-card">
-      <h3 className="font-bold text-lg mb-3 text-slate-200">This Month's Budgets</h3>
+    <div className="mb-6 p-4 rounded-xl glass-card animate-fadeInUp" style={{animationDelay: '350ms'}}>
+      <h3 className="font-bold text-lg mb-3 text-primary">This Month's Budgets</h3>
       <div className="space-y-3">
         {budgetData.map(budget => (
           <div key={budget.categoryId}>
             <div className="flex justify-between items-center text-sm mb-1">
-              <span className="flex items-center gap-2 text-slate-300 font-medium">
+              <span className="flex items-center gap-2 text-primary font-medium">
                 <span className="text-lg">{budget.categoryIcon}</span>
                 {budget.categoryName}
               </span>
-              <span className="text-slate-400">
+              <span className="text-secondary">
                 {isVisible ? `${formatCurrency(budget.spent)} / ` : '•••• / '}
-                <span className="text-slate-200">{isVisible ? formatCurrency(budget.amount) : '••••'}</span>
+                <span className="text-primary">{isVisible ? formatCurrency(budget.amount) : '••••'}</span>
               </span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-2.5">
+            <div className="w-full bg-subtle rounded-full h-2.5 border border-divider">
               <div
-                className={`h-2.5 rounded-full ${getProgressBarColor(budget.percentage)} transition-all duration-500`}
+                className={`h-full rounded-full ${getProgressBarColor(budget.percentage)} transition-all duration-500`}
                 style={{ width: `${Math.min(budget.percentage, 100)}%` }}
               ></div>
             </div>

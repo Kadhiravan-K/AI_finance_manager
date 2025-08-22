@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 
 interface CustomDatePickerProps {
   value: Date | null;
@@ -32,6 +32,14 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange }) 
       return newDate;
     });
   };
+  
+  const changeYear = (offset: number) => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setFullYear(newDate.getFullYear() + offset);
+      return newDate;
+    });
+  };
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -40,10 +48,10 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange }) 
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white text-left flex justify-between items-center focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-inner shadow-slate-900/50"
+        className="w-full input-base rounded-lg py-2 px-3 text-left flex justify-between items-center"
       >
-        <span>{value ? value.toLocaleDateString() : 'Select a date'}</span>
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+        <span className="text-primary">{value ? value.toLocaleDateString() : 'Select a date'}</span>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
       </button>
 
       {isOpen && (
@@ -52,21 +60,23 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange }) 
             onClick={() => setIsOpen(false)}
         >
             <div 
-                className="glass-card rounded-xl shadow-2xl w-full max-w-xs p-4 border border-slate-700/50 animate-scaleIn"
+                className="glass-card rounded-xl shadow-2xl w-full max-w-xs p-4 border border-divider animate-scaleIn"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between mb-4">
-                    <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-slate-700/50">
+                    <button onClick={() => changeYear(-1)} className="p-2 rounded-full hover-bg-stronger text-primary">{'«'}</button>
+                    <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover-bg-stronger text-primary">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <p className="font-semibold text-lg">
+                    <p className="font-semibold text-lg text-primary">
                         {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
                     </p>
-                    <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-slate-700/50">
+                    <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover-bg-stronger text-primary">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                     </button>
+                     <button onClick={() => changeYear(1)} className="p-2 rounded-full hover-bg-stronger text-primary">{'»'}</button>
                 </div>
-                <div className="grid grid-cols-7 gap-1 text-center text-sm text-slate-400 mb-2">
+                <div className="grid grid-cols-7 gap-1 text-center text-sm text-secondary mb-2">
                     {dayNames.map(day => <div key={day}>{day}</div>)}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
@@ -82,8 +92,8 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange }) 
                             <button
                                 key={day}
                                 onClick={() => handleDayClick(day)}
-                                className={`p-2 rounded-full text-center transition-colors ${
-                                    isSelected ? 'bg-emerald-500 text-white font-bold' : 'hover:bg-slate-700/50'
+                                className={`p-2 rounded-full text-center transition-colors text-primary ${
+                                    isSelected ? 'bg-[var(--color-accent-emerald)] text-white font-bold' : 'hover:bg-subtle'
                                 }`}
                             >
                                 {day}

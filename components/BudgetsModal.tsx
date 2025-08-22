@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import ModalHeader from './ModalHeader';
 
 interface BudgetsModalProps {
   isOpen: boolean;
@@ -74,20 +75,20 @@ const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories
     const spent = monthlySpending[category.id] || 0;
     const percentage = budget ? (spent / budget.amount) * 100 : 0;
     
-    let progressBarColor = 'bg-emerald-500';
-    if (percentage > 75) progressBarColor = 'bg-yellow-500';
-    if (percentage > 100) progressBarColor = 'bg-rose-500';
+    let progressBarColor = 'var(--color-accent-emerald)';
+    if (percentage > 75) progressBarColor = 'var(--color-accent-yellow)';
+    if (percentage > 100) progressBarColor = 'var(--color-accent-rose)';
 
     const children = categories.filter(c => c.parentId === category.id);
     const isExpanded = expandedCategories.has(category.id);
 
     return (
-      <div key={category.id} className="bg-slate-700/50 rounded-lg my-2 transition-colors hover:bg-slate-700">
+      <div key={category.id} className="bg-subtle rounded-lg my-2 transition-colors hover-bg-stronger">
         <div 
           className="p-3 flex items-center justify-between cursor-pointer"
           onClick={() => toggleCategory(category.id)}
         >
-          <span className="flex items-center gap-2 font-medium">
+          <span className="flex items-center gap-2 font-medium text-primary">
             <span className="text-lg">{category.icon}</span>
             {category.name}
           </span>
@@ -105,29 +106,29 @@ const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories
                 handleBudgetSave(category.id);
               }}
               onClick={e => e.stopPropagation()}
-              className="w-28 text-right bg-slate-800 border border-slate-600 rounded-md py-1 px-2 focus:ring-1 focus:ring-emerald-500"
+              className="w-28 text-right rounded-md py-1 px-2 input-base no-spinner"
             />
             {children.length > 0 && (
-              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             )}
           </div>
         </div>
         {budget && (
           <div className="px-3 pb-3">
-            <div className="flex justify-between text-xs text-slate-400 mb-1">
+            <div className="flex justify-between text-xs text-secondary mb-1">
               <span>{formatCurrency(spent)}</span>
               <span>{formatCurrency(budget.amount)}</span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-2">
+            <div className="w-full rounded-full h-2 bg-subtle border border-divider">
               <div
-                className={`h-2 rounded-full ${progressBarColor} transition-all duration-500`}
-                style={{ width: `${Math.min(percentage, 100)}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: progressBarColor }}
               ></div>
             </div>
           </div>
         )}
         {isExpanded && children.length > 0 && (
-          <div className="pl-6 pr-3 pb-3 border-t border-slate-600/50 pt-2">
+          <div className="pl-6 pr-3 pb-3 border-t border-divider pt-2">
             {children.map(child => renderCategoryBudget(child))}
           </div>
         )}
@@ -137,16 +138,14 @@ const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <div className="flex-shrink-0 mb-4">
-          <h2 className="text-2xl font-bold text-white">Monthly Budgets</h2>
-          <p className="text-sm text-slate-400">Set spending limits for your categories for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
-        </div>
-        <div className="flex-grow overflow-y-auto pr-2">
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
+        <ModalHeader title="Monthly Budgets" onClose={onClose} icon="🎯" />
+        <div className="p-6 flex-grow overflow-y-auto pr-2">
+          <p className="text-sm text-secondary mb-4">Set spending limits for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
           {topLevelCategories.map(category => renderCategoryBudget(category))}
         </div>
-        <div className="flex justify-end pt-4 mt-4 border-t border-slate-700">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600/80 transition-colors">
+        <div className="flex justify-end p-6 pt-4 border-t border-divider">
+          <button onClick={onClose} className="button-secondary px-4 py-2">
             Close
           </button>
         </div>

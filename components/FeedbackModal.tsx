@@ -8,9 +8,6 @@ interface FeedbackModalProps {
   isSending: boolean;
 }
 
-const primaryButtonStyle = "px-4 py-2 w-full rounded-lg text-white font-semibold bg-gradient-to-br from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 transition-all duration-200 transform active:scale-[0.98] disabled:from-slate-700 disabled:to-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center";
-const secondaryButtonStyle = "px-4 py-2 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600/80 transition-colors";
-
 const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, onSend, isSending }) => {
   const [message, setMessage] = useState('');
   const [sendStatus, setSendStatus] = useState<'sent' | 'queued' | null>(null);
@@ -63,8 +60,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, onSend, isSendin
                 />
               </div>
               <div className="flex justify-end space-x-3">
-                <button type="button" onClick={onClose} className={secondaryButtonStyle}>Cancel</button>
-                <button type="submit" disabled={!message.trim() || isSending} className={primaryButtonStyle}>
+                <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
+                <button type="submit" disabled={!message.trim() || isSending} className="button-primary px-4 py-2 flex items-center justify-center">
                   {isSending ? <LoadingSpinner /> : 'Send Feedback'}
                 </button>
               </div>
