@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, SplitDetail } from '../types';
 import { parseTransactionText } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import QuickAddForm from './PromptForm';
@@ -21,6 +21,8 @@ import ExportModal from './ExportModal';
 import SenderManagerModal from './SenderManagerModal';
 import SpamWarningCard from './SpamWarningCard';
 import GoalsModal from './GoalsModal';
+import ContactsManagerModal from './ContactsManagerModal';
+
 
 const generateCategories = (): Category[] => {
   const categories: Category[] = [];
@@ -63,6 +65,7 @@ const generateCategories = (): Category[] => {
   add(TransactionType.INCOME, 'Resale (OLX, FB Marketplace)', 'Other Income Sources', '🔄');
   add(TransactionType.INCOME, 'YouTube / Content Creation', 'Other Income Sources', '📹');
   add(TransactionType.INCOME, 'Affiliate Marketing', 'Other Income Sources', '🔗');
+  add(TransactionType.INCOME, 'Debt Repayment', null, '🤝');
   
   add(TransactionType.INCOME, 'Transfers', null, '↔️');
   add(TransactionType.EXPENSE, 'Transfers', null, '↔️');
@@ -166,6 +169,10 @@ const generateCategories = (): Category[] => {
   add(TransactionType.EXPENSE, 'Unexpected Expenses', 'Miscellaneous', '❗');
 
   add(TransactionType.EXPENSE, 'Goal Contributions', null, '🎯');
+  
+  add(TransactionType.EXPENSE, 'Money Lent', null, '💸');
+  add(TransactionType.EXPENSE, 'Split Expense', 'Money Lent', '➗');
+
   return categories;
 };
 const DEFAULT_CATEGORIES = generateCategories();
@@ -418,8 +425,25 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     }
   };
 
-  const handleUpdateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  const handleUpdateTransaction = (updateData: Transaction | { action: 'split-and-replace', originalTransactionId: string, newTransactions: Omit<Transaction, 'id'>[] }) => {
+    if ('action' in updateData && updateData.action === 'split-and-replace') {
+      const { originalTransactionId, newTransactions: newTransactionsData } = updateData;
+      
+      const newTransactionsWithIds: Transaction[] = newTransactionsData.map(t => ({
+        ...t,
+        id: self.crypto.randomUUID(),
+      }));
+
+      setTransactions(prev => {
+        const afterDelete = prev.filter(t => t.id !== originalTransactionId);
+        return [...afterDelete, ...newTransactionsWithIds].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      });
+
+    } else {
+      // This branch now handles simple, non-itemized updates.
+      const updatedTransaction = updateData as Transaction;
+      setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    }
     setEditingTransaction(null);
   };
   
@@ -502,6 +526,37 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     ));
   };
 
+  const handleSettleDebt = (transactionId: string, splitDetailId: string, settlementAccountId: string) => {
+    const originalTransaction = transactions.find(t => t.id === transactionId);
+    const splitDetail = originalTransaction?.splitDetails?.find(s => s.id === splitDetailId);
+    if (!originalTransaction || !splitDetail) return;
+
+    let repaymentCategoryId = categories.find(c => c.name === 'Debt Repayment' && c.type === TransactionType.INCOME)?.id;
+    if (!repaymentCategoryId) {
+      repaymentCategoryId = findOrCreateCategory('Debt Repayment', TransactionType.INCOME);
+    }
+
+    const incomeTransaction: Transaction = {
+      id: self.crypto.randomUUID(),
+      accountId: settlementAccountId,
+      description: `Repayment from ${splitDetail.personName} for "${originalTransaction.description}"`,
+      amount: splitDetail.amount,
+      type: TransactionType.INCOME,
+      categoryId: repaymentCategoryId!,
+      date: new Date().toISOString(),
+    };
+
+    setTransactions(prev => {
+      const updatedOriginal = {
+        ...originalTransaction,
+        splitDetails: originalTransaction.splitDetails?.map(s => 
+          s.id === splitDetailId ? { ...s, isSettled: true, settledDate: new Date().toISOString() } : s
+        ),
+      };
+      const newTransactions = prev.map(t => t.id === transactionId ? updatedOriginal : t);
+      return [incomeTransaction, ...newTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+  };
 
   const filteredTransactions = useMemo(() => {
     let result = transactions;
@@ -589,6 +644,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             status={status}
             transactions={filteredTransactions}
             allTransactions={transactions}
+            accounts={accounts}
             categories={categories}
             budgets={budgets}
             recurringTransactions={recurringTransactions}
@@ -599,6 +655,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             expense={dashboardData.expense}
             onEdit={setEditingTransaction}
             onDelete={handleDeleteTransaction}
+            onSettleDebt={handleSettleDebt}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             dateFilter={dateFilter}
@@ -673,6 +730,12 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             setPayees={setPayees}
             categories={categories}
           />
+      )}
+      {activeModal === 'contacts' && (
+        <ContactsManagerModal
+            isOpen={true}
+            onClose={() => setActiveModal('settings')}
+        />
       )}
       {activeModal === 'senderManager' && (
         <SenderManagerModal

@@ -1,16 +1,18 @@
 import React, { useMemo } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
 import UpcomingBills from './UpcomingBills';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import GoalsSummary from './GoalsSummary';
+import DebtsSummary from './DebtsSummary';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
   transactions: Transaction[];
   allTransactions: Transaction[];
+  accounts: Account[];
   categories: Category[];
   budgets: Budget[];
   recurringTransactions: RecurringTransaction[];
@@ -21,6 +23,7 @@ interface FinanceDisplayProps {
   expense: number;
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
+  onSettleDebt: (transactionId: string, splitDetailId: string, settlementAccountId: string) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   dateFilter: DateRange;
@@ -95,40 +98,50 @@ const Dashboard = ({ income, expense, isVisible }: { income: number, expense: nu
 const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete, style, isVisible }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, style: React.CSSProperties, isVisible: boolean }) => {
     const isIncome = transaction.type === TransactionType.INCOME;
     const isTransfer = !!transaction.transferId;
+    const isSplit = !!transaction.splitDetails && transaction.splitDetails.length > 0;
     const formatCurrency = useCurrencyFormatter();
 
+    const totalOwed = isSplit ? transaction.splitDetails?.filter(s => s.personName.toLowerCase() !== 'you' && !s.isSettled).reduce((acc, s) => acc + s.amount, 0) : 0;
+
     return (
-        <li style={style} className="flex items-center justify-between glass-card p-3 rounded-xl group transition-all duration-300 hover:bg-slate-800/80 hover:shadow-xl hover:-translate-y-1 hover:shadow-slate-900/50 hover:border-slate-600">
-            <div className="flex items-center space-x-3 overflow-hidden">
-                <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-xl bg-slate-900/30`}>
-                   {isTransfer ? '↔️' : (category?.icon || (isIncome ? '💰' : '💸'))}
+        <li style={style} className="flex flex-col glass-card p-3 rounded-xl group transition-all duration-300 hover:bg-slate-800/80 hover:shadow-xl hover:-translate-y-1 hover:shadow-slate-900/50 hover:border-slate-600">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3 overflow-hidden">
+                    <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-xl bg-slate-900/30`}>
+                    {isSplit ? '➗' : (isTransfer ? '↔️' : (category?.icon || (isIncome ? '💰' : '💸')))}
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="text-slate-200 truncate font-medium">{transaction.description}</p>
+                        <p className="text-xs text-slate-500">{categoryPath}</p>
+                        {transaction.notes && <p className="text-xs text-slate-400/70 truncate italic mt-1">Note: {transaction.notes}</p>}
+                    </div>
                 </div>
-                <div className="overflow-hidden">
-                    <p className="text-slate-200 truncate font-medium">{transaction.description}</p>
-                    <p className="text-xs text-slate-500">{categoryPath}</p>
-                    {transaction.notes && <p className="text-xs text-slate-400/70 truncate italic mt-1">Note: {transaction.notes}</p>}
-                </div>
-            </div>
-            <div className="flex items-center space-x-2 flex-shrink-0">
-                <span className={`font-semibold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}
-                </span>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                    {!isTransfer && (
-                        <button onClick={() => onEdit(transaction)} className="p-1 text-slate-400 hover:text-white" aria-label="Edit transaction">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                    <span className={`font-semibold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}
+                    </span>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                        {!isTransfer && (
+                            <button onClick={() => onEdit(transaction)} className="p-1 text-slate-400 hover:text-white" aria-label="Edit transaction">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
+                            </button>
+                        )}
+                        <button onClick={() => onDelete(transaction.id)} className="p-1 text-slate-400 hover:text-rose-500" aria-label="Delete transaction">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
-                    )}
-                    <button onClick={() => onDelete(transaction.id)} className="p-1 text-slate-400 hover:text-rose-500" aria-label="Delete transaction">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
+                    </div>
                 </div>
             </div>
+             {isSplit && totalOwed > 0 && (
+                <div className="mt-2 pl-12 text-xs text-yellow-400">
+                    Owed to you: {isVisible ? formatCurrency(totalOwed) : '••••'}
+                </div>
+            )}
         </li>
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, categories, budgets, recurringTransactions, goals, onPayRecurring, error, income, expense, onEdit, onDelete, isBalanceVisible, setIsBalanceVisible, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, onPayRecurring, error, income, expense, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, ...filterProps }) => {
     
     const groupedTransactions = useMemo(() => {
         return transactions.reduce((acc, t) => {
@@ -166,6 +179,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
                 </button>
             </div>
             <Dashboard income={income} expense={expense} isVisible={isBalanceVisible} />
+            <DebtsSummary transactions={allTransactions} accounts={accounts} onSettle={onSettleDebt} isVisible={isBalanceVisible}/>
             <UpcomingBills recurringTransactions={recurringTransactions} onPay={onPayRecurring} categories={categories} />
             <GoalsSummary goals={goals} isVisible={isBalanceVisible} />
             <BudgetsSummary budgets={budgets} transactions={allTransactions} categories={categories} isVisible={isBalanceVisible} />

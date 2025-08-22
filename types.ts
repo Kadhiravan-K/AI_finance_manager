@@ -38,6 +38,14 @@ export interface Goal {
     currentAmount: number;
 }
 
+export interface SplitDetail {
+    id: string;
+    personName: string;
+    amount: number;
+    isSettled: boolean;
+    settledDate?: string;
+}
+
 export interface Transaction {
     id: string;
     accountId: string;
@@ -50,6 +58,7 @@ export interface Transaction {
     transferId?: string;
     payeeIdentifier?: string;
     senderId?: string;
+    splitDetails?: SplitDetail[];
 }
 
 export interface Payee {
@@ -66,6 +75,17 @@ export interface Sender {
     identifier: string; // The raw sender name from the message, e.g., "VK-AMZPAY"
     name: string; // User-defined name for this sender
     type: SenderType;
+}
+
+export interface ContactGroup {
+    id: string;
+    name: string;
+}
+
+export interface Contact {
+    id: string;
+    name: string;
+    groupId: string;
 }
 
 export interface SpamWarning {
@@ -112,4 +132,4 @@ export interface CustomDateRange {
 
 export type ReportPeriod = 'week' | 'month' | 'year' | 'custom';
 
-export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | null;
+export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | 'contacts' | null;
