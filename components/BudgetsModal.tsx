@@ -1,18 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import ModalHeader from './ModalHeader';
 
-interface BudgetsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface BudgetsScreenProps {
   categories: Category[];
   transactions: Transaction[];
   budgets: Budget[];
   onSaveBudget: (categoryId: string, amount: number) => void;
 }
 
-const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories, transactions, budgets, onSaveBudget }) => {
+const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions, budgets, onSaveBudget }) => {
   const [budgetAmounts, setBudgetAmounts] = useState<Record<string, string>>({});
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const formatCurrency = useCurrencyFormatter();
@@ -67,8 +64,6 @@ const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories
   };
   
   const topLevelCategories = useMemo(() => categories.filter(c => !c.parentId && c.type === TransactionType.EXPENSE), [categories]);
-
-  if (!isOpen) return null;
 
   const renderCategoryBudget = (category: Category) => {
     const budget = budgets.find(b => b.categoryId === category.id && b.month === currentMonth);
@@ -137,21 +132,12 @@ const BudgetsModal: React.FC<BudgetsModalProps> = ({ isOpen, onClose, categories
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Monthly Budgets" onClose={onClose} icon="🎯" />
-        <div className="p-6 flex-grow overflow-y-auto pr-2">
-          <p className="text-sm text-secondary mb-4">Set spending limits for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
-          {topLevelCategories.map(category => renderCategoryBudget(category))}
-        </div>
-        <div className="flex justify-end p-6 pt-4 border-t border-divider">
-          <button onClick={onClose} className="button-secondary px-4 py-2">
-            Close
-          </button>
-        </div>
-      </div>
+    <div className="p-6 flex-grow overflow-y-auto pr-2">
+      <h2 className="text-2xl font-bold text-primary mb-2">Monthly Budgets</h2>
+      <p className="text-sm text-secondary mb-4">Set spending limits for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
+      {topLevelCategories.map(category => renderCategoryBudget(category))}
     </div>
   );
 };
 
-export default BudgetsModal;
+export default BudgetsScreen;

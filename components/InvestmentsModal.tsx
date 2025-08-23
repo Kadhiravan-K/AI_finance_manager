@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { InvestmentHolding, Account, AccountType } from '../types';
-import ModalHeader from './ModalHeader';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
 
-interface InvestmentsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface InvestmentsScreenProps {
   accounts: Account[];
   holdings: InvestmentHolding[];
   onBuy: (investmentAccountId: string, name: string, quantity: number, price: number, fromAccountId: string) => void;
@@ -16,13 +13,11 @@ interface InvestmentsModalProps {
 
 const labelStyle = "block text-sm font-medium text-secondary mb-1";
 
-const InvestmentsModal: React.FC<InvestmentsModalProps> = ({ isOpen, onClose, accounts, holdings, onBuy, onSell, onUpdateValue }) => {
+const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holdings, onBuy, onSell, onUpdateValue }) => {
   const [view, setView] = useState<'list' | 'buy' | 'sell' | 'update'>('list');
   const [selectedHolding, setSelectedHolding] = useState<InvestmentHolding | null>(null);
   const [formData, setFormData] = useState({ name: '', quantity: '', price: '', accountId: '', linkedAccountId: '', currentValue: '' });
   const formatCurrency = useCurrencyFormatter();
-
-  if (!isOpen) return null;
 
   const investmentAccounts = accounts.filter(a => a.accountType === AccountType.INVESTMENT);
   const depositoryAccounts = accounts.filter(a => a.accountType === AccountType.DEPOSITORY);
@@ -54,7 +49,7 @@ const InvestmentsModal: React.FC<InvestmentsModalProps> = ({ isOpen, onClose, ac
   }
 
   const renderList = () => (
-    <>
+    <div className="h-full flex flex-col">
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
         {holdings.length === 0 ? <p className="text-secondary text-center py-8">No investments tracked yet. Click "Buy Investment" to start.</p> : null}
         {holdings.map(h => {
@@ -82,10 +77,10 @@ const InvestmentsModal: React.FC<InvestmentsModalProps> = ({ isOpen, onClose, ac
           )
         })}
       </div>
-      <div className="p-4 border-t border-divider">
+      <div className="p-4 border-t border-divider flex-shrink-0">
         <button onClick={() => { setView('buy'); setFormData(f => ({...f, accountId: investmentAccounts[0]?.id, linkedAccountId: depositoryAccounts[0]?.id}))}} className="button-primary w-full px-4 py-2">Buy Investment</button>
       </div>
-    </>
+    </div>
   );
 
   const renderForm = () => {
@@ -146,13 +141,10 @@ const InvestmentsModal: React.FC<InvestmentsModalProps> = ({ isOpen, onClose, ac
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Investments" onClose={onClose} icon="📈" />
-        {view === 'list' ? renderList() : renderForm()}
-      </div>
+    <div className="h-full flex flex-col">
+       {view === 'list' ? renderList() : renderForm()}
     </div>
   );
 };
 
-export default InvestmentsModal;
+export default InvestmentsScreen;

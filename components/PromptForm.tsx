@@ -26,11 +26,12 @@ const QuickAddForm: React.FC<QuickAddFormProps> = ({ text, setText, onSubmit, is
           className="w-full h-24 p-3 transition-all duration-200 resize-none shadow-inner themed-textarea"
           disabled={isDisabled}
           aria-label="Transaction message input"
+          autoFocus
         />
         <button
           type="submit"
           disabled={isDisabled || !text.trim()}
-          className="button-primary glow w-full flex items-center justify-center font-bold py-3 px-4"
+          className="button-primary w-full flex items-center justify-center font-bold py-3 px-4"
         >
           {isLoading ? <LoadingSpinner /> : 'Quick Add'}
         </button>

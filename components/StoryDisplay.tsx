@@ -181,11 +181,12 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
                     )}
                 </button>
             </div>
-            <div className="horizontal-scroll-container -mx-4 px-4">
+             <div className="grid grid-cols-1 gap-4">
                  <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />
                  <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />
             </div>
             <Dashboard income={income} expense={expense} isVisible={isBalanceVisible} />
+
             <DebtsSummary transactions={allTransactions} accounts={accounts} onSettle={onSettleDebt} isVisible={isBalanceVisible}/>
             <UpcomingBills recurringTransactions={recurringTransactions} onPay={onPayRecurring} categories={categories} />
             <GoalsSummary goals={goals} isVisible={isBalanceVisible} />

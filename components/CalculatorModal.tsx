@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
-import ModalHeader from './ModalHeader';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
-interface CalculatorModalProps {
-  onClose: () => void;
-}
+type CalculatorType = 'basic' | 'emi' | 'sip' | 'goal';
 
-type CalculatorType = 'emi' | 'sip' | 'goal';
-
-const CalculatorModal: React.FC<CalculatorModalProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<CalculatorType>('emi');
+const CalculatorScreen: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<CalculatorType>('basic');
   const formatCurrency = useCurrencyFormatter();
 
   const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void }) => (
@@ -17,6 +12,87 @@ const CalculatorModal: React.FC<CalculatorModalProps> = ({ onClose }) => {
       {children}
     </button>
   );
+
+  const BasicCalculator = () => {
+    const [expression, setExpression] = useState('');
+    const [result, setResult] = useState('');
+
+    const handleInput = (value: string) => {
+        const isOperator = ['+', '-', '*', '/'].includes(value);
+
+        if (result && !isOperator && value !== '.') {
+            setExpression(value);
+            setResult('');
+        } else if (result && (isOperator || value === '.')) {
+            setExpression(result + value);
+            setResult('');
+        } else {
+            setExpression(prev => prev + value);
+        }
+    };
+
+    const handleClear = () => {
+        setExpression('');
+        setResult('');
+    };
+
+    const handleDelete = () => {
+        setExpression(prev => prev.slice(0, -1));
+    };
+
+    const handleCalculate = () => {
+        if (!expression) return;
+        try {
+            // Sanitize by removing anything not a digit, operator, or parenthesis
+            const sanitized = expression.replace(/[^-()\d/*+.]/g, '');
+            // Using Function constructor is safer than direct eval
+            const calculatedResult = new Function('return ' + sanitized)();
+            setResult(String(calculatedResult));
+        } catch (error) {
+            setResult('Error');
+        }
+    };
+    
+    const CalcButton = ({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) => (
+        <button onClick={onClick} className={`calc-btn ${className}`}>
+            {children}
+        </button>
+    );
+
+    const buttons = ['C', '%', 'DEL', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', '0', '00', '.', '='];
+
+    const getButtonClass = (btn: string) => {
+        if (['/', '*', '-', '+', '='].includes(btn)) return 'calc-btn-operator';
+        if (['C', 'DEL', '%'].includes(btn)) return 'calc-btn-special';
+        return '';
+    };
+
+    const handleButtonClick = (btn: string) => {
+        switch (btn) {
+            case 'C': handleClear(); break;
+            case 'DEL': handleDelete(); break;
+            case '=': handleCalculate(); break;
+            case '%': handleInput('/100*'); break;
+            default: handleInput(btn);
+        }
+    };
+    
+    return (
+        <div className="space-y-4">
+            <div className="calculator-result text-right p-4 space-y-1">
+                <div className="text-secondary text-lg h-6 truncate" aria-live="polite">{expression || '0'}</div>
+                <div className="text-primary text-4xl font-bold h-12 truncate" aria-live="polite">{result}</div>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+                {buttons.map(btn => (
+                    <CalcButton key={btn} onClick={() => handleButtonClick(btn)} className={getButtonClass(btn)}>
+                        {btn}
+                    </CalcButton>
+                ))}
+            </div>
+        </div>
+    );
+  }
 
   const EMICalculator = () => {
     const [principal, setPrincipal] = useState('');
@@ -144,24 +220,23 @@ const CalculatorModal: React.FC<CalculatorModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Financial Calculator" onClose={onClose} icon="🧮" />
-        <div className="p-4 border-b border-divider">
-          <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-            <TabButton active={activeTab === 'emi'} onClick={() => setActiveTab('emi')}>EMI</TabButton>
-            <TabButton active={activeTab === 'sip'} onClick={() => setActiveTab('sip')}>SIP</TabButton>
-            <TabButton active={activeTab === 'goal'} onClick={() => setActiveTab('goal')}>Goal</TabButton>
-          </div>
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-divider flex-shrink-0 bg-subtle">
+        <div className="grid grid-cols-4 items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
+          <TabButton active={activeTab === 'basic'} onClick={() => setActiveTab('basic')}>Basic</TabButton>
+          <TabButton active={activeTab === 'emi'} onClick={() => setActiveTab('emi')}>EMI</TabButton>
+          <TabButton active={activeTab === 'sip'} onClick={() => setActiveTab('sip')}>SIP</TabButton>
+          <TabButton active={activeTab === 'goal'} onClick={() => setActiveTab('goal')}>Goal</TabButton>
         </div>
-        <div className="p-6 overflow-y-auto">
-          {activeTab === 'emi' && <EMICalculator />}
-          {activeTab === 'sip' && <SIPCalculator />}
-          {activeTab === 'goal' && <GoalCalculator />}
-        </div>
+      </div>
+      <div className="p-6 overflow-y-auto flex-grow">
+        {activeTab === 'basic' && <BasicCalculator />}
+        {activeTab === 'emi' && <EMICalculator />}
+        {activeTab === 'sip' && <SIPCalculator />}
+        {activeTab === 'goal' && <GoalCalculator />}
       </div>
     </div>
   );
 };
 
-export default CalculatorModal;
+export default CalculatorScreen;

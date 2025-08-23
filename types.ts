@@ -161,7 +161,9 @@ export interface CustomDateRange {
 
 export type ReportPeriod = 'week' | 'month' | 'year' | 'custom';
 
-export type ActiveModal = 'reports' | 'budgets' | 'scheduled' | 'settings' | 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'goals' | 'contacts' | 'feedback' | 'investments' | 'privacyConsent' | 'onboarding' | 'calculator' | 'quickAdd' | null;
+export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'settings';
+
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'quickAdd' | 'headerMenu' | null;
 
 // For Backup
 export interface AppState {

@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
 import { RecurringTransaction, Category, Account, TransactionType, Frequency } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
 
-interface ScheduledPaymentsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface ScheduledPaymentsScreenProps {
   recurringTransactions: RecurringTransaction[];
   setRecurringTransactions: React.Dispatch<React.SetStateAction<RecurringTransaction[]>>;
   categories: Category[];
   accounts: Account[];
 }
 
-const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen, onClose, recurringTransactions, setRecurringTransactions, categories, accounts }) => {
+const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recurringTransactions, setRecurringTransactions, categories, accounts }) => {
   const [editingItem, setEditingItem] = useState<RecurringTransaction | null>(null);
   const [formState, setFormState] = useState<Omit<RecurringTransaction, 'id' | 'nextDueDate'>>({
     description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: accounts[0]?.id || '', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0]
@@ -74,9 +71,6 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
     handleCancel();
   };
 
-
-  if (!isOpen) return null;
-
   const categoryOptions = categories.filter(c => c.type === formState.type).map(c => ({ value: c.id, label: `${getCategoryPath(c.id)}` }));
   const accountOptions = accounts.map(a => ({ value: a.id, label: a.name }));
   const frequencyOptions = [
@@ -91,10 +85,9 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
   ]
 
   return (
-    <div className="glass-card rounded-xl shadow-2xl w-full max-w-2xl p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-      <ModalHeader title="Scheduled Payments" onClose={onClose} icon="📅" />
-      
-      <div className="flex-grow overflow-y-auto p-6 space-y-2 pb-24">
+    <div className="h-full flex flex-col">
+      <div className="flex-grow overflow-y-auto p-6 space-y-2">
+         <h2 className="text-2xl font-bold text-primary mb-4">Scheduled Payments 📅</h2>
         {recurringTransactions.map(item => (
           <div key={item.id} className="p-3 bg-subtle rounded-lg flex items-center justify-between">
             <div>
@@ -110,7 +103,7 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
         {recurringTransactions.length === 0 && <p className="text-center text-secondary py-8">No scheduled payments yet.</p>}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-divider space-y-3 bg-subtle rounded-b-xl">
+      <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-divider space-y-3 bg-subtle">
         <h3 className="font-semibold text-primary">{editingItem ? 'Edit Payment' : 'Add New Scheduled Payment'}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -156,4 +149,4 @@ const ScheduledPaymentsModal: React.FC<ScheduledPaymentsModalProps> = ({ isOpen,
   );
 };
 
-export default ScheduledPaymentsModal;
+export default ScheduledPaymentsScreen;

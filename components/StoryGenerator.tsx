@@ -1,15 +1,15 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen } from '../types';
 import { parseTransactionText } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
 import AccountSelector from './AccountSelector';
 import EditTransactionModal from './EditTransactionModal';
 import TransferModal from './TransferModal';
-import ReportsModal from './ReportsModal';
-import BudgetsModal from './BudgetsModal';
-import SettingsModal from './SettingsModal';
-import ScheduledPaymentsModal from './ScheduledPaymentsModal';
+import ReportsScreen from './ReportsModal';
+import BudgetsScreen from './BudgetsModal';
+import SettingsScreen from './SettingsScreen';
+import ScheduledPaymentsScreen from './ScheduledPaymentsModal';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { calculateNextDueDate } from '../utils/date';
 import AppSettingsModal from './AppSettingsModal';
@@ -19,12 +19,13 @@ import PayeesModal from './PayeesModal';
 import ExportModal from './ExportModal';
 import SenderManagerModal from './SenderManagerModal';
 import SpamWarningCard from './SpamWarningCard';
-import GoalsModal from './GoalsModal';
+import GoalsScreen from './GoalsModal';
 import ContactsManagerModal from './ContactsManagerModal';
 import FeedbackModal from './FeedbackModal';
-import InvestmentsModal from './InvestmentsModal';
-import CalculatorModal from './CalculatorModal';
+import InvestmentsScreen from './InvestmentsModal';
+import CalculatorScreen from './CalculatorModal';
 import QuickAddModal from './QuickAddModal';
+import HeaderMenuModal from './HeaderMenuModal';
 
 
 const generateCategories = (): Category[] => {
@@ -191,12 +192,16 @@ const DEFAULT_ACCOUNTS = (): Account[] => [];
 
 
 interface FinanceTrackerProps {
+  activeScreen: ActiveScreen;
+  setActiveScreen: (screen: ActiveScreen) => void;
   activeModal: ActiveModal;
   setActiveModal: (modal: ActiveModal) => void;
   isOnline: boolean;
 }
 
 const FinanceTracker: React.FC<FinanceTrackerProps> = ({ 
+  activeScreen,
+  setActiveScreen,
   activeModal,
   setActiveModal,
   isOnline,
@@ -319,12 +324,12 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     setActiveModal(null);
   }, [selectedAccountId, findOrCreateCategory, setTransactions, payees, setActiveModal]);
 
-  const handleAddTransaction = useCallback(async () => {
+  const handleAddTransaction = useCallback(async (transactionText: string) => {
     if (selectedAccountId === 'all') {
       setError('Please select a specific account to add a transaction.');
       return setStatus(ProcessingStatus.ERROR);
     }
-    if (!text.trim()) {
+    if (!transactionText.trim()) {
       setError('Paste message or Quick Add: "Lunch 500"');
       return setStatus(ProcessingStatus.ERROR);
     }
@@ -332,9 +337,10 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
     setStatus(ProcessingStatus.LOADING);
     setError('');
     setSpamWarning(null);
+    setActiveModal(null); // Close modal if it was open
 
     try {
-      const parsed = await parseTransactionText(text);
+      const parsed = await parseTransactionText(transactionText);
       if (parsed) {
         const senderIdentifier = parsed.senderName?.toLowerCase();
         const existingSender = senderIdentifier ? senders.find(s => s.identifier.toLowerCase() === senderIdentifier) : undefined;
@@ -352,7 +358,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
         
         // New sender or no sender found, check for spam
         if (parsed.isSpam && parsed.spamConfidence > 0.7) {
-            setSpamWarning({ parsedData: parsed, rawText: text });
+            setSpamWarning({ parsedData: parsed, rawText: transactionText });
             setStatus(ProcessingStatus.IDLE);
             setText('');
             return;
@@ -369,8 +375,13 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       setError(errorMessage);
       setStatus(ProcessingStatus.ERROR);
     }
-  }, [text, selectedAccountId, saveTransaction, senders]);
-
+  }, [selectedAccountId, saveTransaction, senders, setActiveModal]);
+  
+  // This will be called by the QuickAddModal form
+  const handleQuickAddSubmit = useCallback(() => {
+    handleAddTransaction(text);
+  }, [handleAddTransaction, text]);
+  
   const handleSpamApproval = (trustSender: boolean) => {
     if (!spamWarning) return;
     
@@ -780,50 +791,77 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
 
   const isFormDisabled = (selectedAccountId === 'all' && accounts.length > 0) || status === ProcessingStatus.LOADING;
   const handleCloseActiveModal = () => setActiveModal(null);
+  
+  const renderScreen = () => {
+    switch (activeScreen) {
+      case 'dashboard':
+        return (
+          <div className="p-4">
+            <AccountSelector
+              accounts={accounts}
+              selectedAccountId={selectedAccountId}
+              onAccountChange={setSelectedAccountId}
+              onAddAccount={handleAddAccount}
+            />
+            {spamWarning && (
+              <SpamWarningCard 
+                  warning={spamWarning}
+                  onApprove={handleSpamApproval}
+                  onDiscard={() => setSpamWarning(null)}
+              />
+            )}
+            <FinanceDisplay
+                status={status}
+                transactions={filteredTransactions}
+                allTransactions={transactions}
+                accounts={accounts}
+                categories={categories}
+                budgets={budgets}
+                recurringTransactions={recurringTransactions}
+                onPayRecurring={handlePayRecurring}
+                goals={goals}
+                investmentHoldings={investmentHoldings}
+                error={error}
+                income={dashboardData.income}
+                expense={dashboardData.expense}
+                onEdit={setEditingTransaction}
+                onDelete={handleDeleteTransaction}
+                onSettleDebt={handleSettleDebt}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                dateFilter={dateFilter}
+                setDateFilter={setDateFilter}
+                customDateRange={customDateRange}
+                setCustomDateRange={setCustomDateRange}
+                isBalanceVisible={isBalanceVisible}
+                setIsBalanceVisible={setIsBalanceVisible}
+            />
+          </div>
+        );
+      case 'reports':
+        return <ReportsScreen transactions={transactions} categories={categories} />;
+      case 'investments':
+        return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={handleBuyInvestment} onSell={handleSellInvestment} onUpdateValue={handleUpdateHoldingValue} />;
+      case 'budgets':
+        return <BudgetsScreen categories={categories.filter(c => c.type === TransactionType.EXPENSE)} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
+      case 'goals':
+        return <GoalsScreen goals={goals} setGoals={setGoals} accounts={accounts} onContribute={handleContributeToGoal} />;
+      case 'scheduled':
+        return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions} categories={categories} accounts={accounts} />;
+      case 'calculator':
+        return <CalculatorScreen />;
+      case 'settings':
+         return <SettingsScreen setActiveScreen={setActiveScreen} setActiveModal={setActiveModal} />;
+      default:
+        return null;
+    }
+  };
+
 
   return (
     <>
-       <div className="p-4">
-        <AccountSelector
-          accounts={accounts}
-          selectedAccountId={selectedAccountId}
-          onAccountChange={setSelectedAccountId}
-          onAddAccount={handleAddAccount}
-        />
-        {spamWarning && (
-          <SpamWarningCard 
-              warning={spamWarning}
-              onApprove={handleSpamApproval}
-              onDiscard={() => setSpamWarning(null)}
-          />
-        )}
-          <FinanceDisplay
-              status={status}
-              transactions={filteredTransactions}
-              allTransactions={transactions}
-              accounts={accounts}
-              categories={categories}
-              budgets={budgets}
-              recurringTransactions={recurringTransactions}
-              onPayRecurring={handlePayRecurring}
-              goals={goals}
-              investmentHoldings={investmentHoldings}
-              error={error}
-              income={dashboardData.income}
-              expense={dashboardData.expense}
-              onEdit={setEditingTransaction}
-              onDelete={handleDeleteTransaction}
-              onSettleDebt={handleSettleDebt}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              dateFilter={dateFilter}
-              setDateFilter={setDateFilter}
-              customDateRange={customDateRange}
-              setCustomDateRange={setCustomDateRange}
-              isBalanceVisible={isBalanceVisible}
-              setIsBalanceVisible={setIsBalanceVisible}
-          />
-      </div>
+       {renderScreen()}
+
       {editingTransaction && (
         <EditTransactionModal
           transaction={editingTransaction}
@@ -837,7 +875,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             onClose={handleCloseActiveModal}
             text={text}
             setText={setText}
-            onSubmit={handleAddTransaction}
+            onSubmit={handleQuickAddSubmit}
             isLoading={status === ProcessingStatus.LOADING}
             isDisabled={isFormDisabled}
             disabledReason={selectedAccountId === 'all' && accounts.length > 0 ? 'Select an account' : undefined}
@@ -851,16 +889,10 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
             onTransfer={handleAccountTransfer}
         />
       )}
-      {activeModal === 'settings' && (
-          <SettingsModal
-            onClose={handleCloseActiveModal}
-            setActiveModal={setActiveModal}
-          />
-      )}
        {activeModal === 'appSettings' && (
           <AppSettingsModal
             isOpen={true}
-            onClose={() => setActiveModal('settings')}
+            onClose={() => setActiveModal(null)}
             appState={appState}
             onRestore={handleRestoreBackup}
           />
@@ -868,7 +900,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
        {activeModal === 'categories' && (
           <CategoryManagerModal
             isOpen={true}
-            onClose={() => setActiveModal('settings')}
+            onClose={() => setActiveModal(null)}
             categories={categories}
             onAddNewCategory={handleAddNewCategory}
             onEditCategory={setEditingCategory}
@@ -886,7 +918,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
        {activeModal === 'payees' && (
           <PayeesModal
             isOpen={true}
-            onClose={() => setActiveModal('settings')}
+            onClose={() => setActiveModal(null)}
             payees={payees}
             setPayees={setPayees}
             categories={categories}
@@ -895,18 +927,18 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       {activeModal === 'contacts' && (
         <ContactsManagerModal
             isOpen={true}
-            onClose={() => setActiveModal('settings')}
+            onClose={() => setActiveModal(null)}
         />
       )}
       {activeModal === 'senderManager' && (
         <SenderManagerModal
             isOpen={true}
-            onClose={() => setActiveModal('settings')}
+            onClose={() => setActiveModal(null)}
         />
       )}
       {activeModal === 'export' && (
         <ExportModal 
-          onClose={() => setActiveModal('settings')}
+          onClose={() => setActiveModal(null)}
           transactions={transactions}
           accounts={accounts}
           categories={categories}
@@ -915,62 +947,10 @@ const FinanceTracker: React.FC<FinanceTrackerProps> = ({
       )}
       {activeModal === 'feedback' && (
           <FeedbackModal 
-            onClose={() => setActiveModal('settings')}
+            onClose={() => setActiveModal(null)}
             onSend={handleSendFeedback}
             isSending={isSendingFeedback}
           />
-      )}
-      {activeModal === 'reports' && (
-          <ReportsModal
-            isOpen={true}
-            onClose={handleCloseActiveModal}
-            transactions={transactions}
-            categories={categories}
-          />
-      )}
-      {activeModal === 'budgets' && (
-          <BudgetsModal
-            isOpen={true}
-            onClose={handleCloseActiveModal}
-            categories={categories.filter(c => c.type === TransactionType.EXPENSE)}
-            transactions={transactions}
-            budgets={budgets}
-            onSaveBudget={handleSaveBudget}
-          />
-      )}
-      {activeModal === 'scheduled' && (
-        <ScheduledPaymentsModal
-          isOpen={true}
-          onClose={handleCloseActiveModal}
-          recurringTransactions={recurringTransactions}
-          setRecurringTransactions={setRecurringTransactions}
-          categories={categories}
-          accounts={accounts}
-        />
-      )}
-       {activeModal === 'goals' && (
-        <GoalsModal
-          isOpen={true}
-          onClose={handleCloseActiveModal}
-          goals={goals}
-          setGoals={setGoals}
-          accounts={accounts}
-          onContribute={handleContributeToGoal}
-        />
-      )}
-      {activeModal === 'investments' && (
-        <InvestmentsModal
-            isOpen={true}
-            onClose={handleCloseActiveModal}
-            accounts={accounts}
-            holdings={investmentHoldings}
-            onBuy={handleBuyInvestment}
-            onSell={handleSellInvestment}
-            onUpdateValue={handleUpdateHoldingValue}
-        />
-      )}
-      {activeModal === 'calculator' && (
-        <CalculatorModal onClose={handleCloseActiveModal} />
       )}
     </>
   );

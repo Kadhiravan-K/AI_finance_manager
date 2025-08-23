@@ -4,19 +4,16 @@ import CategoryPieChart from './CategoryPieChart';
 import CategoryBarChart from './CategoryBarChart';
 import TimeSeriesBarChart from './TimeSeriesBarChart';
 import CustomDatePicker from './CustomDatePicker';
-import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 
-interface ReportsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface ReportsScreenProps {
   transactions: Transaction[];
   categories: Category[];
 }
 
 type ReportType = 'breakdown' | 'trend';
 
-const ReportsModal: React.FC<ReportsModalProps> = ({ isOpen, onClose, transactions, categories }) => {
+const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories }) => {
   const [reportType, setReportType] = useState<ReportType>('breakdown');
   const [transactionType, setTransactionType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [period, setPeriod] = useState<ReportPeriod>('month');
@@ -66,8 +63,6 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ isOpen, onClose, transactio
       {value: 'year', label: 'This Year'},
       {value: 'custom', label: 'Custom'},
   ];
-
-  if (!isOpen) return null;
   
   const getTitle = () => {
     const type = transactionType.charAt(0).toUpperCase() + transactionType.slice(1);
@@ -77,56 +72,52 @@ const ReportsModal: React.FC<ReportsModalProps> = ({ isOpen, onClose, transactio
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-lg flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="glass-card rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Financial Reports" onClose={onClose} icon="📊" />
-        
-        {/* Controls */}
-        <div className="p-4 border-b border-divider flex-shrink-0 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="flex w-full md:w-auto items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-            <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
-            <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
-          </div>
-          <div className="flex w-full md:w-auto items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-            <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expenses</TabButton>
-            <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
-          </div>
-          <div className="w-full md:w-48">
-            <CustomSelect options={periodOptions} value={period} onChange={(v) => setPeriod(v as ReportPeriod)} />
-          </div>
+    <div className="h-full flex flex-col">
+      {/* Controls */}
+      <div className="p-4 border-b border-divider flex-shrink-0 flex flex-col md:flex-row gap-4 justify-between items-center bg-subtle">
+        <div className="flex w-full md:w-auto items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
+          <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
+          <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
         </div>
-         {period === 'custom' && (
-            <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-center gap-4 animate-fadeInUp">
-                <CustomDatePicker value={customDateRange.start} onChange={date => setCustomDateRange(prev => ({...prev, start: date}))} />
-                <span className="text-secondary">to</span>
-                <CustomDatePicker value={customDateRange.end} onChange={date => setCustomDateRange(prev => ({...prev, end: date}))} />
-            </div>
-        )}
+        <div className="flex w-full md:w-auto items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
+          <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expenses</TabButton>
+          <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
+        </div>
+        <div className="w-full md:w-48">
+          <CustomSelect options={periodOptions} value={period} onChange={(v) => setPeriod(v as ReportPeriod)} />
+        </div>
+      </div>
+       {period === 'custom' && (
+          <div className="p-4 border-b border-divider flex-shrink-0 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 sm:gap-4 animate-fadeInUp bg-subtle">
+              <CustomDatePicker value={customDateRange.start} onChange={date => setCustomDateRange(prev => ({...prev, start: date}))} />
+              <span className="text-secondary">to</span>
+              <CustomDatePicker value={customDateRange.end} onChange={date => setCustomDateRange(prev => ({...prev, end: date}))} />
+          </div>
+      )}
 
-        {/* Content */}
-        <div className="flex-grow p-4 overflow-y-auto">
-          <h3 className="text-xl font-bold text-center mb-4 text-primary">{getTitle()}</h3>
-          {filteredTransactions.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-secondary">
-                <p>No data available for this period.</p>
-            </div>
-          ) : (
-            <>
-              {reportType === 'breakdown' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                  <CategoryPieChart title={`${transactionType} Sources`} transactions={filteredTransactions} categories={categories} type={transactionType} />
-                  <CategoryBarChart title={`${transactionType} by Category`} transactions={filteredTransactions} categories={categories} type={transactionType} />
-                </div>
-              )}
-              {reportType === 'trend' && (
-                  <TimeSeriesBarChart title={`${transactionType} Trend`} transactions={filteredTransactions} period={period} type={transactionType} />
-              )}
-            </>
-          )}
-        </div>
+      {/* Content */}
+      <div className="flex-grow p-4 overflow-y-auto">
+        <h3 className="text-xl font-bold text-center mb-4 text-primary">{getTitle()}</h3>
+        {filteredTransactions.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-secondary">
+              <p>No data available for this period.</p>
+          </div>
+        ) : (
+          <>
+            {reportType === 'breakdown' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <CategoryPieChart title={`${transactionType} Sources`} transactions={filteredTransactions} categories={categories} type={transactionType} />
+                <CategoryBarChart title={`${transactionType} by Category`} transactions={filteredTransactions} categories={categories} type={transactionType} />
+              </div>
+            )}
+            {reportType === 'trend' && (
+                <TimeSeriesBarChart title={`${transactionType} Trend`} transactions={filteredTransactions} period={period} type={transactionType} />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
 };
 
-export default ReportsModal;
+export default ReportsScreen;
