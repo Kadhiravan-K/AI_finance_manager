@@ -6,6 +6,7 @@ import CustomDatePicker from './CustomDatePicker';
 interface TransactionFiltersProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  onNaturalLanguageSearch: () => void;
   dateFilter: DateRange;
   setDateFilter: (filter: DateRange) => void;
   customDateRange: CustomDateRange;
@@ -15,6 +16,7 @@ interface TransactionFiltersProps {
 const TransactionFilters: React.FC<TransactionFiltersProps> = ({
   searchQuery,
   setSearchQuery,
+  onNaturalLanguageSearch,
   dateFilter,
   setDateFilter,
   customDateRange,
@@ -33,18 +35,34 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
     { value: 'month', label: 'This Month' },
     { value: 'custom', label: 'Custom Range' },
   ];
+  
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+          onNaturalLanguageSearch();
+      }
+  }
 
   return (
     <div className="p-4 rounded-xl glass-card space-y-4">
-      <div className="relative">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search transactions..."
-          className="input-base w-full rounded-full py-2 px-3 pl-10"
-        />
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+      <div className="relative flex items-center gap-2">
+        <div className="relative flex-grow">
+            <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder='Search or ask AI: "coffee last month"'
+            className="input-base w-full rounded-full py-2 px-3 pl-10"
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+        <button 
+            onClick={onNaturalLanguageSearch}
+            className="px-3 py-1.5 text-sm font-semibold rounded-full bg-violet-600 text-white hover:bg-violet-500 transition-colors"
+            aria-label="Search with AI"
+        >
+            AI
+        </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <CustomSelect

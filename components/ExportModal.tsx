@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { Transaction, Account, Category, Sender } from '../types';
 import ModalHeader from './ModalHeader';
 import { exportTransactionsToCsv } from '../utils/export';
 import CustomDatePicker from './CustomDatePicker';
+
+const modalRoot = document.getElementById('modal-root')!;
 
 interface ExportModalProps {
   onClose: () => void;
@@ -24,7 +27,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose, transactions, accoun
     exportTransactionsToCsv(transactions, accounts, categories, senders, startDateStr, endDateStr);
   };
 
-  return (
+  const modalContent = (
     <div
       className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4"
       onClick={onClose}
@@ -68,6 +71,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose, transactions, accoun
       </div>
     </div>
   );
+  
+  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default ExportModal;

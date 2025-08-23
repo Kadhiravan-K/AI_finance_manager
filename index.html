@@ -478,8 +478,8 @@
         bottom: 24px;
         left: 50%;
         transform: translateX(-50%);
-        width: 72px;
-        height: 72px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -500,32 +500,31 @@
         filter: brightness(0.9);
       }
       
-      /* Settings Tools Grid */
-      .settings-tools-grid {
+      /* Management Grid */
+      .management-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 0.75rem;
       }
-      .settings-tool-button {
+      .management-tool-button {
         display: flex;
         flex-direction: column;
         align-items: center;
+        text-align: center;
         gap: 0.5rem;
         padding: 1rem;
         background-color: var(--color-bg-subtle);
-        border-radius: 0.75rem;
+        border-radius: 1rem;
         transition: all 0.2s ease;
         color: var(--color-text-primary);
         font-weight: 500;
         border: 1px solid transparent;
       }
-      .settings-tool-button:hover {
+      .management-tool-button:hover {
         background-color: var(--color-bg-card-hover);
         border-color: var(--color-border-divider);
-        transform: translateY(-2px);
-        box-shadow: 0 0 15px 0 var(--shadow-color-accent);
       }
-      .settings-tool-button .icon {
+      .management-tool-button .icon {
         font-size: 1.5rem;
       }
       
@@ -557,7 +556,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        height: 64px;
+        height: 60px;
         display: grid;
         grid-template-columns: repeat(5, 1fr);
         align-items: center;
@@ -566,6 +565,8 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         z-index: 30;
+        border-top-left-radius: 1.5rem;
+        border-top-right-radius: 1.5rem;
       }
 
       .footer-button {
@@ -595,6 +596,107 @@
       .footer-nav-placeholder {
         grid-column: 3 / 4;
       }
+
+      /* Achievement Toast */
+      @keyframes toast-in {
+        from { transform: translateY(-100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      @keyframes toast-out {
+        from { transform: translateY(0); opacity: 1; }
+        to { transform: translateY(-100%); opacity: 0; }
+      }
+      .achievement-toast {
+        position: fixed;
+        top: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        animation-duration: 0.5s;
+        animation-timing-function: ease-out;
+        animation-fill-mode: forwards;
+      }
+      .toast-enter {
+        animation-name: toast-in;
+      }
+      .toast-exit {
+        animation-name: toast-out;
+      }
+
+      /* Achievements Screen */
+      .achievements-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 1rem;
+      }
+      .achievement-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        transition: all 0.2s ease;
+        border: 1px solid var(--color-border-divider);
+      }
+      .achievement-badge.locked {
+        background-color: var(--color-bg-subtle);
+        filter: grayscale(80%) opacity(60%);
+      }
+      .achievement-badge.unlocked {
+        background: radial-gradient(circle, var(--color-bg-card-hover) 0%, var(--color-bg-subtle) 100%);
+        border-color: var(--color-accent-emerald);
+        transform: scale(1.03);
+      }
+      .achievement-badge .icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+      .achievement-badge .name {
+        font-weight: 600;
+        color: var(--color-text-primary);
+      }
+      .achievement-badge .description {
+        font-size: 0.75rem;
+        color: var(--color-text-secondary);
+      }
+      .achievement-badge .date {
+          font-size: 0.65rem;
+          color: var(--color-text-tertiary);
+          margin-top: 0.25rem;
+      }
+
+      /* Virtualization Styles */
+      .virtual-scroll-container {
+        position: relative;
+        overflow-y: auto;
+        height: 100%;
+      }
+      .virtual-scroll-item {
+        position: absolute;
+        left: 0;
+        right: 0;
+        width: 100%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      /* Dashboard Settings Drag-n-Drop */
+      .draggable-item {
+        transition: opacity 0.2s ease;
+      }
+      .draggable-item.dragging {
+        opacity: 0.5;
+      }
+      .drag-handle {
+        cursor: grab;
+      }
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+      .drag-over {
+        border-top: 2px solid var(--color-accent-emerald);
+      }
       
     </style>
     <script type="importmap">
@@ -604,13 +706,15 @@
     "react/": "https://esm.sh/react@19.1.1/",
     "react": "https://esm.sh/react@19.1.1",
     "react-dom/client": "https://esm.sh/react-dom@19.1.1/client",
-    "react-dom/": "https://esm.sh/react-dom@19.1.1/"
+    "react-dom/": "https://esm.sh/react-dom@19.1.1/",
+    "react-dom": "https://esm.sh/react-dom@^19.1.1"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
+    <div id="modal-root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

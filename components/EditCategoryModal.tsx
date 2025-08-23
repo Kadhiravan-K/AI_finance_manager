@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { Category, TransactionType } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
+
+const modalRoot = document.getElementById('modal-root')!;
 
 interface EditCategoryModalProps {
   category: Category;
@@ -48,7 +51,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
       { value: TransactionType.INCOME, label: 'Income' },
   ];
 
-  return (
+  const modalContent = (
     <div
       className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4"
       onClick={onCancel}
@@ -121,6 +124,8 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
       </div>
     </div>
   );
+  
+  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default EditCategoryModal;

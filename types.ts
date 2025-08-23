@@ -70,6 +70,7 @@ export interface Transaction {
     payeeIdentifier?: string;
     senderId?: string;
     splitDetails?: SplitDetail[];
+    isRefundFor?: string; // Links refund to original transaction ID
 }
 
 export interface InvestmentHolding {
@@ -146,11 +147,63 @@ export interface RecurringTransaction {
     notes?: string;
 }
 
+export interface TripParticipant {
+    contactId: string;
+    name: string;
+}
+
+export interface Trip {
+    id: string;
+    name: string;
+    participants: TripParticipant[];
+    date: string; // ISO string
+}
+
+export interface TripExpense {
+    id: string;
+    tripId: string;
+    description: string;
+    amount: number;
+    date: string; // ISO string
+    paidByContactId: string;
+    splitDetails: SplitDetail[];
+}
+
 export type Theme = 'light' | 'dark';
+
+export interface DashboardWidget {
+    id: 'netWorth' | 'portfolio' | 'summary' | 'debts' | 'upcoming' | 'goals' | 'budgets' | 'charts' | 'coach';
+    name: string;
+    visible: boolean;
+}
+
+export interface NotificationSettings {
+    enabled: boolean;
+    bills: {
+        enabled: boolean;
+    };
+    budgets: {
+        enabled: boolean;
+        // Key is categoryId, value is boolean
+        categories: Record<string, boolean>;
+    };
+    largeTransaction: {
+        enabled: boolean;
+        amount: number;
+    };
+    goals: {
+        enabled: boolean;
+    };
+    investments: {
+        enabled: boolean;
+    }
+}
 
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
     theme: Theme;
+    dashboardWidgets: DashboardWidget[];
+    notificationSettings: NotificationSettings;
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -161,9 +214,37 @@ export interface CustomDateRange {
 
 export type ReportPeriod = 'week' | 'month' | 'year' | 'custom';
 
-export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'settings';
+export interface Achievement {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+}
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'quickAdd' | 'headerMenu' | null;
+export interface UnlockedAchievement {
+    achievementId: string;
+    date: string; // ISO string
+}
+
+export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds';
+
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'quickAdd' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | null;
+
+export interface ModalState {
+    name: ActiveModal;
+    props?: Record<string, any>;
+}
+
+export interface FinanceTrackerProps {
+  activeScreen: ActiveScreen;
+  setActiveScreen: (screen: ActiveScreen) => void;
+  // activeModal: ActiveModal;
+  // setActiveModal: (modal: ActiveModal) => void;
+  modalStack: ModalState[];
+  setModalStack: React.Dispatch<React.SetStateAction<ModalState[]>>;
+  isOnline: boolean;
+  mainContentRef?: React.RefObject<HTMLElement>;
+}
 
 // For Backup
 export interface AppState {
@@ -179,4 +260,7 @@ export interface AppState {
     contactGroups: ContactGroup[];
     contacts: Contact[];
     settings: Settings;
+    achievements: UnlockedAchievement[];
+    trips?: Trip[];
+    tripExpenses?: TripExpense[];
 }

@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import { Transaction, TransactionType, Account, Category, Payee, SplitDetail, Contact } from '../types';
+import ReactDOM from 'react-dom';
+import { Transaction, TransactionType, Account, Category, Payee, SplitDetail, Contact, ModalState } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
+
+const modalRoot = document.getElementById('modal-root')!;
 
 interface EditTransactionModalProps {
   transaction: Transaction;
@@ -15,6 +18,7 @@ interface EditTransactionModalProps {
   }) => void;
   onCancel: () => void;
   accounts: Account[];
+  openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
 }
 
 const inputBaseClasses = "w-full rounded-lg py-2 px-3 shadow-inner transition-all duration-200 input-base";
@@ -32,7 +36,7 @@ interface Item {
     splitDetails: SplitDetail[];
 }
 
-const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts }) => {
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, openModal }) => {
   const { categories, payees, setPayees, contacts, contactGroups } = useContext(SettingsContext);
   const [formData, setFormData] = useState<Transaction>(transaction);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
@@ -158,7 +162,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
         onSave({
             action: 'split-and-replace',
             originalTransactionId: transaction.id,
-            newTransactions: newTransactions.filter(t => t.amount > 0),
+            newTransactions: newTransactions.filter(t => (t.amount > 0 || (t.amount === 0 && t.description.trim() !== ''))),
         });
     } else {
         onSave(formData);
@@ -416,7 +420,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   };
 
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel} aria-modal="true" role="dialog">
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <ModalHeader title="Edit Transaction" onClose={onCancel} />
@@ -510,14 +514,25 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 )}
               </div>
           )}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-divider mt-4">
-            <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
-            <button type="submit" disabled={(!formData.categoryId && !isItemized) || isSaveDisabled} className="button-primary px-4 py-2">Save Changes</button>
+          <div className="flex justify-between items-center pt-4 border-t border-divider mt-4">
+            <div>
+              {formData.type === TransactionType.EXPENSE && (
+                <button type="button" onClick={() => openModal('refund', { transaction: formData })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
+                  Process a Refund
+                </button>
+              )}
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+              <button type="submit" disabled={(!formData.categoryId && !isItemized) || isSaveDisabled} className="button-primary px-4 py-2">Save Changes</button>
+            </div>
           </div>
         </form>
       </div>
     </div>
   );
+  
+  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default EditTransactionModal;

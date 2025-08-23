@@ -41,6 +41,20 @@ self.addEventListener('fetch', event => {
     return;
   }
   
+  // Handle share target fetch
+  if (event.request.url.includes('?shared_text=')) {
+    event.respondWith(Response.redirect('/'));
+    event.waitUntil(async function() {
+      const client = await self.clients.get(event.clientId);
+      const url = new URL(event.request.url);
+      const sharedText = url.searchParams.get('shared_text');
+      if (client) {
+        client.postMessage({ type: 'shared-text', text: sharedText });
+      }
+    }());
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -56,10 +70,6 @@ self.addEventListener('fetch', event => {
               return response;
             }
 
-            // IMPORTANT: Clone the response. A response is a stream
-            // and because we want the browser to consume the response
-            // as well as the cache consuming the response, we need
-            // to clone it so we have two streams.
             const responseToCache = response.clone();
 
             caches.open(CACHE_NAME)
@@ -72,4 +82,37 @@ self.addEventListener('fetch', event => {
         );
       })
     );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+
+  const action = event.action;
+  const billId = event.notification.data?.billId;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      const openClient = clientList.find(client => client.url === self.location.origin + '/' && 'focus' in client);
+
+      if (action === 'mark_as_paid' && billId) {
+        if (openClient) {
+            openClient.postMessage({ action: 'mark_as_paid', id: billId });
+            return openClient.focus();
+        } else if (clients.openWindow) {
+            return clients.openWindow('/').then(client => {
+                // Wait a bit for the client to be ready to receive messages
+                setTimeout(() => {
+                    client.postMessage({ action: 'mark_as_paid', id: billId });
+                }, 1000);
+            });
+        }
+      } else {
+        if (openClient) {
+            return openClient.focus();
+        } else if (clients.openWindow) {
+            return clients.openWindow('/');
+        }
+      }
+    })
+  );
 });

@@ -9,11 +9,12 @@ interface InvestmentsScreenProps {
   onBuy: (investmentAccountId: string, name: string, quantity: number, price: number, fromAccountId: string) => void;
   onSell: (holdingId: string, quantity: number, price: number, toAccountId: string) => void;
   onUpdateValue: (holdingId: string, newCurrentValue: number) => void;
+  onRefresh: () => void;
 }
 
 const labelStyle = "block text-sm font-medium text-secondary mb-1";
 
-const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holdings, onBuy, onSell, onUpdateValue }) => {
+const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holdings, onBuy, onSell, onUpdateValue, onRefresh }) => {
   const [view, setView] = useState<'list' | 'buy' | 'sell' | 'update'>('list');
   const [selectedHolding, setSelectedHolding] = useState<InvestmentHolding | null>(null);
   const [formData, setFormData] = useState({ name: '', quantity: '', price: '', accountId: '', linkedAccountId: '', currentValue: '' });
@@ -50,6 +51,17 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
 
   const renderList = () => (
     <div className="h-full flex flex-col">
+       <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-primary">Investments 📈</h2>
+            <button 
+                onClick={onRefresh}
+                className="button-secondary text-sm px-3 py-1.5 flex items-center gap-2"
+                aria-label="Refresh market data"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l5 5M20 20l-5-5" /></svg>
+                Refresh Data
+            </button>
+       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
         {holdings.length === 0 ? <p className="text-secondary text-center py-8">No investments tracked yet. Click "Buy Investment" to start.</p> : null}
         {holdings.map(h => {

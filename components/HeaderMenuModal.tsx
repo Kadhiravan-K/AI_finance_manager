@@ -1,6 +1,9 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { ActiveScreen } from '../types';
 import ModalHeader from './ModalHeader';
+
+const modalRoot = document.getElementById('modal-root')!;
 
 interface HeaderMenuModalProps {
   onClose: () => void;
@@ -12,10 +15,13 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
     { screen: 'investments', label: 'Investments', icon: '📈' },
     { screen: 'goals', label: 'Goals', icon: '🏆' },
     { screen: 'scheduled', label: 'Scheduled', icon: '📅' },
+    { screen: 'tripManagement', label: 'Trip Management', icon: '✈️'},
+    { screen: 'refunds', label: 'Refunds', icon: '↩️'},
     { screen: 'calculator', label: 'Calculator', icon: '🧮' },
+    { screen: 'achievements', label: 'Achievements', icon: '🏅' },
   ];
 
-  return (
+  const modalContent = (
      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-divider animate-scaleIn max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <ModalHeader title="Tools & More" onClose={onClose} />
@@ -37,6 +43,8 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
         </div>
      </div>
   );
+  
+  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default HeaderMenuModal;

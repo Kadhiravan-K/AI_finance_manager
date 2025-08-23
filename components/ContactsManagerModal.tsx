@@ -4,13 +4,12 @@ import { SettingsContext } from '../contexts/SettingsContext';
 import ModalHeader from './ModalHeader';
 
 interface ContactsManagerModalProps {
-  isOpen: boolean;
   onClose: () => void;
 }
 
 const inputStyle = "w-full input-base rounded-lg py-2 px-3";
 
-const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ isOpen, onClose }) => {
+const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose }) => {
   const { contacts, setContacts, contactGroups, setContactGroups } = useContext(SettingsContext);
   
   const [view, setView] = useState<'groups' | 'contacts'>('groups');
@@ -75,8 +74,6 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ isOpen, onC
       }
   }
 
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>

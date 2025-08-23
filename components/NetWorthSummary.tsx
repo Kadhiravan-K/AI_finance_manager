@@ -52,7 +52,7 @@ const NetWorthSummary: React.FC<NetWorthSummaryProps> = ({ accounts, allTransact
   return (
     <div className="mb-6 p-4 rounded-xl glass-card animate-fadeInUp" style={{animationDelay: '100ms'}}>
       <h3 className="font-bold text-lg mb-3 text-primary">Net Worth</h3>
-      <div className="grid grid-cols-3 gap-4 text-center">
+      <div className="grid grid-cols-3 gap-4 text-left">
         <div>
           <p className="text-sm text-secondary">Assets</p>
           <p className="font-bold text-lg text-emerald-400">{isVisible ? formatCurrency(netWorthData.assets) : '••••'}</p>

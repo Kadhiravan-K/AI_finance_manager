@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { Account } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 
+const modalRoot = document.getElementById('modal-root')!;
+
 interface TransferModalProps {
-  isOpen: boolean;
   onClose: () => void;
   accounts: Account[];
   onTransfer: (fromAccountId: string, toAccountId: string, amount: number, notes?: string) => void;
@@ -12,7 +14,7 @@ interface TransferModalProps {
 
 const labelStyle = "block text-sm font-medium text-secondary mb-1";
 
-const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts, onTransfer }) => {
+const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTransfer }) => {
   const [fromAccountId, setFromAccountId] = useState<string>(accounts[0]?.id || '');
   const [toAccountId, setToAccountId] = useState<string>(accounts[1]?.id || '');
   const [amount, setAmount] = useState<number | ''>('');
@@ -33,11 +35,9 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
     onTransfer(fromAccountId, toAccountId, amount, notes.trim() || undefined);
   };
 
-  if (!isOpen) return null;
-
   const accountOptions = accounts.map(account => ({ value: account.id, label: account.name }));
 
-  return (
+  const modalContent = (
     <div
       className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4"
       onClick={onClose}
@@ -113,6 +113,8 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, accounts
       </div>
     </div>
   );
+  
+  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default TransferModal;

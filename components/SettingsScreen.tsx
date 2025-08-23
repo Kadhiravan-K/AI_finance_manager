@@ -11,25 +11,20 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ setActiveModal, setActi
   const handleNav = (modal: ActiveModal) => {
     setActiveModal(modal);
   }
-  
-  const handleScreenNav = (screen: ActiveScreen) => {
-    setActiveModal('headerMenu');
-    setTimeout(() => setActiveScreen(screen), 10); // HACK: Allow modal to open before screen changes
-  }
-  
-  const ToolButton = ({ screen, icon, label }: { screen: ActiveScreen, icon: string, label: string }) => (
-    <button onClick={() => handleScreenNav(screen)} className="settings-tool-button">
-      <span className="icon">{icon}</span>
-      <span>{label}</span>
-    </button>
-  );
 
   return (
     <div className="h-full flex flex-col">
        <div className="p-4 border-b border-divider flex-shrink-0">
-         <h2 className="text-xl font-bold text-primary text-center">Settings</h2>
+         <h2 className="text-xl font-bold text-primary text-center">More Options</h2>
        </div>
         <div className="flex-grow overflow-y-auto p-6 pr-4 pb-20 space-y-6">
+            <div>
+                <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Customization</h3>
+                <div className="space-y-3">
+                     <button onClick={() => handleNav('dashboardSettings')} className="settings-management-button"><span>Customize Dashboard</span><span>🎨</span></button>
+                     <button onClick={() => handleNav('notificationSettings')} className="settings-management-button"><span>Notification Settings</span><span>🔔</span></button>
+                </div>
+            </div>
             <div>
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Management</h3>
                 <div className="space-y-3">

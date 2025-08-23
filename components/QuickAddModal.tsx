@@ -1,5 +1,8 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import QuickAddForm from './PromptForm';
+
+const modalRoot = document.getElementById('modal-root')!;
 
 interface QuickAddModalProps {
   onClose: () => void;
@@ -12,7 +15,7 @@ interface QuickAddModalProps {
 }
 
 const QuickAddModal: React.FC<QuickAddModalProps> = ({ onClose, ...formProps }) => {
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-6 border border-divider opacity-0 animate-scaleIn" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
@@ -25,6 +28,8 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ onClose, ...formProps }) 
       </div>
     </div>
   );
+  
+  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default QuickAddModal;

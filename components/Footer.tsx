@@ -25,9 +25,9 @@ const Footer: React.FC<FooterProps> = ({ activeScreen, setActiveScreen }) => {
       icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 8h6m-5 0a3 3 0 110 6H9l-2 2V8a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H9l-2 2V8z" /></svg>
     },
     { 
-      screen: 'settings', 
-      label: 'Settings', 
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 16v-2m8-8h2m-16 0h2M7.05 7.05l1.414-1.414M18.364 18.364l-1.414-1.414M12 18a6 6 0 100-12 6 6 0 000 12z" /></svg>
+      screen: 'more', 
+      label: 'More', 
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
     },
   ];
 

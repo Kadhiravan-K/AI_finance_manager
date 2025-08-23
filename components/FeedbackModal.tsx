@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
 import LoadingSpinner from './LoadingSpinner';
+
+const modalRoot = document.getElementById('modal-root')!;
 
 interface FeedbackModalProps {
   onClose: () => void;
@@ -37,8 +40,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, onSend, isSendin
       }
       return null;
   }
-
-  return (
+  
+  const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title="Send Feedback" onClose={onClose} icon="📨" />
@@ -71,6 +74,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, onSend, isSendin
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default FeedbackModal;
