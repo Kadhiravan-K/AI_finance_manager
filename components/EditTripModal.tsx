@@ -12,7 +12,7 @@ interface EditTripModalProps {
   trip?: Trip;
   onSave: (trip: Omit<Trip, 'id' | 'date'>, id?: string) => void;
   onClose: () => void;
-  onSaveContact: (contact: Omit<Contact, 'id'>, id?: string) => void | Contact;
+  onSaveContact: (contact: Omit<Contact, 'id'>, id?: string) => Contact;
   onDeleteContact: (contactId: string) => void;
   onOpenEditContact: (contact: Contact) => void;
 }
@@ -48,10 +48,9 @@ const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onSave, onClose, on
   const handleAddNewContact = (e: React.FormEvent) => {
       e.preventDefault();
       if(newContactName.trim() && newContactGroup) {
-          const newContact = onSaveContact({name: newContactName.trim(), groupId: newContactGroup}) as Contact;
-          if (newContact) {
-            handleParticipantToggle(newContact, true);
-          }
+          const newContact = onSaveContact({name: newContactName.trim(), groupId: newContactGroup});
+          // The new contact is guaranteed to be returned by the handler
+          handleParticipantToggle(newContact, true);
           setNewContactName('');
       }
   }
@@ -107,7 +106,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onSave, onClose, on
                 <form onSubmit={handleAddNewContact} className="mt-2 pt-2 border-t border-divider flex items-center gap-2">
                     <input type="text" value={newContactName} onChange={e => setNewContactName(e.target.value)} placeholder="New Contact Name" className="flex-grow input-base p-2 rounded-md" />
                      <div className="w-32"><CustomSelect options={groupOptions} value={newContactGroup} onChange={setNewContactGroup} /></div>
-                    <button type="submit" className="button-primary text-sm px-3 py-1.5" disabled={!newContactName.trim() || !newContactGroup}>+</button>
+                    <button type="submit" className="button-primary text-sm px-3 py-1.5" disabled={!newContactName.trim() || !newContactGroup}>Add</button>
                 </form>
               </div>
             )}

@@ -61,7 +61,7 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[55] p-4" onClick={onClose}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-xs p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-[280px] p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title="Calculator" onClose={onClose} />
         <div className="p-4 space-y-3">
             <div className="calculator-result text-right p-2 space-y-1">

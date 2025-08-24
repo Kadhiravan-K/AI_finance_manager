@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import QuickAddForm from './PromptForm';
 import EditTransactionModal from './EditTransactionModal';
 import { Transaction, Account, ModalState } from '../types';
 import ModalHeader from './ModalHeader';
+import CustomSelect from './CustomSelect';
+import LoadingSpinner from './LoadingSpinner';
 
 const modalRoot = document.getElementById('modal-root')!;
 
 interface AddTransactionModalProps {
     onCancel: () => void;
-    onSaveAuto: (text: string) => Promise<void>;
+    onSaveAuto: (text: string, accountId?: string) => Promise<void>;
     onSaveManual: (data: Transaction | { 
       action: 'split-and-replace';
       originalTransactionId: string;
@@ -37,8 +38,8 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialText ? 'auto' : 'manual');
     const [text, setText] = useState(initialText || '');
     const [isLoading, setIsLoading] = useState(false);
+    const [autoSelectedAccountId, setAutoSelectedAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
 
-    // If the initial text changes (e.g., from a share target), switch to the auto tab.
     useEffect(() => {
         if (initialText) {
             setText(initialText);
@@ -46,9 +47,10 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         }
     }, [initialText]);
 
-    const handleAutoSubmit = async () => {
+    const handleAutoSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         setIsLoading(true);
-        await onSaveAuto(text);
+        await onSaveAuto(text, autoSelectedAccountId);
         setIsLoading(false);
     };
 
@@ -64,17 +66,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         </button>
     );
     
-    const ManualEntryForm = () => (
-        <EditTransactionModal
-           isEmbedded={true}
-           onSave={onSaveManual}
-           onCancel={onCancel}
-           accounts={accounts}
-           openModal={openModal}
-           onOpenCalculator={onOpenCalculator}
-           selectedAccountId={selectedAccountId}
-        />
-    );
+    const accountOptions = accounts.map(account => ({ value: account.id, label: account.name }));
     
     const modalContent = (
       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
@@ -86,18 +78,43 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
             
             {activeTab === 'auto' ? (
-                <div className="p-6">
-                  <QuickAddForm
-                    text={text}
-                    setText={setText}
-                    onSubmit={handleAutoSubmit}
-                    isLoading={isLoading}
-                    isDisabled={isDisabled}
-                    disabledReason={isDisabled ? "Select a single account to add a transaction" : undefined}
+                <form onSubmit={handleAutoSubmit} className="p-6 space-y-4">
+                  <div className="pt-2">
+                    <label className="block text-sm font-medium text-secondary mb-1">Save to Account</label>
+                    <CustomSelect
+                      value={autoSelectedAccountId}
+                      onChange={setAutoSelectedAccountId}
+                      options={accountOptions}
+                      placeholder="Select an account"
+                    />
+                  </div>
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder='Paste message or Quick Add: "Lunch 500"'
+                    className="w-full h-24 p-3 transition-all duration-200 resize-none shadow-inner themed-textarea"
+                    disabled={!autoSelectedAccountId}
+                    aria-label="Transaction message input"
+                    autoFocus
                   />
-                </div>
+                  <button
+                    type="submit"
+                    disabled={!autoSelectedAccountId || !text.trim()}
+                    className="button-primary w-full flex items-center justify-center font-bold py-3 px-4"
+                  >
+                    {isLoading ? <LoadingSpinner /> : 'Quick Add'}
+                  </button>
+                </form>
             ) : (
-                <ManualEntryForm />
+                <EditTransactionModal
+                   isEmbedded={true}
+                   onSave={onSaveManual}
+                   onCancel={onCancel}
+                   accounts={accounts}
+                   openModal={openModal}
+                   onOpenCalculator={onOpenCalculator}
+                   selectedAccountId={selectedAccountId}
+                />
             )}
         </div>
       </div>

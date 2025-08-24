@@ -320,5 +320,5 @@ export interface AppState {
     achievements: UnlockedAchievement[];
     trips?: Trip[];
     tripExpenses?: TripExpense[];
-    financialProfile?: FinancialProfile;
+    financialProfile: FinancialProfile;
 }

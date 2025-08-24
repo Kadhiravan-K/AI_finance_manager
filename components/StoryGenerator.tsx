@@ -331,7 +331,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       return finalCategoryId;
   }, [categories, setCategories]);
 
-  const saveTransaction = useCallback((data: any, senderId?: string) => {
+  const saveTransaction = useCallback((data: any, accountId: string, senderId?: string) => {
     let categoryId = '';
     let description = data.description;
     const matchingPayee = data.payeeIdentifier ? payees.find(p => p.identifier.toLowerCase() === data.payeeIdentifier?.toLowerCase()) : null;
@@ -341,18 +341,18 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     } else {
         categoryId = findOrCreateCategory(data.categoryName, data.type);
     }
-    const newTransaction: Transaction = { id: data.id, accountId: selectedAccountIds[0], description: description, amount: data.amount, type: data.type, categoryId: categoryId, date: data.date, notes: data.notes, payeeIdentifier: data.payeeIdentifier, senderId: senderId, };
+    const newTransaction: Transaction = { id: data.id, accountId: accountId, description: description, amount: data.amount, type: data.type, categoryId: categoryId, date: data.date, notes: data.notes, payeeIdentifier: data.payeeIdentifier, senderId: senderId, };
     setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setStatus(ProcessingStatus.SUCCESS);
     setText('');
     setSpamWarning(null);
     closeActiveModal();
-  }, [selectedAccountIds, findOrCreateCategory, setTransactions, payees, setModalStack]);
+  }, [findOrCreateCategory, setTransactions, payees, setModalStack]);
 
-  const handleAddTransaction = useCallback(async (transactionText: string) => {
-    if (selectedAccountIds.length !== 1 || selectedAccountIds[0] === 'all') {
-      setError('Please select a single account to add a transaction.');
-      return setStatus(ProcessingStatus.ERROR);
+  const handleAddTransaction = useCallback(async (transactionText: string, accountId?: string) => {
+    if (!accountId) {
+        setError('Please select an account to add this transaction.');
+        return setStatus(ProcessingStatus.ERROR);
     }
     if (!transactionText.trim()) {
       setError('Paste message or Quick Add: "Lunch 500"');
@@ -372,7 +372,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
           return;
         }
         if (existingSender?.type === 'trusted') {
-          saveTransaction(parsed, existingSender.id);
+          saveTransaction(parsed, accountId, existingSender.id);
           return;
         }
         if (parsed.isSpam && parsed.spamConfidence > 0.7) {
@@ -381,7 +381,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
             setText('');
             return;
         }
-        saveTransaction(parsed);
+        saveTransaction(parsed, accountId);
       } else {
         setError('This does not seem to be a valid financial transaction.');
         setStatus(ProcessingStatus.ERROR);
@@ -391,7 +391,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       setError(errorMessage);
       setStatus(ProcessingStatus.ERROR);
     }
-  }, [selectedAccountIds, saveTransaction, senders]);
+  }, [saveTransaction, senders]);
   
   const handleNaturalLanguageSearch = async () => {
       if (!searchQuery.trim()) return;
@@ -411,7 +411,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       setSenders(prev => [...prev, newSender]);
       senderId = newSender.id;
     }
-    saveTransaction(spamWarning.parsedData, senderId);
+    saveTransaction(spamWarning.parsedData, selectedAccountIds[0], senderId);
   };
 
   const handleAddAccount = (name: string, accountType: AccountType, creditLimit?: number, openingBalance?: number) => {
@@ -450,8 +450,9 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
         setTransactions(prev => prev.map(t => t.id === tx.id ? tx : t).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       } else { // CREATE
         const newTransaction = { ...tx, id: self.crypto.randomUUID() };
-         if (!newTransaction.accountId && selectedAccountIds.length === 1 && selectedAccountIds[0] !== 'all') {
-          newTransaction.accountId = selectedAccountIds[0];
+         if (!newTransaction.accountId) {
+            setError("Cannot create a transaction without an account.");
+            return;
         }
         setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       }
@@ -563,10 +564,11 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     closeActiveModal();
   };
   
-  const handleSaveContact = (contact: Omit<Contact, 'id'>, id?: string) => {
+  const handleSaveContact = (contact: Omit<Contact, 'id'>, id?: string): Contact => {
     if (id) {
-      setContacts(prev => prev.map(c => c.id === id ? { ...c, ...contact } : c));
-      return contacts.find(c => c.id === id);
+      const updatedContact = { ...contact, id };
+      setContacts(prev => prev.map(c => c.id === id ? updatedContact : c));
+      return updatedContact;
     } else {
       const newContact = { ...contact, id: self.crypto.randomUUID() };
       setContacts(prev => [...prev, newContact]);
@@ -821,8 +823,8 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
 
   const renderModal = (modal: ModalState) => {
     switch (modal.name) {
-      case 'addTransaction': return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={handleAddTransaction} onSaveManual={handleSaveTransaction} isDisabled={selectedAccountIds.length !== 1 || selectedAccountIds[0] === 'all'} initialText={initialText} accounts={accounts} openModal={openModal} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} />;
-      case 'editTransaction': return <EditTransactionModal transaction={modal.props?.transaction} onSave={handleSaveTransaction} onCancel={closeActiveModal} accounts={accounts} openModal={openModal} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} onLaunchRefundPicker={() => { closeActiveModal(); openModal('selectRefund'); }} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} />;
+      case 'addTransaction': return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={handleAddTransaction} onSaveManual={(data) => handleSaveTransaction(data)} isDisabled={selectedAccountIds.length !== 1 && selectedAccountIds[0] !== 'all'} initialText={initialText} accounts={accounts} openModal={openModal} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} />;
+      case 'editTransaction': return <EditTransactionModal transaction={modal.props?.transaction} onSave={(data) => handleSaveTransaction(data)} onCancel={closeActiveModal} accounts={accounts} openModal={openModal} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} onLaunchRefundPicker={() => { closeActiveModal(); openModal('selectRefund'); }} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} />;
       case 'transfer': return <TransferModal onClose={closeActiveModal} accounts={accounts} onTransfer={handleAccountTransfer} />;
       case 'appSettings': return <AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={handleRestoreBackup} />;
       case 'categories': return <CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddNewCategory={handleAddNewCategory} onEditCategory={(cat) => openModal('editCategory', {category: cat})} onDeleteCategory={handleDeleteCategory} />;
