@@ -1,9 +1,10 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Trip, Contact, TripParticipant, ContactGroup } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import ModalHeader from './ModalHeader';
 import CustomCheckbox from './CustomCheckbox';
+import CustomSelect from './CustomSelect';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -11,7 +12,7 @@ interface EditTripModalProps {
   trip?: Trip;
   onSave: (trip: Omit<Trip, 'id' | 'date'>, id?: string) => void;
   onClose: () => void;
-  onSaveContact: (contact: Omit<Contact, 'id'>, id?: string) => void;
+  onSaveContact: (contact: Omit<Contact, 'id'>, id?: string) => void | Contact;
   onDeleteContact: (contactId: string) => void;
   onOpenEditContact: (contact: Contact) => void;
 }
@@ -26,7 +27,6 @@ const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onSave, onClose, on
   
   const [newContactName, setNewContactName] = useState('');
   const [newContactGroup, setNewContactGroup] = useState(contactGroups[0]?.id || '');
-
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,10 +48,15 @@ const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onSave, onClose, on
   const handleAddNewContact = (e: React.FormEvent) => {
       e.preventDefault();
       if(newContactName.trim() && newContactGroup) {
-          onSaveContact({name: newContactName.trim(), groupId: newContactGroup});
+          const newContact = onSaveContact({name: newContactName.trim(), groupId: newContactGroup}) as Contact;
+          if (newContact) {
+            handleParticipantToggle(newContact, true);
+          }
           setNewContactName('');
       }
   }
+
+  const groupOptions = contactGroups.map(g => ({ value: g.id, label: g.name }));
 
   return (
     <>
@@ -98,6 +103,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onSave, onClose, on
                 </div>
                 <form onSubmit={handleAddNewContact} className="mt-2 pt-2 border-t border-divider flex items-center gap-2">
                     <input type="text" value={newContactName} onChange={e => setNewContactName(e.target.value)} placeholder="New Contact Name" className="flex-grow input-base p-2 rounded-md" />
+                     <div className="w-32"><CustomSelect options={groupOptions} value={newContactGroup} onChange={setNewContactGroup} /></div>
                     <button type="submit" className="button-primary text-sm px-3 py-1.5">+</button>
                 </form>
               </div>

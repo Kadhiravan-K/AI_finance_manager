@@ -5,13 +5,14 @@ import CustomSelect from './CustomSelect';
 
 interface GoalsScreenProps {
   goals: Goal[];
-  setGoals: React.Dispatch<React.SetStateAction<Goal[]>>;
+  onSaveGoal: (goal: Omit<Goal, 'id' | 'currentAmount'>, id?: string) => void;
   accounts: Account[];
   onContribute: (goalId: string, amount: number, accountId: string) => void;
   onDelete: (id: string) => void;
+  onEditGoal: (goal: Goal) => void;
 }
 
-const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, setGoals, accounts, onContribute, onDelete }) => {
+const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, onContribute, onDelete, onEditGoal }) => {
   const formatCurrency = useCurrencyFormatter();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: '', icon: '🏆', targetAmount: '', productLink: '' });
@@ -22,15 +23,12 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, setGoals, accounts, on
     e.preventDefault();
     const amount = parseFloat(newGoal.targetAmount);
     if (newGoal.name.trim() && amount > 0) {
-      const goal: Goal = {
-        id: self.crypto.randomUUID(),
+      onSaveGoal({
         name: newGoal.name.trim(),
         icon: newGoal.icon.trim() || '🏆',
         targetAmount: amount,
-        currentAmount: 0,
         productLink: newGoal.productLink.trim() || undefined,
-      };
-      setGoals(prev => [...prev, goal]);
+      });
       setNewGoal({ name: '', icon: '🏆', targetAmount: '', productLink: '' });
       setShowAddForm(false);
     }
@@ -73,6 +71,9 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, setGoals, accounts, on
                       className="text-xs px-2 py-1 bg-emerald-600/80 text-white rounded-full hover:bg-emerald-600"
                   >
                       Add Funds
+                  </button>
+                  <button onClick={() => onEditGoal(goal)} className="text-xs px-2 py-1 bg-sky-600/80 text-white rounded-full hover:bg-sky-600">
+                    Edit
                   </button>
                    <button onClick={() => onDelete(goal.id)} className="text-xs px-2 py-1 bg-rose-600/80 text-white rounded-full hover:bg-rose-600">
                       Delete

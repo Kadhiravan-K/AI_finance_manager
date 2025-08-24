@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import QuickAddForm from './PromptForm';
 import EditTransactionModal from './EditTransactionModal';
 import { Transaction, Account, ModalState } from '../types';
+import ModalHeader from './ModalHeader';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -37,6 +38,14 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const [text, setText] = useState(initialText || '');
     const [isLoading, setIsLoading] = useState(false);
 
+    // If the initial text changes (e.g., from a share target), switch to the auto tab.
+    useEffect(() => {
+        if (initialText) {
+            setText(initialText);
+            setActiveTab('auto');
+        }
+    }, [initialText]);
+
     const handleAutoSubmit = async () => {
         setIsLoading(true);
         await onSaveAuto(text);
@@ -47,49 +56,48 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         <button
             type="button"
             onClick={onClick}
-            className={`w-full py-2 px-4 text-sm font-semibold rounded-t-lg transition-colors focus:outline-none ${
-                active ? 'bg-subtle text-primary border-b-2 border-emerald-500' : 'text-secondary hover:bg-subtle'
+            className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${
+                active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary'
             }`}
         >
             {children}
         </button>
     );
-
-    if (activeTab === 'manual') {
-        return (
-            <EditTransactionModal
-                onSave={onSaveManual}
-                onCancel={onCancel}
-                accounts={accounts}
-                openModal={openModal}
-                onOpenCalculator={onOpenCalculator}
-                selectedAccountId={selectedAccountId}
-            />
-        );
-    }
     
-    // activeTab is 'auto', render the quick add modal
     const modalContent = (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
-             <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-6 border border-divider opacity-0 animate-scaleIn" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-primary">Add Transaction</h2>
-                    <button onClick={onCancel} className="p-2 -mr-2 text-secondary hover:text-primary rounded-full transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+             <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                <ModalHeader title="Add Transaction" onClose={onCancel} />
+                <div className="flex border-b border-divider flex-shrink-0">
+                    <TabButton active={activeTab === 'auto'} onClick={() => setActiveTab('auto')}>🤖 Automatic (AI Parse)</TabButton>
+                    <TabButton active={activeTab === 'manual'} onClick={() => setActiveTab('manual')}>✍️ Manual Entry</TabButton>
                 </div>
-                <div className="flex border-b border-divider mb-4">
-                    <TabButton active={true} onClick={() => {}}>🤖 Automatic (AI Parse)</TabButton>
-                    <TabButton active={false} onClick={() => setActiveTab('manual')}>✍️ Manual Entry</TabButton>
-                </div>
-                <QuickAddForm
-                    text={text}
-                    setText={setText}
-                    onSubmit={handleAutoSubmit}
-                    isLoading={isLoading}
-                    isDisabled={isDisabled}
-                    disabledReason={isDisabled ? "Select a single account to add a transaction" : undefined}
-                />
+                
+                {activeTab === 'auto' && (
+                    <div className="p-6">
+                        <QuickAddForm
+                            text={text}
+                            setText={setText}
+                            onSubmit={handleAutoSubmit}
+                            isLoading={isLoading}
+                            isDisabled={isDisabled}
+                            disabledReason={isDisabled ? "Select a single account to add a transaction" : undefined}
+                        />
+                    </div>
+                )}
+                {activeTab === 'manual' && (
+                    // We render a simplified version of EditTransactionModal's content here
+                    <div className="overflow-y-auto">
+                        <EditTransactionModal
+                           onSave={onSaveManual}
+                           onCancel={onCancel}
+                           accounts={accounts}
+                           openModal={openModal}
+                           onOpenCalculator={onOpenCalculator}
+                           selectedAccountId={selectedAccountId}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

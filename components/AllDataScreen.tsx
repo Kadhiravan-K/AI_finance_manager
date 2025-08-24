@@ -1,53 +1,44 @@
 import React, { useState, useMemo } from 'react';
-import { Transaction, Account, Category } from '../types';
+import { Transaction, Account, Category, Goal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import { AllDataScreenProps } from '../types';
 
-interface AllDataScreenProps {
-  transactions: Transaction[];
-  accounts: Account[];
-  categories: Category[];
-  onEditTransaction: (transaction: Transaction) => void;
-  onDeleteTransaction: (id: string) => void;
-  onEditAccount: (account: Account) => void;
-  onDeleteAccount: (id: string) => void;
-}
-
-type ActiveTab = 'transactions' | 'accounts';
+type ActiveTab = 'transactions' | 'accounts' | 'categories' | 'goals';
 
 const AllDataScreen: React.FC<AllDataScreenProps> = ({
   transactions,
   accounts,
   categories,
+  goals,
   onEditTransaction,
   onDeleteTransaction,
   onEditAccount,
-  onDeleteAccount
+  onDeleteAccount,
+  onEditCategory,
+  onDeleteCategory,
+  onEditGoal,
+  onDeleteGoal,
 }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('transactions');
   const [searchQuery, setSearchQuery] = useState('');
   const formatCurrency = useCurrencyFormatter();
 
-  const getCategoryPath = (categoryId: string): string => {
-    let path: string[] = [], current = categories.find(c => c.id === categoryId);
-    while (current) { path.unshift(current.name); current = categories.find(c => c.id === current.parentId); }
+  const getCategoryPath = (categoryId: string, allCategories: Category[]): string => {
+    let path: string[] = [], current = allCategories.find(c => c.id === categoryId);
+    while (current) { path.unshift(current.name); current = allCategories.find(c => c.id === current.parentId); }
     return path.join(' / ') || 'Uncategorized';
   };
   
-  const filteredTransactions = useMemo(() => {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      if(!lowerCaseQuery) return transactions;
-      return transactions.filter(t =>
-          t.description.toLowerCase().includes(lowerCaseQuery) ||
-          (t.notes || '').toLowerCase().includes(lowerCaseQuery) ||
-          getCategoryPath(t.categoryId).toLowerCase().includes(lowerCaseQuery)
-      );
-  }, [transactions, searchQuery, categories]);
-  
-  const filteredAccounts = useMemo(() => {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      if(!lowerCaseQuery) return accounts;
-      return accounts.filter(a => a.name.toLowerCase().includes(lowerCaseQuery));
-  }, [accounts, searchQuery]);
+  const filteredData = useMemo(() => {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    if (!lowerCaseQuery) return { transactions, accounts, categories, goals };
+    return {
+      transactions: transactions.filter(t => t.description.toLowerCase().includes(lowerCaseQuery) || (t.notes || '').toLowerCase().includes(lowerCaseQuery) || getCategoryPath(t.categoryId, categories).toLowerCase().includes(lowerCaseQuery)),
+      accounts: accounts.filter(a => a.name.toLowerCase().includes(lowerCaseQuery)),
+      categories: categories.filter(c => c.name.toLowerCase().includes(lowerCaseQuery)),
+      goals: goals.filter(g => g.name.toLowerCase().includes(lowerCaseQuery)),
+    };
+  }, [searchQuery, transactions, accounts, categories, goals]);
 
   const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void }) => (
     <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
@@ -59,9 +50,11 @@ const AllDataScreen: React.FC<AllDataScreenProps> = ({
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-divider flex-shrink-0 flex flex-col gap-4">
         <h2 className="text-xl font-bold text-primary text-center">All Data</h2>
-        <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
+        <div className="grid grid-cols-4 items-center gap-1 bg-subtle p-1 rounded-full border border-divider">
           <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')}>Transactions</TabButton>
           <TabButton active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')}>Accounts</TabButton>
+          <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')}>Categories</TabButton>
+          <TabButton active={activeTab === 'goals'} onClick={() => setActiveTab('goals')}>Goals</TabButton>
         </div>
          <div className="relative">
             <input
@@ -75,7 +68,7 @@ const AllDataScreen: React.FC<AllDataScreenProps> = ({
         </div>
       </div>
       <div className="flex-grow overflow-y-auto p-4 space-y-2">
-        {activeTab === 'transactions' && filteredTransactions.map(t => (
+        {activeTab === 'transactions' && filteredData.transactions.map(t => (
           <div key={t.id} className="p-3 bg-subtle rounded-lg group">
             <div className="flex justify-between items-center">
                 <div>
@@ -90,7 +83,7 @@ const AllDataScreen: React.FC<AllDataScreenProps> = ({
             </div>
           </div>
         ))}
-         {activeTab === 'accounts' && filteredAccounts.map(a => (
+         {activeTab === 'accounts' && filteredData.accounts.map(a => (
           <div key={a.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center">
             <div>
                 <p className="font-medium text-primary">{a.name}</p>
@@ -99,6 +92,30 @@ const AllDataScreen: React.FC<AllDataScreenProps> = ({
             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => onEditAccount(a)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
                 <button onClick={() => onDeleteAccount(a.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+            </div>
+          </div>
+        ))}
+        {activeTab === 'categories' && filteredData.categories.map(c => (
+          <div key={c.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center">
+            <div>
+              <p className="font-medium text-primary flex items-center gap-2"><span>{c.icon}</span>{getCategoryPath(c.id, categories)}</p>
+              <p className="text-xs text-secondary capitalize ml-8">{c.type}</p>
+            </div>
+            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => onEditCategory(c)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
+              <button onClick={() => onDeleteCategory(c.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+            </div>
+          </div>
+        ))}
+        {activeTab === 'goals' && filteredData.goals.map(g => (
+          <div key={g.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center">
+            <div>
+              <p className="font-medium text-primary flex items-center gap-2"><span>{g.icon}</span>{g.name}</p>
+              <p className="text-xs text-secondary ml-8">{formatCurrency(g.currentAmount)} / {formatCurrency(g.targetAmount)}</p>
+            </div>
+            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => onEditGoal(g)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
+              <button onClick={() => onDeleteGoal(g.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
             </div>
           </div>
         ))}

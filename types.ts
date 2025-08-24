@@ -281,6 +281,21 @@ export interface FinanceTrackerProps {
   onSelectionChange?: (selectedIds: string[]) => void;
 }
 
+export interface AllDataScreenProps {
+  transactions: Transaction[];
+  accounts: Account[];
+  categories: Category[];
+  goals: Goal[];
+  onEditTransaction: (transaction: Transaction) => void;
+  onDeleteTransaction: (id: string) => void;
+  onEditAccount: (account: Account) => void;
+  onDeleteAccount: (id: string) => void;
+  onEditCategory: (category: Category) => void;
+  onDeleteCategory: (id: string) => void;
+  onEditGoal: (goal: Goal) => void;
+  onDeleteGoal: (id: string) => void;
+}
+
 // For Backup
 export interface AppState {
     transactions: Transaction[];

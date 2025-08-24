@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps } from '../types';
 import { parseTransactionText, getFinancialInsight, parseNaturalLanguageQuery } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
@@ -44,6 +44,7 @@ import MiniCalculatorModal from './MiniCalculatorModal';
 import EditTripModal from './EditTripModal';
 import EditContactModal from './EditContactModal';
 import GlobalTripSummaryModal from './GlobalTripSummaryModal';
+import NotificationsModal from './NotificationsModal';
 import EditGoalModal from './EditGoalModal';
 import ManageToolsModal from './ManageToolsModal';
 import AddTransactionModal from './AddTransactionModal';
@@ -478,12 +479,12 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   };
   
   const handleSaveGoal = (goal: Omit<Goal, 'id' | 'currentAmount'>, id?: string) => {
-      if (id) {
-          setGoals(prev => prev.map(g => g.id === id ? { ...g, ...goal } : g));
-      } else {
-          setGoals(prev => [...prev, { ...goal, id: self.crypto.randomUUID(), currentAmount: 0 }]);
-      }
-  }
+    if (id) {
+      setGoals(prev => prev.map(g => g.id === id ? { ...g, ...goal } : g));
+    } else {
+      setGoals(prev => [...prev, { ...goal, id: self.crypto.randomUUID(), currentAmount: 0 }]);
+    }
+  };
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
     const goal = goals.find(g => g.id === goalId);
@@ -510,7 +511,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     setIsSendingFeedback(true);
     const feedbackItem: FeedbackItem = { id: self.crypto.randomUUID(), message, timestamp: new Date().toISOString() };
     let wasQueued = false;
-    if (isOnline) await new Promise(resolve => setTimeout(resolve, 1000));
+    if (isOnline) await new Promise(resolve => setTimeout(resolve, 500));
     else { setFeedbackQueue(prev => [...prev, feedbackItem]); wasQueued = true; }
     setIsSendingFeedback(false);
     return { queued: wasQueued };
@@ -570,7 +571,9 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     if (id) {
       setContacts(prev => prev.map(c => c.id === id ? { ...c, ...contact } : c));
     } else {
-      setContacts(prev => [...prev, { ...contact, id: self.crypto.randomUUID() }]);
+      const newContact = { ...contact, id: self.crypto.randomUUID() };
+      setContacts(prev => [...prev, newContact]);
+      return newContact;
     }
   }
 
@@ -770,6 +773,18 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const currentToastAchievementId = toastQueue[0];
   const currentToastAchievement = currentToastAchievementId ? ALL_ACHIEVEMENTS.find(a => a.id === currentToastAchievementId) : null;
 
+  const allDataScreenProps: AllDataScreenProps = {
+    transactions, accounts, categories, goals,
+    onEditTransaction: (t) => openModal('editTransaction', {transaction: t}),
+    onDeleteTransaction: handleDeleteTransaction,
+    onEditAccount: (a) => openModal('editAccount', {account: a}),
+    onDeleteAccount: handleDeleteAccount,
+    onEditCategory: (c) => openModal('editCategory', {category: c}),
+    onDeleteCategory: handleDeleteCategory,
+    onEditGoal: (g) => openModal('editGoal', {goal: g}),
+    onDeleteGoal: handleDeleteGoal
+  };
+
   const renderScreen = () => {
     const currentTrip = tripDetailsId ? trips.find(t => t.id === tripDetailsId) : null;
     switch (activeScreen) {
@@ -794,7 +809,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} />;
       case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={handleBuyInvestment} onSell={handleSellInvestment} onUpdateValue={handleUpdateHoldingValue} onRefresh={handleRefreshPortfolio} />;
       case 'budgets': return <BudgetsScreen categories={categories.filter(c => c.type === TransactionType.EXPENSE)} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
-      case 'goals': return <GoalsScreen goals={goals} setGoals={setGoals} accounts={accounts} onContribute={handleContributeToGoal} onDelete={handleDeleteGoal} />;
+      case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={handleDeleteGoal} onEditGoal={(g) => openModal('editGoal', {goal: g})} />;
       case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions} categories={categories} accounts={accounts} onDelete={handleDeleteRecurring} />;
       case 'calculator': return <CalculatorScreen />;
       case 'more': return <SettingsScreen setActiveScreen={setActiveScreen} setActiveModal={openModal} />;
@@ -802,15 +817,15 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       case 'tripManagement': return <TripManagementScreen trips={trips} onTripSelect={(id) => { setTripDetailsId(id); setActiveScreen('tripDetails'); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', {trip})} onDeleteTrip={handleDeleteTrip} onShowSummary={() => openModal('globalTripSummary')} />;
       case 'tripDetails': return currentTrip ? <TripDetailsScreen trip={currentTrip} expenses={tripExpenses.filter(e => e.tripId === currentTrip.id)} onAddExpense={() => openModal('addTripExpense', { trip: currentTrip })} onBack={() => setActiveScreen('tripManagement')} /> : null;
       case 'refunds': return <RefundsScreen transactions={transactions} categories={categories} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} />;
-      case 'allData': return <AllDataScreen transactions={transactions} accounts={accounts} categories={categories} onEditTransaction={(t) => openModal('editTransaction', {transaction: t})} onDeleteTransaction={handleDeleteTransaction} onEditAccount={(a) => openModal('editAccount', {account: a})} onDeleteAccount={handleDeleteAccount} />;
+      case 'allData': return <AllDataScreen {...allDataScreenProps} />;
       default: return null;
     }
   };
 
   const renderModal = (modal: ModalState) => {
     switch (modal.name) {
+      case 'addTransaction': return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={handleAddTransaction} onSaveManual={handleSaveTransaction} isDisabled={selectedAccountIds.length !== 1 || selectedAccountIds[0] === 'all'} initialText={initialText} accounts={accounts} openModal={openModal} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} />;
       case 'editTransaction': return <EditTransactionModal transaction={modal.props?.transaction} onSave={handleSaveTransaction} onCancel={closeActiveModal} accounts={accounts} openModal={openModal} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} onLaunchRefundPicker={() => { closeActiveModal(); openModal('selectRefund'); }} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} />;
-      case 'addTransaction': return <AddTransactionModal onCancel={closeActiveModal} accounts={accounts} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} initialText={initialText} onSaveAuto={handleAddTransaction} onSaveManual={handleSaveTransaction} onOpenCalculator={(onResult) => setMiniCalcState({ onResult })} openModal={openModal} isDisabled={selectedAccountIds.length !== 1 || selectedAccountIds[0] === 'all'} />;
       case 'transfer': return <TransferModal onClose={closeActiveModal} accounts={accounts} onTransfer={handleAccountTransfer} />;
       case 'appSettings': return <AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={handleRestoreBackup} />;
       case 'categories': return <CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddNewCategory={handleAddNewCategory} onEditCategory={(cat) => openModal('editCategory', {category: cat})} onDeleteCategory={handleDeleteCategory} />;
@@ -830,6 +845,8 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       case 'editTrip': return <EditTripModal trip={modal.props?.trip} onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onDeleteContact={handleDeleteContact} onOpenEditContact={(contact) => openModal('editContact', {contact})} />;
       case 'editContact': return <EditContactModal contact={modal.props?.contact} onSave={(contact, id) => {handleSaveContact(contact, id); closeActiveModal();}} onClose={closeActiveModal} />;
       case 'globalTripSummary': return <GlobalTripSummaryModal allExpenses={tripExpenses} onClose={closeActiveModal} />;
+      case 'notifications': return <NotificationsModal onClose={closeActiveModal} notifications={[]} />;
+      case 'editGoal': return <EditGoalModal goal={modal.props?.goal} onSave={(goal, id) => {handleSaveGoal(goal, id); closeActiveModal()}} onClose={closeActiveModal} />;
       case 'manageTools': return <ManageToolsModal onClose={closeActiveModal} />;
       default: return null;
     }
