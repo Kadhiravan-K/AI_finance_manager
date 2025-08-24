@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
@@ -9,7 +9,7 @@ import GoalsSummary from './GoalsSummary';
 import DebtsSummary from './DebtsSummary';
 import NetWorthSummary from './NetWorthSummary';
 import PortfolioSummary from './PortfolioSummary';
-import AIFinancialCoach from './AIFinancialCoach';
+import FinancialHealthScore from './FinancialHealthScore';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -38,9 +38,10 @@ interface FinanceDisplayProps {
   isBalanceVisible: boolean;
   setIsBalanceVisible: (visible: boolean) => void;
   dashboardWidgets: DashboardWidget[];
-  aiInsight: string;
   isInsightLoading: boolean;
   mainContentRef?: React.RefObject<HTMLElement>;
+  financialProfile: FinancialProfile;
+  onOpenFinancialHealth: () => void;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
@@ -180,7 +181,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, income, expense, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, aiInsight, isInsightLoading, mainContentRef, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, income, expense, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, isInsightLoading, mainContentRef, financialProfile, onOpenFinancialHealth, ...filterProps }) => {
     
     const renderContent = () => {
         if (status === ProcessingStatus.ERROR && error) {
@@ -194,8 +195,11 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
     }
 
     const visibleWidgets = useMemo(() => dashboardWidgets.filter(w => w.visible), [dashboardWidgets]);
+    
+    const healthScoreData = { transactions: allTransactions, accounts, investmentHoldings, financialProfile, budgets, goals };
+
     const widgetMap: Record<DashboardWidget['id'], React.ReactNode> = {
-        coach: <AIFinancialCoach insight={aiInsight} isLoading={isInsightLoading} />,
+        financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         summary: <Dashboard income={income} expense={expense} isVisible={isBalanceVisible} />,

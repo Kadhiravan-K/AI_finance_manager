@@ -181,7 +181,7 @@ export interface TripExpense {
 export type Theme = 'light' | 'dark';
 
 export interface DashboardWidget {
-    id: 'netWorth' | 'portfolio' | 'summary' | 'debts' | 'upcoming' | 'goals' | 'budgets' | 'charts' | 'coach';
+    id: 'financialHealth' | 'netWorth' | 'portfolio' | 'summary' | 'debts' | 'upcoming' | 'goals' | 'budgets' | 'charts';
     name: string;
     visible: boolean;
 }
@@ -257,7 +257,7 @@ export interface TrustBinItem {
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'allData';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | null;
 
 export interface ModalState {
     name: ActiveModal;
@@ -296,6 +296,13 @@ export interface AllDataScreenProps {
   onDeleteGoal: (id: string) => void;
 }
 
+export interface FinancialProfile {
+    monthlySalary: number;
+    monthlyRent: number;
+    monthlyEmi: number;
+    emergencyFundGoal: number;
+}
+
 // For Backup
 export interface AppState {
     transactions: Transaction[];
@@ -313,4 +320,5 @@ export interface AppState {
     achievements: UnlockedAchievement[];
     trips?: Trip[];
     tripExpenses?: TripExpense[];
+    financialProfile?: FinancialProfile;
 }

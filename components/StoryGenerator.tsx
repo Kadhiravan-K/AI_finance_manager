@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps } from '../types';
-import { parseTransactionText, getFinancialInsight, parseNaturalLanguageQuery } from '../services/geminiService';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile } from '../types';
+import { parseTransactionText, parseNaturalLanguageQuery } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
 import AccountSelector from './AccountSelector';
@@ -48,6 +48,7 @@ import NotificationsModal from './NotificationsModal';
 import EditGoalModal from './EditGoalModal';
 import ManageToolsModal from './ManageToolsModal';
 import AddTransactionModal from './AddTransactionModal';
+import FinancialHealthModal from './FinancialHealthModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -191,7 +192,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const [text, setText] = useState<string>('');
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
   const [accounts, setAccounts] = useLocalStorage<Account[]>('finance-tracker-accounts', DEFAULT_ACCOUNTS);
-  const { settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts } = useContext(SettingsContext);
+  const { settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile } = useContext(SettingsContext);
   const [budgets, setBudgets] = useLocalStorage<Budget[]>('finance-tracker-budgets', []);
   const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('finance-tracker-recurring', []);
   const [goals, setGoals] = useLocalStorage<Goal[]>('finance-tracker-goals', []);
@@ -210,7 +211,6 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const [spamWarning, setSpamWarning] = useState<SpamWarning | null>(null);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
-  const [aiInsight, setAiInsight] = useState('');
   const [isInsightLoading, setIsInsightLoading] = useState(true);
   const [confirmationState, setConfirmationState] = useState<ConfirmationState | null>(null);
   const [miniCalcState, setMiniCalcState] = useState<{ onResult: (result: number) => void } | null>(null);
@@ -223,8 +223,8 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const activeModal = modalStack[modalStack.length - 1] || null;
 
   const appState: AppState = useMemo(() => ({
-    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, trips, tripExpenses
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, trips, tripExpenses]);
+    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, trips, tripExpenses, financialProfile
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, trips, tripExpenses, financialProfile]);
 
   useEffect(() => {
     onSelectionChange?.(selectedAccountIds);
@@ -304,11 +304,6 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     }
   }, [appState, unlockedAchievements, setUnlockedAchievements]);
 
-  useEffect(() => {
-    setIsInsightLoading(true);
-    getFinancialInsight(transactions.slice(0, 50)).then(setAiInsight).finally(() => setIsInsightLoading(false));
-  }, [transactions]);
-  
   useEffect(() => {
     if (settings.notificationSettings.enabled) requestNotificationPermission();
     const intervalId = setInterval(() => checkAndSendNotifications(appState), 5 * 60 * 1000);
@@ -554,6 +549,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   
   const handleRestoreBackup = (state: AppState) => {
       setTransactions(state.transactions); setAccounts(state.accounts); setCategories(state.categories); setBudgets(state.budgets); setRecurringTransactions(state.recurringTransactions); setGoals(state.goals); setInvestmentHoldings(state.investmentHoldings); setPayees(state.payees); setSenders(state.senders); setContactGroups(state.contactGroups); setContacts(state.contacts); setSettings(state.settings); setUnlockedAchievements(state.achievements || []); setTrips(state.trips || []); setTripExpenses(state.tripExpenses || []); 
+      setFinancialProfile(state.financialProfile || { monthlySalary: 0, monthlyRent: 0, monthlyEmi: 0, emergencyFundGoal: 0 });
       setSelectedAccountIds(state.accounts[0] ? [state.accounts[0].id] : ['all']);
       alert("Data restored successfully!");
   };
@@ -804,7 +800,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
           </div>
           <FinanceDisplay
               mainContentRef={mainContentRef}
-              status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} onPayRecurring={handlePayRecurring} goals={goals} investmentHoldings={investmentHoldings} error={error} income={dashboardData.income} expense={dashboardData.expense} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={handleDeleteTransaction} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} aiInsight={aiInsight} isInsightLoading={isInsightLoading}
+              status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} onPayRecurring={handlePayRecurring} goals={goals} investmentHoldings={investmentHoldings} error={error} income={dashboardData.income} expense={dashboardData.expense} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={handleDeleteTransaction} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} isInsightLoading={isInsightLoading} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')}
           />
         </div>);
       case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} />;
@@ -849,6 +845,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       case 'notifications': return <NotificationsModal onClose={closeActiveModal} notifications={[]} />;
       case 'editGoal': return <EditGoalModal goal={modal.props?.goal} onSave={(goal, id) => {handleSaveGoal(goal, id); closeActiveModal()}} onClose={closeActiveModal} />;
       case 'manageTools': return <ManageToolsModal onClose={closeActiveModal} />;
+      case 'financialHealth': return <FinancialHealthModal onClose={closeActiveModal} appState={appState} onSaveProfile={setFinancialProfile} onSaveBudget={handleSaveBudget} />;
       default: return null;
     }
   };

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType } from "../types";
+import { Transaction, TransactionType, AppState } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -49,27 +49,6 @@ export async function parseTransactionText(text: string): Promise<{
   }
 }
 
-export async function getFinancialInsight(transactions: Transaction[]): Promise<string> {
-  if (transactions.length < 5) {
-    return "Keep logging your transactions! The more data you provide, the better insights I can offer to help you on your financial journey.";
-  }
-  try {
-    const last30Days = transactions.filter(t => new Date(t.date) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
-    const summary = last30Days.reduce((acc, t) => {
-        if(t.type === 'expense') acc.expense += t.amount; else acc.income += t.amount;
-        return acc;
-    }, { income: 0, expense: 0 });
-
-    const prompt = `You are a friendly financial coach. Based on this spending summary for the last 30 days: ${JSON.stringify(summary)}, provide one short (under 250 characters), encouraging, and actionable insight for the user. Do not use markdown or formatting.`;
-    
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-    return response.text;
-  } catch (error) {
-      console.error("Error getting financial insight:", error);
-      return "Having trouble connecting to the AI coach. Please try again later.";
-  }
-}
-
 const nlpQuerySchema = {
     type: Type.OBJECT,
     properties: {
@@ -98,4 +77,66 @@ export async function parseNaturalLanguageQuery(query: string): Promise<{ search
     // Fallback to a simple search
     return { searchQuery: query, dateFilter: 'all' };
   }
+}
+
+const budgetSuggestionSchema = {
+    type: Type.ARRAY,
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            categoryName: { type: Type.STRING, description: "The name of the expense category." },
+            amount: { type: Type.NUMBER, description: "The suggested monthly budget amount for this category." },
+            reasoning: { type: Type.STRING, description: "A brief, one-sentence explanation for this budget suggestion." }
+        },
+        required: ["categoryName", "amount", "reasoning"]
+    }
+};
+
+export async function getAIBudgetSuggestion(profile: AppState['financialProfile'], categories: AppState['categories']): Promise<{ categoryName: string; amount: number; reasoning: string }[]> {
+    const expenseCategories = categories.filter(c => c.type === 'expense' && !c.parentId).map(c => c.name).join(', ');
+    const prompt = `A user has a monthly salary of ${profile?.monthlySalary} and fixed monthly costs of ${profile?.monthlyRent} (rent) + ${profile?.monthlyEmi} (loans/EMIs). Suggest a sensible monthly budget for the following top-level expense categories: ${expenseCategories}. Provide amounts that allow for a reasonable savings rate. Return the result as a JSON array matching the provided schema.`;
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: budgetSuggestionSchema }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error getting AI budget suggestion:", error);
+        throw new Error("Could not generate an AI budget. Please try again.");
+    }
+}
+
+export async function getAIFinancialTips(healthScore: number, scoreBreakdown: any): Promise<string> {
+    const prompt = `A user's financial health score is ${healthScore}/100. The breakdown is: ${JSON.stringify(scoreBreakdown)}. Provide 2-3 short, actionable, and encouraging tips to help them improve their score, focusing on their weakest areas. Do not use markdown.`;
+    try {
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        return response.text;
+    } catch (error) {
+        console.error("Error getting AI financial tips:", error);
+        return "Could not fetch tips at this moment. Please check your connection.";
+    }
+}
+
+export async function getAIChatResponse(appState: AppState, question: string, history: { role: string, parts: string }[]): Promise<string> {
+    const { financialProfile, transactions, budgets, goals } = appState;
+    const context = `
+      User's Financial Profile: ${JSON.stringify(financialProfile)}
+      Recent Transactions (summary): ${transactions.length} transactions logged.
+      Budgets: ${budgets.length} budgets set.
+      Goals: ${goals.length} goals set.
+    `;
+    const prompt = `You are a helpful and knowledgeable Chartered Accountant (CA) providing financial advice. Use the provided financial context to answer the user's question. Be encouraging and provide clear, actionable advice. Here is the context:\n${context}\n\nUser's question: "${question}"`;
+    try {
+        const chat = ai.chats.create({ 
+            model: 'gemini-2.5-flash', 
+            history: history.map(({ role, parts }) => ({ role, parts: [{ text: parts }] }))
+        });
+        const response = await chat.sendMessage({message: prompt});
+        return response.text;
+    } catch (error) {
+        console.error("Error getting AI chat response:", error);
+        return "I'm sorry, I'm having trouble connecting to my knowledge base right now. Please try again in a moment.";
+    }
 }

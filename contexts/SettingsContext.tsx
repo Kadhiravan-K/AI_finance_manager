@@ -1,24 +1,26 @@
 import React, { createContext, useState, ReactNode } from 'react';
-import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool } from '../types';
+import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 
 interface SettingsContextType {
   settings: Settings;
-  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+  setSettings: (value: Settings | ((val: Settings) => Settings)) => Promise<void>;
   payees: Payee[];
-  setPayees: React.Dispatch<React.SetStateAction<Payee[]>>;
+  setPayees: (value: Payee[] | ((val: Payee[]) => Payee[])) => Promise<void>;
   categories: Category[];
-  setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
+  setCategories: (value: Category[] | ((val: Category[]) => Category[])) => Promise<void>;
   senders: Sender[];
-  setSenders: React.Dispatch<React.SetStateAction<Sender[]>>;
+  setSenders: (value: Sender[] | ((val: Sender[]) => Sender[])) => Promise<void>;
   contactGroups: ContactGroup[];
-  setContactGroups: React.Dispatch<React.SetStateAction<ContactGroup[]>>;
+  setContactGroups: (value: ContactGroup[] | ((val: ContactGroup[]) => ContactGroup[])) => Promise<void>;
   contacts: Contact[];
-  setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
+  setContacts: (value: Contact[] | ((val: Contact[]) => Contact[])) => Promise<void>;
+  financialProfile: FinancialProfile;
+  setFinancialProfile: (value: FinancialProfile | ((val: FinancialProfile) => FinancialProfile)) => Promise<void>;
 }
 
 const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
-    { id: 'coach', name: "Coach's Corner", visible: true },
+    { id: 'financialHealth', name: "Financial Health", visible: true },
     { id: 'netWorth', name: 'Net Worth', visible: true },
     { id: 'portfolio', name: 'Investment Portfolio', visible: true },
     { id: 'summary', name: 'Income/Expense Summary', visible: true },
@@ -56,19 +58,28 @@ const DEFAULT_SETTINGS: Settings = {
     }
 };
 
+const DEFAULT_FINANCIAL_PROFILE: FinancialProfile = {
+    monthlySalary: 0,
+    monthlyRent: 0,
+    monthlyEmi: 0,
+    emergencyFundGoal: 0,
+};
+
 export const SettingsContext = createContext<SettingsContextType>({
   settings: DEFAULT_SETTINGS,
-  setSettings: () => {},
+  setSettings: async () => {},
   payees: [],
-  setPayees: () => {},
+  setPayees: async () => {},
   categories: [],
-  setCategories: () => {},
+  setCategories: async () => {},
   senders: [],
-  setSenders: () => {},
+  setSenders: async () => {},
   contactGroups: [],
-  setContactGroups: () => {},
+  setContactGroups: async () => {},
   contacts: [],
-  setContacts: () => {},
+  setContacts: async () => {},
+  financialProfile: DEFAULT_FINANCIAL_PROFILE,
+  setFinancialProfile: async () => {},
 });
 
 const DEFAULT_CONTACT_GROUPS: ContactGroup[] = [
@@ -85,9 +96,10 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [senders, setSenders] = useLocalStorage<Sender[]>('finance-tracker-senders', []);
   const [contactGroups, setContactGroups] = useLocalStorage<ContactGroup[]>('finance-tracker-contact-groups', DEFAULT_CONTACT_GROUPS);
   const [contacts, setContacts] = useLocalStorage<Contact[]>('finance-tracker-contacts', []);
+  const [financialProfile, setFinancialProfile] = useLocalStorage<FinancialProfile>('finance-tracker-financial-profile', DEFAULT_FINANCIAL_PROFILE);
 
   return (
-    <SettingsContext.Provider value={{ settings, setSettings, payees, setPayees, categories, setCategories, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts }}>
+    <SettingsContext.Provider value={{ settings, setSettings, payees, setPayees, categories, setCategories, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile }}>
       {children}
     </SettingsContext.Provider>
   );
