@@ -1,8 +1,8 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import CustomSelect from './CustomSelect';
-import { AccountType } from '../types';
+import { AccountType, Account, Transaction, TransactionType } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 
 interface OnboardingModalProps {
@@ -12,16 +12,24 @@ interface OnboardingModalProps {
 interface AccountData {
     name: string;
     balance: string;
+    accountType: AccountType;
 }
 
 const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
   const [step, setStep] = useState(1);
   const { settings, setSettings } = useContext(SettingsContext);
-  const [, setAccounts] = useLocalStorage<any[]>('finance-tracker-accounts', []);
-  const [, setTransactions] = useLocalStorage<any[]>('finance-tracker-transactions', []);
+  const [, setAccounts] = useLocalStorage<Account[]>('finance-tracker-accounts', []);
+  const [, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
   const { categories } = useContext(SettingsContext);
   
-  const [initialAccounts, setInitialAccounts] = useState<AccountData[]>([{ name: 'Cash', balance: '' }]);
+  const [initialAccounts, setInitialAccounts] = useState<AccountData[]>([{ name: 'Cash', balance: '', accountType: AccountType.DEPOSITORY }]);
+  const lastInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (step === 3 && initialAccounts.length > 1) {
+        lastInputRef.current?.focus();
+    }
+  }, [initialAccounts.length, step]);
 
   const handleCurrencyChange = (currencyCode: string) => {
     setSettings(prev => ({ ...prev, currency: currencyCode }));
@@ -29,44 +37,48 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
   
   const handleAccountChange = (index: number, field: keyof AccountData, value: string) => {
     const newAccounts = [...initialAccounts];
-    newAccounts[index][field] = value;
+    (newAccounts[index] as any)[field] = value;
     setInitialAccounts(newAccounts);
   };
   
   const addAccountField = () => {
-    setInitialAccounts([...initialAccounts, { name: '', balance: '' }]);
+    setInitialAccounts([...initialAccounts, { name: '', balance: '', accountType: AccountType.DEPOSITORY }]);
+  };
+  
+  const removeAccountField = (indexToRemove: number) => {
+    setInitialAccounts(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  const handleFinish = () => {
-      const finalAccounts = [];
-      const openingTransactions = [];
-      const openingBalanceCategory = categories.find(c => c.name === 'Opening Balance');
+  const handleFinish = async () => {
+      const finalAccounts: Account[] = [];
+      const openingTransactions: Transaction[] = [];
+      const openingBalanceCategory = categories.find(c => c.name === 'Opening Balance' && c.type === TransactionType.INCOME);
       
       for (const acc of initialAccounts) {
           if (acc.name.trim()) {
-              const newAccount = {
+              const newAccount: Account = {
                   id: self.crypto.randomUUID(),
                   name: acc.name.trim(),
-                  accountType: AccountType.DEPOSITORY
+                  accountType: acc.accountType
               };
               finalAccounts.push(newAccount);
               
               const balance = parseFloat(acc.balance);
-              if (balance > 0 && openingBalanceCategory) {
+              if (!isNaN(balance) && balance > 0 && openingBalanceCategory) {
                   openingTransactions.push({
                       id: self.crypto.randomUUID(),
                       accountId: newAccount.id,
                       description: 'Opening Balance',
                       amount: balance,
-                      type: 'income',
+                      type: TransactionType.INCOME,
                       categoryId: openingBalanceCategory.id,
                       date: new Date().toISOString()
                   });
               }
           }
       }
-      setAccounts(finalAccounts);
-      setTransactions(openingTransactions);
+      await setAccounts(finalAccounts);
+      await setTransactions(openingTransactions);
       onFinish();
   };
 
@@ -74,6 +86,11 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
     value: c.code,
     label: `${c.name} (${c.symbol})`
   }));
+  
+  const accountTypeOptions = [
+    { value: AccountType.DEPOSITORY, label: 'Bank/Cash' },
+    { value: AccountType.CREDIT, label: 'Credit Card' },
+  ];
 
   const renderStep = () => {
     switch (step) {
@@ -108,22 +125,32 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
                 <p className="text-secondary mb-6">Add your primary accounts and their current balances to get an accurate start.</p>
                 <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
                     {initialAccounts.map((acc, index) => (
-                        <div key={index} className="grid grid-cols-2 gap-3">
+                        <div key={index} className="grid grid-cols-6 gap-2 items-center">
                             <input 
                                 type="text" 
-                                placeholder="Account Name (e.g., Bank)" 
+                                placeholder="Account Name" 
                                 value={acc.name}
                                 onChange={e => handleAccountChange(index, 'name', e.target.value)}
-                                className="input-base w-full rounded-lg py-2 px-3"
+                                className="input-base w-full rounded-lg py-2 px-3 col-span-2"
+                                ref={index === initialAccounts.length - 1 ? lastInputRef : null}
+                                autoFocus={index === 0}
                             />
+                            <select value={acc.accountType} onChange={e => handleAccountChange(index, 'accountType', e.target.value)} className="input-base rounded-lg py-2 px-3 col-span-2">
+                                {accountTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
                             <input 
                                 type="number"
                                 step="0.01"
-                                placeholder="Current Balance"
+                                placeholder="Balance"
                                 value={acc.balance}
                                 onChange={e => handleAccountChange(index, 'balance', e.target.value)}
-                                className="input-base w-full rounded-lg py-2 px-3 no-spinner"
+                                className="input-base w-full rounded-lg py-2 px-3 no-spinner col-span-1"
                             />
+                            {initialAccounts.length > 1 ? (
+                                <button type="button" onClick={() => removeAccountField(index)} className="text-rose-400 hover:text-rose-300 transition-colors h-8 w-8 flex items-center justify-center rounded-full hover:bg-rose-500/20 col-span-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            ) : <div className="col-span-1"></div>}
                         </div>
                     ))}
                 </div>
@@ -141,7 +168,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-lg flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-8 border border-divider">
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-8 border border-divider">
         {renderStep()}
       </div>
     </div>

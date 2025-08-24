@@ -111,7 +111,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({ onClose, ca
                   <h3 className="font-semibold text-primary mb-4">Add Top-Level Category</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
                       <input type="text" placeholder="Icon" value={newCategoryIcon} onChange={(e) => setNewCategoryIcon(e.target.value)} className="sm:col-span-1 input-base rounded-full py-2 px-3 text-center" maxLength={2} />
-                      <input type="text" placeholder="Category Name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="sm:col-span-3 input-base rounded-full py-2 px-3" />
+                      <input type="text" placeholder="Category Name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="sm:col-span-3 input-base rounded-full py-2 px-3" autoFocus />
                       <select value={newCategoryType} onChange={(e) => setNewCategoryType(e.target.value as TransactionType)} className="sm:col-span-2 input-base rounded-full py-2 px-3">
                           <option value={TransactionType.EXPENSE}>Expense</option>
                           <option value={TransactionType.INCOME}>Income</option>
@@ -150,7 +150,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({ onClose, ca
                         <h3 className="font-semibold text-primary mb-2">Add New Subcategory</h3>
                         <div className="flex items-center gap-3">
                             <input type="text" placeholder="Icon" value={newCategoryIcon} onChange={(e) => setNewCategoryIcon(e.target.value)} className="input-base rounded-full py-2 px-3 text-center w-16" maxLength={2} />
-                            <input type="text" placeholder="Subcategory Name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow input-base rounded-full py-2 px-3" />
+                            <input type="text" placeholder="Subcategory Name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow input-base rounded-full py-2 px-3" autoFocus />
                             <button type="submit" className="button-primary py-2 px-4" disabled={!newCategoryName.trim()}>Add</button>
                         </div>
                     </form>

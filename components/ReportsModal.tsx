@@ -1,29 +1,58 @@
 import React, { useState, useMemo } from 'react';
-import { Transaction, Category, TransactionType, ReportPeriod, CustomDateRange } from '../types';
+import { Transaction, Category, TransactionType, ReportPeriod, CustomDateRange, Account } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import CategoryBarChart from './CategoryBarChart';
 import TimeSeriesBarChart from './TimeSeriesBarChart';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import ToggleSwitch from './ToggleSwitch';
+import AccountSelector from './AccountSelector';
+import CategorySelector from './CategorySelector';
 
 interface ReportsScreenProps {
   transactions: Transaction[];
   categories: Category[];
+  accounts: Account[];
+  selectedAccountIds: string[];
 }
 
 type ReportType = 'breakdown' | 'trend';
 
-const filterTransactionsByPeriod = (
+const filterTransactions = (
     transactions: Transaction[], 
     period: ReportPeriod, 
     customDateRange: CustomDateRange, 
-    transactionType: TransactionType
+    transactionType: TransactionType,
+    accountIds: string[],
+    categoryIds: string[],
+    allCategories: Category[]
 ) => {
     const now = new Date();
     let startDate: Date | null = new Date();
     let endDate: Date | null = new Date(now.getTime() + 86400000);
 
+    // Account filtering
+    let filtered = accountIds.includes('all')
+      ? transactions
+      : transactions.filter(t => accountIds.includes(t.accountId));
+
+    // Category filtering
+    if (!categoryIds.includes('all')) {
+        const selectedCategorySet = new Set<string>();
+        categoryIds.forEach(catId => {
+            const queue = [catId];
+            while(queue.length > 0) {
+                const currentId = queue.shift()!;
+                selectedCategorySet.add(currentId);
+                allCategories.forEach(child => {
+                    if (child.parentId === currentId) queue.push(child.id);
+                });
+            }
+        });
+        filtered = filtered.filter(t => selectedCategorySet.has(t.categoryId));
+    }
+
+    // Date filtering
     switch (period) {
       case 'week': startDate.setDate(now.getDate() - now.getDay()); break;
       case 'month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
@@ -36,7 +65,7 @@ const filterTransactionsByPeriod = (
     
     if (startDate) startDate.setHours(0, 0, 0, 0);
 
-    return transactions.filter(t => {
+    return filtered.filter(t => {
         const transactionDate = new Date(t.date);
         const typeMatch = t.type === transactionType;
         const startDateMatch = startDate ? transactionDate >= startDate : true;
@@ -45,23 +74,22 @@ const filterTransactionsByPeriod = (
     });
 };
 
-const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories }) => {
+const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories, accounts, selectedAccountIds: dashboardSelectedAccountIds }) => {
   const [reportType, setReportType] = useState<ReportType>('breakdown');
   const [transactionType, setTransactionType] = useState<TransactionType>(TransactionType.EXPENSE);
-  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [reportAccountIds, setReportAccountIds] = useState<string[]>(dashboardSelectedAccountIds);
+  const [reportCategoryIds, setReportCategoryIds] = useState<string[]>(['all']);
 
-  // Filter Set 1
-  const [period1, setPeriod1] = useState<ReportPeriod>('month');
-  const [customDateRange1, setCustomDateRange1] = useState<CustomDateRange>({ start: null, end: null });
-  // Filter Set 2
-  const [period2, setPeriod2] = useState<ReportPeriod>('month');
-  const [customDateRange2, setCustomDateRange2] = useState<CustomDateRange>({ start: null, end: null });
+  const [period, setPeriod] = useState<ReportPeriod>('month');
+  const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
 
-  const filteredTransactions1 = useMemo(() => filterTransactionsByPeriod(transactions, period1, customDateRange1, transactionType), [transactions, period1, customDateRange1, transactionType]);
-  const filteredTransactions2 = useMemo(() => isCompareMode ? filterTransactionsByPeriod(transactions, period2, customDateRange2, transactionType) : [], [isCompareMode, transactions, period2, customDateRange2, transactionType]);
-
-  const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
-    <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
+  const filteredTransactions = useMemo(() => 
+    filterTransactions(transactions, period, customDateRange, transactionType, reportAccountIds, reportCategoryIds, categories), 
+    [transactions, period, customDateRange, transactionType, reportAccountIds, reportCategoryIds, categories]
+  );
+  
+  const TabButton = ({ active, children, onClick, activeClass = 'bg-emerald-500 text-white' }: { active: boolean, children: React.ReactNode, onClick: () => void, activeClass?: string}) => (
+    <button onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors w-full ${active ? activeClass : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
     </button>
   );
@@ -73,75 +101,55 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories 
       {value: 'custom', label: 'Custom'},
   ];
   
-  const getTitle = (period: ReportPeriod) => {
-    const type = transactionType.charAt(0).toUpperCase() + transactionType.slice(1);
-    const periodLabel = periodOptions.find(p => p.value === period)?.label || 'Custom Range';
-    if(period === 'custom') return `${type} for Custom Range`;
-    return `${periodLabel}'s ${type}`;
-  }
-  
-  const renderFilterControls = (period: ReportPeriod, setPeriod: (p: ReportPeriod) => void, customRange: CustomDateRange, setCustomRange: (cr: CustomDateRange) => void) => (
-      <div className="flex-1 space-y-2">
-          <CustomSelect options={periodOptions} value={period} onChange={(v) => setPeriod(v as ReportPeriod)} />
-          {period === 'custom' && (
-              <div className="flex items-center justify-center gap-2 animate-fadeInUp">
-                  <CustomDatePicker value={customRange.start} onChange={date => setCustomRange({...customRange, start: date})} />
-                  <span className="text-secondary text-sm">to</span>
-                  <CustomDatePicker value={customRange.end} onChange={date => setCustomRange({...customRange, end: date})} />
-              </div>
-          )}
-      </div>
-  );
-
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-divider flex-shrink-0 flex flex-col gap-4 bg-subtle">
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            <div className="flex w-full md:w-auto items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-                <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
-                <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
+        <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex-1 min-w-[150px]">
+                <label className="text-xs font-semibold text-tertiary block mb-1">View</label>
+                <div className="flex items-center gap-1 bg-subtle p-1 rounded-full border border-divider">
+                    <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
+                    <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
+                </div>
             </div>
-            <div className="flex w-full md:w-auto items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-                <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expenses</TabButton>
-                <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
+             <div className="flex-1 min-w-[150px]">
+                 <label className="text-xs font-semibold text-tertiary block mb-1">For</label>
+                 <div className="flex items-center gap-1 bg-subtle p-1 rounded-full border border-divider">
+                    <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)} activeClass="bg-rose-500 text-white">Expenses</TabButton>
+                    <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)} activeClass="bg-emerald-500 text-white">Income</TabButton>
+                 </div>
             </div>
-             <div className="flex items-center gap-2">
-                <label htmlFor="compare-toggle" className="text-sm font-medium text-secondary">Compare</label>
-                <ToggleSwitch id="compare-toggle" checked={isCompareMode} onChange={setIsCompareMode} />
-            </div>
+             <div className="flex-1 min-w-[150px]">
+                <label className="text-xs font-semibold text-tertiary block mb-1">Period</label>
+                <CustomSelect options={periodOptions} value={period} onChange={(v) => setPeriod(v as ReportPeriod)} />
+             </div>
         </div>
-        <div className="flex flex-col md:flex-row gap-4 items-start">
-            {renderFilterControls(period1, setPeriod1, customDateRange1, setCustomDateRange1)}
-            {isCompareMode && <span className="text-secondary font-bold hidden md:block mt-2">vs.</span>}
-            {isCompareMode && renderFilterControls(period2, setPeriod2, customDateRange2, setCustomDateRange2)}
+        {period === 'custom' && (
+            <div className="flex items-center justify-center gap-2 animate-fadeInUp">
+                <CustomDatePicker value={customDateRange.start} onChange={date => setCustomDateRange({...customDateRange, start: date})} />
+                <span className="text-secondary text-sm">to</span>
+                <CustomDatePicker value={customDateRange.end} onChange={date => setCustomDateRange({...customDateRange, end: date})} />
+            </div>
+        )}
+        <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex-1 min-w-[150px]">
+                <label className="text-xs font-semibold text-tertiary block mb-1">Accounts</label>
+                <AccountSelector accounts={accounts} selectedAccountIds={reportAccountIds} onAccountChange={setReportAccountIds} onAddAccount={()=>{}} onEditAccount={()=>{}} onDeleteAccount={()=>{}} />
+            </div>
+            <div className="flex-1 min-w-[150px]">
+                <label className="text-xs font-semibold text-tertiary block mb-1">Categories</label>
+                <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedCategoryIds={reportCategoryIds} onCategoryChange={setReportCategoryIds} />
+            </div>
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto">
-        <div className={`grid ${isCompareMode ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-4 p-4`}>
-            {/* Column 1 */}
-            <div>
-                 <h3 className="text-xl font-bold text-center mb-4 text-primary">{getTitle(period1)}</h3>
-                 {filteredTransactions1.length === 0 ? <p className="text-center text-secondary py-8">No data for this period.</p> :
-                  <>
-                    {reportType === 'breakdown' && <><CategoryPieChart title="" transactions={filteredTransactions1} categories={categories} type={transactionType} /><CategoryBarChart title="" transactions={filteredTransactions1} categories={categories} type={transactionType} /></>}
-                    {reportType === 'trend' && <TimeSeriesBarChart title="" transactions={filteredTransactions1} period={period1} type={transactionType} />}
-                  </>
-                 }
-            </div>
-            {/* Column 2 (Compare) */}
-            {isCompareMode && (
-                <div>
-                    <h3 className="text-xl font-bold text-center mb-4 text-primary">{getTitle(period2)}</h3>
-                    {filteredTransactions2.length === 0 ? <p className="text-center text-secondary py-8">No data for this period.</p> :
-                      <>
-                        {reportType === 'breakdown' && <><CategoryPieChart title="" transactions={filteredTransactions2} categories={categories} type={transactionType} /><CategoryBarChart title="" transactions={filteredTransactions2} categories={categories} type={transactionType} /></>}
-                        {reportType === 'trend' && <TimeSeriesBarChart title="" transactions={filteredTransactions2} period={period2} type={transactionType} />}
-                      </>
-                    }
-                </div>
-            )}
-        </div>
+      <div className="flex-grow overflow-y-auto p-4">
+        {filteredTransactions.length === 0 ? <p className="text-center text-secondary py-8">No data for the selected filters.</p> :
+          <>
+            {reportType === 'breakdown' && <><CategoryPieChart title="" transactions={filteredTransactions} categories={categories} type={transactionType} isVisible={true} /><CategoryBarChart title="" transactions={filteredTransactions} categories={categories} type={transactionType} /></>}
+            {reportType === 'trend' && <TimeSeriesBarChart title="" transactions={filteredTransactions} period={period} type={transactionType} />}
+          </>
+        }
       </div>
     </div>
   );

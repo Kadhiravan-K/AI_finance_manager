@@ -9,9 +9,10 @@ const modalRoot = document.getElementById('modal-root')!;
 
 interface SenderManagerModalProps {
   onClose: () => void;
+  onDelete: (id: string) => void;
 }
 
-const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose }) => {
+const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose, onDelete }) => {
   const { senders, setSenders } = useContext(SettingsContext);
   const [editingSender, setEditingSender] = useState<Sender | null>(null);
   const [formState, setFormState] = useState<Omit<Sender, 'id'>>({ identifier: '', name: '', type: 'trusted' });
@@ -24,12 +25,6 @@ const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose }) => {
   const handleCancel = () => {
     setEditingSender(null);
     setFormState({ identifier: '', name: '', type: 'trusted' });
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this sender?")) {
-      setSenders(prev => prev.filter(s => s.id !== id));
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -63,7 +58,7 @@ const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose }) => {
                 </div>
                 <div className="space-x-2">
                 <button onClick={() => handleEdit(sender)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                <button onClick={() => handleDelete(sender.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                <button onClick={() => onDelete(sender.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
                 </div>
             </div>
             ))}

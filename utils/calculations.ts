@@ -1,4 +1,4 @@
-import { TripExpense } from '../types';
+import { TripExpense, TripPayer } from '../types';
 
 interface Balance {
     contactId: string;
@@ -15,23 +15,25 @@ interface Settlement {
 export function calculateTripSummary(expenses: TripExpense[]): Settlement[] {
     const balances: Record<string, Balance> = {};
 
+    // Helper to initialize balance for a contact
+    const ensureBalance = (contactId: string, name: string) => {
+        if (!balances[contactId]) {
+            balances[contactId] = { contactId, name, balance: 0 };
+        }
+    };
+
     // Calculate how much each person paid and how much they should have paid
     expenses.forEach(expense => {
-        const totalPaid = expense.amount;
-        const paidBy = expense.paidByContactId;
-
-        // Credit the person who paid
-        if (!balances[paidBy]) {
-            const payerName = expense.splitDetails.find(s => s.id === paidBy)?.personName || 'Unknown';
-            balances[paidBy] = { contactId: paidBy, name: payerName, balance: 0 };
-        }
-        balances[paidBy].balance += totalPaid;
+        // Credit the people who paid
+        expense.payers.forEach(payer => {
+            const payerName = expense.splitDetails.find(s => s.id === payer.contactId)?.personName || 'Unknown';
+            ensureBalance(payer.contactId, payerName);
+            balances[payer.contactId].balance += payer.amount;
+        });
 
         // Debit everyone in the split
         expense.splitDetails.forEach(split => {
-            if (!balances[split.id]) {
-                balances[split.id] = { contactId: split.id, name: split.personName, balance: 0 };
-            }
+            ensureBalance(split.id, split.personName);
             balances[split.id].balance -= split.amount;
         });
     });

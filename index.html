@@ -46,6 +46,7 @@
         --shadow-color-main: rgba(0, 0, 0, 0.55);
         --shadow-color-main-light: rgba(0, 0, 0, 0.35);
         --shadow-color-accent: rgba(16, 185, 129, 0.25);
+        --shadow-color-rose: rgba(244, 63, 94, 0.25);
         
         /* Aurora Colors - Green Palette */
         --aurora-1: #10b981;
@@ -87,6 +88,7 @@
         --shadow-color-main: rgba(0, 0, 0, 0.15);
         --shadow-color-main-light: rgba(0, 0, 0, 0.08);
         --shadow-color-accent: rgba(48, 209, 88, 0.25);
+        --shadow-color-rose: rgba(214, 0, 23, 0.25);
       }
       
       html.light .glass-card {
@@ -499,6 +501,11 @@
         transform: translateX(-50%) scale(0.95);
         filter: brightness(0.9);
       }
+      .fab:disabled {
+        background: var(--color-bg-button-secondary);
+        box-shadow: none;
+        cursor: not-allowed;
+      }
       
       /* Management Grid */
       .management-grid {
@@ -697,7 +704,70 @@
       .drag-over {
         border-top: 2px solid var(--color-accent-emerald);
       }
+
+      /* Number Stepper */
+      .control-button {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 400;
+        transition: all 0.2s ease;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      }
+      .control-button:active {
+        transform: scale(0.95);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      }
+      .control-button-plus {
+        background-color: #e7f7ef; /* Light emerald */
+        color: #10b981;
+        box-shadow: 0 0 15px 0 rgba(16, 185, 129, 0.2);
+      }
+      .control-button-plus:hover {
+        background-color: #d8f1e5;
+      }
+      .control-button-minus {
+        background-color: #fdebee; /* Light rose */
+        color: #f43f5e;
+        box-shadow: 0 0 15px 0 rgba(244, 63, 94, 0.2);
+      }
+      .control-button-minus:hover {
+        background-color: #fbd6dc;
+      }
+
+      html.dark .control-button-plus {
+         background-color: rgba(16, 185, 129, 0.1);
+         color: #34d399;
+      }
+      html.dark .control-button-plus:hover {
+         background-color: rgba(16, 185, 129, 0.2);
+      }
+       html.dark .control-button-minus {
+         background-color: rgba(244, 63, 94, 0.08);
+         color: #fb7185;
+      }
+      html.dark .control-button-minus:hover {
+         background-color: rgba(244, 63, 94, 0.15);
+      }
       
+      /* Global Search */
+      .search-overlay {
+        position: fixed;
+        top: calc(69px + 8px); /* Header height + gap */
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 32px); /* Full width with side padding */
+        max-width: 28rem; /* Match app container max-width */
+        z-index: 60;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+
     </style>
     <script type="importmap">
 {

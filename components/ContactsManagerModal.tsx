@@ -5,11 +5,13 @@ import ModalHeader from './ModalHeader';
 
 interface ContactsManagerModalProps {
   onClose: () => void;
+  onDeleteGroup: (groupId: string) => void;
+  onDeleteContact: (contactId: string) => void;
 }
 
 const inputStyle = "w-full input-base rounded-lg py-2 px-3";
 
-const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose }) => {
+const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose, onDeleteGroup, onDeleteContact }) => {
   const { contacts, setContacts, contactGroups, setContactGroups } = useContext(SettingsContext);
   
   const [view, setView] = useState<'groups' | 'contacts'>('groups');
@@ -46,14 +48,7 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose }) 
         }
     }
   };
-  const handleDeleteGroup = (groupId: string) => {
-      if (window.confirm("Are you sure? This will also delete all contacts in this group.")) {
-          setContactGroups(prev => prev.filter(g => g.id !== groupId));
-          setContacts(prev => prev.filter(c => c.groupId !== groupId));
-          handleBack();
-      }
-  };
-
+  
   // Contact CRUD
   const handleAddOrUpdateContact = (e: React.FormEvent) => {
       e.preventDefault();
@@ -68,11 +63,6 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose }) 
           }
       }
   };
-  const handleDeleteContact = (contactId: string) => {
-      if (window.confirm("Are you sure you want to delete this contact?")) {
-        setContacts(prev => prev.filter(c => c.id !== contactId));
-      }
-  }
 
 
   return (
@@ -95,7 +85,7 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose }) 
                         </div>
                         <div className="flex items-center space-x-1 flex-shrink-0">
                              <button onClick={() => setEditingGroup(group)} className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-full transition-colors opacity-0 group-hover:opacity-100">Edit</button>
-                             <button onClick={() => handleDeleteGroup(group.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2 py-1 rounded-full transition-colors opacity-0 group-hover:opacity-100">Delete</button>
+                             <button onClick={() => onDeleteGroup(group.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2 py-1 rounded-full transition-colors opacity-0 group-hover:opacity-100">Delete</button>
                              <div onClick={() => handleGroupClick(group)} className="p-1 cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></div>
                         </div>
                     </div>
@@ -107,7 +97,7 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose }) 
                         <span className="font-medium text-primary">{contact.name}</span>
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity space-x-2">
                             <button onClick={() => setEditingContact(contact)} className="text-xs text-secondary hover:text-primary px-2">Edit</button>
-                            <button onClick={() => handleDeleteContact(contact.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2">Delete</button>
+                            <button onClick={() => onDeleteContact(contact.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2">Delete</button>
                         </div>
                     </div>
                 ))

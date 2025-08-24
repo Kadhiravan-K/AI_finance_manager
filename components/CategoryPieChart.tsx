@@ -7,6 +7,7 @@ interface CategoryPieChartProps {
   transactions: Transaction[];
   categories: Category[];
   type: TransactionType;
+  isVisible: boolean;
 }
 
 const COLORS = [
@@ -60,7 +61,7 @@ const PieSlice = ({ percentage, startPercentage, color }: { percentage: number, 
 };
 
 
-const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type }) => {
+const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible }) => {
   const formatTotal = useCurrencyFormatter();
   const formatItem = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -112,7 +113,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
     <div className={cardBaseStyle}>
       <h3 className="text-lg font-bold mb-4 text-primary">
           {title}
-          <span className="block text-sm font-normal text-secondary">{formatTotal(categoryData.totalAmount)}</span>
+          <span className="block text-sm font-normal text-secondary">{isVisible ? formatTotal(categoryData.totalAmount) : '••••'}</span>
       </h3>
       <div className="grid grid-cols-2 items-center gap-4">
         <div className="relative w-full aspect-square">
@@ -132,7 +133,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
                         <span className="text-lg flex-shrink-0">{category.icon || '📁'}</span>
                         <span className="text-primary truncate" title={category.name}>{category.name}</span>
                     </div>
-                    <span className="font-semibold text-secondary ml-2 flex-shrink-0">{formatItem(category.amount)}</span>
+                    <span className="font-semibold text-secondary ml-2 flex-shrink-0">{isVisible ? formatItem(category.amount) : '••••'}</span>
                 </div>
             ))}
         </div>

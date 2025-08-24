@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { InvestmentHolding, Account, AccountType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
+import NumberStepper from './NumberStepper';
 
 interface InvestmentsScreenProps {
   accounts: Account[];
@@ -17,28 +18,28 @@ const labelStyle = "block text-sm font-medium text-secondary mb-1";
 const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holdings, onBuy, onSell, onUpdateValue, onRefresh }) => {
   const [view, setView] = useState<'list' | 'buy' | 'sell' | 'update'>('list');
   const [selectedHolding, setSelectedHolding] = useState<InvestmentHolding | null>(null);
-  const [formData, setFormData] = useState({ name: '', quantity: '', price: '', accountId: '', linkedAccountId: '', currentValue: '' });
+  const [formData, setFormData] = useState({ name: '', quantity: 0, price: '', accountId: '', linkedAccountId: '', currentValue: '' });
   const formatCurrency = useCurrencyFormatter();
 
   const investmentAccounts = accounts.filter(a => a.accountType === AccountType.INVESTMENT);
   const depositoryAccounts = accounts.filter(a => a.accountType === AccountType.DEPOSITORY);
   
   const resetForm = () => {
-      setFormData({ name: '', quantity: '', price: '', accountId: '', linkedAccountId: '', currentValue: ''});
+      setFormData({ name: '', quantity: 0, price: '', accountId: '', linkedAccountId: '', currentValue: ''});
       setSelectedHolding(null);
       setView('list');
   }
 
   const handleBuySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onBuy(formData.accountId, formData.name, parseFloat(formData.quantity), parseFloat(formData.price), formData.linkedAccountId);
+    onBuy(formData.accountId, formData.name, formData.quantity, parseFloat(formData.price), formData.linkedAccountId);
     resetForm();
   }
 
   const handleSellSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedHolding) return;
-    onSell(selectedHolding.id, parseFloat(formData.quantity), parseFloat(formData.price), formData.linkedAccountId);
+    onSell(selectedHolding.id, formData.quantity, parseFloat(formData.price), formData.linkedAccountId);
     resetForm();
   }
   
@@ -83,7 +84,7 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
               </div>
               <div className="flex justify-end gap-2 mt-2">
                 <button onClick={() => { setSelectedHolding(h); setView('update'); setFormData(f => ({...f, currentValue: h.currentValue.toString()}))}} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Update Value</button>
-                <button onClick={() => { setSelectedHolding(h); setView('sell'); setFormData(f => ({...f, linkedAccountId: depositoryAccounts[0]?.id}))}} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Sell</button>
+                <button onClick={() => { setSelectedHolding(h); setView('sell'); setFormData(f => ({...f, quantity: h.quantity, linkedAccountId: depositoryAccounts[0]?.id}))}} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Sell</button>
               </div>
             </div>
           )
@@ -117,13 +118,19 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
             {view === 'buy' && (
                 <div>
                     <label className={labelStyle}>Holding Name</label>
-                    <input type="text" value={formData.name} onChange={e => setFormData(f => ({...f, name: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3" required />
+                    <input type="text" value={formData.name} onChange={e => setFormData(f => ({...f, name: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3" required autoFocus />
                 </div>
             )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Quantity</label>
-                <input type="number" step="any" min="0" value={formData.quantity} onChange={e => setFormData(f => ({...f, quantity: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3" required />
+                <NumberStepper 
+                  value={formData.quantity} 
+                  onChange={v => setFormData(f => ({...f, quantity: v}))}
+                  step={0.1}
+                  min={0}
+                  max={view === 'sell' ? selectedHolding?.quantity : undefined}
+                />
               </div>
               <div>
                 <label className={labelStyle}>Price per Unit</label>

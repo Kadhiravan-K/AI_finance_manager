@@ -8,9 +8,10 @@ interface GoalsScreenProps {
   setGoals: React.Dispatch<React.SetStateAction<Goal[]>>;
   accounts: Account[];
   onContribute: (goalId: string, amount: number, accountId: string) => void;
+  onDelete: (id: string) => void;
 }
 
-const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, setGoals, accounts, onContribute }) => {
+const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, setGoals, accounts, onContribute, onDelete }) => {
   const formatCurrency = useCurrencyFormatter();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: '', icon: '🏆', targetAmount: '', productLink: '' });
@@ -46,12 +47,6 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, setGoals, accounts, on
     }
   };
   
-  const handleDeleteGoal = (id: string) => {
-      if (window.confirm("Are you sure you want to delete this goal? This cannot be undone.")) {
-          setGoals(prev => prev.filter(g => g.id !== id));
-      }
-  }
-  
   const accountOptions = accounts.map(acc => ({ value: acc.id, label: acc.name }));
 
   return (
@@ -79,7 +74,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, setGoals, accounts, on
                   >
                       Add Funds
                   </button>
-                   <button onClick={() => handleDeleteGoal(goal.id)} className="text-xs px-2 py-1 bg-rose-600/80 text-white rounded-full hover:bg-rose-600">
+                   <button onClick={() => onDelete(goal.id)} className="text-xs px-2 py-1 bg-rose-600/80 text-white rounded-full hover:bg-rose-600">
                       Delete
                   </button>
                 </div>

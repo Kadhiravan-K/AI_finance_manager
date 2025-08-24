@@ -4,7 +4,7 @@ import { SettingsContext } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
-import { AppState, Theme } from '../types';
+import { AppState, Theme, TrustBinDeletionPeriodUnit } from '../types';
 import { createBackup, restoreBackup } from '../utils/backup';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -27,6 +27,16 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
     setSettings(prev => ({ ...prev, theme: theme }));
   }
   
+  const handleTrustBinPeriodChange = (field: 'value' | 'unit', value: string | number) => {
+      setSettings(prev => ({
+          ...prev,
+          trustBinDeletionPeriod: {
+              ...prev.trustBinDeletionPeriod,
+              [field]: field === 'value' ? parseInt(value as string, 10) : value
+          }
+      }))
+  }
+
   const handleCreateBackup = async () => {
       const password = prompt("Please enter a password to encrypt your backup. This password will be required to restore your data.");
       if(password) {
@@ -69,6 +79,15 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
     label: `${c.name} (${c.symbol})`
   }));
   
+  const trustBinUnitOptions: {value: TrustBinDeletionPeriodUnit, label: string}[] = [
+      {value: 'minutes', label: 'Minutes'},
+      {value: 'hours', label: 'Hours'},
+      {value: 'days', label: 'Days'},
+      {value: 'weeks', label: 'Weeks'},
+      {value: 'months', label: 'Months'},
+      {value: 'years', label: 'Years'},
+  ];
+  
   const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
     <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
@@ -81,19 +100,37 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
         <ModalHeader title="App Settings" onClose={onClose} icon="⚙️" />
         <div className="p-6 space-y-4 flex-grow overflow-y-auto">
             <div>
-            <label className="block text-sm font-medium text-secondary mb-1">Currency</label>
-            <CustomSelect
-                value={settings.currency}
-                onChange={handleCurrencyChange}
-                options={currencyOptions}
-            />
+                <label className="block text-sm font-medium text-secondary mb-1">Currency</label>
+                <CustomSelect
+                    value={settings.currency}
+                    onChange={handleCurrencyChange}
+                    options={currencyOptions}
+                />
             </div>
             <div className="pt-4 border-t border-divider">
-            <label className="block text-sm font-medium text-secondary mb-2">Appearance</label>
-            <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-                    <TabButton active={settings.theme === 'dark'} onClick={() => handleThemeChange('dark')}>Dark</TabButton>
-                    <TabButton active={settings.theme === 'light'} onClick={() => handleThemeChange('light')}>Light</TabButton>
+                <label className="block text-sm font-medium text-secondary mb-2">Appearance</label>
+                <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
+                        <TabButton active={settings.theme === 'dark'} onClick={() => handleThemeChange('dark')}>Dark</TabButton>
+                        <TabButton active={settings.theme === 'light'} onClick={() => handleThemeChange('light')}>Light</TabButton>
+                </div>
             </div>
+             <div className="pt-4 border-t border-divider">
+                <label className="block text-sm font-medium text-secondary mb-2">Trust Bin Auto-Deletion</label>
+                <div className="flex gap-2">
+                    <input 
+                        type="number" 
+                        value={settings.trustBinDeletionPeriod.value} 
+                        onChange={e => handleTrustBinPeriodChange('value', e.target.value)}
+                        className="input-base w-24 rounded-lg py-2 px-3 no-spinner"
+                    />
+                    <div className="flex-grow">
+                        <CustomSelect
+                            value={settings.trustBinDeletionPeriod.unit}
+                            onChange={(v) => handleTrustBinPeriodChange('unit', v as TrustBinDeletionPeriodUnit)}
+                            options={trustBinUnitOptions}
+                        />
+                    </div>
+                </div>
             </div>
 
             <div className="pt-4 border-t border-divider">
@@ -119,7 +156,7 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
             </div>
         </div>
         <div className="p-4 text-center text-xs text-tertiary border-t border-divider">
-            <p>Version 1.5.0 (Trip Management)</p>
+            <p>Version 1.6.0 (Final Confirm)</p>
         </div>
         <div className="flex justify-end p-6 pt-4 border-t border-divider">
             <button onClick={onClose} className="button-secondary px-4 py-2">

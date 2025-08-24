@@ -15,11 +15,18 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
   const settlementSummary = calculateTripSummary(expenses);
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
 
+  const getPayerNames = (expense: TripExpense): string => {
+    if (!expense.payers || expense.payers.length === 0) return 'Unknown';
+    return expense.payers
+      .map(payer => trip.participants.find(p => p.contactId === payer.contactId)?.name || 'Unknown')
+      .join(', ');
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-divider flex-shrink-0 flex items-center gap-2">
          <button onClick={onBack} className="p-2 -ml-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+            <svg xmlns="http://www.w.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
         </button>
         <h2 className="text-xl font-bold text-primary truncate">{trip.name}</h2>
       </div>
@@ -61,7 +68,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="font-medium text-primary">{expense.description}</p>
-                    <p className="text-xs text-secondary">Paid by {trip.participants.find(p => p.contactId === expense.paidByContactId)?.name}</p>
+                    <p className="text-xs text-secondary">Paid by {getPayerNames(expense)}</p>
                   </div>
                   <p className="font-semibold text-rose-400">{formatCurrency(expense.amount)}</p>
                 </div>

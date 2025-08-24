@@ -11,9 +11,10 @@ interface PayeesModalProps {
   payees: Payee[];
   setPayees: React.Dispatch<React.SetStateAction<Payee[]>>;
   categories: Category[];
+  onDelete: (id: string) => void;
 }
 
-const PayeesModal: React.FC<PayeesModalProps> = ({ onClose, payees, setPayees, categories }) => {
+const PayeesModal: React.FC<PayeesModalProps> = ({ onClose, payees, setPayees, categories, onDelete }) => {
   const [editingPayee, setEditingPayee] = useState<Payee | null>(null);
   const [formState, setFormState] = useState<Omit<Payee, 'id'>>({ identifier: '', name: '', defaultCategoryId: '' });
 
@@ -25,12 +26,6 @@ const PayeesModal: React.FC<PayeesModalProps> = ({ onClose, payees, setPayees, c
   const handleCancel = () => {
     setEditingPayee(null);
     setFormState({ identifier: '', name: '', defaultCategoryId: '' });
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this payee?")) {
-      setPayees(prev => prev.filter(p => p.id !== id));
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -69,7 +64,7 @@ const PayeesModal: React.FC<PayeesModalProps> = ({ onClose, payees, setPayees, c
                 </div>
                 <div className="space-x-2">
                 <button onClick={() => handleEdit(payee)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                <button onClick={() => handleDelete(payee.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                <button onClick={() => onDelete(payee.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
                 </div>
             </div>
             ))}
@@ -78,7 +73,7 @@ const PayeesModal: React.FC<PayeesModalProps> = ({ onClose, payees, setPayees, c
 
         <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-divider space-y-3 bg-subtle rounded-b-xl">
             <h3 className="font-semibold text-primary">{editingPayee ? 'Edit Payee' : 'Add New Payee'}</h3>
-            <input type="text" placeholder="Name (e.g., Coffee Shop)" value={formState.name} onChange={e => setFormState(p => ({...p, name: e.target.value}))} className="w-full input-base p-2 rounded-full" required />
+            <input type="text" placeholder="Name (e.g., Coffee Shop)" value={formState.name} onChange={e => setFormState(p => ({...p, name: e.target.value}))} className="w-full input-base p-2 rounded-full" required autoFocus={!!editingPayee} />
             <input type="text" placeholder="Unique Identifier (UPI, A/C No.)" value={formState.identifier} onChange={e => setFormState(p => ({...p, identifier: e.target.value}))} className="w-full input-base p-2 rounded-full" required />
             <CustomSelect 
             value={formState.defaultCategoryId}

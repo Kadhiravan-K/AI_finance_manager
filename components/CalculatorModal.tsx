@@ -43,8 +43,11 @@ const CalculatorScreen: React.FC = () => {
     const handleCalculate = () => {
         if (!expression) return;
         try {
-            // Sanitize by removing anything not a digit, operator, or parenthesis
-            const sanitized = expression.replace(/[^-()\d/*+.]/g, '');
+            // Basic sanitization, but avoid direct eval. A dedicated library is better for production.
+            let sanitized = expression.replace(/[^-()\d/*+.^sqrt]/g, '');
+            sanitized = sanitized.replace(/\^/g, '**');
+            sanitized = sanitized.replace(/sqrt\(/g, 'Math.sqrt(');
+            
             // Using Function constructor is safer than direct eval
             const calculatedResult = new Function('return ' + sanitized)();
             setResult(String(calculatedResult));
@@ -59,11 +62,18 @@ const CalculatorScreen: React.FC = () => {
         </button>
     );
 
-    const buttons = ['C', '%', 'DEL', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', '0', '00', '.', '='];
+    const buttons = [
+      '(', ')', '^', 'sqrt', 
+      'C', '%', 'DEL', '/', 
+      '7', '8', '9', '*', 
+      '4', '5', '6', '-', 
+      '1', '2', '3', '+', 
+      '0', '00', '.', '='
+    ];
 
     const getButtonClass = (btn: string) => {
         if (['/', '*', '-', '+', '='].includes(btn)) return 'calc-btn-operator';
-        if (['C', 'DEL', '%'].includes(btn)) return 'calc-btn-special';
+        if (['C', 'DEL', '%', '(', ')', '^', 'sqrt'].includes(btn)) return 'calc-btn-special';
         return '';
     };
 
@@ -73,6 +83,7 @@ const CalculatorScreen: React.FC = () => {
             case 'DEL': handleDelete(); break;
             case '=': handleCalculate(); break;
             case '%': handleInput('/100*'); break;
+            case 'sqrt': handleInput('sqrt('); break;
             default: handleInput(btn);
         }
     };

@@ -133,6 +133,7 @@ export interface FeedbackItem {
 
 
 export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type MonthlyRepetition = 'every' | 'every_2' | 'every_3' | 'every_6';
 
 export interface RecurringTransaction {
     id: string;
@@ -142,6 +143,8 @@ export interface RecurringTransaction {
     type: TransactionType;
     categoryId: string;
     frequency: Frequency;
+    repetitionDays?: number[]; // Bitmask for days of the week, e.g., [0, 2, 4] for Sun, Tue, Thu
+    monthlyRepetition?: MonthlyRepetition;
     startDate: string; // ISO string
     nextDueDate: string; // ISO string
     notes?: string;
@@ -159,14 +162,20 @@ export interface Trip {
     date: string; // ISO string
 }
 
+export interface TripPayer {
+    contactId: string;
+    amount: number;
+}
+
 export interface TripExpense {
     id: string;
     tripId: string;
     description: string;
     amount: number;
     date: string; // ISO string
-    paidByContactId: string;
+    payers: TripPayer[];
     splitDetails: SplitDetail[];
+    categoryId: string;
 }
 
 export type Theme = 'light' | 'dark';
@@ -199,11 +208,22 @@ export interface NotificationSettings {
     }
 }
 
+export type TrustBinDeletionPeriodUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
+
+export interface TrustBinDeletionPeriod {
+    value: number;
+    unit: TrustBinDeletionPeriodUnit;
+}
+
+export type ToggleableTool = 'calculator' | 'investments' | 'payees' | 'senders' | 'tripManagement';
+
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
     theme: Theme;
     dashboardWidgets: DashboardWidget[];
     notificationSettings: NotificationSettings;
+    trustBinDeletionPeriod: TrustBinDeletionPeriod;
+    enabledTools: Record<ToggleableTool, boolean>;
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -226,24 +246,39 @@ export interface UnlockedAchievement {
     date: string; // ISO string
 }
 
-export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds';
+export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'export' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'quickAdd' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | null;
+export interface TrustBinItem {
+  id: string; // unique id for the bin entry
+  item: any;
+  itemType: ItemType;
+  deletedAt: string; // ISO string
+}
+
+export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'allData';
+
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | null;
 
 export interface ModalState {
     name: ActiveModal;
     props?: Record<string, any>;
 }
 
+export interface ConfirmationState {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  confirmLabel?: string;
+}
+
 export interface FinanceTrackerProps {
   activeScreen: ActiveScreen;
   setActiveScreen: (screen: ActiveScreen) => void;
-  // activeModal: ActiveModal;
-  // setActiveModal: (modal: ActiveModal) => void;
   modalStack: ModalState[];
   setModalStack: React.Dispatch<React.SetStateAction<ModalState[]>>;
   isOnline: boolean;
   mainContentRef?: React.RefObject<HTMLElement>;
+  onSelectionChange?: (selectedIds: string[]) => void;
 }
 
 // For Backup

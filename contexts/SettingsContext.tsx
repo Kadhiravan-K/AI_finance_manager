@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode } from 'react';
-import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings } from '../types';
+import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 
 interface SettingsContextType {
@@ -43,6 +43,17 @@ const DEFAULT_SETTINGS: Settings = {
     theme: 'dark',
     dashboardWidgets: DEFAULT_DASHBOARD_WIDGETS,
     notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
+    trustBinDeletionPeriod: {
+        value: 30,
+        unit: 'days'
+    },
+    enabledTools: {
+        calculator: true,
+        investments: true,
+        payees: true,
+        senders: true,
+        tripManagement: true,
+    }
 };
 
 export const SettingsContext = createContext<SettingsContextType>({

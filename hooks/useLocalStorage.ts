@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { encrypt, decrypt } from '../utils/crypto';
 
-function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (value: T | ((val: T) => T)) => void] {
+function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (value: T | ((val: T) => T)) => Promise<void>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     return initialValue instanceof Function ? initialValue() : initialValue;
   });
@@ -13,39 +13,48 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (valu
     const loadAndDecrypt = async () => {
       try {
         const item = window.localStorage.getItem(key);
-
         if (item) {
           try {
-            // Attempt to decrypt the stored item.
+            // 1. Assume it's new, encrypted data and try to decrypt.
             const decryptedValue = await decrypt(item);
             if (isMounted) {
               setStoredValue(decryptedValue as T);
             }
-          } catch (error) {
-            // If decryption fails, the data is considered corrupted or the key has changed.
-            // This is a critical failure for this data slice. We must reset to a known good state.
-            console.error(
-              `Decryption failed for key "${key}". The data may be corrupted or the encryption key has changed. Resetting to initial value to prevent application instability.`, 
-              error
-            );
-            // Fallback to the initial value to ensure the app remains functional.
-            const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
-            if (isMounted) setStoredValue(valueToStore);
-            
-            // Re-encrypt and save the known good initial state.
-            const encryptedValue = await encrypt(valueToStore);
-            window.localStorage.setItem(key, encryptedValue);
+          } catch (decryptionError) {
+            // 2. Decryption failed. Assume it's old, unencrypted data.
+            // This could be JSON or a primitive string. Try to parse.
+            console.warn(`Decryption failed for key "${key}". Attempting to migrate as unencrypted data.`);
+            try {
+              const parsedData = JSON.parse(item);
+              if (isMounted) {
+                setStoredValue(parsedData as T);
+              }
+              // If successful, encrypt and save for next time.
+              const encryptedValue = await encrypt(parsedData);
+              window.localStorage.setItem(key, encryptedValue);
+              console.log(`Successfully migrated unencrypted data for key "${key}".`);
+            } catch (parsingError) {
+              // 3. Failed both decryption and parsing. Data is likely corrupt. Reset.
+              console.error(
+                `Decryption and JSON parsing failed for key "${key}". The data may be corrupted or the encryption key has changed. Resetting to initial value to prevent application instability.`,
+                parsingError
+              );
+              const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
+              if (isMounted) setStoredValue(valueToStore);
+              
+              const encryptedValue = await encrypt(valueToStore);
+              window.localStorage.setItem(key, encryptedValue);
+            }
           }
         } else {
-            // If no item, encrypt and store the initial value for future use.
-             const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
-             if (isMounted) setStoredValue(valueToStore); // ensure state is consistent
-             const encryptedValue = await encrypt(valueToStore);
-             window.localStorage.setItem(key, encryptedValue);
+          // 4. No data exists, initialize it for the first time.
+          const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
+          if (isMounted) setStoredValue(valueToStore);
+          const encryptedValue = await encrypt(valueToStore);
+          window.localStorage.setItem(key, encryptedValue);
         }
       } catch (error) {
         console.error(`An unexpected error occurred while loading data for key "${key}":`, error);
-        // Generic fallback
         const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
         if (isMounted) setStoredValue(valueToStore);
       }
@@ -59,23 +68,16 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (valu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  const setValue = useCallback((value: T | ((val: T) => T)) => {
+  const setValue = useCallback(async (value: T | ((val: T) => T)) => {
     try {
       // Allow value to be a function so we have same API as useState
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       // Update state immediately for responsiveness
       setStoredValue(valueToStore);
-
-      // Encrypt and save to localStorage in the background
-      encrypt(valueToStore)
-        .then(encryptedValue => {
-          window.localStorage.setItem(key, encryptedValue);
-        })
-        .catch(error => {
-          console.error(`Error encrypting data for key "${key}":`, error);
-        });
+      const encryptedValue = await encrypt(valueToStore);
+      window.localStorage.setItem(key, encryptedValue);
     } catch (error) {
-        console.error(error);
+        console.error(`Error saving data for key "${key}":`, error);
     }
   }, [key, storedValue]);
 

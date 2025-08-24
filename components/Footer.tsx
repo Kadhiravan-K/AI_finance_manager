@@ -22,7 +22,7 @@ const Footer: React.FC<FooterProps> = ({ activeScreen, setActiveScreen }) => {
     { 
       screen: 'budgets', 
       label: 'Budgets', 
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 8h6m-5 0a3 3 0 110 6H9l-2 2V8a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H9l-2 2V8z" /></svg>
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
     },
     { 
       screen: 'more', 

@@ -6,11 +6,12 @@ import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
+import CustomCheckbox from './CustomCheckbox';
 
 const modalRoot = document.getElementById('modal-root')!;
 
 interface EditTransactionModalProps {
-  transaction: Transaction;
+  transaction?: Transaction;
   onSave: (data: Transaction | { 
     action: 'split-and-replace';
     originalTransactionId: string;
@@ -19,6 +20,9 @@ interface EditTransactionModalProps {
   onCancel: () => void;
   accounts: Account[];
   openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
+  selectedAccountId?: string;
+  onLaunchRefundPicker?: () => void;
+  onOpenCalculator: (onResult: (result: number) => void) => void;
 }
 
 const inputBaseClasses = "w-full rounded-lg py-2 px-3 shadow-inner transition-all duration-200 input-base";
@@ -36,9 +40,24 @@ interface Item {
     splitDetails: SplitDetail[];
 }
 
-const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, openModal }) => {
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, openModal, selectedAccountId, onLaunchRefundPicker, onOpenCalculator }) => {
   const { categories, payees, setPayees, contacts, contactGroups } = useContext(SettingsContext);
-  const [formData, setFormData] = useState<Transaction>(transaction);
+  const isCreating = !transaction;
+
+  const defaultTransaction = useMemo(() => ({
+    id: '',
+    accountId: selectedAccountId || accounts[0]?.id || '',
+    description: '',
+    amount: 0,
+    type: TransactionType.EXPENSE,
+    categoryId: '',
+    date: new Date().toISOString(),
+    notes: '',
+    splitDetails: [],
+  }), [selectedAccountId, accounts]);
+
+
+  const [formData, setFormData] = useState<Transaction>(transaction || defaultTransaction);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const formatCurrency = useCurrencyFormatter({currencyDisplay: 'narrowSymbol'});
   
@@ -49,34 +68,36 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setFormData(transaction);
-    const initialCategory = categories.find(c => c.id === transaction.categoryId);
-    setSelectedParentId(initialCategory?.parentId || (initialCategory ? initialCategory.id : null));
+    if (transaction) {
+      setFormData(transaction);
+      const initialCategory = categories.find(c => c.id === transaction.categoryId);
+      setSelectedParentId(initialCategory?.parentId || (initialCategory ? initialCategory.id : null));
+    }
   }, [transaction, categories]);
   
   useEffect(() => {
     if (isItemized && items.length === 0) {
-      const initialCategory = categories.find(c => c.id === transaction.categoryId);
+      const initialCategory = categories.find(c => c.id === formData.categoryId);
       const youSplit: SplitDetail = { 
         id: 'you', 
         personName: 'You', 
-        amount: transaction.amount, 
+        amount: formData.amount, 
         isSettled: true,
         shares: '1',
         percentage: '100'
       };
       setItems([{
         id: self.crypto.randomUUID(),
-        description: transaction.description,
-        amount: String(transaction.amount),
-        categoryId: transaction.categoryId,
+        description: formData.description,
+        amount: String(formData.amount),
+        categoryId: formData.categoryId,
         parentId: initialCategory?.parentId || null,
         splitMode: 'equally',
-        splitDetails: transaction.splitDetails && transaction.splitDetails.length > 0 ? transaction.splitDetails : [youSplit]
+        splitDetails: formData.splitDetails && formData.splitDetails.length > 0 ? formData.splitDetails : [youSplit]
       }]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isItemized, transaction]);
+  }, [isItemized, formData]);
 
   const calculateSplits = useCallback((participants: SplitDetail[], totalAmount: number, mode: SplitMode): SplitDetail[] => {
     let newParticipants = [...participants];
@@ -161,7 +182,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
 
         onSave({
             action: 'split-and-replace',
-            originalTransactionId: transaction.id,
+            originalTransactionId: formData.id,
             newTransactions: newTransactions.filter(t => (t.amount > 0 || (t.amount === 0 && t.description.trim() !== ''))),
         });
     } else {
@@ -255,6 +276,35 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
         splitDetails: calculateSplits(updatedParticipants, totalAmount, i.splitMode)
       } : i));
   };
+
+  const handleIncludeMe = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item || item.splitDetails.some(p => p.id === 'you')) return;
+
+    const youParticipant: SplitDetail = {
+      id: 'you',
+      personName: 'You',
+      amount: 0, // will be recalculated
+      isSettled: true,
+      shares: '1',
+      percentage: '0',
+    };
+    
+    let updatedParticipants = [...item.splitDetails, youParticipant];
+     // Sort to keep "You" at the top
+    updatedParticipants.sort((a, b) => {
+        if (a.id === 'you') return -1;
+        if (b.id === 'you') return 1;
+        return a.personName.localeCompare(b.personName);
+    });
+
+    const totalAmount = parseFloat(item.amount) || 0;
+    
+    setItems(prev => prev.map(i => i.id === itemId ? {
+        ...i,
+        splitDetails: calculateSplits(updatedParticipants, totalAmount, i.splitMode)
+    } : i));
+  };
   
   const handleSplitDetailChange = (itemId: string, personId: string, field: 'percentage' | 'shares' | 'amount', value: string) => {
      const item = items.find(i => i.id === itemId);
@@ -305,6 +355,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const totalAssigned = item.splitDetails.reduce((sum, p) => sum + p.amount, 0);
     const itemAmount = parseFloat(item.amount) || 0;
     const remainder = itemAmount - totalAssigned;
+    const youIsIncluded = item.splitDetails.some(p => p.id === 'you');
 
     const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
         <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
@@ -349,9 +400,16 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                             :
                             <span className="w-24 text-right font-mono text-sm text-primary">{formatCurrency(p.amount)}</span>
                         }
-                        {p.id !== 'you' && <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} className="text-rose-400 text-xl leading-none px-1 flex-shrink-0">&times;</button>}
+                        <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} className="text-rose-400 text-xl leading-none px-1 flex-shrink-0">&times;</button>
                     </div>
                 ))}
+                 {!youIsIncluded && (
+                    <div className="text-center pt-1">
+                        <button type="button" onClick={() => handleIncludeMe(item.id)} className="text-xs text-sky-400 hover:text-sky-300 font-semibold">
+                            + Include Me
+                        </button>
+                    </div>
+                )}
             </div>
             
              <div className="relative">
@@ -360,20 +418,26 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 </button>
                 {showContactPicker === item.id && (
                     <div className="absolute bottom-full mb-1 w-full z-20 glass-card rounded-lg shadow-lg max-h-40 flex flex-col">
-                        <div className="overflow-y-auto">
+                        <div className="overflow-y-auto p-1">
                             {contactGroups.map(group => (
                                 <div key={group.id}>
                                     <h4 className="text-xs font-bold text-secondary p-2 bg-subtle sticky top-0">{group.name}</h4>
                                     {contacts.filter(c => c.groupId === group.id).map(contact => (
-                                        <label key={contact.id} className="flex items-center w-full text-left px-3 py-2 text-primary hover-bg-stronger text-sm cursor-pointer">
-                                            <input type="checkbox" checked={selectedContacts.has(contact.id)} onChange={() => setSelectedContacts(prev => {
-                                                const newSet = new Set(prev);
-                                                if (newSet.has(contact.id)) newSet.delete(contact.id);
-                                                else newSet.add(contact.id);
-                                                return newSet;
-                                            })} className="mr-2 h-4 w-4 rounded focus:ring-emerald-500" style={{ backgroundColor: 'var(--color-bg-input)', borderColor: 'var(--color-border-input)', color: 'var(--color-accent-emerald)'}}/>
-                                            {contact.name}
-                                        </label>
+                                        <div key={contact.id} className="px-2 py-1">
+                                            <CustomCheckbox
+                                              id={`contact-${contact.id}-${item.id}`}
+                                              label={contact.name}
+                                              checked={selectedContacts.has(contact.id)}
+                                              onChange={() => {
+                                                setSelectedContacts(prev => {
+                                                  const newSet = new Set(prev);
+                                                  if (newSet.has(contact.id)) newSet.delete(contact.id);
+                                                  else newSet.add(contact.id);
+                                                  return newSet;
+                                                });
+                                              }}
+                                            />
+                                        </div>
                                     ))}
                                 </div>
                             ))}
@@ -398,7 +462,12 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 <div className="flex-grow space-y-2">
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
                     <div className="grid grid-cols-2 gap-2">
-                        <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner`} />
+                        <div className="relative">
+                            <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner pr-8`} />
+                            <button type="button" onClick={() => onOpenCalculator(result => handleItemChange(item.id, 'amount', String(result)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
+                            </button>
+                        </div>
                         <div>
                              <CustomSelect value={item.parentId || ''} onChange={val => {
                                  const subCats = categories.filter(c => c.parentId === val);
@@ -423,7 +492,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel} aria-modal="true" role="dialog">
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Edit Transaction" onClose={onCancel} />
+        <ModalHeader title={isCreating ? "Add Transaction" : "Edit Transaction"} onClose={onCancel} />
         <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto">
            {/* Row 1: Account & Date */}
            <div className="grid grid-cols-2 gap-4">
@@ -444,7 +513,12 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 <div className="grid grid-cols-2 gap-4">
                         <div>
                         <label htmlFor="amount" className={labelBaseClasses}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
-                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={inputBaseClasses}/>
+                        <div className="relative">
+                            <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={`${inputBaseClasses} pr-8`} autoFocus/>
+                            <button type="button" onClick={() => onOpenCalculator(result => handleChange('amount', result))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
+                            </button>
+                        </div>
                         </div>
                         <div>
                             <label className={labelBaseClasses}>Type</label>
@@ -501,7 +575,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 {isItemized && (
                     <div className="mt-4 space-y-3 p-3 rounded-lg animate-fadeInUp modal-content-area">
                        <div className="space-y-2">{items.map(item => renderItem(item))}</div>
-                       <button type="button" onClick={handleAddItem} className="w-full text-center p-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger" style={{ color: 'var(--color-accent-sky)' }}>
+                       <button type="button" onClick={handleAddItem} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger" style={{ color: 'var(--color-accent-sky)' }}>
                            + Add Item
                        </button>
                         {/* Summary */}
@@ -516,10 +590,16 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
           )}
           <div className="flex justify-between items-center pt-4 border-t border-divider mt-4">
             <div>
-              {formData.type === TransactionType.EXPENSE && (
-                <button type="button" onClick={() => openModal('refund', { transaction: formData })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
-                  Process a Refund
+              {isCreating && onLaunchRefundPicker ? (
+                <button type="button" onClick={onLaunchRefundPicker} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
+                  Find Expense to Refund
                 </button>
+              ) : (
+                formData.type === TransactionType.EXPENSE && (
+                  <button type="button" onClick={() => openModal('refund', { transaction: formData })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
+                    Process a Refund
+                  </button>
+                )
               )}
             </div>
             <div className="flex justify-end space-x-3">

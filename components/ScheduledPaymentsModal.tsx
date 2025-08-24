@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
-import { RecurringTransaction, Category, Account, TransactionType, Frequency } from '../types';
+import { RecurringTransaction, Category, Account, TransactionType, Frequency, MonthlyRepetition } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
+import ToggleSwitch from './ToggleSwitch';
 
 interface ScheduledPaymentsScreenProps {
   recurringTransactions: RecurringTransaction[];
   setRecurringTransactions: React.Dispatch<React.SetStateAction<RecurringTransaction[]>>;
   categories: Category[];
   accounts: Account[];
+  onDelete: (id: string) => void;
 }
 
-const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recurringTransactions, setRecurringTransactions, categories, accounts }) => {
+const defaultFormState: Omit<RecurringTransaction, 'id' | 'nextDueDate'> = {
+  description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: '', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0], repetitionDays: [], monthlyRepetition: 'every',
+};
+
+const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recurringTransactions, setRecurringTransactions, categories, accounts, onDelete }) => {
   const [editingItem, setEditingItem] = useState<RecurringTransaction | null>(null);
-  const [formState, setFormState] = useState<Omit<RecurringTransaction, 'id' | 'nextDueDate'>>({
-    description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: accounts[0]?.id || '', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0]
-  });
+  const [formState, setFormState] = useState<Omit<RecurringTransaction, 'id' | 'nextDueDate'>>({ ...defaultFormState, accountId: accounts[0]?.id || '' });
   const formatCurrency = useCurrencyFormatter();
 
   const handleEdit = (item: RecurringTransaction) => {
@@ -27,6 +31,8 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
         categoryId: item.categoryId,
         accountId: item.accountId,
         frequency: item.frequency,
+        repetitionDays: item.repetitionDays || [],
+        monthlyRepetition: item.monthlyRepetition || 'every',
         startDate: new Date(item.startDate).toISOString().split('T')[0],
         notes: item.notes,
     });
@@ -34,15 +40,9 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
 
   const handleCancel = () => {
     setEditingItem(null);
-    setFormState({ description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: accounts[0]?.id || '', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0] });
+    setFormState({ ...defaultFormState, accountId: accounts[0]?.id || '' });
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this scheduled payment?")) {
-      setRecurringTransactions(prev => prev.filter(p => p.id !== id));
-    }
-  };
-  
   const getCategoryPath = (categoryId: string): string => {
     const path: string[] = [];
     let current = categories.find(c => c.id === categoryId);
@@ -70,19 +70,27 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
     }
     handleCancel();
   };
+  
+  const handleDayToggle = (dayIndex: number) => {
+      setFormState(prev => {
+          const currentDays = prev.repetitionDays || [];
+          const newDays = currentDays.includes(dayIndex) 
+            ? currentDays.filter(d => d !== dayIndex) 
+            : [...currentDays, dayIndex];
+          return { ...prev, repetitionDays: newDays.sort() };
+      });
+  };
 
   const categoryOptions = categories.filter(c => c.type === formState.type).map(c => ({ value: c.id, label: `${getCategoryPath(c.id)}` }));
   const accountOptions = accounts.map(a => ({ value: a.id, label: a.name }));
   const frequencyOptions = [
-      { value: 'daily', label: 'Daily' },
-      { value: 'weekly', label: 'Weekly' },
-      { value: 'monthly', label: 'Monthly' },
-      { value: 'yearly', label: 'Yearly' },
+      { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }, { value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly' },
   ];
-  const typeOptions = [
-      {value: TransactionType.EXPENSE, label: 'Expense'},
-      {value: TransactionType.INCOME, label: 'Income'},
-  ]
+  const typeOptions = [ {value: TransactionType.EXPENSE, label: 'Expense'}, {value: TransactionType.INCOME, label: 'Income'}, ];
+  const monthlyRepetitionOptions: {value: MonthlyRepetition, label: string}[] = [
+      {value: 'every', label: 'Every Month'}, {value: 'every_2', label: 'Every 2 Months'}, {value: 'every_3', label: 'Every 3 Months'}, {value: 'every_6', label: 'Every 6 Months'}
+  ];
+  const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
     <div className="h-full flex flex-col">
@@ -96,7 +104,7 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
             </div>
             <div className="space-x-2">
               <button onClick={() => handleEdit(item)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-              <button onClick={() => handleDelete(item.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+              <button onClick={() => onDelete(item.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
             </div>
           </div>
         ))}
@@ -115,6 +123,26 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
             <CustomSelect options={frequencyOptions} value={formState.frequency} onChange={v => setFormState(p => ({...p, frequency: v as Frequency}))} />
           </div>
         </div>
+        
+        {(formState.frequency === 'daily' || formState.frequency === 'weekly') && (
+            <div className="animate-fadeInUp">
+                <label className="text-xs text-secondary mb-2 block">Repeat on Specific Days</label>
+                <div className="flex justify-around bg-subtle p-1 rounded-full border border-divider">
+                    {dayLabels.map((day, index) => (
+                        <button key={index} type="button" onClick={() => handleDayToggle(index)} className={`w-8 h-8 rounded-full font-bold text-sm transition-colors ${formState.repetitionDays?.includes(index) ? 'bg-emerald-500 text-white' : 'hover-bg-stronger'}`}>
+                            {day}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        )}
+        {formState.frequency === 'monthly' && (
+             <div className="animate-fadeInUp">
+                <label className="text-xs text-secondary mb-1 block">Monthly Repetition</label>
+                <CustomSelect options={monthlyRepetitionOptions} value={formState.monthlyRepetition || 'every'} onChange={v => setFormState(p => ({...p, monthlyRepetition: v as MonthlyRepetition}))} />
+            </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-secondary mb-1 block">Account</label>

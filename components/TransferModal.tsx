@@ -81,6 +81,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTran
                 min="0.01"
                 placeholder="0.00"
                 className="input-base w-full rounded-full py-2 px-3"
+                autoFocus
               />
             </div>
             <div>

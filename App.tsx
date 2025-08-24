@@ -10,6 +10,7 @@ import PrivacyConsentModal from './components/PrivacyConsentModal';
 import OnboardingModal from './components/OnboardingModal';
 import Footer from './components/Footer';
 import HeaderMenuModal from './components/HeaderMenuModal';
+import GlobalSearchResults from './components/GlobalSearchResults';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -22,6 +23,9 @@ const AppContent: React.FC = () => {
   const [sharedText, setSharedText] = useState<string | null>(null);
   const { settings } = useContext(SettingsContext);
   const mainContentRef = useRef<HTMLElement>(null);
+  const [isQuickAddDisabled, setIsQuickAddDisabled] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const activeModal = modalStack[modalStack.length - 1] || null;
   const setActiveModal = (modal: ModalState | null) => {
@@ -46,7 +50,7 @@ const AppContent: React.FC = () => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'shared-text') {
         setSharedText(event.data.text);
-        setActiveModal({name: 'quickAdd'});
+        setActiveModal({name: 'addTransaction'});
       }
     };
     navigator.serviceWorker.addEventListener('message', handleMessage);
@@ -68,6 +72,13 @@ const AppContent: React.FC = () => {
   if (!onboardingComplete) {
       return <OnboardingModal onFinish={handleOnboardingFinish} />;
   }
+  
+  const handleNavigation = (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => {
+      if (screen) setActiveScreen(screen);
+      if (modal) setActiveModal({name: modal, props: modalProps });
+      setIsSearchActive(false);
+      setSearchQuery('');
+  }
 
   return (
     <>
@@ -82,7 +93,12 @@ const AppContent: React.FC = () => {
             <Header 
               onOpenTransfer={() => setActiveModal({name: 'transfer'})}
               onOpenMenu={() => setActiveModal({name: 'headerMenu'})}
+              onOpenNotifications={() => setActiveModal({name: 'notifications'})}
               isOnline={isOnline}
+              isSearchActive={isSearchActive}
+              setIsSearchActive={setIsSearchActive}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
             />
           </div>
           <main ref={mainContentRef} className="flex-grow overflow-y-auto opacity-0 animate-fadeInUp pb-20" style={{animationDelay: '200ms'}}>
@@ -94,21 +110,23 @@ const AppContent: React.FC = () => {
               isOnline={isOnline}
               mainContentRef={mainContentRef}
               initialText={sharedText}
+              onSelectionChange={selectedIds => setIsQuickAddDisabled(selectedIds.length !== 1)}
             />
           </main>
           <Footer activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
-          <button 
-            onClick={() => {
-              setSharedText(null); // Clear any shared text when manually opening
-              setActiveModal({name: 'quickAdd'});
-            }}
-            className="fab"
-            aria-label="Quick Add Transaction"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          {!isSearchActive && (
+            <button 
+              onClick={() => setActiveModal({name: 'addTransaction'})}
+              className="fab"
+              aria-label="Add Transaction"
+              disabled={isQuickAddDisabled}
+              title={isQuickAddDisabled ? "Select a single account to add a transaction" : "Add Transaction"}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          )}
            {activeModal?.name === 'headerMenu' && ReactDOM.createPortal(
             <HeaderMenuModal 
               onClose={() => setActiveModal(null)}
@@ -116,6 +134,17 @@ const AppContent: React.FC = () => {
                 setActiveScreen(screen);
                 setActiveModal(null);
               }}
+              setActiveModal={(modal) => {
+                setActiveModal({name: modal});
+              }}
+            />,
+            modalRoot
+          )}
+          {isSearchActive && ReactDOM.createPortal(
+            <GlobalSearchResults
+                query={searchQuery}
+                onNavigate={handleNavigation}
+                onClose={() => setIsSearchActive(false)}
             />,
             modalRoot
           )}

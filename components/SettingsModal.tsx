@@ -48,7 +48,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActiveModal, 
                     <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">App & Data</h3>
                     <div className="space-y-3">
                         <button onClick={() => handleNav('appSettings')} className="w-full text-left p-4 bg-subtle rounded-lg flex items-center justify-between hover-bg-stronger transition-colors text-primary"><span>App Settings & Backup</span><span>⚙️</span></button>
-                        <button onClick={() => handleNav('export')} className="w-full text-left p-4 bg-subtle rounded-lg flex items-center justify-between hover-bg-stronger transition-colors text-primary"><span>Export Data</span><span>📄</span></button>
+                        <button onClick={() => handleNav('importExport')} className="w-full text-left p-4 bg-subtle rounded-lg flex items-center justify-between hover-bg-stronger transition-colors text-primary"><span>Export Data</span><span>📄</span></button>
                         <button onClick={() => handleNav('feedback')} className="w-full text-left p-4 bg-subtle rounded-lg flex items-center justify-between hover-bg-stronger transition-colors text-primary"><span>Send Feedback</span><span>📨</span></button>
                     </div>
                 </div>
