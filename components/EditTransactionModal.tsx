@@ -23,6 +23,7 @@ interface EditTransactionModalProps {
   selectedAccountId?: string;
   onLaunchRefundPicker?: () => void;
   onOpenCalculator: (onResult: (result: number) => void) => void;
+  isEmbedded?: boolean;
 }
 
 const inputBaseClasses = "w-full rounded-lg py-2 px-3 shadow-inner transition-all duration-200 input-base";
@@ -40,7 +41,7 @@ interface Item {
     splitDetails: SplitDetail[];
 }
 
-const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, openModal, selectedAccountId, onLaunchRefundPicker, onOpenCalculator }) => {
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, openModal, selectedAccountId, onLaunchRefundPicker, onOpenCalculator, isEmbedded = false }) => {
   const { categories, payees, setPayees, contacts, contactGroups } = useContext(SettingsContext);
   const isCreating = !transaction;
 
@@ -487,127 +488,134 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
         </div>
     );
   };
+  
+  const formBody = (
+    <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto flex-grow">
+       {/* Row 1: Account & Date */}
+       <div className="grid grid-cols-2 gap-4">
+           <div>
+            <label className={labelBaseClasses}>Account</label>
+            <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
+          </div>
+          <div>
+            <label className={labelBaseClasses}>Date</label>
+            <CustomDatePicker value={new Date(formData.date)} onChange={(date) => handleChange('date', date.toISOString())}/>
+          </div>
+       </div>
+       
+       {/* Main form switch */}
+       {!isItemized ? (
+        <div className='space-y-4 animate-fadeInUp'>
+            {/* Row 2: Amount & Type */}
+            <div className="grid grid-cols-2 gap-4">
+                    <div>
+                    <label htmlFor="amount" className={labelBaseClasses}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
+                    <div className="relative">
+                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={`${inputBaseClasses} pr-8`} autoFocus/>
+                        <button type="button" onClick={() => onOpenCalculator(result => handleChange('amount', result))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
+                        </button>
+                    </div>
+                    </div>
+                    <div>
+                        <label className={labelBaseClasses}>Type</label>
+                        <CustomSelect value={formData.type} onChange={(value) => handleChange('type', value as TransactionType)} options={[{ value: TransactionType.EXPENSE, label: 'Expense' }, { value: TransactionType.INCOME, label: 'Income' }]}/>
+                    </div>
+            </div>
+            {/* Row 3: Category & Subcategory */}
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                <label className={labelBaseClasses}>Category</label>
+                <CustomSelect value={selectedParentId || ''} onChange={handleParentCategoryChange} options={parentCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Select Category"/>
+                </div>
+                <div>
+                <label className={labelBaseClasses}>Subcategory</label>
+                <CustomSelect value={formData.categoryId} onChange={(value) => handleChange('categoryId', value)} options={subCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="-" disabled={subCategories.length === 0} defaultValue={selectedParentId || ''}/>
+                </div>
+            </div>
+            {/* Row 4: Description */}
+            <div>
+                <label htmlFor="description" className={labelBaseClasses}>Description</label>
+                <input type="text" id="description" name="description" value={formData.description} onChange={(e) => handleChange('description', e.target.value)} className={inputBaseClasses}/>
+            </div>
+        </div>
+       ) : (
+         <div className="space-y-4 animate-fadeInUp">
+            <div>
+                <label className={labelBaseClasses}>Total Amount</label>
+                <input type="number" value={formData.amount} readOnly className={`${inputBaseClasses} opacity-70 cursor-not-allowed`} />
+            </div>
+         </div>
+       )}
 
+      {formData.payeeIdentifier && (
+          <div className="p-2 bg-subtle rounded-lg flex items-center justify-between text-sm">
+              <span className="text-secondary">Identifier: <code className="text-primary">{formData.payeeIdentifier}</code></span>
+              <button type="button" onClick={handleSavePayee} disabled={isPayeeSaved} className="text-xs px-2 py-1 rounded-full hover:bg-emerald-600 disabled:cursor-not-allowed" style={{ backgroundColor: isPayeeSaved ? 'var(--color-bg-button-secondary)' : 'rgba(16, 185, 129, 0.5)', color: isPayeeSaved ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)'}}>
+                  {isPayeeSaved ? 'Saved' : 'Save Payee'}
+              </button>
+          </div>
+      )}
+      <div>
+        <label htmlFor="notes" className={labelBaseClasses}>Notes (Optional)</label>
+        <textarea id="notes" name="notes" value={formData.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} rows={2} className={`${inputBaseClasses} resize-none`}/>
+      </div>
+      {/* Itemized Split Section */}
+      {formData.type === TransactionType.EXPENSE && (
+          <div className="pt-4 border-t border-divider">
+            <div className="flex items-center justify-between">
+                <label htmlFor="isItemized" className="font-medium text-primary">Itemize & Split Transaction</label>
+                <button type="button" onClick={() => setIsItemized(!isItemized)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${isItemized ? 'bg-emerald-500' : 'bg-subtle'}`}>
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${isItemized ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+            </div>
+            {isItemized && (
+                <div className="mt-4 space-y-3 p-3 rounded-lg animate-fadeInUp modal-content-area">
+                   <div className="space-y-2">{items.map(item => renderItem(item))}</div>
+                   <button type="button" onClick={handleAddItem} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger" style={{ color: 'var(--color-accent-sky)' }}>
+                       + Add Item
+                   </button>
+                    {/* Summary */}
+                    <div className="text-xs space-y-1 pt-2 border-t border-divider">
+                         <div className="flex justify-between"><span className="text-secondary">Total of Items:</span> <span className={`font-mono ${isSaveDisabled ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(itemsTotal)}</span></div>
+                         <div className="flex justify-between"><span className="text-secondary">Remaining:</span> <span className="font-mono text-primary">{formatCurrency(formData.amount - itemsTotal)}</span></div>
+                         {isSaveDisabled && <p className="text-center text-xs pt-1" style={{color: 'var(--color-accent-rose)'}}>Total of items must match the transaction amount.</p>}
+                    </div>
+                </div>
+            )}
+          </div>
+      )}
+      <div className="flex justify-between items-center pt-4 border-t border-divider mt-4">
+        <div>
+          {isCreating && onLaunchRefundPicker ? (
+            <button type="button" onClick={onLaunchRefundPicker} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
+              Find Expense to Refund
+            </button>
+          ) : (
+            formData.type === TransactionType.EXPENSE && (
+              <button type="button" onClick={() => openModal('refund', { transaction: formData })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
+                Process a Refund
+              </button>
+            )
+          )}
+        </div>
+        <div className="flex justify-end space-x-3">
+          <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+          <button type="submit" disabled={(!formData.categoryId && !isItemized) || isSaveDisabled} className="button-primary px-4 py-2">Save Changes</button>
+        </div>
+      </div>
+    </form>
+  );
 
+  if (isEmbedded) {
+    return formBody;
+  }
+  
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel} aria-modal="true" role="dialog">
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <ModalHeader title={isCreating ? "Add Transaction" : "Edit Transaction"} onClose={onCancel} />
-        <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto">
-           {/* Row 1: Account & Date */}
-           <div className="grid grid-cols-2 gap-4">
-               <div>
-                <label className={labelBaseClasses}>Account</label>
-                <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
-              </div>
-              <div>
-                <label className={labelBaseClasses}>Date</label>
-                <CustomDatePicker value={new Date(formData.date)} onChange={(date) => handleChange('date', date.toISOString())}/>
-              </div>
-           </div>
-           
-           {/* Main form switch */}
-           {!isItemized ? (
-            <div className='space-y-4 animate-fadeInUp'>
-                {/* Row 2: Amount & Type */}
-                <div className="grid grid-cols-2 gap-4">
-                        <div>
-                        <label htmlFor="amount" className={labelBaseClasses}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
-                        <div className="relative">
-                            <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={`${inputBaseClasses} pr-8`} autoFocus/>
-                            <button type="button" onClick={() => onOpenCalculator(result => handleChange('amount', result))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
-                            </button>
-                        </div>
-                        </div>
-                        <div>
-                            <label className={labelBaseClasses}>Type</label>
-                            <CustomSelect value={formData.type} onChange={(value) => handleChange('type', value as TransactionType)} options={[{ value: TransactionType.EXPENSE, label: 'Expense' }, { value: TransactionType.INCOME, label: 'Income' }]}/>
-                        </div>
-                </div>
-                {/* Row 3: Category & Subcategory */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                    <label className={labelBaseClasses}>Category</label>
-                    <CustomSelect value={selectedParentId || ''} onChange={handleParentCategoryChange} options={parentCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Select Category"/>
-                    </div>
-                    <div>
-                    <label className={labelBaseClasses}>Subcategory</label>
-                    <CustomSelect value={formData.categoryId} onChange={(value) => handleChange('categoryId', value)} options={subCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="-" disabled={subCategories.length === 0} defaultValue={selectedParentId || ''}/>
-                    </div>
-                </div>
-                {/* Row 4: Description */}
-                <div>
-                    <label htmlFor="description" className={labelBaseClasses}>Description</label>
-                    <input type="text" id="description" name="description" value={formData.description} onChange={(e) => handleChange('description', e.target.value)} className={inputBaseClasses}/>
-                </div>
-            </div>
-           ) : (
-             <div className="space-y-4 animate-fadeInUp">
-                <div>
-                    <label className={labelBaseClasses}>Total Amount</label>
-                    <input type="number" value={formData.amount} readOnly className={`${inputBaseClasses} opacity-70 cursor-not-allowed`} />
-                </div>
-             </div>
-           )}
-
-          {formData.payeeIdentifier && (
-              <div className="p-2 bg-subtle rounded-lg flex items-center justify-between text-sm">
-                  <span className="text-secondary">Identifier: <code className="text-primary">{formData.payeeIdentifier}</code></span>
-                  <button type="button" onClick={handleSavePayee} disabled={isPayeeSaved} className="text-xs px-2 py-1 rounded-full hover:bg-emerald-600 disabled:cursor-not-allowed" style={{ backgroundColor: isPayeeSaved ? 'var(--color-bg-button-secondary)' : 'rgba(16, 185, 129, 0.5)', color: isPayeeSaved ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)'}}>
-                      {isPayeeSaved ? 'Saved' : 'Save Payee'}
-                  </button>
-              </div>
-          )}
-          <div>
-            <label htmlFor="notes" className={labelBaseClasses}>Notes (Optional)</label>
-            <textarea id="notes" name="notes" value={formData.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} rows={2} className={`${inputBaseClasses} resize-none`}/>
-          </div>
-          {/* Itemized Split Section */}
-          {formData.type === TransactionType.EXPENSE && (
-              <div className="pt-4 border-t border-divider">
-                <div className="flex items-center justify-between">
-                    <label htmlFor="isItemized" className="font-medium text-primary">Itemize & Split Transaction</label>
-                    <button type="button" onClick={() => setIsItemized(!isItemized)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${isItemized ? 'bg-emerald-500' : 'bg-subtle'}`}>
-                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${isItemized ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
-                {isItemized && (
-                    <div className="mt-4 space-y-3 p-3 rounded-lg animate-fadeInUp modal-content-area">
-                       <div className="space-y-2">{items.map(item => renderItem(item))}</div>
-                       <button type="button" onClick={handleAddItem} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger" style={{ color: 'var(--color-accent-sky)' }}>
-                           + Add Item
-                       </button>
-                        {/* Summary */}
-                        <div className="text-xs space-y-1 pt-2 border-t border-divider">
-                             <div className="flex justify-between"><span className="text-secondary">Total of Items:</span> <span className={`font-mono ${isSaveDisabled ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(itemsTotal)}</span></div>
-                             <div className="flex justify-between"><span className="text-secondary">Remaining:</span> <span className="font-mono text-primary">{formatCurrency(formData.amount - itemsTotal)}</span></div>
-                             {isSaveDisabled && <p className="text-center text-xs pt-1" style={{color: 'var(--color-accent-rose)'}}>Total of items must match the transaction amount.</p>}
-                        </div>
-                    </div>
-                )}
-              </div>
-          )}
-          <div className="flex justify-between items-center pt-4 border-t border-divider mt-4">
-            <div>
-              {isCreating && onLaunchRefundPicker ? (
-                <button type="button" onClick={onLaunchRefundPicker} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
-                  Find Expense to Refund
-                </button>
-              ) : (
-                formData.type === TransactionType.EXPENSE && (
-                  <button type="button" onClick={() => openModal('refund', { transaction: formData })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
-                    Process a Refund
-                  </button>
-                )
-              )}
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
-              <button type="submit" disabled={(!formData.categoryId && !isItemized) || isSaveDisabled} className="button-primary px-4 py-2">Save Changes</button>
-            </div>
-          </div>
-        </form>
+        {formBody}
       </div>
     </div>
   );

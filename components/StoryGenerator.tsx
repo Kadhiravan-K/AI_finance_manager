@@ -570,6 +570,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const handleSaveContact = (contact: Omit<Contact, 'id'>, id?: string) => {
     if (id) {
       setContacts(prev => prev.map(c => c.id === id ? { ...c, ...contact } : c));
+      return contacts.find(c => c.id === id);
     } else {
       const newContact = { ...contact, id: self.crypto.randomUUID() };
       setContacts(prev => [...prev, newContact]);

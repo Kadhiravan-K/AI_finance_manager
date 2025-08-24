@@ -74,7 +74,10 @@ const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onSave, onClose, on
               {participants.map(p => (
                 <div key={p.contactId} className="flex justify-between items-center text-sm p-1">
                   <span className="text-primary">{p.name}</span>
-                  <button type="button" onClick={() => handleParticipantToggle(contacts.find(c => c.id === p.contactId)!, false)} className="text-rose-400 text-xl leading-none">&times;</button>
+                  <button type="button" onClick={() => {
+                      const contact = contacts.find(c => c.id === p.contactId);
+                      if(contact) handleParticipantToggle(contact, false);
+                  }} className="text-rose-400 text-xl leading-none">&times;</button>
                 </div>
               ))}
             </div>
@@ -104,7 +107,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onSave, onClose, on
                 <form onSubmit={handleAddNewContact} className="mt-2 pt-2 border-t border-divider flex items-center gap-2">
                     <input type="text" value={newContactName} onChange={e => setNewContactName(e.target.value)} placeholder="New Contact Name" className="flex-grow input-base p-2 rounded-md" />
                      <div className="w-32"><CustomSelect options={groupOptions} value={newContactGroup} onChange={setNewContactGroup} /></div>
-                    <button type="submit" className="button-primary text-sm px-3 py-1.5">+</button>
+                    <button type="submit" className="button-primary text-sm px-3 py-1.5" disabled={!newContactName.trim() || !newContactGroup}>+</button>
                 </form>
               </div>
             )}
