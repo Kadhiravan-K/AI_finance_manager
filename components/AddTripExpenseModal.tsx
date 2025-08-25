@@ -63,29 +63,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
   const [splitterMode, setSplitterMode] = useState<SplitMode>('equally');
 
   const [isSplitterCollapsed, setIsSplitterCollapsed] = useState(true);
-  const [itemToDelete, setItemToDelete] = useState<{id: string, name: string} | null>(null);
-  const [deleteCountdown, setDeleteCountdown] = useState(1);
-
-  const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (itemToDelete) {
-      setDeleteCountdown(1);
-      deleteTimerRef.current = setInterval(() => {
-        setDeleteCountdown(prev => {
-          if (prev <= 1) {
-            if (deleteTimerRef.current) clearInterval(deleteTimerRef.current);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (deleteTimerRef.current) clearInterval(deleteTimerRef.current);
-    };
-  }, [itemToDelete]);
-
+  
   const topLevelExpenseCategories = useMemo(() => categories.filter(c => c.type === TransactionType.EXPENSE && !c.parentId), [categories]);
   const totalAmount = useMemo(() => items.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * (parseInt(item.quantity, 10) || 0)), 0), [items]);
 
@@ -121,7 +99,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
         categoryId: expenseToEdit.categoryId,
         parentId: category?.parentId || null,
       }]);
-      setPayers(expenseToEdit.payers.map(p => ({ ...p, id: p.contactId, personName: trip.participants.find(tp => tp.contactId === p.contactId)?.name || 'Unknown', isSettled: p.contactId === USER_SELF_ID, shares: '1', percentage: '100' })));
+      setPayers(expenseToEdit.payers.map(p => ({ ...p, id: p.contactId, personName: (trip.participants||[]).filter(Boolean).find(tp => tp.contactId === p.contactId)?.name || 'Unknown', isSettled: p.contactId === USER_SELF_ID, shares: '1', percentage: '100' })));
       setSplitters(expenseToEdit.splitDetails);
     } else {
         const youParticipant: SplitDetail = { id: USER_SELF_ID, personName: 'You', amount: 0, isSettled: true, shares: '1', percentage: '100'};
@@ -145,9 +123,11 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
     setItems(prev => prev.map(item => item.id === itemId ? { ...item, [field]: value } : item));
   };
   const handleAddItem = () => setItems(prev => [...prev, createEmptyItem()]);
-  const handleConfirmRemoveItem = () => {
-    if (itemToDelete) setItems(prev => prev.filter(item => item.id !== itemToDelete.id));
-    setItemToDelete(null);
+  const handleRemoveItem = (itemId: string) => {
+    setItems(prev => prev.filter(item => item.id !== itemId));
+  };
+  const handleQuantityStep = (itemId: string, delta: number) => {
+    handleItemChange(itemId, 'quantity', String(Math.max(1, (parseInt(items.find(i => i.id === itemId)?.quantity || '1', 10) || 1) + delta)));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -188,7 +168,35 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
     onModeChange: (mode: SplitMode) => void;
     participants: SplitDetail[];
     onParticipantsChange: (participants: SplitDetail[]) => void;
-  }> = ({ title, mode, onModeChange, participants, onParticipantsChange }) => {
+    isPayerManager?: boolean;
+    tripParticipants?: TripParticipant[];
+  }> = ({ title, mode, onModeChange, participants, onParticipantsChange, isPayerManager, tripParticipants }) => {
+    
+    const participantOptions = useMemo(() => {
+        if (!isPayerManager || !tripParticipants) return [];
+        const all = [{ contactId: USER_SELF_ID, name: 'You' }, ...tripParticipants.filter(p => p.contactId !== USER_SELF_ID)];
+        return all.map(p => ({ value: p.contactId, label: p.name }));
+    }, [isPayerManager, tripParticipants]);
+
+    const handlePayerChange = (oldId: string, newContactId: string) => {
+        const newParticipantDetails = participantOptions.find(p => p.value === newContactId);
+        if (!newParticipantDetails) return;
+
+        // Prevent adding a participant who is already a payer
+        if (participants.some(p => p.id === newContactId)) return;
+
+        onParticipantsChange(participants.map(p => {
+            if (p.id === oldId) {
+                return {
+                    ...p,
+                    id: newParticipantDetails.value,
+                    personName: newParticipantDetails.label,
+                    isSettled: newParticipantDetails.value === USER_SELF_ID
+                };
+            }
+            return p;
+        }));
+    };
     
     const handleAddPerson = (person: TripParticipant) => {
         if (!participants.some(p => p.id === person.contactId)) {
@@ -203,7 +211,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
         onParticipantsChange(calculateSplits(newParticipants, totalAmount, mode));
     };
 
-    const handleNumericChange = (id: string, field: 'percentage' | 'shares', delta: number) => {
+    const handleNumericChange = (id: string, field: 'shares', delta: number) => {
         const p = participants.find(p => p.id === id);
         if (!p) return;
         const currentVal = parseFloat(p[field] || (field === 'shares' ? '1' : '0')) || 0;
@@ -227,33 +235,27 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             <div className="space-y-2 max-h-40 overflow-y-auto pr-1 mt-3">
             {participants.map(p => (
               <div key={p.id} className="flex items-center gap-2 p-1.5 bg-subtle rounded-lg">
-                <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span>
-                {mode === 'percentage' && <div className="flex items-center gap-1"><button type="button" onClick={() => handleNumericChange(p.id, 'percentage', -5)} className="control-button control-button-minus">-</button><div className="relative w-16"><input type="number" value={p.percentage || ''} onChange={e => handleDetailChange(p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1 text-primary" /><span className="absolute right-1 top-1/2 -translate-y-1/2 text-tertiary text-xs">%</span></div><button type="button" onClick={() => handleNumericChange(p.id, 'percentage', 5)} className="control-button control-button-plus">+</button></div>}
+                {isPayerManager ? (
+                    <div className="flex-grow">
+                        <CustomSelect value={p.id} onChange={newId => handlePayerChange(p.id, newId)} options={participantOptions} />
+                    </div>
+                ) : (
+                    <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span>
+                )}
+                {mode === 'percentage' && <div className="relative w-24"><input type="number" value={p.percentage || ''} onChange={e => handleDetailChange(p.id, 'percentage', e.target.value)} className="w-full text-right bg-transparent no-spinner pr-4 text-primary input-base" /><span className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary text-sm">%</span></div>}
                 {mode === 'shares' && <div className="flex items-center gap-1"><button type="button" onClick={() => handleNumericChange(p.id, 'shares', -0.5)} className="control-button control-button-minus">-</button><input type="number" step="0.5" value={p.shares || ''} onChange={e => handleDetailChange(p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" /><button type="button" onClick={() => handleNumericChange(p.id, 'shares', 0.5)} className="control-button control-button-plus">+</button></div>}
                 <input type="number" value={mode === 'manual' ? p.amount || '' : p.amount.toFixed(2)} readOnly={mode !== 'manual'} onChange={e => handleDetailChange(p.id, 'amount', e.target.value)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
                 <button type="button" onClick={() => handleRemovePerson(p.id)} className="text-rose-400 font-bold text-xl leading-none px-1 flex-shrink-0">&times;</button>
               </div>
             ))}
             </div>
-            <CustomSelect options={(trip.participants||[]).filter(tp => !participants.some(p => p.id === tp.contactId)).map(p => ({ value: p.contactId, label: p.name }))} value="" onChange={contactId => handleAddPerson(trip.participants.find(p=>p.contactId===contactId)!)} placeholder="+ Add Person..." />
+            <CustomSelect options={(trip.participants||[]).filter(Boolean).filter(tp => !participants.some(p => p.id === tp.contactId)).map(p => ({ value: p.contactId, label: p.name }))} value="" onChange={contactId => handleAddPerson(trip.participants.find(p=>p.contactId===contactId)!)} placeholder="+ Add Person..." />
             <div className="text-right text-xs text-secondary mt-2">Remaining: <span className={`font-mono ${Math.abs(remainder) > 0.01 ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(remainder)}</span></div>
         </div>
     );
   };
   
-  return ReactDOM.createPortal(<>
-    {itemToDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setItemToDelete(null)}>
-            <div className="glass-card rounded-xl shadow-2xl w-full max-w-sm p-6 border border-rose-500/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-lg text-rose-400 mb-2">Remove Item?</h3>
-                <p className="text-sm text-secondary mb-6">Are you sure you want to remove "{itemToDelete.name || 'this item'}"?</p>
-                <div className="flex justify-end gap-3">
-                    <button onClick={() => setItemToDelete(null)} className="button-secondary px-4 py-2">Cancel</button>
-                    <button onClick={handleConfirmRemoveItem} disabled={deleteCountdown > 0} className="button-primary px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-500">{deleteCountdown > 0 ? `Remove (${deleteCountdown})` : 'Remove'}</button>
-                </div>
-            </div>
-        </div>
-    )}
+  return ReactDOM.createPortal(
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title={isEditing ? 'Edit Expense' : `Add Expense to ${trip.name}`} onClose={onClose} />
@@ -262,15 +264,27 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             {items.map((item, index) => {
               const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
               return (
-                  <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider relative">
-                      {items.length > 1 && <button type="button" onClick={() => setItemToDelete({id: item.id, name: item.description})} className="absolute top-2 right-2 p-1 text-secondary hover:text-rose-400 bg-subtle rounded-full z-10"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
-                      <input type="text" placeholder={`Item ${index+1} Description`} value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className="input-base w-full p-2 rounded-md" required autoFocus={index > 0} />
-                      <div className="grid grid-cols-5 gap-2">
-                        <input type="number" step="0.01" min="0" placeholder="Price" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} className="input-base w-full p-2 rounded-md no-spinner col-span-2" required />
-                        <div className="col-span-1"><input type="number" step="1" min="1" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="input-base w-full p-2 rounded-md no-spinner text-center" required /></div>
-                        <div className="col-span-2"><CustomSelect value={item.parentId || ''} onChange={val => handleItemChange(item.id, 'parentId', val)} options={topLevelExpenseCategories.map(c => ({ value: c.id, label: c.name}))} placeholder="Category" /></div>
+                  <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
+                      <div className="flex items-start gap-2">
+                        <input type="text" placeholder={`Item ${index+1} Description`} value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className="input-base p-2 rounded-md flex-grow" required autoFocus={index > 0} />
+                        {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-secondary hover:text-rose-400 z-10 flex-shrink-0 mt-1"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
                       </div>
-                      {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({ value: c.id, label: c.name }))} placeholder="Subcategory" />}
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="number" step="0.01" min="0" placeholder="Price" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} className="input-base w-full p-2 rounded-md no-spinner" required />
+                        <div className="flex items-center justify-center gap-1">
+                            <button type="button" onClick={() => handleQuantityStep(item.id, -1)} className="control-button control-button-minus">-</button>
+                            <input type="number" step="1" min="1" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="input-base w-12 p-2 rounded-md no-spinner text-center" required />
+                            <button type="button" onClick={() => handleQuantityStep(item.id, 1)} className="control-button control-button-plus">+</button>
+                        </div>
+                      </div>
+                       <div className={item.parentId && itemSubCategories.length > 0 ? "grid grid-cols-2 gap-2" : ""}>
+                        <CustomSelect value={item.parentId || ''} onChange={val => {
+                           const subCats = categories.filter(c => c.parentId === val);
+                           handleItemChange(item.id, 'parentId', val);
+                           handleItemChange(item.id, 'categoryId', subCats.length > 0 ? '' : val);
+                        }} options={topLevelExpenseCategories.map(c => ({ value: c.id, label: c.name}))} placeholder="Category" />
+                        {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({ value: c.id, label: c.name }))} placeholder="Subcategory" />}
+                      </div>
                       <textarea placeholder="Notes (optional)" value={item.notes} onChange={e => handleItemChange(item.id, 'notes', e.target.value)} rows={1} className="input-base w-full p-2 rounded-md resize-none" />
                   </div>
               );
@@ -279,14 +293,14 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             <button type="button" onClick={handleAddItem} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">+ Add Another Item</button>
             <div className="text-right font-bold text-primary text-lg border-t border-divider pt-2">Total: {formatCurrency(totalAmount)}</div>
 
-            <SplitManager title="Who Paid?" mode={payerMode} onModeChange={setPayerMode} participants={payers} onParticipantsChange={setPayers} />
+            <SplitManager title="Who Paid?" mode={payerMode} onModeChange={setPayerMode} participants={payers} onParticipantsChange={setPayers} isPayerManager tripParticipants={trip.participants} />
             
             <div className="p-4 rounded-xl border border-divider bg-subtle">
                 <button type="button" onClick={() => setIsSplitterCollapsed(p => !p)} className="w-full flex justify-between items-center">
                     <h3 className="text-center font-bold text-emerald-400">Split Between</h3>
                     <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform ${!isSplitterCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                 </button>
-                {!isSplitterCollapsed && <div className="mt-3 pt-3 border-t border-divider"><SplitManager title="" mode={splitterMode} onModeChange={setSplitterMode} participants={splitters} onParticipantsChange={setSplitters} /></div>}
+                {!isSplitterCollapsed && <div className="mt-3 pt-3 border-t border-divider"><SplitManager title="" mode={splitterMode} onModeChange={setSplitterMode} participants={splitters} onParticipantsChange={setSplitters} tripParticipants={trip.participants} /></div>}
             </div>
           </div>
           <div className="flex-shrink-0 p-4 border-t border-divider flex justify-end gap-3 bg-subtle rounded-b-xl">
@@ -295,8 +309,9 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
-  </>, modalRoot);
+    </div>,
+    modalRoot
+  );
 };
 
 export default AddTripExpenseModal;
