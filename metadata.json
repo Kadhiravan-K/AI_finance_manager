@@ -2,6 +2,7 @@
   "name": "AI Finance Tracker",
   "description": "An AI-powered web application to analyze financial notification text, categorize transactions, and display a personal finance dashboard.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }

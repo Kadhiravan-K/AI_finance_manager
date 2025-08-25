@@ -620,7 +620,7 @@ export const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: stri
       confirmDelete(expenseId, 'tripExpense', tripExpenses.find(t => t.id === expenseId)?.description || 'trip expense');
   }
   
-  const handleSaveContact = (contactData: Omit<Contact, 'id'>, id?: string): Contact => {
+  const handleSaveContact = useCallback((contactData: Omit<Contact, 'id'>, id?: string): Contact => {
       let savedContact: Contact;
       if (id) {
         let tempContact: Contact | undefined;
@@ -637,7 +637,7 @@ export const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: stri
         setContacts(prev => [...prev, savedContact]);
       }
       return savedContact;
-  }
+  }, [setContacts])
   
   const handleSaveContactGroup = (groupData: Omit<ContactGroup, 'id'>): ContactGroup => {
     const savedGroup = { ...groupData, id: self.crypto.randomUUID() };
@@ -893,8 +893,8 @@ export const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: stri
         {activeModal?.name === 'feedback' && ReactDOM.createPortal(<FeedbackModal onClose={closeActiveModal} onSend={handleSendFeedback} isSending={isSendingFeedback} />, modalRoot)}
         {activeModal?.name === 'dashboardSettings' && ReactDOM.createPortal(<DashboardSettingsModal onClose={closeActiveModal} />, modalRoot)}
         {activeModal?.name === 'notificationSettings' && ReactDOM.createPortal(<NotificationSettingsModal onClose={closeActiveModal} budgets={budgets} categories={categories} />, modalRoot)}
-        {activeModal?.name === 'addTripExpense' && ReactDOM.createPortal(<AddTripExpenseModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={(items) => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(item) => handleUpdateTripExpense(activeModal.props?.trip.id, item)} categories={categories} onOpenCalculator={handleOpenCalculator} />, modalRoot)}
-        {activeModal?.name === 'editTripExpense' && ReactDOM.createPortal(<AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={(items) => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(item) => handleUpdateTripExpense(activeModal.props?.trip.id, item)} categories={categories} onOpenCalculator={handleOpenCalculator} />, modalRoot)}
+        {activeModal?.name === 'addTripExpense' && ReactDOM.createPortal(<AddTripExpenseModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={(items) => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(item) => handleUpdateTripExpense(activeModal.props?.trip.id, item)} categories={categories} onOpenCalculator={handleOpenCalculator} onSaveContact={handleSaveContact} />, modalRoot)}
+        {activeModal?.name === 'editTripExpense' && ReactDOM.createPortal(<AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={(items) => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(item) => handleUpdateTripExpense(activeModal.props?.trip.id, item)} categories={categories} onOpenCalculator={handleOpenCalculator} onSaveContact={handleSaveContact} />, modalRoot)}
         {activeModal?.name === 'refund' && ReactDOM.createPortal(<RefundModal originalTransaction={activeModal.props?.transaction} onClose={closeActiveModal} onSave={handleSaveTransaction} findOrCreateCategory={findOrCreateCategory}/>, modalRoot)}
         {activeModal?.name === 'selectRefund' && ReactDOM.createPortal(<RefundTransactionSelector transactions={transactions} categories={categories} onCancel={closeActiveModal} onSelect={(t) => { closeActiveModal(); openModal('editTransaction', { transaction: { ...t, id: '', isRefundFor: t.id, type: TransactionType.INCOME } }) }}/>, modalRoot)}
         {activeModal?.name === 'trustBin' && ReactDOM.createPortal(<TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />, modalRoot)}

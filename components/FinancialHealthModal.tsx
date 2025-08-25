@@ -34,11 +34,49 @@ const FinancialHealthModal: React.FC<FinancialHealthModalProps> = ({ onClose, ap
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'model', parts: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
+  
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        console.warn("Speech recognition not supported by this browser.");
+        return;
+    }
+
+    const recognition: any = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setChatInput(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+    };
+    
+    recognitionRef.current = recognition;
+  }, []);
+
+  const handleListen = () => {
+    if (!recognitionRef.current) return;
+    if (isListening) {
+        recognitionRef.current.stop();
+    } else {
+        recognitionRef.current.start();
+        setIsListening(true);
+    }
+  };
+
 
   const handleProfileChange = (field: keyof FinancialProfile, value: string) => {
     setProfile(p => ({ ...p, [field]: parseFloat(value) || 0 }));
@@ -143,6 +181,11 @@ const FinancialHealthModal: React.FC<FinancialHealthModalProps> = ({ onClose, ap
                 className="w-full input-base rounded-2xl py-2 px-4 resize-none h-12"
                 rows={1} disabled={isThinking} autoFocus
             />
+             <button type="button" onClick={handleListen} title="Voice Input" className={`p-3 aspect-square rounded-full flex items-center justify-center transition-colors ${isListening ? 'bg-rose-500/50 text-rose-300 animate-pulse' : 'button-secondary'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+            </button>
             <button type="submit" disabled={isThinking || !chatInput.trim()} className="button-primary p-3 aspect-square rounded-full flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
             </button>

@@ -12,7 +12,7 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 
 // Helper to convert Base64 to ArrayBuffer
 function base64ToBuffer(b64: string): ArrayBuffer {
-    return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+    return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer as ArrayBuffer;
 }
 
 async function getKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
@@ -57,7 +57,7 @@ export async function createBackup(state: AppState, password: string): Promise<v
     combined.set(iv, salt.length);
     combined.set(new Uint8Array(encryptedContent), salt.length + iv.length);
 
-    const blob = new Blob([combined.buffer], { type: 'application/octet-stream' });
+    const blob = new Blob([combined.buffer as ArrayBuffer], { type: 'application/octet-stream' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `personal_finance_hub_backup_${new Date().toISOString().split('T')[0]}.pfh`;

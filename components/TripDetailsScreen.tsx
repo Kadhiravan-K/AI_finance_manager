@@ -18,6 +18,8 @@ type TripDetailsTab = 'dashboard' | 'expenses';
 const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, onAddExpense, onEditExpense, onDeleteExpense, onBack, categories }) => {
   const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
   const [activeTab, setActiveTab] = useState<TripDetailsTab>('dashboard');
+  
+  const validParticipants = useMemo(() => (trip.participants || []).filter(Boolean), [trip.participants]);
 
   const settlementSummary = useMemo(() => calculateTripSummary(expenses, [trip])[trip.currency] || [], [expenses, trip]);
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -25,7 +27,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
   const getPayerNames = (expense: TripExpense): string => {
     if (!expense.payers || expense.payers.length === 0) return 'Unknown';
     return expense.payers
-      .map(payer => trip.participants.find(p => p.contactId === payer.contactId)?.name || 'Unknown')
+      .map(payer => validParticipants.find(p => p.contactId === payer.contactId)?.name || 'Unknown')
       .join(', ');
   };
   
@@ -71,7 +73,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
                     </div>
                     <div className="p-3 bg-subtle rounded-lg">
                         <p className="text-sm text-secondary">Participants</p>
-                        <p className="text-xl font-bold text-primary">{trip.participants.length}</p>
+                        <p className="text-xl font-bold text-primary">{validParticipants.length}</p>
                     </div>
                 </div>
 

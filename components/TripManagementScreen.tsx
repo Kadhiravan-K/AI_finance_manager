@@ -31,6 +31,7 @@ const TripManagementScreen: React.FC<TripManagementScreenProps> = ({ trips, trip
             .reduce((sum, e) => sum + e.amount, 0);
           
           const formatCurrency = getCurrencyFormatter(trip.currency).format;
+          const validParticipants = (trip.participants || []).filter(Boolean);
 
           return (
             <div key={trip.id} className="p-4 bg-subtle rounded-lg group transition-all duration-200 hover-bg-stronger hover:scale-[1.02]">
@@ -44,14 +45,14 @@ const TripManagementScreen: React.FC<TripManagementScreenProps> = ({ trips, trip
                       </div>
                       <p className="text-xs text-secondary">{new Date(trip.date).toLocaleDateString()}</p>
                        <div className="flex -space-x-2 overflow-hidden mt-2">
-                          {trip.participants.slice(0, 4).map(p => (
+                          {validParticipants.slice(0, 4).map(p => (
                               <div key={p.contactId} className="inline-block h-8 w-8 rounded-full ring-2 ring-[var(--color-bg-subtle)] bg-violet-500 flex items-center justify-center text-xs font-bold text-white" title={p.name}>
                                   {p.name.charAt(0)}
                               </div>
                           ))}
-                          {trip.participants.length > 4 && 
+                          {validParticipants.length > 4 && 
                               <div className="inline-block h-8 w-8 rounded-full ring-2 ring-[var(--color-bg-subtle)] bg-slate-500 flex items-center justify-center text-xs font-bold text-white">
-                              +{trip.participants.length - 4}
+                              +{validParticipants.length - 4}
                               </div>
                           }
                       </div>

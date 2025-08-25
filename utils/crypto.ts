@@ -11,7 +11,7 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 
 // Helper to convert Base64 to ArrayBuffer
 function base64ToBuffer(b64: string): ArrayBuffer {
-    return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+    return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer as ArrayBuffer;
 }
 
 async function getEncryptionKey(): Promise<CryptoKey> {
@@ -67,7 +67,7 @@ export async function encrypt(data: unknown): Promise<string> {
     combined.set(iv, 0);
     combined.set(new Uint8Array(encryptedContent), iv.length);
 
-    return bufferToBase64(combined.buffer);
+    return bufferToBase64(combined.buffer as ArrayBuffer);
 }
 
 export async function decrypt(encryptedData: string): Promise<unknown> {

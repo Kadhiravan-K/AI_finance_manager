@@ -36,9 +36,10 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
   const initialParticipants = useMemo(() => {
     const userParticipant = { contactId: USER_SELF_ID, name: 'You' };
     if (trip) {
-      return trip.participants.some(p => p.contactId === USER_SELF_ID)
-        ? trip.participants
-        : [userParticipant, ...trip.participants];
+      const validParticipants = (trip.participants || []).filter(Boolean);
+      return validParticipants.some(p => p.contactId === USER_SELF_ID)
+        ? validParticipants
+        : [userParticipant, ...validParticipants];
     }
     return [userParticipant];
   }, [trip]);
@@ -113,6 +114,15 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
       }
   };
 
+  const handleRemoveParticipant = (contactIdToRemove: string) => {
+    setParticipants(prev => prev.filter(p => p.contactId !== contactIdToRemove));
+    setTempSelectedContacts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(contactIdToRemove);
+        return newSet;
+    });
+  };
+
 
   const currencyOptions = currencies.map(c => ({ value: c.code, label: `${c.code} - ${c.name}`}));
   const contactsByGroup = contactGroups.map(group => ({
@@ -151,8 +161,11 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
             <div className="p-2 bg-subtle rounded-md border border-divider min-h-[4rem]">
                 <div className="flex flex-wrap gap-2">
                     {participants.map(p => (
-                        <span key={p.contactId} className="px-2 py-1 bg-violet-500/30 text-violet-200 text-sm rounded-full">
+                        <span key={p.contactId} className="flex items-center gap-1 pl-2 pr-1 py-1 bg-violet-500/30 text-violet-200 text-sm rounded-full">
                             {p.name}
+                            {p.contactId !== USER_SELF_ID && (
+                                <button type="button" onClick={() => handleRemoveParticipant(p.contactId)} className="text-violet-200 hover:text-white bg-black/10 rounded-full w-4 h-4 flex items-center justify-center text-xs">&times;</button>
+                            )}
                         </span>
                     ))}
                 </div>

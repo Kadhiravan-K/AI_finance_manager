@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import EditTransactionModal from './EditTransactionModal';
 import { Transaction, Account, ModalState } from '../types';
@@ -39,6 +39,8 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const [text, setText] = useState(initialText || '');
     const [isLoading, setIsLoading] = useState(false);
     const [autoSelectedAccountId, setAutoSelectedAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any | null>(null);
 
     useEffect(() => {
         if (initialText) {
@@ -46,6 +48,41 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             setActiveTab('auto');
         }
     }, [initialText]);
+    
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            console.warn("Speech recognition not supported by this browser.");
+            return;
+        }
+
+        const recognition: any = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setText(prev => prev ? `${prev} ${transcript}` : transcript);
+        };
+        recognition.onend = () => setIsListening(false);
+        recognition.onerror = (event: any) => {
+            console.error('Speech recognition error:', event.error);
+            setIsListening(false);
+        };
+        
+        recognitionRef.current = recognition;
+    }, []);
+
+    const handleListen = () => {
+        if (!recognitionRef.current) return;
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    };
 
     const handleAutoSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -88,15 +125,22 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                       placeholder="Select an account"
                     />
                   </div>
-                  <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder='Paste message or Quick Add: "Lunch 500"'
-                    className="w-full h-24 p-3 transition-all duration-200 resize-none shadow-inner themed-textarea"
-                    disabled={!autoSelectedAccountId}
-                    aria-label="Transaction message input"
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <textarea
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder='Paste message or Quick Add: "Lunch 500"'
+                        className="w-full h-24 p-3 pr-12 transition-all duration-200 resize-none shadow-inner themed-textarea"
+                        disabled={!autoSelectedAccountId}
+                        aria-label="Transaction message input"
+                        autoFocus
+                    />
+                    <button type="button" onClick={handleListen} title="Voice Input" className={`absolute bottom-3 right-3 p-2 rounded-full transition-colors ${isListening ? 'bg-rose-500/50 text-rose-300 animate-pulse' : 'bg-subtle hover:bg-card-hover'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                        </svg>
+                    </button>
+                  </div>
                   <div className="p-3 bg-subtle rounded-lg flex items-start gap-3">
                     <div className="text-2xl pt-1">💡</div>
                     <div>

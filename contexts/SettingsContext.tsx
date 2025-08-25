@@ -92,8 +92,17 @@ export const SettingsContext = createContext<SettingsContextType>({
 
 const DEFAULT_CONTACT_GROUPS: ContactGroup[] = [
     { id: 'group-friends', name: 'Friends' },
+    { id: 'group-work', name: 'Work Colleagues' },
     { id: 'group-business', name: 'Business' },
     { id: 'group-relatives', name: 'Relatives' },
+];
+
+const DEFAULT_CONTACTS: Contact[] = [
+    { id: self.crypto.randomUUID(), name: 'Alex Smith', groupId: 'group-work' },
+    { id: self.crypto.randomUUID(), name: 'Ben Carter', groupId: 'group-work' },
+    { id: self.crypto.randomUUID(), name: 'Chloe Davis', groupId: 'group-work' },
+    { id: self.crypto.randomUUID(), name: 'David Evans', groupId: 'group-work' },
+    { id: self.crypto.randomUUID(), name: 'Eva Foster', groupId: 'group-work' },
 ];
 
 
@@ -103,7 +112,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [categories, setCategories] = useLocalStorage<Category[]>('finance-tracker-categories', []);
   const [senders, setSenders] = useLocalStorage<Sender[]>('finance-tracker-senders', []);
   const [contactGroups, setContactGroups] = useLocalStorage<ContactGroup[]>('finance-tracker-contact-groups', DEFAULT_CONTACT_GROUPS);
-  const [contacts, setContacts] = useLocalStorage<Contact[]>('finance-tracker-contacts', []);
+  const [contacts, setContacts] = useLocalStorage<Contact[]>('finance-tracker-contacts', DEFAULT_CONTACTS);
   const [financialProfile, setFinancialProfile] = useLocalStorage<FinancialProfile>('finance-tracker-financial-profile', DEFAULT_FINANCIAL_PROFILE);
 
   return (

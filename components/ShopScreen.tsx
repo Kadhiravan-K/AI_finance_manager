@@ -270,20 +270,19 @@ const ShopBilling: React.FC<{shopId: string, products: ShopProduct[], onRecordSa
     const [isCustomItemFormOpen, setIsCustomItemFormOpen] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     
-    const addProductToCart = useCallback((product: ShopProduct) => {
+    const addProductToCart = useCallback((product: ShopProduct, quantity: number) => {
         setCart(prev => {
             const newCart = new Map(prev);
             const existing = newCart.get(product.id);
-            if (existing) {
-                if (existing.quantity < product.stockQuantity) {
-                    newCart.set(product.id, {...existing, quantity: existing.quantity + 1});
-                } else {
-                    alert(`Not enough stock for ${product.name}.`);
-                }
-            } else if (product.stockQuantity > 0) {
-                newCart.set(product.id, { product, quantity: 1 });
+            const currentQuantityInCart = existing ? existing.quantity : 0;
+            const requestedTotalQuantity = currentQuantityInCart + quantity;
+
+            if (quantity <= 0) return prev; // Do nothing if quantity is zero or negative
+
+            if (requestedTotalQuantity <= product.stockQuantity) {
+                newCart.set(product.id, { product, quantity: requestedTotalQuantity });
             } else {
-                alert(`${product.name} is out of stock.`);
+                alert(`Not enough stock for ${product.name}. Only ${product.stockQuantity - currentQuantityInCart} more available.`);
             }
             return newCart;
         });
@@ -381,17 +380,47 @@ const ShopBilling: React.FC<{shopId: string, products: ShopProduct[], onRecordSa
     );
 };
 
-const ProductPicker: React.FC<{products: ShopProduct[], onSelect: (p: ShopProduct) => void, onClose: () => void}> = ({ products, onSelect, onClose }) => {
+const ProductPicker: React.FC<{products: ShopProduct[], onSelect: (p: ShopProduct, quantity: number) => void, onClose: () => void}> = ({ products, onSelect, onClose }) => {
     const [query, setQuery] = useState('');
+    const [quantities, setQuantities] = useState<Record<string, string>>({});
+
     const filtered = useMemo(() => query ? products.filter(p => p.name.toLowerCase().includes(query.toLowerCase())) : products, [products, query]);
+
+    const handleQuantityChange = (productId: string, value: string) => {
+        setQuantities(prev => ({ ...prev, [productId]: value }));
+    };
+
+    const handleAdd = (product: ShopProduct) => {
+        const quantity = parseInt(quantities[product.id] || '1', 10);
+        if (quantity > 0) {
+            onSelect(product, quantity);
+            onClose();
+        }
+    };
     
     return (
         <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-4" onClick={onClose}>
             <div className="glass-card rounded-lg w-full max-w-sm max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <ModalHeader title="Select a Product" onClose={onClose} />
                 <div className="p-2"><input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search products..." className="w-full input-base p-2 rounded-md" autoFocus /></div>
-                <div className="flex-grow overflow-y-auto p-2">
-                    {filtered.map(p => <button key={p.id} onClick={() => { onSelect(p); onClose(); }} className="w-full text-left p-3 hover-bg-stronger rounded-md">{p.name} - (Stock: {p.stockQuantity})</button>)}
+                <div className="flex-grow overflow-y-auto p-2 space-y-2">
+                    {filtered.map(p => (
+                        <div key={p.id} className="p-2 bg-subtle rounded-lg flex items-center gap-2">
+                            <div className="flex-grow">
+                                <p className="font-semibold text-primary">{p.name}</p>
+                                <p className="text-xs text-secondary">Stock: {p.stockQuantity}</p>
+                            </div>
+                            <input
+                                type="number"
+                                value={quantities[p.id] || '1'}
+                                onChange={e => handleQuantityChange(p.id, e.target.value)}
+                                className="input-base w-16 p-2 rounded-md no-spinner text-center"
+                                min="1"
+                                max={p.stockQuantity}
+                            />
+                            <button onClick={() => handleAdd(p)} className="button-primary px-3 py-2 text-sm">Add</button>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
