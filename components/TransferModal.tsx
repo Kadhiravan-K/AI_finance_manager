@@ -76,11 +76,12 @@ const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTran
                 type="number"
                 id="amount"
                 value={amount}
+                onWheel={(e) => (e.target as HTMLElement).blur()}
                 onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
                 step="0.01"
                 min="0.01"
                 placeholder="0.00"
-                className="input-base w-full rounded-full py-2 px-3"
+                className="input-base w-full rounded-full py-2 px-3 no-spinner"
                 autoFocus
               />
             </div>

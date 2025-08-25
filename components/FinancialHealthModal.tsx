@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useContext, useEffect } from 'react';
+import React, { useState, useMemo, useContext, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { AppState, FinancialProfile, Budget, TransactionType } from '../types';
 import ModalHeader from './ModalHeader';
 import { calculateFinancialHealthScore } from '../utils/financialHealth';
 import { SettingsContext } from '../contexts/SettingsContext';
-import { getAIBudgetSuggestion, getAIFinancialTips, getAIChatResponse } from '../services/geminiService';
+import { getAIBudgetSuggestion, getAIChatResponse } from '../services/geminiService';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -15,195 +15,150 @@ interface FinancialHealthModalProps {
   appState: AppState;
   onSaveProfile: (profile: FinancialProfile) => void;
   onSaveBudget: (categoryId: string, amount: number) => void;
+  onSendCommand: (command: string) => Promise<string>;
 }
 
 type ActiveTab = 'breakdown' | 'advisor';
 
-const FinancialHealthModal: React.FC<FinancialHealthModalProps> = ({ onClose, appState, onSaveProfile, onSaveBudget }) => {
+const FinancialHealthModal: React.FC<FinancialHealthModalProps> = ({ onClose, appState, onSaveProfile, onSaveBudget, onSendCommand }) => {
   const { financialProfile, categories } = appState;
   const { totalScore, breakdown } = useMemo(() => calculateFinancialHealthScore(appState), [appState]);
   const formatCurrency = useCurrencyFormatter();
-
-  const [activeTab, setActiveTab] = useState<ActiveTab>('breakdown');
-  const [formState, setFormState] = useState<FinancialProfile>(financialProfile);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('advisor');
   
-  const [budgetSuggestion, setBudgetSuggestion] = useState<any[] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const [tips, setTips] = useState('');
-  const [chatHistory, setChatHistory] = useState<{ role: string, parts: string }[]>([]);
+  // State for Profile editing
+  const [profile, setProfile] = useState(financialProfile);
+  const [isEditingProfile, setIsEditingProfile] = useState(!financialProfile.monthlySalary);
+  
+  // State for AI Advisor
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'model', parts: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const isProfileSetup = financialProfile.monthlySalary > 0;
-  
   useEffect(() => {
-    if (isProfileSetup && activeTab === 'advisor' && !tips) {
-      setIsLoading(true);
-      getAIFinancialTips(totalScore, breakdown).then(setTips).finally(() => setIsLoading(false));
-    }
-  }, [isProfileSetup, activeTab, tips, totalScore, breakdown]);
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
 
-  const handleProfileSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    onSaveProfile(formState);
-    setIsEditingProfile(false);
-    setIsLoading(true);
-    try {
-        const suggestion = await getAIBudgetSuggestion(formState, categories);
-        setBudgetSuggestion(suggestion);
-    } catch (err) {
-        alert(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-        setIsLoading(false);
-    }
+  const handleProfileChange = (field: keyof FinancialProfile, value: string) => {
+    setProfile(p => ({ ...p, [field]: parseFloat(value) || 0 }));
   };
 
-  const handleApplyBudget = () => {
-    if (!budgetSuggestion) return;
-    budgetSuggestion.forEach(item => {
-        const category = categories.find(c => c.name === item.categoryName && c.type === TransactionType.EXPENSE);
-        if (category) {
-            onSaveBudget(category.id, item.amount);
-        }
-    });
-    setBudgetSuggestion(null); // Clear suggestion after applying
-    alert("AI Budget has been applied!");
+  const handleProfileSave = () => {
+    onSaveProfile(profile);
+    setIsEditingProfile(false);
   };
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
+    if (!chatInput.trim() || isThinking) return;
 
     const userMessage = chatInput;
-    setChatInput('');
     setChatHistory(prev => [...prev, { role: 'user', parts: userMessage }]);
-    setIsChatLoading(true);
+    setChatInput('');
+    setIsThinking(true);
 
     try {
-        const response = await getAIChatResponse(appState, userMessage, chatHistory);
-        setChatHistory(prev => [...prev, { role: 'model', parts: response }]);
-    } catch (err) {
-        setChatHistory(prev => [...prev, { role: 'model', parts: "Sorry, I encountered an error." }]);
+        // Attempt to parse as a command first
+        const commandResponse = await onSendCommand(userMessage);
+        setChatHistory(prev => [...prev, { role: 'model', parts: commandResponse }]);
+    } catch (commandError) {
+        // If it's not a command, treat it as a conversational query
+        try {
+            const chatResponse = await getAIChatResponse(appState, userMessage, chatHistory); // history handled locally for now
+            setChatHistory(prev => [...prev, { role: 'model', parts: chatResponse }]);
+        } catch (chatError) {
+            const errorMessage = chatError instanceof Error ? chatError.message : 'An unknown error occurred.';
+            setChatHistory(prev => [...prev, { role: 'model', parts: `Error: ${errorMessage}` }]);
+        }
     } finally {
-        setIsChatLoading(false);
+        setIsThinking(false);
     }
-  }
-
-  const PillarCard = ({ title, value, unit, score, maxScore }: { title: string, value: number, unit: string, score: number, maxScore: number }) => {
-    const percentage = (score / maxScore) * 100;
-    return (
-        <div className="p-3 bg-subtle rounded-lg">
-            <p className="text-sm text-secondary">{title}</p>
-            <p className="text-xl font-bold text-primary">{value}{unit}</p>
-            <div className="w-full bg-subtle rounded-full h-2 mt-2 border border-divider">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${percentage}%` }}></div>
-            </div>
-        </div>
-    );
   };
+
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 50) return 'text-yellow-400';
+    return 'text-rose-400';
+  };
+
+  const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+    <button onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+        {children}
+    </button>
+  );
+
+  const BreakdownPillar: React.FC<{title: string, score: number, maxScore: number, children: React.ReactNode}> = ({ title, score, maxScore, children }) => (
+      <div className="p-4 bg-subtle rounded-lg">
+          <div className="flex justify-between items-baseline">
+              <h4 className="font-semibold text-primary">{title}</h4>
+              <p className={`font-bold text-lg ${getScoreColor(score/maxScore*100)}`}>{score}<span className="text-sm text-secondary">/{maxScore}</span></p>
+          </div>
+          <div className="text-sm text-secondary mt-1">{children}</div>
+      </div>
+  );
+
+  const renderBreakdown = () => (
+    <div className="p-6 space-y-4 overflow-y-auto">
+        <div className="text-center">
+            <p className="text-secondary">Your Financial Health Score</p>
+            <p className={`text-6xl font-bold ${getScoreColor(totalScore)}`}>{totalScore}<span className="text-3xl text-secondary">/100</span></p>
+        </div>
+        <BreakdownPillar title="Savings Rate" score={breakdown.savings.score} maxScore={40}>Your savings rate last month was <strong>{breakdown.savings.rate}%</strong>. Higher is better.</BreakdownPillar>
+        <BreakdownPillar title="Debt-to-Income" score={breakdown.dti.score} maxScore={25}>Your monthly loan payments are <strong>{breakdown.dti.rate}%</strong> of your income. Lower is better.</BreakdownPillar>
+        <BreakdownPillar title="Budget Adherence" score={breakdown.budget.score} maxScore={20}>You spent <strong>{breakdown.budget.adherence}%</strong> of your total budget. Staying under 100% is key.</BreakdownPillar>
+        <BreakdownPillar title="Emergency Fund" score={breakdown.emergency.score} maxScore={15}>You have funded <strong>{breakdown.emergency.status}%</strong> of your emergency goal.</BreakdownPillar>
+    </div>
+  );
+  
+  const renderAdvisor = () => (
+    <div className="flex-grow flex flex-col overflow-hidden">
+        <div className="flex-grow p-4 space-y-4 overflow-y-auto">
+            {chatHistory.length === 0 && (
+                <div className="text-center text-secondary p-4">
+                <p>Chat with your AI Advisor or give it a command.</p>
+                <p className="text-xs mt-2">Examples: "add expense 50 for coffee", "What's a good savings rate?"</p>
+                </div>
+            )}
+            {chatHistory.map((entry, index) => (
+                <div key={index} className={`flex ${entry.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`p-3 rounded-xl max-w-[80%] ${entry.role === 'user' ? 'bg-sky-800/70' : 'bg-subtle'}`}>
+                    <p className="text-sm text-primary whitespace-pre-wrap">{entry.parts}</p>
+                </div>
+                </div>
+            ))}
+            {isThinking && (
+                <div className="flex justify-start">
+                <div className="p-3 rounded-xl bg-subtle"><LoadingSpinner /></div>
+                </div>
+            )}
+            <div ref={chatEndRef} />
+        </div>
+        <form onSubmit={handleChatSubmit} className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-2">
+            <textarea 
+                value={chatInput} onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e); } }}
+                placeholder="Ask a question or give a command..."
+                className="w-full input-base rounded-2xl py-2 px-4 resize-none h-12"
+                rows={1} disabled={isThinking} autoFocus
+            />
+            <button type="submit" disabled={isThinking || !chatInput.trim()} className="button-primary p-3 aspect-square rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+            </button>
+        </form>
+    </div>
+  );
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Financial Health" onClose={onClose} icon="❤️‍🩹" />
+        <ModalHeader title="AI Hub" onClose={onClose} icon="🧠" />
         <div className="flex border-b border-divider flex-shrink-0">
-            <button onClick={() => setActiveTab('breakdown')} className={`w-full py-3 text-sm font-semibold transition-colors ${activeTab === 'breakdown' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary'}`}>Score Breakdown</button>
-            <button onClick={() => setActiveTab('advisor')} className={`w-full py-3 text-sm font-semibold transition-colors ${activeTab === 'advisor' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary'}`}>AI Advisor</button>
+          <TabButton active={activeTab === 'advisor'} onClick={() => setActiveTab('advisor')}>AI Advisor</TabButton>
+          <TabButton active={activeTab === 'breakdown'} onClick={() => setActiveTab('breakdown')}>Score Breakdown</TabButton>
         </div>
-        
-        <div className="flex-grow overflow-y-auto p-6">
-          {activeTab === 'breakdown' && (
-            <div className="space-y-4 animate-fadeInUp">
-              <p className="text-center text-secondary">Your score is calculated from these key financial areas.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <PillarCard title="Savings Rate" value={breakdown.savings.rate} unit="%" score={breakdown.savings.score} maxScore={40} />
-                <PillarCard title="Debt-to-Income" value={breakdown.dti.rate} unit="%" score={breakdown.dti.score} maxScore={25} />
-                <PillarCard title="Budget Adherence" value={breakdown.budget.adherence} unit="%" score={breakdown.budget.score} maxScore={20} />
-                <PillarCard title="Emergency Fund" value={breakdown.emergency.status} unit="%" score={breakdown.emergency.score} maxScore={15} />
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'advisor' && (
-            <div className="animate-fadeInUp">
-              {!isProfileSetup || isEditingProfile ? (
-                <form onSubmit={handleProfileSave} className="space-y-3">
-                  <h3 className="font-semibold text-primary">{isEditingProfile ? "Update Your Profile" : "Let's set up your financial profile"}</h3>
-                  <p className="text-sm text-secondary">This helps the AI give you personalized advice.</p>
-                  <div>
-                    <label className="text-xs text-secondary mb-1 block">Monthly Salary</label>
-                    <input type="number" value={formState.monthlySalary || ''} onChange={e => setFormState(p => ({ ...p, monthlySalary: parseFloat(e.target.value) }))} className="w-full input-base p-2 rounded-md no-spinner" required />
-                  </div>
-                  <div>
-                    <label className="text-xs text-secondary mb-1 block">Monthly Rent/Mortgage</label>
-                    <input type="number" value={formState.monthlyRent || ''} onChange={e => setFormState(p => ({ ...p, monthlyRent: parseFloat(e.target.value) }))} className="w-full input-base p-2 rounded-md no-spinner" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-secondary mb-1 block">Total Monthly Loan/EMI Payments</label>
-                    <input type="number" value={formState.monthlyEmi || ''} onChange={e => setFormState(p => ({ ...p, monthlyEmi: parseFloat(e.target.value) }))} className="w-full input-base p-2 rounded-md no-spinner" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-secondary mb-1 block">Emergency Fund Goal</label>
-                    <input type="number" value={formState.emergencyFundGoal || ''} onChange={e => setFormState(p => ({ ...p, emergencyFundGoal: parseFloat(e.target.value) }))} className="w-full input-base p-2 rounded-md no-spinner" />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    {isEditingProfile && <button type="button" onClick={() => setIsEditingProfile(false)} className="button-secondary px-4 py-2">Cancel</button>}
-                    <button type="submit" className="button-primary px-4 py-2">Save & Get Advice</button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-6">
-                  {isLoading && <div className="text-center p-4"><LoadingSpinner /></div>}
-
-                  {budgetSuggestion && (
-                    <div className="p-4 bg-subtle rounded-lg border border-divider">
-                      <h4 className="font-bold text-primary mb-2">AI Budget Suggestion</h4>
-                      <p className="text-sm text-secondary mb-3">Based on your profile, here's a suggested starting budget:</p>
-                      <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                        {budgetSuggestion.map(item => (
-                          <div key={item.categoryName} className="text-xs p-2 bg-subtle rounded">
-                            <div className="flex justify-between font-semibold"><span className="text-primary">{item.categoryName}</span><span className="text-primary">{formatCurrency(item.amount)}</span></div>
-                            <p className="text-tertiary">{item.reasoning}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-end gap-2 mt-3">
-                        <button onClick={() => setBudgetSuggestion(null)} className="button-secondary text-xs px-3 py-1">Dismiss</button>
-                        <button onClick={handleApplyBudget} className="button-primary text-xs px-3 py-1">Apply Budget</button>
-                      </div>
-                    </div>
-                  )}
-
-                  {tips && !budgetSuggestion && (
-                     <div className="p-4 bg-subtle rounded-lg border border-divider">
-                         <h4 className="font-bold text-primary mb-2">Personalized Tips</h4>
-                         <p className="text-sm text-secondary whitespace-pre-wrap">{tips}</p>
-                         <button onClick={() => setIsEditingProfile(true)} className="text-xs text-sky-400 mt-2 hover:text-sky-300">Update Profile</button>
-                     </div>
-                  )}
-
-                  <div className="p-4 bg-subtle rounded-lg border border-divider">
-                    <h4 className="font-bold text-primary mb-2">Ask the CA</h4>
-                    <div className="space-y-3 max-h-48 overflow-y-auto pr-2 flex flex-col-reverse">
-                        {[...chatHistory].reverse().map((msg, i) => (
-                          <div key={i} className={`p-2 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-sky-800/70 self-end' : 'bg-slate-700/70 self-start'}`}>
-                            <p className="text-sm text-primary whitespace-pre-wrap">{msg.parts}</p>
-                          </div>
-                        ))}
-                    </div>
-                     <form onSubmit={handleChatSubmit} className="mt-3 flex gap-2">
-                        <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Ask a financial question..." className="flex-1 input-base rounded-full p-2" />
-                        <button type="submit" disabled={isChatLoading} className="button-primary px-4 py-2">{isChatLoading ? <LoadingSpinner/> : 'Send'}</button>
-                    </form>
-                  </div>
-
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {activeTab === 'breakdown' ? renderBreakdown() : renderAdvisor()}
       </div>
     </div>
   );

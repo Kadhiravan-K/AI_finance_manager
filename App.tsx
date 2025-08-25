@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
-import FinanceTracker from './components/StoryGenerator';
+import { FinanceTracker } from './components/StoryGenerator';
 import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
 import { ActiveScreen, ActiveModal, ModalState } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -20,6 +20,7 @@ const AppContent: React.FC = () => {
   const isOnline = useOnlineStatus();
   const [hasConsented, setHasConsented] = useLocalStorage('finance-tracker-consent', false);
   const [onboardingComplete, setOnboardingComplete] = useLocalStorage('finance-tracker-onboarding-complete', false);
+  const [showOnboardingGuide, setShowOnboardingGuide] = useLocalStorage('finance-tracker-show-guide', true);
   const [sharedText, setSharedText] = useState<string | null>(null);
   const { settings } = useContext(SettingsContext);
   const mainContentRef = useRef<HTMLElement>(null);
@@ -94,11 +95,13 @@ const AppContent: React.FC = () => {
               onOpenTransfer={() => setActiveModal({name: 'transfer'})}
               onOpenMenu={() => setActiveModal({name: 'headerMenu'})}
               onOpenNotifications={() => setActiveModal({name: 'notifications'})}
+              onOpenAIAssistant={() => setActiveModal({name: 'financialHealth'})}
               isOnline={isOnline}
               isSearchActive={isSearchActive}
               setIsSearchActive={setIsSearchActive}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
+              enabledTools={settings.enabledTools}
             />
           </div>
           <main ref={mainContentRef} className="flex-grow overflow-y-auto opacity-0 animate-fadeInUp pb-20" style={{animationDelay: '200ms'}}>
@@ -111,6 +114,8 @@ const AppContent: React.FC = () => {
               mainContentRef={mainContentRef}
               initialText={sharedText}
               onSelectionChange={selectedIds => setIsQuickAddDisabled(selectedIds.length !== 1)}
+              showOnboardingGuide={showOnboardingGuide}
+              setShowOnboardingGuide={setShowOnboardingGuide}
             />
           </main>
           <Footer activeScreen={activeScreen} setActiveScreen={setActiveScreen} />

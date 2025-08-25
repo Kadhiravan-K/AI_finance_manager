@@ -1,15 +1,15 @@
-import React, { useState, useCallback, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile } from '../types';
-import { parseTransactionText, parseNaturalLanguageQuery } from '../services/geminiService';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType } from '../types';
+import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
 import AccountSelector from './AccountSelector';
 import EditTransactionModal from './EditTransactionModal';
 import TransferModal from './TransferModal';
-import ReportsScreen from './ReportsModal';
+import ReportsScreen from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
-import SettingsScreen from './SettingsScreen';
+import MoreScreen from './More';
 import ScheduledPaymentsScreen from './ScheduledPaymentsModal';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { calculateNextDueDate } from '../utils/date';
@@ -38,7 +38,7 @@ import AddTripExpenseModal from './AddTripExpenseModal';
 import RefundModal from './RefundModal';
 import TrustBinModal from './TrustBinModal';
 import EditAccountModal from './EditAccountModal';
-import AllDataScreen from './AllDataScreen';
+import DataHubScreen from './DataHubScreen';
 import ConfirmationDialog from './ConfirmationDialog';
 import MiniCalculatorModal from './MiniCalculatorModal';
 import EditTripModal from './EditTripModal';
@@ -49,6 +49,13 @@ import EditGoalModal from './EditGoalModal';
 import ManageToolsModal from './ManageToolsModal';
 import AddTransactionModal from './AddTransactionModal';
 import FinancialHealthModal from './FinancialHealthModal';
+import FooterSettingsModal from './FooterSettingsModal';
+import { ShopScreen } from './ShopScreen';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import OnboardingGuide from './OnboardingGuide';
+import { getDailyChallenge } from '../utils/challenges';
+import ChallengesScreen from './ChallengesScreen';
+import LearnScreen from './LearnScreen';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -62,114 +69,29 @@ const generateCategories = (): Category[] => {
 
     // Income Categories
     addCategory(TransactionType.INCOME, 'Salary', null, '💼');
-    addCategory(TransactionType.INCOME, 'Job', 'Salary', '👨‍💻');
-    addCategory(TransactionType.INCOME, 'Part-time', 'Salary', '🕒');
-    addCategory(TransactionType.INCOME, 'Freelance', 'Salary', '🧑‍🔧');
-
     addCategory(TransactionType.INCOME, 'Business', null, '🏢');
-    addCategory(TransactionType.INCOME, 'Product Sales', 'Business', '📦');
-    addCategory(TransactionType.INCOME, 'Service Income', 'Business', '🛠️');
-    addCategory(TransactionType.INCOME, 'Royalties', 'Business', '🎧');
-
     addCategory(TransactionType.INCOME, 'Investments', null, '📈');
-    addCategory(TransactionType.INCOME, 'Dividends', 'Investments', '💸');
-    addCategory(TransactionType.INCOME, 'Interest', 'Investments', '🏦');
-    addCategory(TransactionType.INCOME, 'Capital Gains', 'Investments', '📊');
-    addCategory(TransactionType.INCOME, 'Sell', 'Investments', '💰');
-
     addCategory(TransactionType.INCOME, 'Rental Income', null, '🏠');
-    addCategory(TransactionType.INCOME, 'Residential Rent', 'Rental Income', '🏡');
-    addCategory(TransactionType.INCOME, 'Commercial Rent', 'Rental Income', '🏬');
-
     addCategory(TransactionType.INCOME, 'Gifts & Donations', null, '🎁');
-    addCategory(TransactionType.INCOME, 'Cash Gifts', 'Gifts & Donations', '💰');
-    addCategory(TransactionType.INCOME, 'Crowdfunding', 'Gifts & Donations', '🤝');
-    addCategory(TransactionType.INCOME, 'Inheritance', 'Gifts & Donations', '🧾');
-
     addCategory(TransactionType.INCOME, 'Refunds & Rebates', null, '🔁');
-    addCategory(TransactionType.INCOME, 'Tax Refund', 'Refunds & Rebates', '🧾');
-    addCategory(TransactionType.INCOME, 'Purchase Rebate', 'Refunds & Rebates', '💳');
-    addCategory(TransactionType.INCOME, 'Cashback', 'Refunds & Rebates', '💵');
-    addCategory(TransactionType.INCOME, 'Refunds', 'Refunds & Rebates', '↩️');
-
     addCategory(TransactionType.INCOME, 'Other Income', null, '🎲');
-    addCategory(TransactionType.INCOME, 'Lottery', 'Other Income', '🎟️');
-    addCategory(TransactionType.INCOME, 'Prize Money', 'Other Income', '🏆');
-    addCategory(TransactionType.INCOME, 'Miscellaneous', 'Other Income', '❓');
+    addCategory(TransactionType.INCOME, 'Shop Sales', null, '🏪'); // For Shop Hub
 
     // Expense Categories
     addCategory(TransactionType.EXPENSE, 'Housing', null, '🏠');
-    addCategory(TransactionType.EXPENSE, 'Rent', 'Housing', '🏘️');
-    addCategory(TransactionType.EXPENSE, 'Mortgage', 'Housing', '🏦');
-    addCategory(TransactionType.EXPENSE, 'Property Tax', 'Housing', '🧾');
-    addCategory(TransactionType.EXPENSE, 'Repairs', 'Housing', '🔧');
-
     addCategory(TransactionType.EXPENSE, 'Utilities', null, '🔌');
-    addCategory(TransactionType.EXPENSE, 'Electricity', 'Utilities', '💡');
-    addCategory(TransactionType.EXPENSE, 'Water', 'Utilities', '🚰');
-    addCategory(TransactionType.EXPENSE, 'Gas', 'Utilities', '🔥');
-    addCategory(TransactionType.EXPENSE, 'Internet', 'Utilities', '🌐');
-    addCategory(TransactionType.EXPENSE, 'Phone', 'Utilities', '📞');
-
     addCategory(TransactionType.EXPENSE, 'Food & Groceries', null, '🍽️');
-    addCategory(TransactionType.EXPENSE, 'Supermarket', 'Food & Groceries', '🛒');
-    addCategory(TransactionType.EXPENSE, 'Dining Out', 'Food & Groceries', '🍴');
-    addCategory(TransactionType.EXPENSE, 'Snacks', 'Food & Groceries', '🍫');
-
     addCategory(TransactionType.EXPENSE, 'Travel & Transport', null, '🚗');
-    addCategory(TransactionType.EXPENSE, 'Fuel', 'Travel & Transport', '⛽');
-    addCategory(TransactionType.EXPENSE, 'Public Transport', 'Travel & Transport', '🚌');
-    addCategory(TransactionType.EXPENSE, 'Vehicle Maintenance', 'Travel & Transport', '🔧');
-
     addCategory(TransactionType.EXPENSE, 'Health & Insurance', null, '🩺');
-    addCategory(TransactionType.EXPENSE, 'Medical Bills', 'Health & Insurance', '🧾');
-    addCategory(TransactionType.EXPENSE, 'Health Insurance', 'Health & Insurance', '🛡️');
-    addCategory(TransactionType.EXPENSE, 'Gym', 'Health & Insurance', '🏋️');
-
     addCategory(TransactionType.EXPENSE, 'Education', null, '📚');
-    addCategory(TransactionType.EXPENSE, 'Tuition', 'Education', '🎓');
-    addCategory(TransactionType.EXPENSE, 'Books', 'Education', '📖');
-    addCategory(TransactionType.EXPENSE, 'Online Courses', 'Education', '💻');
-
     addCategory(TransactionType.EXPENSE, 'Entertainment', null, '🎉');
-    addCategory(TransactionType.EXPENSE, 'Movies', 'Entertainment', '🎬');
-    addCategory(TransactionType.EXPENSE, 'Subscriptions', 'Entertainment', '📺');
-    addCategory(TransactionType.EXPENSE, 'Events', 'Entertainment', '🎟️');
-
     addCategory(TransactionType.EXPENSE, 'Shopping', null, '🛍️');
-    addCategory(TransactionType.EXPENSE, 'Clothing', 'Shopping', '👕');
-    addCategory(TransactionType.EXPENSE, 'Electronics', 'Shopping', '📱');
-    addCategory(TransactionType.EXPENSE, 'Home Goods', 'Shopping', '🪑');
-
     addCategory(TransactionType.EXPENSE, 'Finance', null, '💳');
-    addCategory(TransactionType.EXPENSE, 'Loan Payments', 'Finance', '🏦');
-    addCategory(TransactionType.EXPENSE, 'Credit Card Bills', 'Finance', '💳');
-    addCategory(TransactionType.EXPENSE, 'Bank Fees', 'Finance', '🧾');
-
     addCategory(TransactionType.EXPENSE, 'Savings & Investment', null, '💼');
-    addCategory(TransactionType.EXPENSE, 'Emergency Fund', 'Savings & Investment', '🆘');
-    addCategory(TransactionType.EXPENSE, 'SIPs', 'Savings & Investment', '📈');
-    addCategory(TransactionType.EXPENSE, 'Stock Purchases', 'Savings & Investment', '📊');
-    addCategory(TransactionType.EXPENSE, 'Buy', 'Savings & Investment', '💰');
-
     addCategory(TransactionType.EXPENSE, 'Personal Care', null, '🧖');
-    addCategory(TransactionType.EXPENSE, 'Salon', 'Personal Care', '💇');
-    addCategory(TransactionType.EXPENSE, 'Skincare', 'Personal Care', '🧴');
-    addCategory(TransactionType.EXPENSE, 'Hygiene Products', 'Personal Care', '🧼');
-
     addCategory(TransactionType.EXPENSE, 'Family & Kids', null, '👨‍👩‍👧');
-    addCategory(TransactionType.EXPENSE, 'School Fees', 'Family & Kids', '🏫');
-    addCategory(TransactionType.EXPENSE, 'Toys', 'Family & Kids', '🧸');
-    addCategory(TransactionType.EXPENSE, 'Childcare', 'Family & Kids', '🧑‍🍼');
-
     addCategory(TransactionType.EXPENSE, 'Donations', null, '🙏');
-    addCategory(TransactionType.EXPENSE, 'Charity', 'Donations', '❤️');
-    addCategory(TransactionType.EXPENSE, 'Religious Offerings', 'Donations', '🕉️');
-
     addCategory(TransactionType.EXPENSE, 'Miscellaneous', null, '🌀');
-    addCategory(TransactionType.EXPENSE, 'Pet Care', 'Miscellaneous', '🐶');
-    addCategory(TransactionType.EXPENSE, 'Gifts', 'Miscellaneous', '🎁');
-    addCategory(TransactionType.EXPENSE, 'Unexpected Expenses', 'Miscellaneous', '⚠️');
 
     // System categories
     addCategory(TransactionType.INCOME, 'Opening Balance', null, '🏦');
@@ -186,8 +108,8 @@ const generateCategories = (): Category[] => {
 const DEFAULT_CATEGORIES = generateCategories();
 const DEFAULT_ACCOUNTS = (): Account[] => [];
 
-const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | null }> = ({ 
-  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange 
+export const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | null }> = ({ 
+  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, showOnboardingGuide, setShowOnboardingGuide
 }) => {
   const [text, setText] = useState<string>('');
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
@@ -203,6 +125,13 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const [feedbackQueue, setFeedbackQueue] = useLocalStorage<FeedbackItem[]>('finance-tracker-feedback-queue', []);
   const [unlockedAchievements, setUnlockedAchievements] = useLocalStorage<UnlockedAchievement[]>('finance-tracker-achievements', []);
   const [trustBin, setTrustBin] = useLocalStorage<TrustBinItem[]>('finance-tracker-trust-bin', []);
+  const isInitialLoad = useRef(true);
+  
+  // Shop State
+  const [shops, setShops] = useLocalStorage<Shop[]>('finance-tracker-shops', []);
+  const [shopProducts, setShopProducts] = useLocalStorage<ShopProduct[]>('finance-tracker-shop-products', []);
+  const [shopSales, setShopSales] = useLocalStorage<ShopSale[]>('finance-tracker-shop-sales', []);
+
   const [toastQueue, setToastQueue] = useState<string[]>([]);
   const [tripDetailsId, setTripDetailsId] = useState<string | null>(null);
 
@@ -211,9 +140,26 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const [spamWarning, setSpamWarning] = useState<SpamWarning | null>(null);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
-  const [isInsightLoading, setIsInsightLoading] = useState(true);
+  const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [confirmationState, setConfirmationState] = useState<ConfirmationState | null>(null);
-  const [miniCalcState, setMiniCalcState] = useState<{ onResult: (result: number) => void } | null>(null);
+  
+  // Gamification State
+  const [streaks, setStreaks] = useLocalStorage<UserStreak>('finance-tracker-streaks', {
+    currentStreak: 0,
+    longestStreak: 0,
+    lastLogDate: null,
+    streakFreezes: 3
+  });
+  const [challenges, setChallenges] = useLocalStorage<Challenge[]>('finance-tracker-challenges', []);
+
+  const dailyChallenge = useMemo(() => {
+    const challenge = getDailyChallenge(challenges);
+    if (!challenges.some(c => c.id === challenge.id)) {
+        setChallenges(prev => [...prev.slice(-10), challenge]); // Keep last 10 challenges
+    }
+    return challenge;
+  }, [challenges, setChallenges]);
+
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -221,10 +167,46 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
 
   const activeModal = modalStack[modalStack.length - 1] || null;
+  const closeActiveModal = () => setModalStack(prev => prev.slice(0, -1));
+  const openModal = (name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]);
+  const formatCurrency = useCurrencyFormatter();
+
+  const handleOpenCalculator = (onResult: (result: number) => void) => {
+    openModal('miniCalculator', { onResult });
+  };
+
+  const allLocalStorageKeys = [
+    'finance-tracker-transactions', 'finance-tracker-accounts', 'finance-tracker-settings', 
+    'finance-tracker-categories', 'finance-tracker-payees', 'finance-tracker-senders',
+    'finance-tracker-contact-groups', 'finance-tracker-contacts', 'finance-tracker-financial-profile',
+    'finance-tracker-budgets', 'finance-tracker-recurring', 'finance-tracker-goals',
+    'finance-tracker-investments', 'finance-tracker-trips', 'finance-tracker-trip-expenses',
+    'finance-tracker-selected-account-ids', 'finance-tracker-feedback-queue',
+    'finance-tracker-achievements', 'finance-tracker-trust-bin', 'finance-tracker-shops',
+    'finance-tracker-shop-products', 'finance-tracker-shop-sales', 'finance-tracker-consent',
+    'finance-tracker-onboarding-complete', 'finance-tracker-crypto-key', 'finance-tracker-show-guide',
+    'finance-tracker-streaks', 'finance-tracker-challenges'
+  ];
+
+  const handleResetApp = () => {
+    allLocalStorageKeys.forEach(key => window.localStorage.removeItem(key));
+    window.location.reload();
+  }
+
+  const confirmResetApp = () => {
+    setConfirmationState({
+        title: 'Reset Application?',
+        message: 'This will permanently delete all your data, including accounts, transactions, and settings. This action cannot be undone.',
+        onConfirm: handleResetApp,
+        confirmLabel: 'Reset',
+        lockDuration: 5
+    });
+  }
+
 
   const appState: AppState = useMemo(() => ({
-    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, trips, tripExpenses, financialProfile
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, trips, tripExpenses, financialProfile]);
+    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales]);
 
   useEffect(() => {
     onSelectionChange?.(selectedAccountIds);
@@ -239,6 +221,16 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   useEffect(() => {
     if (categories.length === 0) setCategories(DEFAULT_CATEGORIES);
   }, [categories, setCategories]);
+
+  useEffect(() => {
+    // This effect improves the onboarding experience. If the user has just finished
+    // onboarding and has accounts, but the selection is still 'all', we select 
+    // the first account for them. This enables the "Add Transaction" FAB by default.
+    if (isInitialLoad.current && accounts.length > 0 && selectedAccountIds.length === 1 && selectedAccountIds[0] === 'all') {
+        setSelectedAccountIds([accounts[0].id]);
+    }
+    isInitialLoad.current = false;
+  }, [accounts, selectedAccountIds, setSelectedAccountIds]);
   
   // Auto-purge Trust Bin on load
   useEffect(() => {
@@ -265,14 +257,14 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
   const handlePayRecurring = useCallback((itemOrId: RecurringTransaction | string) => {
       const itemToPay = typeof itemOrId === 'string' 
         ? recurringTransactions.find(r => r.id === itemOrId) 
-        : itemOrId;
+        : recurringTransactions.find(r => r.id === itemOrId.id);
 
       if (!itemToPay) return;
 
       const newTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: itemToPay.accountId, description: itemToPay.description, amount: itemToPay.amount, type: itemToPay.type, categoryId: itemToPay.categoryId, date: new Date().toISOString(), notes: itemToPay.notes };
       setTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       
-      const nextDueDate = calculateNextDueDate(itemToPay.nextDueDate, itemToPay.frequency);
+      const nextDueDate = calculateNextDueDate(itemToPay.nextDueDate, itemToPay);
       setRecurringTransactions(prev => prev.map(r => r.id === itemToPay.id ? { ...r, nextDueDate: nextDueDate.toISOString() } : r));
   }, [recurringTransactions, setRecurringTransactions, setTransactions]);
 
@@ -330,8 +322,38 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       setCategories(currentCategories);
       return finalCategoryId;
   }, [categories, setCategories]);
+  
+  const updateStreak = useCallback(() => {
+    const today = new Date().toISOString().split('T')[0];
+    if (streaks.lastLogDate === today) return; // Already logged today
 
-  const saveTransaction = useCallback((data: any, accountId: string, senderId?: string) => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    let newStreak = streaks.currentStreak;
+    if (streaks.lastLogDate === yesterdayStr) {
+      newStreak += 1; // Continue streak
+    } else {
+      newStreak = 1; // Reset or start new streak
+    }
+
+    setStreaks({
+      ...streaks,
+      currentStreak: newStreak,
+      longestStreak: Math.max(streaks.longestStreak, newStreak),
+      lastLogDate: today,
+    });
+  }, [streaks, setStreaks]);
+  
+  const checkAndCompleteChallenge = useCallback((type: ChallengeType) => {
+    if (dailyChallenge && !dailyChallenge.isCompleted && dailyChallenge.type === type) {
+        setChallenges(prev => prev.map(c => c.id === dailyChallenge.id ? { ...c, isCompleted: true } : c));
+    }
+  }, [dailyChallenge, setChallenges]);
+
+
+  const saveTransaction = useCallback((data: ParsedTransactionData, accountId: string, senderId?: string) => {
     let categoryId = '';
     let description = data.description;
     const matchingPayee = data.payeeIdentifier ? payees.find(p => p.identifier.toLowerCase() === data.payeeIdentifier?.toLowerCase()) : null;
@@ -346,8 +368,10 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     setStatus(ProcessingStatus.SUCCESS);
     setText('');
     setSpamWarning(null);
+    updateStreak();
+    checkAndCompleteChallenge('log_transaction');
     closeActiveModal();
-  }, [findOrCreateCategory, setTransactions, payees, setModalStack]);
+  }, [findOrCreateCategory, setTransactions, payees, closeActiveModal, updateStreak, checkAndCompleteChallenge]);
 
   const handleAddTransaction = useCallback(async (transactionText: string, accountId?: string) => {
     if (!accountId) {
@@ -375,7 +399,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
           saveTransaction(parsed, accountId, existingSender.id);
           return;
         }
-        if (parsed.isSpam && parsed.spamConfidence > 0.7) {
+        if ((parsed.isSpam && parsed.spamConfidence > 0.7) || parsed.isForwarded) {
             setSpamWarning({ parsedData: parsed, rawText: transactionText });
             setStatus(ProcessingStatus.IDLE);
             setText('');
@@ -388,7 +412,11 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setError(errorMessage);
+      if (errorMessage.includes("Security risk detected")) {
+          setError("This message appears to contain a password or OTP and was blocked for your security. Please do not enter sensitive login information.");
+      } else {
+          setError(errorMessage);
+      }
       setStatus(ProcessingStatus.ERROR);
     }
   }, [saveTransaction, senders]);
@@ -414,8 +442,8 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     saveTransaction(spamWarning.parsedData, selectedAccountIds[0], senderId);
   };
 
-  const handleAddAccount = (name: string, accountType: AccountType, creditLimit?: number, openingBalance?: number) => {
-    const newAccount = { id: self.crypto.randomUUID(), name, accountType, creditLimit };
+  const handleAddAccount = useCallback((name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => {
+    const newAccount: Account = { id: self.crypto.randomUUID(), name, accountType, currency, creditLimit };
     setAccounts(prev => [...prev, newAccount]);
     if (openingBalance && openingBalance > 0) {
         const openingBalanceCategory = findOrCreateCategory('Opening Balance', TransactionType.INCOME);
@@ -423,7 +451,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
         setTransactions(prev => [openingTransaction, ...prev]);
     }
     if(accounts.length === 0) setSelectedAccountIds([newAccount.id]);
-  };
+  }, [accounts.length, findOrCreateCategory, setAccounts, setSelectedAccountIds, setTransactions]);
   
   const handleAccountTransfer = (fromAccountId: string, toAccountId: string, amount: number, notes?: string) => {
     const fromAccount = accounts.find(a => a.id === fromAccountId);
@@ -444,6 +472,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
       const { originalTransactionId, newTransactions: newTransactionsData } = updateData;
       const newTransactionsWithIds: Transaction[] = newTransactionsData.map(t => ({ ...t, id: self.crypto.randomUUID() }));
       setTransactions(prev => [...prev.filter(t => t.id !== originalTransactionId), ...newTransactionsWithIds].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      checkAndCompleteChallenge('log_transaction');
     } else {
       const tx = updateData as Transaction;
       if (tx.id) { // UPDATE
@@ -455,9 +484,11 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
             return;
         }
         setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        checkAndCompleteChallenge('log_transaction');
       }
     }
-    closeActiveModal();
+    updateStreak();
+    setModalStack([]); // Close all modals on save
   };
   
   const handleSaveBudget = (categoryId: string, amount: number) => {
@@ -467,9 +498,10 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
         if (existing) return prev.map(b => b.categoryId === categoryId && b.month === month ? { ...b, amount } : b);
         return [...prev, { categoryId, amount, month }];
     });
+    checkAndCompleteChallenge('set_budget');
   };
   
-  const handleAddNewCategory = (category: Omit<Category, 'id'>) => setCategories(prev => [...prev, { ...category, id: self.crypto.randomUUID() }]);
+  const handleAddNewCategory = useCallback((category: Omit<Category, 'id'>) => setCategories(prev => [...prev, { ...category, id: self.crypto.randomUUID() }]), [setCategories]);
   const handleUpdateCategory = (updatedCategory: Category) => {
     setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
   };
@@ -480,6 +512,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     } else {
       setGoals(prev => [...prev, { ...goal, id: self.crypto.randomUUID(), currentAmount: 0 }]);
     }
+    closeActiveModal();
   };
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
@@ -487,8 +520,9 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     if (!goal) return;
     const goalCategoryId = findOrCreateCategory('Goal Contributions', TransactionType.EXPENSE);
     const contributionTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: accountId, description: `Contribution to "${goal.name}"`, amount: amount, type: TransactionType.EXPENSE, categoryId: goalCategoryId, date: new Date().toISOString() };
-    setTransactions(prev => [contributionTransaction, ...prev].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    setTransactions(prev => [contributionTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setGoals(prev => prev.map(g => g.id === goalId ? { ...g, currentAmount: g.currentAmount + amount } : g ));
+    checkAndCompleteChallenge('review_goals');
   };
 
   const handleSettleDebt = (transactionId: string, splitDetailId: string, settlementAccountId: string) => {
@@ -515,7 +549,7 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
 
   const handleBuyInvestment = (investmentAccountId: string, name: string, quantity: number, price: number, fromAccountId: string) => {
     const cost = quantity * price;
-    const buyCategoryId = findOrCreateCategory('Investments/Buy', TransactionType.EXPENSE);
+    const buyCategoryId = findOrCreateCategory('Savings & Investment/Buy', TransactionType.EXPENSE);
     const expenseTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: fromAccountId, description: `Buy ${quantity} ${name}`, amount: cost, type: TransactionType.EXPENSE, categoryId: buyCategoryId, date: new Date().toISOString() };
     setTransactions(prev => [expenseTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     const existingHolding = investmentHoldings.find(h => h.accountId === investmentAccountId && h.name.toLowerCase() === name.toLowerCase());
@@ -536,193 +570,131 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     const sellCategoryId = findOrCreateCategory('Investments/Sell', TransactionType.INCOME);
     const incomeTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: toAccountId, description: `Sell ${quantity} ${holding.name}`, amount: proceeds, type: TransactionType.INCOME, categoryId: sellCategoryId, date: new Date().toISOString() };
     setTransactions(prev => [incomeTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    const newQuantity = holding.quantity - quantity;
-    if (newQuantity <= 0) {
-      setInvestmentHoldings(prev => prev.filter(h => h.id !== holdingId));
+    const remainingQuantity = holding.quantity - quantity;
+    if (remainingQuantity > 0) {
+      setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? { ...h, quantity: remainingQuantity, currentValue: remainingQuantity * (h.currentValue/h.quantity) } : h));
     } else {
-      const remainingValue = newQuantity * (holding.currentValue / holding.quantity);
-      setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? { ...h, quantity: newQuantity, currentValue: remainingValue } : h));
+      setInvestmentHoldings(prev => prev.filter(h => h.id !== holdingId));
     }
-  };
-  
-  const handleUpdateHoldingValue = (holdingId: string, newCurrentValue: number) => setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? { ...h, currentValue: newCurrentValue } : h));
-  const handleRefreshPortfolio = () => setInvestmentHoldings(prev => prev.map(h => ({ ...h, currentValue: h.currentValue * (1 + (Math.random() - 0.5) * 0.1) })));
-  
-  const handleRestoreBackup = (state: AppState) => {
-      setTransactions(state.transactions); setAccounts(state.accounts); setCategories(state.categories); setBudgets(state.budgets); setRecurringTransactions(state.recurringTransactions); setGoals(state.goals); setInvestmentHoldings(state.investmentHoldings); setPayees(state.payees); setSenders(state.senders); setContactGroups(state.contactGroups); setContacts(state.contacts); setSettings(state.settings); setUnlockedAchievements(state.achievements || []); setTrips(state.trips || []); setTripExpenses(state.tripExpenses || []); 
-      setFinancialProfile(state.financialProfile || { monthlySalary: 0, monthlyRent: 0, monthlyEmi: 0, emergencyFundGoal: 0 });
-      setSelectedAccountIds(state.accounts[0] ? [state.accounts[0].id] : ['all']);
-      alert("Data restored successfully!");
   };
 
-  const handleSaveTrip = (trip: Omit<Trip, 'id' | 'date'>, id?: string) => {
-    if (id) {
-      setTrips(prev => prev.map(t => t.id === id ? { ...t, ...trip } : t));
-    } else {
-      setTrips(prev => [...prev, { ...trip, id: self.crypto.randomUUID(), date: new Date().toISOString() }]);
-    }
-    closeActiveModal();
+  const handleUpdateInvestmentValue = (holdingId: string, newCurrentValue: number) => {
+    setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? { ...h, currentValue: newCurrentValue } : h));
   };
   
-  const handleSaveContact = (contact: Omit<Contact, 'id'>, id?: string): Contact => {
-    if (id) {
-      const updatedContact = { ...contact, id };
-      setContacts(prev => prev.map(c => c.id === id ? updatedContact : c));
-      return updatedContact;
+  const handleSaveRecurring = (item: Omit<RecurringTransaction, 'id' | 'nextDueDate'> & { id?: string }) => {
+    const nextDueDate = calculateNextDueDate(item.startDate, item);
+    if (item.id) {
+        setRecurringTransactions(prev => prev.map(r => r.id === item.id ? { ...item, id: item.id, nextDueDate: nextDueDate.toISOString() } as RecurringTransaction : r));
     } else {
-      const newContact = { ...contact, id: self.crypto.randomUUID() };
-      setContacts(prev => [...prev, newContact]);
-      return newContact;
+        setRecurringTransactions(prev => [...prev, { ...item, id: self.crypto.randomUUID(), nextDueDate: nextDueDate.toISOString() } as RecurringTransaction]);
     }
+  };
+
+  const handleSaveTrip = (tripData: Omit<Trip, 'id' | 'date'>, id?: string) => {
+      if(id) {
+          setTrips(prev => prev.map(t => t.id === id ? { ...t, ...tripData } : t));
+      } else {
+          setTrips(prev => [...prev, { ...tripData, id: self.crypto.randomUUID(), date: new Date().toISOString() }]);
+      }
+      closeActiveModal();
+  };
+  
+  const handleAddTripExpense = (tripId: string, items: Omit<TripExpense, 'id'|'tripId'|'date'>[]) => {
+      const newExpenses: TripExpense[] = items.map(item => ({
+          ...item,
+          id: self.crypto.randomUUID(),
+          tripId: tripId,
+          date: new Date().toISOString(),
+      }));
+      setTripExpenses(prev => [...prev, ...newExpenses]);
+      closeActiveModal();
+  };
+
+  const handleUpdateTripExpense = (tripId: string, expenseData: Omit<TripExpense, 'tripId' | 'date'>) => {
+    setTripExpenses(prev => prev.map(exp => exp.id === expenseData.id ? { ...exp, ...expenseData, tripId } : exp));
+    closeActiveModal();
+  };
+
+  const handleDeleteTripExpense = (expenseId: string) => {
+      confirmDelete(expenseId, 'tripExpense', tripExpenses.find(t => t.id === expenseId)?.description || 'trip expense');
+  }
+  
+  const handleSaveContact = (contactData: Omit<Contact, 'id'>, id?: string): Contact => {
+      let savedContact: Contact;
+      if (id) {
+        let tempContact: Contact | undefined;
+        setContacts(prev => prev.map(c => {
+            if (c.id === id) {
+              tempContact = { ...c, ...contactData };
+              return tempContact;
+            }
+            return c;
+        }));
+        savedContact = tempContact!;
+      } else {
+        savedContact = { ...contactData, id: self.crypto.randomUUID() };
+        setContacts(prev => [...prev, savedContact]);
+      }
+      return savedContact;
+  }
+  
+  const handleSaveContactGroup = (groupData: Omit<ContactGroup, 'id'>): ContactGroup => {
+    const savedGroup = { ...groupData, id: self.crypto.randomUUID() };
+    setContactGroups(prev => [...prev, savedGroup]);
+    return savedGroup;
   }
 
-  const handleSaveTripItems = (
-    tripId: string,
-    items: {
-      description: string;
-      amount: number;
-      categoryId: string;
-      payers: TripPayer[];
-      splitDetails: any[]; // Using 'any' for SplitDetail because it's complex
-    }[]
-  ) => {
-    const newExpenses: TripExpense[] = items.map(item => ({
-      id: self.crypto.randomUUID(),
-      tripId: tripId,
-      date: new Date().toISOString(),
-      amount: item.amount,
-      description: item.description,
-      categoryId: item.categoryId,
-      payers: item.payers,
-      splitDetails: item.splitDetails,
-    }));
+  const handleDeleteItem = (itemId: string, itemType: ItemType) => {
+    const itemGetter: Record<ItemType, () => any[]> = {
+      'transaction': () => transactions, 'category': () => categories, 'payee': () => payees, 'sender': () => senders,
+      'contact': () => contacts, 'contactGroup': () => contactGroups, 'goal': () => goals,
+      'recurringTransaction': () => recurringTransactions, 'account': () => accounts, 'trip': () => trips,
+      'tripExpense': () => tripExpenses, 'shop': () => shops, 'shopProduct': () => shopProducts,
+    };
 
-    setTripExpenses(prev => [...prev, ...newExpenses]);
-    closeActiveModal();
-  };
-
-  // --- Trust Bin and Delete Handlers ---
-  const createTrustBinItem = (item: any, itemType: TrustBinItem['itemType']): TrustBinItem => ({
-    id: self.crypto.randomUUID(), item, itemType, deletedAt: new Date().toISOString()
-  });
-
-  const handleDeleteRequest = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmationState({ title, message, onConfirm });
-  };
-
-  const handleConfirm = () => {
-    if (confirmationState) {
-        confirmationState.onConfirm();
-        setConfirmationState(null); // Close dialog after action
+    const itemSetter: Record<ItemType, (items: any[]) => void> = {
+      'transaction': setTransactions, 'category': setCategories, 'payee': setPayees, 'sender': setSenders,
+      'contact': setContacts, 'contactGroup': setContactGroups, 'goal': setGoals,
+      'recurringTransaction': setRecurringTransactions, 'account': setAccounts, 'trip': setTrips,
+      'tripExpense': setTripExpenses, 'shop': setShops, 'shopProduct': setShopProducts,
+    };
+    
+    const items = itemGetter[itemType]();
+    const itemToDelete = items.find(item => item.id === itemId);
+    if(itemToDelete) {
+        const newTrustBinItem: TrustBinItem = {
+            id: self.crypto.randomUUID(),
+            item: itemToDelete,
+            itemType,
+            deletedAt: new Date().toISOString()
+        };
+        setTrustBin(prev => [...prev, newTrustBinItem]);
+        itemSetter[itemType](items.filter(item => item.id !== itemId));
     }
+    setConfirmationState(null);
   };
   
-  const handleDeleteTransaction = (id: string) => handleDeleteRequest('Delete Transaction', 'Are you sure you want to delete this transaction? If it is part of a transfer, the linked transaction will also be deleted.', () => {
-    const transactionToDelete = transactions.find(t => t.id === id);
-    if (!transactionToDelete) return;
-    if (transactionToDelete.transferId) {
-        const linkedTransactions = transactions.filter(t => t.transferId === transactionToDelete.transferId);
-        const binItems: TrustBinItem[] = linkedTransactions.map(t => createTrustBinItem(t, 'transaction'));
-        setTrustBin(prev => [...prev, ...binItems]);
-        setTransactions(prev => prev.filter(t => t.transferId !== transactionToDelete.transferId));
-    } else {
-        setTrustBin(prev => [...prev, createTrustBinItem(transactionToDelete, 'transaction')]);
-        setTransactions(prev => prev.filter(t => t.id !== id));
-    }
-  });
+  const confirmDelete = (itemId: string, itemType: ItemType, name: string) => {
+    setConfirmationState({
+        title: `Delete ${itemType}?`,
+        message: `Are you sure you want to delete "${name}"? This will move the item to the Trust Bin.`,
+        onConfirm: () => handleDeleteItem(itemId, itemType),
+        confirmLabel: 'Delete'
+    })
+  }
+  
+  const handleRestoreFromTrustBin = (itemIds: string[]) => {
+    const itemsToRestore = trustBin.filter(item => itemIds.includes(item.id));
+    if (itemsToRestore.length === 0) return;
 
-  const handleDeleteAccount = (accountId: string) => handleDeleteRequest('Delete Account', 'This will delete the account and all its associated transactions. This action cannot be undone.', () => {
-    const accountToDelete = accounts.find(a => a.id === accountId);
-    if (!accountToDelete) return;
-    const transactionsToDelete = transactions.filter(t => t.accountId === accountId);
-    const binItems: TrustBinItem[] = [ createTrustBinItem(accountToDelete, 'account'), ...transactionsToDelete.map(t => createTrustBinItem(t, 'transaction')) ];
-    setTrustBin(prev => [...prev, ...binItems]);
-    setAccounts(prev => prev.filter(a => a.id !== accountId));
-    setTransactions(prev => prev.filter(t => t.accountId !== accountId));
-    if (selectedAccountIds.includes(accountId)) {
-        const newSelection = selectedAccountIds.filter(id => id !== accountId);
-        setSelectedAccountIds(newSelection.length === 0 ? ['all'] : newSelection);
-    }
-  });
-
-  const handleDeleteCategory = (categoryId: string) => handleDeleteRequest('Delete Category', 'This will delete the category and all its subcategories. Transactions under these categories will need to be re-categorized.', () => {
-    const toDelete = new Set<string>();
-    const queue = [categoryId];
-    toDelete.add(categoryId);
-    while (queue.length > 0) {
-        const currentId = queue.shift()!;
-        const children = categories.filter(c => c.parentId === currentId);
-        children.forEach(c => { toDelete.add(c.id); queue.push(c.id); });
-    }
-    const categoriesToDelete = categories.filter(c => toDelete.has(c.id));
-    const binItems: TrustBinItem[] = categoriesToDelete.map(c => createTrustBinItem(c, 'category'));
-    setTrustBin(prev => [...prev, ...binItems]);
-    setCategories(prev => prev.filter(c => !toDelete.has(c.id)));
-  });
-
-  const handleDeletePayee = (id: string) => handleDeleteRequest('Delete Payee', 'Are you sure you want to delete this payee?', () => {
-      const item = payees.find(p => p.id === id);
-      if(item) { setTrustBin(prev => [...prev, createTrustBinItem(item, 'payee')]); setPayees(p => p.filter(i => i.id !== id)); }
-  });
-  const handleDeleteSender = (id: string) => handleDeleteRequest('Delete Sender', 'Are you sure you want to delete this sender?', () => {
-      const item = senders.find(s => s.id === id);
-      if(item) { setTrustBin(prev => [...prev, createTrustBinItem(item, 'sender')]); setSenders(s => s.filter(i => i.id !== id)); }
-  });
-  const handleDeleteContact = (id: string) => handleDeleteRequest('Delete Contact', 'Are you sure you want to delete this contact?', () => {
-      const item = contacts.find(c => c.id === id);
-      if(item) { setTrustBin(prev => [...prev, createTrustBinItem(item, 'contact')]); setContacts(c => c.filter(i => i.id !== id)); }
-  });
-  const handleDeleteContactGroup = (id: string) => handleDeleteRequest('Delete Contact Group', 'This will delete the group and all contacts within it.', () => {
-      const group = contactGroups.find(g => g.id === id);
-      if(group) {
-          const contactsInGroup = contacts.filter(c => c.groupId === id);
-          const binItems: TrustBinItem[] = [ createTrustBinItem(group, 'contactGroup'), ...contactsInGroup.map(c => createTrustBinItem(c, 'contact')) ];
-          setTrustBin(prev => [...prev, ...binItems]);
-          setContactGroups(g => g.filter(i => i.id !== id));
-          setContacts(c => c.filter(i => i.groupId !== id));
-      }
-  });
-  const handleDeleteGoal = (id: string) => handleDeleteRequest('Delete Goal', 'Are you sure you want to delete this goal?', () => {
-      const item = goals.find(g => g.id === id);
-      if(item) { setTrustBin(prev => [...prev, createTrustBinItem(item, 'goal')]); setGoals(g => g.filter(i => i.id !== id)); }
-  });
-  const handleDeleteRecurring = (id: string) => handleDeleteRequest('Delete Scheduled Payment', 'Are you sure you want to delete this recurring payment?', () => {
-      const item = recurringTransactions.find(r => r.id === id);
-      if(item) { setTrustBin(prev => [...prev, createTrustBinItem(item, 'recurringTransaction')]); setRecurringTransactions(r => r.filter(i => i.id !== id)); }
-  });
-    const handleDeleteTrip = (id: string) => handleDeleteRequest('Delete Trip', 'This will delete the trip and all its expenses. This action cannot be undone.', () => {
-    const item = trips.find(t => t.id === id);
-    if(item) {
-      const expensesToDelete = tripExpenses.filter(e => e.tripId === id);
-      const binItems: TrustBinItem[] = [ createTrustBinItem(item, 'trip'), ...expensesToDelete.map(e => createTrustBinItem(e, 'transaction')) ]; // treat trip expenses as transactions in bin
-      setTrustBin(prev => [...prev, ...binItems]);
-      setTrips(t => t.filter(i => i.id !== id));
-      setTripExpenses(e => e.filter(i => i.tripId !== id));
-    }
-  });
-
-  const handleRestoreFromBin = (itemIds: string[]) => {
-    const itemsToRestore = trustBin.filter(i => itemIds.includes(i.id));
-    if (!itemsToRestore.length) return;
-
-    const restoredItemsByType: { [key in TrustBinItem['itemType']]?: any[] } = {};
-    let idsToRemoveFromBin = new Set<string>(itemIds);
-
-    itemsToRestore.forEach(itemToRestore => {
-      if (!restoredItemsByType[itemToRestore.itemType]) restoredItemsByType[itemToRestore.itemType] = [];
-      restoredItemsByType[itemToRestore.itemType]!.push(itemToRestore.item);
-
-      if (itemToRestore.itemType === 'account') {
-        const account = itemToRestore.item as Account;
-        const relatedTransactions = trustBin.filter(i => i.itemType === 'transaction' && i.item.accountId === account.id);
-        if (relatedTransactions.length > 0) {
-          if (!restoredItemsByType.transaction) restoredItemsByType.transaction = [];
-          relatedTransactions.forEach(txItem => { if (!idsToRemoveFromBin.has(txItem.id)) { restoredItemsByType.transaction!.push(txItem.item); idsToRemoveFromBin.add(txItem.id); } });
-        }
-      }
+    const restoredItemsByType: Partial<Record<ItemType, any[]>> = {};
+    itemsToRestore.forEach(binItem => {
+        if (!restoredItemsByType[binItem.itemType]) restoredItemsByType[binItem.itemType] = [];
+        restoredItemsByType[binItem.itemType]!.push(binItem.item);
     });
 
-    if (restoredItemsByType.transaction) setTransactions(prev => [...prev, ...restoredItemsByType.transaction!].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    if (restoredItemsByType.transaction) setTransactions(prev => [...prev, ...restoredItemsByType.transaction!]);
     if (restoredItemsByType.category) setCategories(prev => [...prev, ...restoredItemsByType.category!]);
     if (restoredItemsByType.payee) setPayees(prev => [...prev, ...restoredItemsByType.payee!]);
     if (restoredItemsByType.sender) setSenders(prev => [...prev, ...restoredItemsByType.sender!]);
@@ -732,143 +704,214 @@ const FinanceTracker: React.FC<FinanceTrackerProps & { initialText?: string | nu
     if (restoredItemsByType.recurringTransaction) setRecurringTransactions(prev => [...prev, ...restoredItemsByType.recurringTransaction!]);
     if (restoredItemsByType.account) setAccounts(prev => [...prev, ...restoredItemsByType.account!]);
     if (restoredItemsByType.trip) setTrips(prev => [...prev, ...restoredItemsByType.trip!]);
-    
-    setTrustBin(prev => prev.filter(i => !idsToRemoveFromBin.has(i.id)));
+    if (restoredItemsByType.tripExpense) setTripExpenses(prev => [...prev, ...restoredItemsByType.tripExpense!]);
+    if (restoredItemsByType.shop) setShops(prev => [...prev, ...restoredItemsByType.shop!]);
+    if (restoredItemsByType.shopProduct) setShopProducts(prev => [...prev, ...restoredItemsByType.shopProduct!]);
+
+    setTrustBin(prev => prev.filter(item => !itemIds.includes(item.id)));
   };
-  const handlePermanentDeleteFromBin = (itemIds: string[]) => handleDeleteRequest('Permanently Delete', `Are you sure you want to permanently delete ${itemIds.length} item(s)? This action cannot be undone.`, () => {
-      setTrustBin(prev => prev.filter(i => !itemIds.includes(i.id)));
-  });
 
-  const filteredTransactions = useMemo(() => {
-    let result = transactions.filter(t => !t.isRefundFor);
-    if (!selectedAccountIds.includes('all')) {
-      result = result.filter(t => selectedAccountIds.includes(t.accountId));
-    }
-    if (searchQuery) {
-        const lowerCaseQuery = searchQuery.toLowerCase();
-        result = result.filter(t => t.description.toLowerCase().includes(lowerCaseQuery) || t.notes?.toLowerCase().includes(lowerCaseQuery) || categories.find(c => c.id === t.categoryId)?.name.toLowerCase().includes(lowerCaseQuery));
-    }
-    const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    let startDate: Date | null = null; let endDate: Date | null = null;
-    switch (dateFilter) {
-        case 'today': startDate = today; endDate = new Date(today); endDate.setDate(endDate.getDate() + 1); break;
-        case 'week': startDate = new Date(today); startDate.setDate(startDate.getDate() - now.getDay()); endDate = new Date(startDate); endDate.setDate(endDate.getDate() + 7); break;
-        case 'month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1); break;
-        case 'custom': startDate = customDateRange.start; endDate = customDateRange.end ? new Date(customDateRange.end.getTime() + 86400000) : null; break;
-    }
-    if (startDate) result = result.filter(t => new Date(t.date) >= startDate!);
-    if (endDate) result = result.filter(t => new Date(t.date) < endDate!);
-    return result;
-  }, [transactions, selectedAccountIds, searchQuery, dateFilter, customDateRange, categories]);
+  const handlePermanentDeleteFromTrustBin = (itemIds: string[]) => {
+    setTrustBin(prev => prev.filter(item => !itemIds.includes(item.id)));
+  }
 
-  const dashboardData = useMemo(() => filteredTransactions.reduce((acc, t) => {
-    if (t.type === 'income') acc.income += t.amount; else acc.expense += t.amount;
-    return acc;
-  }, { income: 0, expense: 0 }), [filteredTransactions]);
+  // Shop Handlers
+  const handleSaveShop = (shopData: Omit<Shop, 'id'>, id?: string) => {
+    if (id) setShops(prev => prev.map(s => s.id === id ? { ...s, ...shopData } : s));
+    else setShops(prev => [...prev, { ...shopData, id: self.crypto.randomUUID() }]);
+  };
   
-  const closeActiveModal = () => setModalStack(prev => prev.slice(0, -1));
-  const openModal = (name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]);
-
-  const currentToastAchievementId = toastQueue[0];
-  const currentToastAchievement = currentToastAchievementId ? ALL_ACHIEVEMENTS.find(a => a.id === currentToastAchievementId) : null;
-
-  const allDataScreenProps: AllDataScreenProps = {
-    transactions, accounts, categories, goals,
-    onEditTransaction: (t) => openModal('editTransaction', {transaction: t}),
-    onDeleteTransaction: handleDeleteTransaction,
-    onEditAccount: (a) => openModal('editAccount', {account: a}),
-    onDeleteAccount: handleDeleteAccount,
-    onEditCategory: (c) => openModal('editCategory', {category: c}),
-    onDeleteCategory: handleDeleteCategory,
-    onEditGoal: (g) => openModal('editGoal', {goal: g}),
-    onDeleteGoal: handleDeleteGoal
+  const handleSaveProduct = (shopId: string, productData: Omit<ShopProduct, 'id' | 'shopId'>, id?: string) => {
+    if (id) setShopProducts(prev => prev.map(p => p.id === id ? { ...p, ...productData, shopId } : p));
+    else setShopProducts(prev => [...prev, { ...productData, id: self.crypto.randomUUID(), shopId }]);
   };
 
-  const renderScreen = () => {
-    const currentTrip = tripDetailsId ? trips.find(t => t.id === tripDetailsId) : null;
-    switch (activeScreen) {
-      case 'dashboard': return (
-        <div>
-          <div className="p-4">
-            <AccountSelector 
-              accounts={accounts} 
-              selectedAccountIds={selectedAccountIds} 
-              onAccountChange={setSelectedAccountIds} 
-              onAddAccount={handleAddAccount} 
-              onDeleteAccount={handleDeleteAccount}
-              onEditAccount={(account) => openModal('editAccount', { account })}
-            />
-            {spamWarning && ( <SpamWarningCard warning={spamWarning} onApprove={handleSpamApproval} onDiscard={() => setSpamWarning(null)} /> )}
-          </div>
-          <FinanceDisplay
-              mainContentRef={mainContentRef}
-              status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} onPayRecurring={handlePayRecurring} goals={goals} investmentHoldings={investmentHoldings} error={error} income={dashboardData.income} expense={dashboardData.expense} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={handleDeleteTransaction} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} isInsightLoading={isInsightLoading} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')}
-          />
-        </div>);
-      case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} />;
-      case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={handleBuyInvestment} onSell={handleSellInvestment} onUpdateValue={handleUpdateHoldingValue} onRefresh={handleRefreshPortfolio} />;
-      case 'budgets': return <BudgetsScreen categories={categories.filter(c => c.type === TransactionType.EXPENSE)} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
-      case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={handleDeleteGoal} onEditGoal={(g) => openModal('editGoal', {goal: g})} />;
-      case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions} categories={categories} accounts={accounts} onDelete={handleDeleteRecurring} />;
-      case 'calculator': return <CalculatorScreen />;
-      case 'more': return <SettingsScreen setActiveScreen={setActiveScreen} setActiveModal={openModal} />;
-      case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
-      case 'tripManagement': return <TripManagementScreen trips={trips} onTripSelect={(id) => { setTripDetailsId(id); setActiveScreen('tripDetails'); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', {trip})} onDeleteTrip={handleDeleteTrip} onShowSummary={() => openModal('globalTripSummary')} />;
-      case 'tripDetails': return currentTrip ? <TripDetailsScreen trip={currentTrip} expenses={tripExpenses.filter(e => e.tripId === currentTrip.id)} onAddExpense={() => openModal('addTripExpense', { trip: currentTrip })} onBack={() => setActiveScreen('tripManagement')} /> : null;
-      case 'refunds': return <RefundsScreen transactions={transactions} categories={categories} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} />;
-      case 'allData': return <AllDataScreen {...allDataScreenProps} />;
-      default: return null;
-    }
+  const handleRecordSale = (shopId: string, saleData: Omit<ShopSale, 'id' | 'shopId'>) => {
+    const newSale = { ...saleData, id: self.crypto.randomUUID(), shopId };
+    setShopSales(prev => [...prev, newSale]);
+    // Update stock
+    setShopProducts(prev => {
+        const newProducts = [...prev];
+        newSale.items.forEach(item => {
+            const productIndex = newProducts.findIndex(p => p.id === item.productId);
+            if (productIndex !== -1) newProducts[productIndex].stockQuantity -= item.quantity;
+        });
+        return newProducts;
+    });
+    // Record income transaction
+    const incomeCategory = findOrCreateCategory('Shop Sales', TransactionType.INCOME);
+    const incomeTx: Transaction = {
+        id: self.crypto.randomUUID(),
+        accountId: selectedAccountIds[0] || accounts[0]?.id, // Needs a better account selection strategy
+        description: `Sale at ${shops.find(s => s.id === shopId)?.name || 'Shop'}`,
+        amount: newSale.totalAmount,
+        type: TransactionType.INCOME,
+        categoryId: incomeCategory,
+        date: newSale.timestamp,
+        notes: `Sale ID: ${newSale.id}`
+    };
+    setTransactions(prev => [incomeTx, ...prev]);
   };
 
-  const renderModal = (modal: ModalState) => {
-    switch (modal.name) {
-      case 'addTransaction': return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={handleAddTransaction} onSaveManual={(data) => handleSaveTransaction(data)} isDisabled={selectedAccountIds.length !== 1 && selectedAccountIds[0] !== 'all'} initialText={initialText} accounts={accounts} openModal={openModal} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} />;
-      case 'editTransaction': return <EditTransactionModal transaction={modal.props?.transaction} onSave={(data) => handleSaveTransaction(data)} onCancel={closeActiveModal} accounts={accounts} openModal={openModal} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} onLaunchRefundPicker={() => { closeActiveModal(); openModal('selectRefund'); }} onOpenCalculator={(onResult) => setMiniCalcState({onResult})} />;
-      case 'transfer': return <TransferModal onClose={closeActiveModal} accounts={accounts} onTransfer={handleAccountTransfer} />;
-      case 'appSettings': return <AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={handleRestoreBackup} />;
-      case 'categories': return <CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddNewCategory={handleAddNewCategory} onEditCategory={(cat) => openModal('editCategory', {category: cat})} onDeleteCategory={handleDeleteCategory} />;
-      case 'editCategory': return <EditCategoryModal category={modal.props?.category} categories={categories} onSave={(cat) => { handleUpdateCategory(cat); closeActiveModal(); }} onCancel={closeActiveModal} />;
-      case 'payees': return <PayeesModal onClose={closeActiveModal} payees={payees} setPayees={setPayees} categories={categories} onDelete={handleDeletePayee} />;
-      case 'contacts': return <ContactsManagerModal onClose={closeActiveModal} onDeleteGroup={handleDeleteContactGroup} onDeleteContact={handleDeleteContact} />;
-      case 'senderManager': return <SenderManagerModal onClose={closeActiveModal} onDelete={handleDeleteSender}/>;
-      case 'importExport': return <ImportExportModal onClose={closeActiveModal} transactions={transactions} accounts={accounts} categories={categories} senders={senders} />;
-      case 'feedback': return <FeedbackModal onClose={closeActiveModal} onSend={handleSendFeedback} isSending={isSendingFeedback} />;
-      case 'dashboardSettings': return <DashboardSettingsModal onClose={closeActiveModal} />;
-      case 'notificationSettings': return <NotificationSettingsModal onClose={closeActiveModal} budgets={budgets} categories={categories} />;
-      case 'addTripExpense': return <AddTripExpenseModal trip={modal.props?.trip} onClose={closeActiveModal} onSave={(items) => handleSaveTripItems(modal.props?.trip.id, items)} categories={categories} />;
-      case 'refund': return <RefundModal originalTransaction={modal.props?.transaction} onClose={closeActiveModal} openModal={openModal} onSave={(refund) => setTransactions(prev => [refund, ...prev])} findOrCreateCategory={findOrCreateCategory}/>;
-      case 'trustBin': return <TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromBin} onPermanentDelete={handlePermanentDeleteFromBin} />;
-      case 'editAccount': return <EditAccountModal account={modal.props?.account} onClose={closeActiveModal} onSave={(updatedAccount) => setAccounts(prev => prev.map(a => a.id === updatedAccount.id ? updatedAccount : a))} />;
-      case 'selectRefund': return <RefundTransactionSelector transactions={transactions} categories={categories} onCancel={closeActiveModal} onSelect={(transaction) => { closeActiveModal(); openModal('refund', { transaction }); }} />;
-      case 'editTrip': return <EditTripModal trip={modal.props?.trip} onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onDeleteContact={handleDeleteContact} onOpenEditContact={(contact) => openModal('editContact', {contact})} />;
-      case 'editContact': return <EditContactModal contact={modal.props?.contact} onSave={(contact, id) => {handleSaveContact(contact, id); closeActiveModal();}} onClose={closeActiveModal} />;
-      case 'globalTripSummary': return <GlobalTripSummaryModal allExpenses={tripExpenses} onClose={closeActiveModal} />;
-      case 'notifications': return <NotificationsModal onClose={closeActiveModal} notifications={[]} />;
-      case 'editGoal': return <EditGoalModal goal={modal.props?.goal} onSave={(goal, id) => {handleSaveGoal(goal, id); closeActiveModal()}} onClose={closeActiveModal} />;
-      case 'manageTools': return <ManageToolsModal onClose={closeActiveModal} />;
-      case 'financialHealth': return <FinancialHealthModal onClose={closeActiveModal} appState={appState} onSaveProfile={setFinancialProfile} onSaveBudget={handleSaveBudget} />;
-      default: return null;
-    }
-  };
 
-  return ( <>
-      {currentToastAchievement && ( <AchievementToast achievement={currentToastAchievement} onDismiss={() => setToastQueue(prev => prev.slice(1))} /> )}
-      {renderScreen()}
-      {confirmationState && <ConfirmationDialog isOpen={!!confirmationState} {...confirmationState} onConfirm={handleConfirm} onCancel={() => setConfirmationState(null)} />}
-      {modalStack.map((modal, index) => (
-          <React.Fragment key={`${modal.name}-${index}`}>
-            {ReactDOM.createPortal(renderModal(modal), modalRoot)}
-          </React.Fragment>
-      ))}
-       {miniCalcState && ReactDOM.createPortal(
-            <MiniCalculatorModal 
-                onClose={() => setMiniCalcState(null)} 
-                onResult={(res) => { miniCalcState.onResult(res); setMiniCalcState(null); }} 
-            />, 
-            modalRoot
-        )}
+  const handleSendCommand = async (command: string): Promise<string> => {
+      setIsInsightLoading(true);
+      try {
+          const parsed = await parseAICommand(command, categories, accounts);
+          
+          if (parsed.action === 'clarify' || parsed.itemType === 'clarification_needed') {
+              return parsed.name || "I need more information. Could you please clarify?";
+          }
+
+          switch (`${parsed.action}-${parsed.itemType}`) {
+              case 'create-expense':
+              case 'create-income': {
+                  if (!parsed.amount || !parsed.name) {
+                      return "I need a description and amount to create a transaction.";
+                  }
+                  if (accounts.length > 1 && !parsed.accountName) {
+                      return `Which account should I use? You have: ${accounts.map(a => a.name).join(', ')}.`;
+                  }
+                  const account = accounts.length === 1 ? accounts[0] : accounts.find(a => a.name.toLowerCase() === parsed.accountName?.toLowerCase());
+                  if (!account) {
+                      return `I couldn't find an account named "${parsed.accountName}".`;
+                  }
+                  const categoryName = parsed.category || (parsed.itemType === 'income' ? 'Other Income' : 'Miscellaneous');
+                  const categoryId = findOrCreateCategory(categoryName, parsed.itemType === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE);
+                  
+                  const newTransaction: Transaction = {
+                      id: self.crypto.randomUUID(),
+                      accountId: account.id,
+                      description: parsed.name,
+                      amount: parsed.amount,
+                      type: parsed.itemType === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE,
+                      categoryId: categoryId,
+                      date: new Date().toISOString(),
+                  };
+                  setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                  return `OK. I've added a new ${parsed.itemType} of ${formatCurrency(newTransaction.amount)} for "${newTransaction.description}".`;
+              }
+              
+              case 'create-account': {
+                  if (!parsed.name) return "I need a name to create an account.";
+                  handleAddAccount(parsed.name, AccountType.DEPOSITORY, settings.currency, undefined, parsed.amount);
+                  return `Done. I've created the "${parsed.name}" account for you.`;
+              }
+
+              case 'delete-transaction': // Assuming `name` is description and `targetName` is also description for transactions
+              case 'delete-expense':
+              case 'delete-income': {
+                  const targetName = parsed.targetName || parsed.name;
+                  if (!targetName) return "Which transaction should I delete?";
+                  const txToDelete = transactions.find(t => t.description.toLowerCase().includes(targetName.toLowerCase()));
+                  if (!txToDelete) return `I couldn't find a transaction matching "${targetName}".`;
+                  confirmDelete(txToDelete.id, 'transaction', txToDelete.description);
+                  return `OK. I've opened a confirmation to delete "${txToDelete.description}".`;
+              }
+              
+              default:
+                  return "I'm sorry, I can't perform that action yet.";
+          }
+      } catch (err) {
+          return err instanceof Error ? err.message : "I had trouble understanding that command.";
+      } finally {
+          setIsInsightLoading(false);
+      }
+  };
+  
+  const filteredTransactions = useMemo(() => {
+        let filtered = transactions;
+        if (selectedAccountIds.length > 0 && !selectedAccountIds.includes('all')) {
+            filtered = filtered.filter(t => selectedAccountIds.includes(t.accountId));
+        }
+        if (searchQuery) {
+            const lowerCaseQuery = searchQuery.toLowerCase();
+            filtered = filtered.filter(t => t.description.toLowerCase().includes(lowerCaseQuery));
+        }
+        const now = new Date();
+        switch (dateFilter) {
+            case 'today':
+                filtered = filtered.filter(t => new Date(t.date).toDateString() === now.toDateString());
+                break;
+            case 'week':
+                const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+                filtered = filtered.filter(t => new Date(t.date) >= startOfWeek);
+                break;
+            case 'month':
+                filtered = filtered.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
+                break;
+            case 'custom':
+                 if (customDateRange.start && customDateRange.end) {
+                    filtered = filtered.filter(t => new Date(t.date) >= customDateRange.start! && new Date(t.date) <= customDateRange.end!);
+                }
+                break;
+        }
+        return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, selectedAccountIds, searchQuery, dateFilter, customDateRange]);
+
+    const renderActiveScreen = () => {
+        switch (activeScreen) {
+            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} isInsightLoading={isInsightLoading} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} />;
+            case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency} />;
+            case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
+            case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'goal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} />;
+            case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={handleBuyInvestment} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}}/>;
+            case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions} categories={categories} accounts={accounts} onDelete={(id) => confirmDelete(id, 'recurringTransaction', recurringTransactions.find(r=>r.id===id)?.description || 'item')} />;
+            case 'calculator': return <CalculatorScreen />;
+            case 'more': return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={(m) => openModal(m)} onResetApp={confirmResetApp} />;
+            case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
+            case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
+            case 'learn': return <LearnScreen />;
+            case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setActiveScreen('tripDetails'); setTripDetailsId(id); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(t) => openModal('editTrip', {trip: t})} onDeleteTrip={(id) => confirmDelete(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
+            case 'tripDetails':
+                const trip = trips.find(t => t.id === tripDetailsId);
+                if (!trip) return <p>Trip not found</p>;
+                return <TripDetailsScreen trip={trip} expenses={tripExpenses.filter(e => e.tripId === trip.id)} onBack={() => setActiveScreen('tripManagement')} onAddExpense={() => openModal('addTripExpense', { trip: trip })} onEditExpense={(exp) => openModal('editTripExpense', { trip, expenseToEdit: exp })} onDeleteExpense={handleDeleteTripExpense} categories={categories} />;
+            case 'refunds': return <RefundsScreen transactions={transactions} categories={categories} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} />;
+            case 'dataHub': return <DataHubScreen transactions={transactions} accounts={accounts} categories={categories} goals={goals} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'item')} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')} onEditCategory={(c) => openModal('editCategory', { category: c })} onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c=>c.id===id)?.name || 'item')} onEditGoal={(g) => openModal('editGoal', { goal: g })} onDeleteGoal={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'item')} />;
+            case 'shop': return <ShopScreen shops={shops} products={shopProducts} sales={shopSales} onSaveShop={handleSaveShop} onDeleteShop={(id) => confirmDelete(id, 'shop', shops.find(s=>s.id===id)?.name || 'shop')} onSaveProduct={handleSaveProduct} onDeleteProduct={(id) => confirmDelete(id, 'shopProduct', shopProducts.find(p=>p.id===id)?.name || 'product')} onRecordSale={handleRecordSale} />;
+            default: return <p>Screen not found</p>;
+        }
+    };
+    
+  return (
+    <>
+        {showOnboardingGuide && <OnboardingGuide onFinish={() => setShowOnboardingGuide(false)} />}
+        <AccountSelector accounts={accounts} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(acc) => openModal('editAccount', { account: acc })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a => a.id === id)?.name || 'account')} baseCurrency={settings.currency} />
+        {spamWarning && <SpamWarningCard warning={spamWarning} onApprove={handleSpamApproval} onDiscard={() => setSpamWarning(null)} />}
+        {renderActiveScreen()}
+        {activeModal?.name === 'addTransaction' && ReactDOM.createPortal(<AddTransactionModal onCancel={closeActiveModal} onSaveAuto={handleAddTransaction} onSaveManual={handleSaveTransaction} isDisabled={selectedAccountIds.length !== 1} initialText={text} accounts={accounts} openModal={openModal} onOpenCalculator={handleOpenCalculator} selectedAccountId={selectedAccountIds[0]} />, modalRoot)}
+        {activeModal?.name === 'editTransaction' && ReactDOM.createPortal(<EditTransactionModal transaction={activeModal.props?.transaction} onSave={handleSaveTransaction} onCancel={closeActiveModal} accounts={accounts} openModal={openModal} selectedAccountId={selectedAccountIds[0]} onOpenCalculator={handleOpenCalculator} onLaunchRefundPicker={() => openModal('selectRefund')} />, modalRoot)}
+        {activeModal?.name === 'transfer' && ReactDOM.createPortal(<TransferModal onClose={closeActiveModal} accounts={accounts} onTransfer={handleAccountTransfer} />, modalRoot)}
+        {activeModal?.name === 'appSettings' && ReactDOM.createPortal(<AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={(restored) => { /* Implement full restore logic */ console.log("Restore requested", restored); }} />, modalRoot )}
+        {activeModal?.name === 'categories' && ReactDOM.createPortal(<CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddNewCategory={handleAddNewCategory} onEditCategory={(c) => openModal('editCategory', { category: c })} onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c=>c.id===id)?.name || 'category')} />, modalRoot)}
+        {activeModal?.name === 'editCategory' && ReactDOM.createPortal(<EditCategoryModal category={activeModal.props?.category} categories={categories} onSave={(cat) => { handleUpdateCategory(cat); closeActiveModal(); }} onCancel={closeActiveModal} />, modalRoot)}
+        {activeModal?.name === 'payees' && ReactDOM.createPortal(<PayeesModal onClose={closeActiveModal} payees={payees} setPayees={setPayees} categories={categories} onDelete={(id) => confirmDelete(id, 'payee', payees.find(p=>p.id===id)?.name || 'payee')} />, modalRoot)}
+        {activeModal?.name === 'importExport' && ReactDOM.createPortal(<ImportExportModal onClose={closeActiveModal} transactions={transactions} accounts={accounts} categories={categories} senders={senders} />, modalRoot)}
+        {activeModal?.name === 'senderManager' && ReactDOM.createPortal(<SenderManagerModal onClose={closeActiveModal} onDelete={(id) => confirmDelete(id, 'sender', senders.find(s=>s.id===id)?.name || 'sender')} />, modalRoot)}
+        {activeModal?.name === 'contacts' && ReactDOM.createPortal(<ContactsManagerModal onClose={closeActiveModal} onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} onDeleteGroup={(id) => confirmDelete(id, 'contactGroup', contactGroups.find(cg=>cg.id===id)?.name || 'group')} />, modalRoot)}
+        {activeModal?.name === 'feedback' && ReactDOM.createPortal(<FeedbackModal onClose={closeActiveModal} onSend={handleSendFeedback} isSending={isSendingFeedback} />, modalRoot)}
+        {activeModal?.name === 'dashboardSettings' && ReactDOM.createPortal(<DashboardSettingsModal onClose={closeActiveModal} />, modalRoot)}
+        {activeModal?.name === 'notificationSettings' && ReactDOM.createPortal(<NotificationSettingsModal onClose={closeActiveModal} budgets={budgets} categories={categories} />, modalRoot)}
+        {activeModal?.name === 'addTripExpense' && ReactDOM.createPortal(<AddTripExpenseModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={(items) => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(item) => handleUpdateTripExpense(activeModal.props?.trip.id, item)} categories={categories} onOpenCalculator={handleOpenCalculator} />, modalRoot)}
+        {activeModal?.name === 'editTripExpense' && ReactDOM.createPortal(<AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={(items) => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(item) => handleUpdateTripExpense(activeModal.props?.trip.id, item)} categories={categories} onOpenCalculator={handleOpenCalculator} />, modalRoot)}
+        {activeModal?.name === 'refund' && ReactDOM.createPortal(<RefundModal originalTransaction={activeModal.props?.transaction} onClose={closeActiveModal} onSave={handleSaveTransaction} findOrCreateCategory={findOrCreateCategory}/>, modalRoot)}
+        {activeModal?.name === 'selectRefund' && ReactDOM.createPortal(<RefundTransactionSelector transactions={transactions} categories={categories} onCancel={closeActiveModal} onSelect={(t) => { closeActiveModal(); openModal('editTransaction', { transaction: { ...t, id: '', isRefundFor: t.id, type: TransactionType.INCOME } }) }}/>, modalRoot)}
+        {activeModal?.name === 'trustBin' && ReactDOM.createPortal(<TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />, modalRoot)}
+        {activeModal?.name === 'editAccount' && ReactDOM.createPortal(<EditAccountModal account={activeModal.props?.account} onClose={closeActiveModal} onSave={(acc) => setAccounts(prev => prev.map(a => a.id === acc.id ? acc : a))} />, modalRoot)}
+        {confirmationState && ReactDOM.createPortal(<ConfirmationDialog isOpen={!!confirmationState} {...confirmationState} onCancel={() => setConfirmationState(null)} />, modalRoot)}
+        {activeModal?.name === 'miniCalculator' && ReactDOM.createPortal(<MiniCalculatorModal onClose={closeActiveModal} onResult={(res) => { activeModal.props?.onResult(res); closeActiveModal(); }} />, modalRoot)}
+        {activeModal?.name === 'editTrip' && ReactDOM.createPortal(<EditTripModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} onOpenEditContact={(c) => openModal('editContact', { contact: c })} onSaveContactGroup={handleSaveContactGroup} />, modalRoot)}
+        {activeModal?.name === 'editContact' && ReactDOM.createPortal(<EditContactModal contact={activeModal.props?.contact} onClose={() => { closeActiveModal(); openModal('editTrip', activeModal.props); }} onSave={(c, id) => { handleSaveContact(c, id); }} />, modalRoot)}
+        {activeModal?.name === 'globalTripSummary' && ReactDOM.createPortal(<GlobalTripSummaryModal allExpenses={tripExpenses} trips={trips} onClose={closeActiveModal} />, modalRoot)}
+        {activeModal?.name === 'notifications' && ReactDOM.createPortal(<NotificationsModal onClose={closeActiveModal} notifications={[]} />, modalRoot)}
+        {activeModal?.name === 'editGoal' && ReactDOM.createPortal(<EditGoalModal goal={activeModal.props?.goal} onSave={handleSaveGoal} onClose={closeActiveModal} />, modalRoot)}
+        {activeModal?.name === 'manageTools' && ReactDOM.createPortal(<ManageToolsModal onClose={closeActiveModal} />, modalRoot)}
+        {activeModal?.name === 'financialHealth' && ReactDOM.createPortal(<FinancialHealthModal onClose={closeActiveModal} appState={appState} onSaveProfile={setFinancialProfile} onSaveBudget={handleSaveBudget} onSendCommand={handleSendCommand} />, modalRoot)}
+        {activeModal?.name === 'footerSettings' && ReactDOM.createPortal(<FooterSettingsModal onClose={closeActiveModal} />, modalRoot)}
+        {toastQueue.length > 0 && ReactDOM.createPortal(<div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">{toastQueue.map((id, index) => (<AchievementToast key={id + index} achievement={ALL_ACHIEVEMENTS.find(a => a.id === id)!} onDismiss={() => setToastQueue(q => q.filter(toastId => toastId !== id))} />))}</div>, modalRoot)}
     </>
-  );
-};
+    );
+}
+
 export default FinanceTracker;

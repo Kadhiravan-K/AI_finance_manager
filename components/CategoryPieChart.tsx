@@ -8,6 +8,7 @@ interface CategoryPieChartProps {
   categories: Category[];
   type: TransactionType;
   isVisible: boolean;
+  currency?: string;
 }
 
 const COLORS = [
@@ -61,9 +62,9 @@ const PieSlice = ({ percentage, startPercentage, color }: { percentage: number, 
 };
 
 
-const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible }) => {
-  const formatTotal = useCurrencyFormatter();
-  const formatItem = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible, currency }) => {
+  const formatTotal = useCurrencyFormatter(undefined, currency);
+  const formatItem = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
 
   const categoryData = useMemo(() => {
     const filtered = transactions.filter(t => t.type === type);

@@ -59,7 +59,7 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
                 className="button-secondary text-sm px-3 py-1.5 flex items-center gap-2"
                 aria-label="Refresh market data"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l5 5M20 20l-5-5" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l5 5M20 20l-5-5" /></svg>
                 Refresh Data
             </button>
        </div>
@@ -125,45 +125,40 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
               <div>
                 <label className={labelStyle}>Quantity</label>
                 <NumberStepper 
-                  value={formData.quantity} 
+                  value={formData.quantity}
                   onChange={v => setFormData(f => ({...f, quantity: v}))}
-                  step={0.1}
                   min={0}
                   max={view === 'sell' ? selectedHolding?.quantity : undefined}
                 />
               </div>
               <div>
-                <label className={labelStyle}>Price per Unit</label>
-                <input type="number" step="any" min="0.01" value={formData.price} onChange={e => setFormData(f => ({...f, price: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3" required />
+                <label className={labelStyle}>Price per unit</label>
+                <input type="number" step="0.01" value={formData.price} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(f => ({...f, price: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3 no-spinner" required />
               </div>
             </div>
              <div>
-                <label className={labelStyle}>{view === 'buy' ? 'Pay From' : 'Deposit To'}</label>
+                <label className={labelStyle}>{view === 'buy' ? 'From Account' : 'To Account'}</label>
                 <CustomSelect value={formData.linkedAccountId} onChange={v => setFormData(f => ({...f, linkedAccountId: v}))} options={depositoryAccounts.map(a => ({value: a.id, label: a.name}))} />
             </div>
           </>
         )}
-        
+
         {view === 'update' && (
-             <div>
-                <label className={labelStyle}>New Total Current Value</label>
-                <input type="number" step="any" min="0" value={formData.currentValue} onChange={e => setFormData(f => ({...f, currentValue: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3" required autoFocus/>
+            <div>
+                <label className={labelStyle}>New Current Value</label>
+                <input type="number" step="0.01" value={formData.currentValue} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(f => ({...f, currentValue: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3 no-spinner" required autoFocus />
             </div>
         )}
-
+        
         <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={resetForm} className="button-secondary px-4 py-2">Cancel</button>
             <button type="submit" className="button-primary px-4 py-2">Confirm</button>
         </div>
       </form>
-    );
+    )
   }
 
-  return (
-    <div className="h-full flex flex-col">
-       {view === 'list' ? renderList() : renderForm()}
-    </div>
-  );
+  return view === 'list' ? renderList() : renderForm();
 };
 
 export default InvestmentsScreen;

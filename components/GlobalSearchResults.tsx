@@ -18,7 +18,7 @@ const ALL_NAVIGABLE_ITEMS: { name: string; screen: ActiveScreen; modal?: ActiveM
   { name: 'Achievements', screen: 'achievements', icon: '🏅' },
   { name: 'Trip Management', screen: 'tripManagement', icon: '✈️' },
   { name: 'Refunds', screen: 'refunds', icon: '↩️' },
-  { name: 'All Data', screen: 'allData', icon: '🗄️'},
+  { name: 'Data Hub', screen: 'dataHub', icon: '🗄️'},
   { name: 'Customize Dashboard', screen: 'more', modal: 'dashboardSettings', icon: '🎨' },
   { name: 'Notification Settings', screen: 'more', modal: 'notificationSettings', icon: '🔔' },
   { name: 'Manage Categories', screen: 'more', modal: 'categories', icon: '🏷️' },

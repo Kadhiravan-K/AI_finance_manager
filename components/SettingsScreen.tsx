@@ -4,9 +4,10 @@ import { ActiveModal, ActiveScreen } from '../types';
 interface SettingsScreenProps {
   setActiveScreen: (screen: ActiveScreen) => void;
   setActiveModal: (modal: ActiveModal) => void;
+  onResetApp: () => void;
 }
 
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ setActiveModal, setActiveScreen }) => {
+const SettingsScreen: React.FC<SettingsScreenProps> = ({ setActiveModal, setActiveScreen, onResetApp }) => {
 
   const handleNav = (modal: ActiveModal) => {
     setActiveModal(modal);
@@ -22,13 +23,14 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ setActiveModal, setActi
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Customization</h3>
                 <div className="space-y-3">
                      <button onClick={() => handleNav('dashboardSettings')} className="settings-management-button"><span>Customize Dashboard</span><span>🎨</span></button>
-                     <button onClick={() => handleNav('notificationSettings')} className="settings-management-button"><span>Notification Settings</span><span>🔔</span></button>
-                     <button onClick={() => handleNav('manageTools')} className="settings-management-button"><span>Manage Tools</span><span>🛠️</span></button>
+                     <button onClick={() => handleNav('footerSettings')} className="settings-management-button"><span>Customize Footer Nav</span><span>⚓</span></button>
                 </div>
             </div>
             <div>
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Management</h3>
                 <div className="space-y-3">
+                     <button onClick={() => handleNav('notificationSettings')} className="settings-management-button"><span>Notification Settings</span><span>🔔</span></button>
+                     <button onClick={() => handleNav('manageTools')} className="settings-management-button"><span>Manage Tools</span><span>🛠️</span></button>
                      <button onClick={() => handleNav('categories')} className="settings-management-button"><span>Manage Categories</span><span>🏷️</span></button>
                      <button onClick={() => handleNav('payees')} className="settings-management-button"><span>Manage Payees</span><span>🏢</span></button>
                      <button onClick={() => handleNav('contacts')} className="settings-management-button"><span>Manage Contacts</span><span>👥</span></button>
@@ -48,6 +50,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ setActiveModal, setActi
                     <button onClick={() => handleNav('trustBin')} className="settings-management-button"><span>Trust Bin</span><span>🗑️</span></button>
                     <button onClick={() => handleNav('importExport')} className="settings-management-button"><span>Export Data</span><span>📄</span></button>
                     <button onClick={() => handleNav('feedback')} className="settings-management-button"><span>Send Feedback</span><span>📨</span></button>
+                    <button onClick={onResetApp} className="settings-management-button text-rose-400">
+                      <span>Reset App</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </button>
                 </div>
             </div>
         </div>

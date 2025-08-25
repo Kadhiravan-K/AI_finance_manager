@@ -97,6 +97,15 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     aria-label="Transaction message input"
                     autoFocus
                   />
+                  <div className="p-3 bg-subtle rounded-lg flex items-start gap-3">
+                    <div className="text-2xl pt-1">💡</div>
+                    <div>
+                        <h4 className="font-semibold text-primary">Pro Tip</h4>
+                        <p className="text-xs text-secondary">
+                          Go to your messages, long-press a transaction SMS, tap 'Share', and select this app to paste it automatically!
+                        </p>
+                    </div>
+                  </div>
                   <button
                     type="submit"
                     disabled={!autoSelectedAccountId || !text.trim()}

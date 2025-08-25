@@ -319,7 +319,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
      
      const totalAmount = parseFloat(item.amount) || 0;
      setItems(prev => prev.map(i => i.id === itemId ? {...i, splitDetails: calculateSplits(newDetails, totalAmount, i.splitMode) } : i));
-  }
+  };
 
   const handleShareChange = (itemId: string, personId: string, delta: number) => {
      const item = items.find(i => i.id === itemId);
@@ -329,7 +329,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
      const currentShares = parseFloat(person.shares || '1') || 1;
      const newShares = Math.max(0.5, currentShares + delta); // Set a minimum share
      handleSplitDetailChange(itemId, personId, 'shares', String(newShares));
-  }
+  };
    const handlePercentageChange = (itemId: string, personId: string, delta: number) => {
      const item = items.find(i => i.id === itemId);
      if(!item) return;
@@ -338,7 +338,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
      const currentPercentage = parseFloat(person.percentage || '0') || 0;
      const newPercentage = Math.max(0, currentPercentage + delta);
      handleSplitDetailChange(itemId, personId, 'percentage', String(newPercentage));
-  }
+  };
 
 
   const isPayeeSaved = useMemo(() => {
@@ -382,7 +382,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                             <div className="flex items-center gap-1">
                                 <button type="button" onClick={() => handlePercentageChange(item.id, p.id, -5)} className="control-button control-button-minus">-</button>
                                 <div className="relative w-16">
-                                    <input type="number" value={p.percentage || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1 text-primary" />
+                                    <input type="number" value={p.percentage || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1 text-primary" />
                                     <span className="absolute right-1 top-1/2 -translate-y-1/2 text-tertiary text-xs">%</span>
                                 </div>
                                 <button type="button" onClick={() => handlePercentageChange(item.id, p.id, 5)} className="control-button control-button-plus">+</button>
@@ -391,13 +391,13 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                         {item.splitMode === 'shares' && (
                              <div className="flex items-center gap-1">
                                 <button type="button" onClick={() => handleShareChange(item.id, p.id, -0.5)} className="control-button control-button-minus">-</button>
-                                <input type="number" step="0.5" value={p.shares || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" />
+                                <input type="number" step="0.5" value={p.shares || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" />
                                 <button type="button" onClick={() => handleShareChange(item.id, p.id, 0.5)} className="control-button control-button-plus">+</button>
                             </div>
                         )}
 
                         {item.splitMode === 'manual' ?
-                            <input type="number" min="0" step="0.01" value={p.amount || ''} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
+                            <input type="number" min="0" step="0.01" value={p.amount || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
                             :
                             <span className="w-24 text-right font-mono text-sm text-primary">{formatCurrency(p.amount)}</span>
                         }
@@ -458,13 +458,18 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
     
     return (
-        <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
+        <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider relative">
+             {items.length > 1 && (
+                <button type="button" onClick={() => handleRemoveItem(item.id)} className="absolute top-2 right-2 p-1 text-secondary hover:text-rose-400 bg-subtle rounded-full z-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            )}
             <div className="flex items-start gap-2">
                 <div className="flex-grow space-y-2">
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
                     <div className="grid grid-cols-2 gap-2">
                         <div className="relative">
-                            <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner pr-8`} />
+                            <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner pr-8`} />
                             <button type="button" onClick={() => onOpenCalculator(result => handleItemChange(item.id, 'amount', String(result)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
                             </button>
@@ -479,10 +484,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     </div>
                     {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Subcategory" defaultValue={item.parentId || ''} />}
                 </div>
-                <div className="flex flex-col space-y-1">
-                     <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Manage Split</button>
-                     {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="px-2 py-1 text-xs rounded-full font-semibold text-white" style={{ backgroundColor: 'var(--color-accent-rose)'}}>Remove</button>}
-                </div>
+                 <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors h-fit mt-1 ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
             </div>
             {splittingItemId === item.id && renderSplitManager(item)}
         </div>
@@ -511,7 +513,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     <div>
                     <label htmlFor="amount" className={labelBaseClasses}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
                     <div className="relative">
-                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={`${inputBaseClasses} pr-8`} autoFocus/>
+                        <input type="number" id="amount" name="amount" value={formData.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={`${inputBaseClasses} pr-8 no-spinner`} autoFocus/>
                         <button type="button" onClick={() => onOpenCalculator(result => handleChange('amount', result))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
                         </button>
@@ -543,7 +545,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
          <div className="space-y-4 animate-fadeInUp">
             <div>
                 <label className={labelBaseClasses}>Total Amount</label>
-                <input type="number" value={formData.amount} readOnly className={`${inputBaseClasses} opacity-70 cursor-not-allowed`} />
+                <input type="number" value={formData.amount} readOnly className={`${inputBaseClasses} opacity-70 cursor-not-allowed no-spinner`} />
             </div>
          </div>
        )}

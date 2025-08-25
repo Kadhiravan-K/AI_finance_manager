@@ -1,248 +1,273 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Trip, Category, TransactionType, SplitDetail, TripPayer, Contact } from '../types';
+import { Trip, Category, TransactionType, SplitDetail, TripPayer, TripExpense, Contact } from '../types';
 import ModalHeader from './ModalHeader';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
-import CustomCheckbox from './CustomCheckbox';
+import { USER_SELF_ID } from '../constants';
 
 const modalRoot = document.getElementById('modal-root')!;
 
 interface AddTripExpenseModalProps {
   trip: Trip;
+  expenseToEdit?: TripExpense;
   onClose: () => void;
-  onSave: (items: {
-    description: string;
-    amount: number;
-    categoryId: string;
-    payers: TripPayer[];
-    splitDetails: SplitDetail[];
-  }[]) => void;
+  onSave: (items: Omit<TripExpense, 'id' | 'tripId' | 'date'>[]) => void;
+  onUpdate: (expense: Omit<TripExpense, 'tripId' | 'date'>) => void;
   categories: Category[];
+  onOpenCalculator: (onResult: (result: number) => void) => void;
+
+  /** NEW: allow inline contact creation */
+  onSaveContact: (contact: Omit<Contact, 'id'>) => Contact;
 }
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 
 interface Item {
-    id: string;
-    description: string;
-    amount: string;
-    categoryId: string;
-    parentId: string | null;
-    payers: TripPayer[];
-    splitMode: SplitMode;
-    splitDetails: SplitDetail[];
+  id: string;
+  description: string;
+  amount: string;
+  categoryId: string;
+  parentId: string | null;
+  notes: string;
+  payers: TripPayer[];
+  splitMode: SplitMode;
+  splitDetails: SplitDetail[];
 }
 
-const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({ trip, onClose, onSave, categories }) => {
-    const formatCurrency = useCurrencyFormatter();
-    const initialSplitDetails = useMemo(() => trip.participants.map(p => ({
-        id: p.contactId, personName: p.name, amount: 0, isSettled: false, shares: '1', percentage: '100'
-    })), [trip.participants]);
+const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
+  trip,
+  expenseToEdit,
+  onClose,
+  onSave,
+  onUpdate,
+  categories,
+  onOpenCalculator,
+  onSaveContact
+}) => {
+  const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
+  const isEditing = !!expenseToEdit;
 
-    const [items, setItems] = useState<Item[]>([{
-        id: self.crypto.randomUUID(),
-        description: '',
-        amount: '0',
-        categoryId: '',
-        parentId: null,
-        payers: [],
-        splitMode: 'equally',
-        splitDetails: initialSplitDetails
-    }]);
+  /** keep participants in local state so we can add inline */
+  const [participants, setParticipants] = useState(trip.participants);
 
-    const [activeSubMenu, setActiveSubMenu] = useState<{ itemId: string, type: 'payers' | 'split' | null }>({ itemId: '', type: null });
+  const initialItemFromExpense = (exp: TripExpense): Item => {
+    const category = categories.find(c => c.id === exp.categoryId);
+    return {
+      id: exp.id,
+      description: exp.description,
+      amount: String(exp.amount),
+      categoryId: exp.categoryId,
+      parentId: category?.parentId || null,
+      notes: exp.notes || '',
+      payers: exp.payers,
+      splitMode: 'equally',
+      splitDetails: exp.splitDetails,
+    };
+  };
 
-    const topLevelExpenseCategories = useMemo(() => categories.filter(c => c.type === TransactionType.EXPENSE && !c.parentId), [categories]);
+  const defaultNewItem = (): Item => {
+    const youPayer: TripPayer = { contactId: USER_SELF_ID, amount: 0 };
+    const youSplit: SplitDetail = {
+      id: USER_SELF_ID, personName: 'You', amount: 0, isSettled: true,
+      shares: '1', percentage: '100',
+    };
 
-    const calculateSplits = useCallback((participants: SplitDetail[], totalAmount: number, mode: SplitMode): SplitDetail[] => {
-        let newParticipants = [...participants];
-        const numParticipants = newParticipants.length;
-        if (numParticipants === 0) return [];
-        switch (mode) {
-            case 'equally':
-                const splitAmount = totalAmount / numParticipants;
-                return newParticipants.map(p => ({ ...p, amount: splitAmount }));
-            case 'percentage':
-                let totalPercentage = newParticipants.reduce((sum, p) => sum + (parseFloat(p.percentage || '0') || 0), 0);
-                if(totalPercentage === 0 && numParticipants > 0) totalPercentage = 100;
-                return newParticipants.map(p => ({ ...p, amount: ( (parseFloat(p.percentage || '0') / totalPercentage) * totalAmount) || 0 }));
-            case 'shares':
-                let totalShares = newParticipants.reduce((sum, p) => sum + (parseFloat(p.shares || '0') || 0), 0);
-                 if(totalShares === 0 && numParticipants > 0) totalShares = numParticipants;
-                return newParticipants.map(p => ({ ...p, amount: ( (parseFloat(p.shares || '1') / totalShares) * totalAmount) || 0 }));
-            default: return newParticipants;
+    return {
+      id: self.crypto.randomUUID(),
+      description: '',
+      amount: '',
+      categoryId: '',
+      parentId: null,
+      notes: '',
+      payers: [youPayer],
+      splitMode: 'equally',
+      splitDetails: [youSplit],
+    };
+  };
+
+  const [items, setItems] = useState<Item[]>(isEditing ? [initialItemFromExpense(expenseToEdit!)] : [defaultNewItem()]);
+  const [activeSubMenu, setActiveSubMenu] = useState<{ itemId: string, type: 'payers' | 'split' | null }>({ itemId: '', type: null });
+
+  const topLevelExpenseCategories = useMemo(() => categories.filter(c => c.type === TransactionType.EXPENSE && !c.parentId), [categories]);
+
+  const calculateSplits = useCallback((participants: SplitDetail[], totalAmount: number, mode: SplitMode): SplitDetail[] => {
+    let newParticipants = [...participants];
+    const numParticipants = newParticipants.length;
+    if (numParticipants === 0 || totalAmount === 0) return newParticipants.map(p => ({ ...p, amount: 0 }));
+
+    switch (mode) {
+      case 'equally':
+        const splitAmount = totalAmount / numParticipants;
+        return newParticipants.map(p => ({ ...p, amount: splitAmount }));
+      case 'percentage':
+        let totalPercentage = newParticipants.reduce((sum, p) => sum + (parseFloat(p.percentage || '0') || 0), 0);
+        if (totalPercentage === 0 && numParticipants > 0) totalPercentage = 100;
+        return newParticipants.map(p => ({ ...p, amount: ((parseFloat(p.percentage || '0') || 0) / totalPercentage) * totalAmount }));
+      case 'shares':
+        let totalShares = newParticipants.reduce((sum, p) => sum + (parseFloat(p.shares || '0') || 0), 0);
+        if (totalShares === 0 && numParticipants > 0) totalShares = numParticipants;
+        return newParticipants.map(p => ({ ...p, amount: ((parseFloat(p.shares || '0') || 0) / totalShares) * totalAmount }));
+      case 'manual':
+      default:
+        return newParticipants;
+    }
+  }, []);
+
+  /** 🔑 FIX: inline payer creation */
+  const handlePayerChange = (itemId: string, index: number, input: string, amount: string) => {
+    let participant = participants.find(
+      p => p.contactId === input || p.name.toLowerCase() === input.toLowerCase()
+    );
+
+    // Create new if not found
+    if (!participant && input.trim() !== '') {
+      const newContact = onSaveContact({ name: input.trim(), groupId: 'group-friends' });
+      participant = { contactId: newContact.id, name: newContact.name };
+      setParticipants(prev => [...prev, participant!]);
+    }
+
+    setItems(prevItems => prevItems.map(item => {
+      if (item.id === itemId) {
+        const newPayers = [...item.payers];
+        newPayers[index] = { contactId: participant?.contactId || input, amount: parseFloat(amount) || 0 };
+        return { ...item, payers: newPayers };
+      }
+      return item;
+    }));
+  };
+
+  const handleAddPayer = (itemId: string) => {
+    setItems(prev => prev.map(item => {
+      if (item.id === itemId) {
+        return { ...item, payers: [...item.payers, { contactId: '', amount: 0 }] };
+      }
+      return item;
+    }));
+  };
+
+  const handleRemovePayer = (itemId: string, index: number) => {
+    setItems(prev => prev.map(item => item.id === itemId ? { ...item, payers: item.payers.filter((_, i) => i !== index) } : item));
+  };
+
+  const handleItemChange = (itemId: string, field: keyof Omit<Item, 'payers' | 'splitDetails'>, value: any) => {
+    setItems(prevItems => prevItems.map(item => {
+      if (item.id === itemId) {
+        let updatedItem = { ...item, [field]: value };
+        if (field === 'amount') {
+          const totalAmount = parseFloat(value) || 0;
+          updatedItem.splitDetails = calculateSplits(updatedItem.splitDetails, totalAmount, updatedItem.splitMode);
+          updatedItem.payers = [{ contactId: USER_SELF_ID, amount: totalAmount }];
         }
-    }, []);
-
-    const handleItemChange = (itemId: string, field: keyof Omit<Item, 'payers' | 'splitDetails'>, value: any) => {
-        setItems(prev => prev.map(item => {
-            if (item.id === itemId) {
-                const updatedItem = { ...item, [field]: value };
-                if (field === 'amount') {
-                    const newAmount = parseFloat(value) || 0;
-                    updatedItem.splitDetails = calculateSplits(item.splitDetails, newAmount, item.splitMode);
-                    if (updatedItem.payers.length === 1) {
-                        updatedItem.payers = [{ ...updatedItem.payers[0], amount: newAmount }];
-                    }
-                }
-                return updatedItem;
-            }
-            return item;
-        }));
-    };
-    
-    const handlePayerChange = (itemId: string, contactId: string, amount: string) => {
-        setItems(prev => prev.map(item => {
-            if (item.id === itemId) {
-                const newPayers = [...item.payers];
-                const payerIndex = newPayers.findIndex(p => p.contactId === contactId);
-                const parsedAmount = parseFloat(amount) || 0;
-                if (payerIndex > -1) {
-                    if (parsedAmount > 0) newPayers[payerIndex] = { ...newPayers[payerIndex], amount: parsedAmount };
-                    else newPayers.splice(payerIndex, 1);
-                } else if (parsedAmount > 0) {
-                    newPayers.push({ contactId, amount: parsedAmount });
-                }
-                return { ...item, payers: newPayers };
-            }
-            return item;
-        }));
-    };
-    
-    const handleSplitDetailChange = (itemId: string, personId: string, field: 'percentage' | 'shares' | 'amount', value: string) => {
-        setItems(prev => prev.map(item => {
-            if (item.id === itemId) {
-                let newDetails = item.splitDetails.map(p => p.id === personId ? {...p, [field]: value} : p);
-                if (item.splitMode === 'manual') newDetails = newDetails.map(p => p.id === personId ? {...p, amount: parseFloat(value) || 0} : p);
-                const newSplits = calculateSplits(newDetails, parseFloat(item.amount) || 0, item.splitMode);
-                return { ...item, splitDetails: newSplits };
-            }
-            return item;
-        }));
-    };
-    
-    const handleRemoveParticipantFromSplit = (itemId: string, personId: string) => {
-      setItems(prev => prev.map(item => {
-        if (item.id === itemId) {
-          const newDetails = item.splitDetails.filter(p => p.id !== personId);
-          return {...item, splitDetails: calculateSplits(newDetails, parseFloat(item.amount) || 0, item.splitMode)};
+        if (field === 'parentId') {
+          updatedItem.categoryId = '';
         }
-        return item;
-      }));
-    };
+        return updatedItem;
+      }
+      return item;
+    }));
+  };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const validItems = items.map(item => {
+      const amount = parseFloat(item.amount) || 0;
+      const payersTotal = item.payers.reduce((sum, p) => sum + p.amount, 0);
+      const isValid = amount > 0 && Math.abs(amount - payersTotal) < 0.01 && (item.categoryId || item.parentId);
+      if (!isValid) return null;
+      return {
+        id: item.id,
+        description: item.description,
+        amount,
+        categoryId: item.categoryId || item.parentId!,
+        payers: item.payers,
+        splitDetails: item.splitDetails,
+        notes: item.notes,
+      };
+    }).filter(Boolean) as (Omit<TripExpense, 'tripId' | 'date'>)[];
 
-    const handleAddItem = () => {
-        setItems(prev => [...prev, { id: self.crypto.randomUUID(), description: '', amount: '0', categoryId: '', parentId: null, payers: [], splitMode: 'equally', splitDetails: initialSplitDetails }]);
-    };
-    const handleRemoveItem = (itemId: string) => setItems(prev => prev.filter(item => item.id !== itemId));
-    
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const validItems = items.filter(item => {
-            const amount = parseFloat(item.amount) || 0;
-            const payersTotal = item.payers.reduce((sum, p) => sum + p.amount, 0);
-            return amount > 0 && Math.abs(amount - payersTotal) < 0.01 && item.categoryId;
-        }).map(item => ({
-            description: item.description,
-            amount: parseFloat(item.amount),
-            categoryId: item.categoryId,
-            payers: item.payers,
-            splitDetails: item.splitDetails
-        }));
+    if (validItems.length > 0) {
+      if (isEditing) onUpdate(validItems[0]);
+      else onSave(validItems);
+    } else {
+      alert("Please ensure each item has a description, amount, category, and that 'Who Paid' total matches the item amount.");
+    }
+  };
 
-        if (validItems.length > 0) {
-            onSave(validItems);
-        } else {
-            alert("Please ensure all items have a description, amount, category, and that 'Who Paid' total matches the item amount.");
-        }
-    };
+  const renderItemCard = (item: Item) => {
+    const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId && c.type === 'expense') : [];
+    const payersTotal = item.payers.reduce((sum, p) => sum + p.amount, 0);
+    const itemAmount = parseFloat(item.amount) || 0;
+    const payerDifference = itemAmount - payersTotal;
 
-    const renderPayersManager = (item: Item) => {
-        const payersTotal = item.payers.reduce((sum, p) => sum + p.amount, 0);
-        const itemAmount = parseFloat(item.amount) || 0;
-        const remainder = itemAmount - payersTotal;
-
-        return (
-            <div className="p-3 bg-subtle rounded-lg space-y-3 border border-divider shadow-inner">
-                <h4 className="text-sm font-semibold text-secondary">Who Paid?</h4>
-                {trip.participants.map(p => (
-                     <div key={p.contactId} className="flex items-center gap-2">
-                        <label className="flex-grow text-primary text-sm">{p.name}</label>
-                        <input type="number" placeholder="0.00" onChange={(e) => handlePayerChange(item.id, p.contactId, e.target.value)} value={item.payers.find(payer => payer.contactId === p.contactId)?.amount || ''} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
-                    </div>
-                ))}
-                <div className="text-xs text-right pt-2 border-t border-divider">
-                    Remaining: <span className={`font-mono ${Math.abs(remainder) > 0.01 ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(remainder)}</span>
-                </div>
-            </div>
-        )
-    };
-
-    const renderSplitManager = (item: Item) => {
-      const itemAmount = parseFloat(item.amount) || 0;
-      const totalAssigned = item.splitDetails.reduce((sum, p) => sum + p.amount, 0);
-      const remainder = itemAmount - totalAssigned;
-
-       return (
-        <div className="p-3 bg-subtle rounded-lg space-y-3 border border-divider shadow-inner">
-            <h4 className="text-sm font-semibold text-secondary">Split Between</h4>
-            {item.splitDetails.map(p => (
-                <div key={p.id} className="flex items-center gap-2">
-                    <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span>
-                    <span className="w-24 text-right font-mono text-sm text-primary">{formatCurrency(p.amount)}</span>
-                    <button type="button" onClick={() => handleRemoveParticipantFromSplit(item.id, p.id)} className="text-rose-400 text-xl leading-none px-1 flex-shrink-0">&times;</button>
-                </div>
-            ))}
-             <div className="text-xs text-right pt-2 border-t border-divider">
-                Remaining: <span className={`font-mono ${Math.abs(remainder) > 0.01 ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(remainder)}</span>
-            </div>
-        </div>
-      )
-    };
-    
-    const modalContent = (
-      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-          <ModalHeader title={`Add Expense to ${trip.name}`} onClose={onClose} />
-          <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-4">
-            {items.map(item => (
-                <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
-                    <div className="flex items-start gap-2">
-                        <div className="flex-grow space-y-2">
-                            <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className="w-full input-base p-2 rounded-md" />
-                            <div className="grid grid-cols-2 gap-2">
-                                <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className="w-full input-base p-2 rounded-md no-spinner" />
-                                <CustomSelect value={item.parentId || ''} onChange={val => {
-                                    const subCats = categories.filter(c => c.parentId === val);
-                                    handleItemChange(item.id, 'parentId', val);
-                                    handleItemChange(item.id, 'categoryId', subCats.length > 0 ? '' : val);
-                                }} options={topLevelExpenseCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Category" />
-                            </div>
-                        </div>
-                         <div className="flex flex-col space-y-1">
-                             <button type="button" onClick={() => setActiveSubMenu(prev => ({itemId: item.id, type: prev.type === 'payers' && prev.itemId === item.id ? null : 'payers'}))} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${activeSubMenu.itemId === item.id && activeSubMenu.type === 'payers' ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Who Paid?</button>
-                             <button type="button" onClick={() => setActiveSubMenu(prev => ({itemId: item.id, type: prev.type === 'split' && prev.itemId === item.id ? null : 'split'}))} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${activeSubMenu.itemId === item.id && activeSubMenu.type === 'split' ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
-                             {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="px-2 py-1 text-xs rounded-full font-semibold text-white bg-rose-500">Remove</button>}
-                        </div>
-                    </div>
-                    {activeSubMenu.itemId === item.id && activeSubMenu.type === 'payers' && renderPayersManager(item)}
-                    {activeSubMenu.itemId === item.id && activeSubMenu.type === 'split' && renderSplitManager(item)}
-                </div>
-            ))}
-             <button type="button" onClick={handleAddItem} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
-                + Add Item
+    return (
+      <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider relative">
+        {!isEditing && items.length > 1 && (
+          <button type="button" onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} className="absolute top-2 right-2 p-1 text-secondary hover:text-rose-400 bg-subtle rounded-full z-10">&times;</button>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className="input-base w-full p-2 rounded-md col-span-2" required />
+          <div className="relative">
+            <input type="number" step="0.01" min="0.01" placeholder="Amount" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className="input-base w-full p-2 rounded-md no-spinner pr-8" required />
+            <button type="button" onClick={() => onOpenCalculator(result => handleItemChange(item.id, 'amount', String(result)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
             </button>
-             <div className="flex justify-end gap-3 pt-4 border-t border-divider">
-                <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
-                <button type="submit" className="button-primary px-4 py-2">Save Expense</button>
-            </div>
-          </form>
+          </div>
+          <CustomSelect value={item.parentId || ''} onChange={val => handleItemChange(item.id, 'parentId', val)} options={topLevelExpenseCategories.map(c => ({ value: c.id, label: `${c.icon} ${c.name}`}))} placeholder="Category" />
         </div>
+        {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({ value: c.id, label: `${c.icon} ${c.name}`}))} placeholder="Subcategory" />}
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setActiveSubMenu(prev => ({itemId: item.id, type: prev.type === 'payers' ? null : 'payers'}))} className={`button-secondary text-xs px-3 py-1 flex-1 ${activeSubMenu.itemId === item.id && activeSubMenu.type === 'payers' ? 'bg-emerald-500 text-white' : ''}`}>Who Paid?</button>
+          <button type="button" onClick={() => setActiveSubMenu(prev => ({itemId: item.id, type: prev.type === 'split' ? null : 'split'}))} className={`button-secondary text-xs px-3 py-1 flex-1 ${activeSubMenu.itemId === item.id && activeSubMenu.type === 'split' ? 'bg-emerald-500 text-white' : ''}`}>Split Between</button>
+        </div>
+
+        {/* PAYERS SUBMENU */}
+        {activeSubMenu.itemId === item.id && activeSubMenu.type === 'payers' && (
+          <div className="p-3 bg-subtle rounded-lg border border-divider animate-fadeInUp">
+            {item.payers.map((payer, index) => {
+              const existingParticipant = participants.find(p => p.contactId === payer.contactId);
+              const payerName = existingParticipant ? existingParticipant.name : payer.contactId;
+
+              return (
+                <div key={index} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={payerName}
+                    onChange={e => handlePayerChange(item.id, index, e.target.value, String(payer.amount))}
+                    className="input-base flex-1 p-2 rounded-md"
+                    placeholder="Enter name"
+                  />
+                  <input type="number" step="0.01" value={payer.amount || ''} onChange={e => handlePayerChange(item.id, index, payerName, e.target.value)} className="input-base w-24 p-2 rounded-md no-spinner" />
+                  {item.payers.length > 1 && <button type="button" onClick={() => handleRemovePayer(item.id, index)} className="text-rose-400">&times;</button>}
+                </div>
+              );
+            })}
+            <button type="button" onClick={() => handleAddPayer(item.id)} className="text-xs text-sky-400">+ Add another payer</button>
+            <p className={`text-xs text-right mt-2 ${Math.abs(payerDifference) > 0.01 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              Remaining: {formatCurrency(payerDifference)}
+            </p>
+          </div>
+        )}
       </div>
     );
-  
+  };
+
+  const modalContent = (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
+        <ModalHeader title={isEditing ? `Edit Expense` : `Add Expense to ${trip.name}`} onClose={onClose} />
+        <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-4">
+          {items.map(renderItemCard)}
+          {!isEditing && <button type="button" onClick={() => setItems(prev => [...prev, defaultNewItem()])} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400"> + Add Another Item </button>}
+          <div className="flex justify-end gap-3 pt-4 border-t border-divider">
+            <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
+            <button type="submit" className="button-primary px-4 py-2">{isEditing ? 'Save Changes' : 'Save Expense'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+
   return ReactDOM.createPortal(modalContent, modalRoot);
 };
 

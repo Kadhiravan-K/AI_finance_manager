@@ -23,31 +23,41 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
 
   const unsortedMenuItems: MenuItem[] = [
     { screen: 'achievements', label: 'Achievements', icon: '🏅' },
+    { modal: 'financialHealth', label: 'AI Hub', icon: '🧠' },
     { modal: 'appSettings', label: 'App Settings & Backup', icon: '⚙️' },
-    { screen: 'allData', label: 'All Data', icon: '🗄️'},
+    { screen: 'dataHub', label: 'Data Hub', icon: '🗄️'},
     { screen: 'budgets', label: 'Budgets', icon: '🎯'},
-    { screen: 'calculator', label: 'Calculator', icon: '🧮' },
+    { screen: 'goals', label: 'Goals', icon: '🏆' },
+    { screen: 'calculator', label: 'Calculator', icon: '🮲' },
     { modal: 'contacts', label: 'Contacts', icon: '👥' },
     { modal: 'dashboardSettings', label: 'Customize Dashboard', icon: '🎨' },
     { modal: 'importExport', label: 'Import/Export Data', icon: '📄' },
     { screen: 'investments', label: 'Investments', icon: '💹' },
     { modal: 'categories', label: 'Manage Categories', icon: '🏷️' },
+    { modal: 'manageTools', label: 'Manage Tools', icon: '🛠️' },
     { modal: 'payees', label: 'Payees', icon: '🏢' },
     { screen: 'refunds', label: 'Refunds', icon: '↩️' },
     { screen: 'reports', label: 'Reports', icon: '📈' },
     { screen: 'scheduled', label: 'Scheduled Payments', icon: '📅' },
     { modal: 'feedback', label: 'Send Feedback', icon: '📨' },
     { modal: 'senderManager', label: 'Senders', icon: '🛡️' },
+    { screen: 'shop', label: 'Shop Hub', icon: '🏪' },
     { screen: 'tripManagement', label: 'Trip Management', icon: '✈️' },
     { modal: 'trustBin', label: 'Trust Bin', icon: '🗑️' },
   ];
   
   const toolToKeyMap: Partial<Record<ActiveScreen | ActiveModal, ToggleableTool>> = {
-      calculator: 'calculator',
-      investments: 'investments',
-      payees: 'payees',
-      senderManager: 'senders',
-      tripManagement: 'tripManagement',
+    achievements: 'achievements',
+    financialHealth: 'aiCommandCenter',
+    dataHub: 'dataHub',
+    investments: 'investments',
+    payees: 'payees',
+    refunds: 'refunds',
+    scheduled: 'scheduledPayments',
+    senderManager: 'senders',
+    shop: 'shop',
+    calculator: 'calculator',
+    tripManagement: 'tripManagement',
   };
 
   const filteredMenuItems = unsortedMenuItems.filter(item => {
@@ -56,7 +66,9 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
 
       const key = toolToKeyMap[keySource];
       if (key && settings.enabledTools) {
-          return settings.enabledTools[key];
+          // If a tool exists in enabledTools, respect its setting.
+          // If it doesn't exist (e.g., was added in an update), default to true.
+          return settings.enabledTools[key] !== false;
       }
       return true;
   });
@@ -64,12 +76,12 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
   const menuItems = filteredMenuItems.sort((a, b) => a.label.localeCompare(b.label));
 
   const handleNavigate = (item: MenuItem) => {
-    if ('screen' in item && item.screen) {
-      setActiveScreen(item.screen as ActiveScreen);
-    } else if ('modal' in item && item.modal) {
-      setActiveModal(item.modal as ActiveModal);
+    if (item.screen) {
+      setActiveScreen(item.screen);
+      onClose();
+    } else {
+      setActiveModal(item.modal);
     }
-    onClose();
   };
 
   const modalContent = (

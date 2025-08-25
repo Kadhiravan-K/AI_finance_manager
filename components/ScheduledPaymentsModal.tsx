@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { RecurringTransaction, Category, Account, TransactionType, Frequency, MonthlyRepetition } from '../types';
+import { RecurringTransaction, Category, Account, TransactionType, FrequencyUnit } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-import ToggleSwitch from './ToggleSwitch';
 
 interface ScheduledPaymentsScreenProps {
   recurringTransactions: RecurringTransaction[];
@@ -14,13 +13,20 @@ interface ScheduledPaymentsScreenProps {
 }
 
 const defaultFormState: Omit<RecurringTransaction, 'id' | 'nextDueDate'> = {
-  description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: '', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0], repetitionDays: [], monthlyRepetition: 'every',
+  description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: '', startDate: new Date().toISOString().split('T')[0], interval: 1, frequencyUnit: 'months',
 };
 
 const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recurringTransactions, setRecurringTransactions, categories, accounts, onDelete }) => {
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecurringTransaction | null>(null);
   const [formState, setFormState] = useState<Omit<RecurringTransaction, 'id' | 'nextDueDate'>>({ ...defaultFormState, accountId: accounts[0]?.id || '' });
   const formatCurrency = useCurrencyFormatter();
+  
+  const handleOpenForm = () => {
+      setEditingItem(null);
+      setFormState({ ...defaultFormState, accountId: accounts[0]?.id || '' });
+      setIsFormOpen(true);
+  }
 
   const handleEdit = (item: RecurringTransaction) => {
     setEditingItem(item);
@@ -30,16 +36,17 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
         type: item.type,
         categoryId: item.categoryId,
         accountId: item.accountId,
-        frequency: item.frequency,
-        repetitionDays: item.repetitionDays || [],
-        monthlyRepetition: item.monthlyRepetition || 'every',
         startDate: new Date(item.startDate).toISOString().split('T')[0],
         notes: item.notes,
+        interval: item.interval,
+        frequencyUnit: item.frequencyUnit,
     });
+    setIsFormOpen(true);
   };
 
   const handleCancel = () => {
     setEditingItem(null);
+    setIsFormOpen(false);
     setFormState({ ...defaultFormState, accountId: accounts[0]?.id || '' });
   };
 
@@ -61,7 +68,7 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
       setRecurringTransactions(prev => prev.map(r => r.id === editingItem.id ? { ...editingItem, ...formState, startDate: startDate.toISOString() } : r));
     } else {
       const newItem: RecurringTransaction = {
-        ...formState,
+        ...(formState as Omit<RecurringTransaction, 'id' | 'nextDueDate'>),
         id: self.crypto.randomUUID(),
         startDate: startDate.toISOString(),
         nextDueDate: startDate.toISOString(),
@@ -70,39 +77,30 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
     }
     handleCancel();
   };
-  
-  const handleDayToggle = (dayIndex: number) => {
-      setFormState(prev => {
-          const currentDays = prev.repetitionDays || [];
-          const newDays = currentDays.includes(dayIndex) 
-            ? currentDays.filter(d => d !== dayIndex) 
-            : [...currentDays, dayIndex];
-          return { ...prev, repetitionDays: newDays.sort() };
-      });
-  };
 
   const categoryOptions = categories.filter(c => c.type === formState.type).map(c => ({ value: c.id, label: `${getCategoryPath(c.id)}` }));
   const accountOptions = accounts.map(a => ({ value: a.id, label: a.name }));
-  const frequencyOptions = [
-      { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }, { value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly' },
+  const frequencyUnitOptions: {value: FrequencyUnit, label: string}[] = [
+      {value: 'days', label: 'Day(s)'},
+      {value: 'weeks', label: 'Week(s)'},
+      {value: 'months', label: 'Month(s)'},
+      {value: 'years', label: 'Year(s)'},
   ];
   const typeOptions = [ {value: TransactionType.EXPENSE, label: 'Expense'}, {value: TransactionType.INCOME, label: 'Income'}, ];
-  const monthlyRepetitionOptions: {value: MonthlyRepetition, label: string}[] = [
-      {value: 'every', label: 'Every Month'}, {value: 'every_2', label: 'Every 2 Months'}, {value: 'every_3', label: 'Every 3 Months'}, {value: 'every_6', label: 'Every 6 Months'}
-  ];
-  const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
     <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-divider flex-shrink-0">
+         <h2 className="text-2xl font-bold text-primary text-center">Scheduled Payments 📅</h2>
+       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-2">
-         <h2 className="text-2xl font-bold text-primary mb-4">Scheduled Payments 📅</h2>
         {recurringTransactions.map(item => (
-          <div key={item.id} className="p-3 bg-subtle rounded-lg flex items-center justify-between">
+          <div key={item.id} className="p-3 bg-subtle rounded-lg flex items-center justify-between group">
             <div>
               <p className="font-semibold text-primary">{item.description} - <span className={item.type === 'income' ? 'text-[var(--color-accent-emerald)]' : 'text-[var(--color-accent-rose)]'}>{formatCurrency(item.amount)}</span></p>
               <p className="text-xs text-secondary">Next due: {new Date(item.nextDueDate).toLocaleDateString()}</p>
             </div>
-            <div className="space-x-2">
+            <div className="space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => handleEdit(item)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
               <button onClick={() => onDelete(item.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
             </div>
@@ -111,68 +109,61 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
         {recurringTransactions.length === 0 && <p className="text-center text-secondary py-8">No scheduled payments yet.</p>}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-shrink-0 p-6 border-t border-divider space-y-3 bg-subtle">
-        <h3 className="font-semibold text-primary">{editingItem ? 'Edit Payment' : 'Add New Scheduled Payment'}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-secondary mb-1 block">Start Date</label>
-            <CustomDatePicker value={new Date(formState.startDate)} onChange={date => setFormState(p => ({...p, startDate: date.toISOString().split('T')[0]}))} />
-          </div>
-          <div>
-            <label className="text-xs text-secondary mb-1 block">Frequency</label>
-            <CustomSelect options={frequencyOptions} value={formState.frequency} onChange={v => setFormState(p => ({...p, frequency: v as Frequency}))} />
-          </div>
-        </div>
-        
-        {(formState.frequency === 'daily' || formState.frequency === 'weekly') && (
-            <div className="animate-fadeInUp">
-                <label className="text-xs text-secondary mb-2 block">Repeat on Specific Days</label>
-                <div className="flex justify-around bg-subtle p-1 rounded-full border border-divider">
-                    {dayLabels.map((day, index) => (
-                        <button key={index} type="button" onClick={() => handleDayToggle(index)} className={`w-8 h-8 rounded-full font-bold text-sm transition-colors ${formState.repetitionDays?.includes(index) ? 'bg-emerald-500 text-white' : 'hover-bg-stronger'}`}>
-                            {day}
-                        </button>
-                    ))}
+      <div className="flex-shrink-0 p-6 border-t border-divider bg-subtle">
+        {isFormOpen ? (
+          <form onSubmit={handleSubmit} className="space-y-3 animate-fadeInUp">
+            <h3 className="font-semibold text-primary">{editingItem ? 'Edit Payment' : 'Add New Scheduled Payment'}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-secondary mb-1 block">Start Date</label>
+                <CustomDatePicker value={new Date(formState.startDate)} onChange={date => setFormState(p => ({...p, startDate: date.toISOString().split('T')[0]}))} />
+              </div>
+              <div>
+                <label className="text-xs text-secondary mb-1 block">Frequency</label>
+                <div className="flex gap-2 items-center">
+                    <span className="text-secondary text-sm">Every</span>
+                    <input type="number" value={formState.interval} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => setFormState(p => ({...p, interval: parseInt(e.target.value) || 1}))} className="input-base w-16 p-2 rounded-lg no-spinner" />
+                    <div className="flex-grow"><CustomSelect options={frequencyUnitOptions} value={formState.frequencyUnit} onChange={v => setFormState(p => ({...p, frequencyUnit: v as FrequencyUnit}))} /></div>
                 </div>
+              </div>
             </div>
-        )}
-        {formState.frequency === 'monthly' && (
-             <div className="animate-fadeInUp">
-                <label className="text-xs text-secondary mb-1 block">Monthly Repetition</label>
-                <CustomSelect options={monthlyRepetitionOptions} value={formState.monthlyRepetition || 'every'} onChange={v => setFormState(p => ({...p, monthlyRepetition: v as MonthlyRepetition}))} />
-            </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-secondary mb-1 block">Account</label>
-            <CustomSelect options={accountOptions} value={formState.accountId} onChange={v => setFormState(p => ({...p, accountId: v}))} placeholder="Select Account" />
-          </div>
-          <div>
-            <label className="text-xs text-secondary mb-1 block">Amount</label>
-            <input type="number" min="0.01" step="0.01" placeholder="Amount" value={formState.amount || ''} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full input-base p-2 rounded-full" required />
-          </div>
-        </div>
-         <div>
-            <label className="text-xs text-secondary mb-1 block">Description</label>
-            <input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full input-base p-2 rounded-full" required />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-                <label className="text-xs text-secondary mb-1 block">Type</label>
-                <CustomSelect options={typeOptions} value={formState.type} onChange={v => setFormState(p => ({...p, type: v as TransactionType, categoryId: ''}))} />
+    
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-secondary mb-1 block">Account</label>
+                <CustomSelect options={accountOptions} value={formState.accountId} onChange={v => setFormState(p => ({...p, accountId: v}))} placeholder="Select Account" />
+              </div>
+              <div>
+                <label className="text-xs text-secondary mb-1 block">Amount</label>
+                <input type="number" min="0.01" step="0.01" placeholder="Amount" value={formState.amount || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full input-base p-2 rounded-full no-spinner" required />
+              </div>
             </div>
              <div>
-                <label className="text-xs text-secondary mb-1 block">Category</label>
-                <CustomSelect options={categoryOptions} value={formState.categoryId} onChange={v => setFormState(p => ({...p, categoryId: v}))} placeholder="Select Category" />
+                <label className="text-xs text-secondary mb-1 block">Description</label>
+                <input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full input-base p-2 rounded-full" required />
             </div>
-        </div>
-
-        <div className="flex justify-end space-x-2 pt-2">
-          {editingItem && <button type="button" onClick={handleCancel} className="button-secondary px-4 py-2">Cancel</button>}
-          <button type="submit" className="button-primary px-4 py-2">{editingItem ? 'Save' : 'Add'}</button>
-        </div>
-      </form>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label className="text-xs text-secondary mb-1 block">Type</label>
+                    <CustomSelect options={typeOptions} value={formState.type} onChange={v => setFormState(p => ({...p, type: v as TransactionType, categoryId: ''}))} />
+                </div>
+                 <div>
+                    <label className="text-xs text-secondary mb-1 block">Category</label>
+                    <CustomSelect options={categoryOptions} value={formState.categoryId} onChange={v => setFormState(p => ({...p, categoryId: v}))} placeholder="Select Category" />
+                </div>
+            </div>
+    
+            <div className="flex justify-end space-x-2 pt-2">
+              <button type="button" onClick={handleCancel} className="button-secondary px-4 py-2">Cancel</button>
+              <button type="submit" className="button-primary px-4 py-2">{editingItem ? 'Save' : 'Add'}</button>
+            </div>
+          </form>
+        ) : (
+          <button onClick={handleOpenForm} className="button-primary w-full py-2 font-semibold">
+            + Add New Scheduled Payment
+          </button>
+        )}
+      </div>
     </div>
   );
 };

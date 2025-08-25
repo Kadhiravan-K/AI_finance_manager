@@ -6,7 +6,6 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (valu
     return initialValue instanceof Function ? initialValue() : initialValue;
   });
 
-  // useEffect to load and decrypt data from localStorage on mount
   useEffect(() => {
     let isMounted = true;
     
@@ -15,39 +14,31 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (valu
         const item = window.localStorage.getItem(key);
         if (item) {
           try {
-            // 1. Assume it's new, encrypted data and try to decrypt.
             const decryptedValue = await decrypt(item);
             if (isMounted) {
               setStoredValue(decryptedValue as T);
             }
           } catch (decryptionError) {
-            // 2. Decryption failed. Assume it's old, unencrypted data.
-            // This could be JSON or a primitive string. Try to parse.
-            console.warn(`Decryption failed for key "${key}". Attempting to migrate as unencrypted data.`);
+            // Decryption failed. Data may be corrupt or from an old version.
+            // Reset this specific key to its initial value to prevent app instability.
+            console.warn(
+              `Decryption and JSON parsing failed for key "${key}". The data may be corrupted or the encryption key has changed. Resetting to initial value to prevent application instability.`, 
+              decryptionError
+            );
+            
+            const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
+            if (isMounted) setStoredValue(valueToStore);
+            
+            // Overwrite the bad data with a fresh, encrypted initial value.
             try {
-              const parsedData = JSON.parse(item);
-              if (isMounted) {
-                setStoredValue(parsedData as T);
-              }
-              // If successful, encrypt and save for next time.
-              const encryptedValue = await encrypt(parsedData);
-              window.localStorage.setItem(key, encryptedValue);
-              console.log(`Successfully migrated unencrypted data for key "${key}".`);
-            } catch (parsingError) {
-              // 3. Failed both decryption and parsing. Data is likely corrupt. Reset.
-              console.error(
-                `Decryption and JSON parsing failed for key "${key}". The data may be corrupted or the encryption key has changed. Resetting to initial value to prevent application instability.`,
-                parsingError
-              );
-              const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
-              if (isMounted) setStoredValue(valueToStore);
-              
               const encryptedValue = await encrypt(valueToStore);
               window.localStorage.setItem(key, encryptedValue);
+            } catch (encryptionError) {
+              console.error(`Failed to re-encrypt initial value for key "${key}" after a reset.`, encryptionError);
             }
           }
         } else {
-          // 4. No data exists, initialize it for the first time.
+          // No data exists, initialize it for the first time.
           const valueToStore = initialValue instanceof Function ? initialValue() : initialValue;
           if (isMounted) setStoredValue(valueToStore);
           const encryptedValue = await encrypt(valueToStore);

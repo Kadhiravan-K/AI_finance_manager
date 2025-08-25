@@ -25,7 +25,7 @@ const NumberStepper: React.FC<NumberStepperProps> = ({ value, onChange, step = 1
       if (!isNaN(numValue)) {
           onChange(Math.max(min, Math.min(max, numValue)));
       } else if (e.target.value === '') {
-          onChange(0);
+          onChange(min > 0 ? min : 0);
       }
   }
 
@@ -36,6 +36,7 @@ const NumberStepper: React.FC<NumberStepperProps> = ({ value, onChange, step = 1
         type="number" 
         value={value} 
         onChange={handleInputChange} 
+        onWheel={(e) => e.currentTarget.blur()}
         step={step}
         min={min}
         max={max}

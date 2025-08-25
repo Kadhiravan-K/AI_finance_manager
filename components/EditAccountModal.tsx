@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Account, AccountType } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
+import { currencies } from '../utils/currency';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -26,6 +27,11 @@ const EditAccountModal: React.FC<EditAccountModalProps> = ({ account, onSave, on
       { value: AccountType.CREDIT, label: 'Credit Card' },
       { value: AccountType.INVESTMENT, label: 'Investment' },
   ];
+  
+  const currencyOptions = useMemo(() => currencies.map(c => ({
+    value: c.code,
+    label: `${c.code} - ${c.name}`
+  })), []);
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -49,6 +55,14 @@ const EditAccountModal: React.FC<EditAccountModalProps> = ({ account, onSave, on
               options={accountTypeOptions}
               value={formData.accountType}
               onChange={v => setFormData(p => ({ ...p, accountType: v as AccountType }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-secondary mb-1 block">Currency</label>
+            <CustomSelect
+                options={currencyOptions}
+                value={formData.currency}
+                onChange={v => setFormData(p => ({ ...p, currency: v }))}
             />
           </div>
           {formData.accountType === AccountType.CREDIT && (

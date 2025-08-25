@@ -1,37 +1,66 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Transaction, TransactionType, ModalState } from '../types';
-import { SettingsContext } from '../contexts/SettingsContext';
+import { Transaction, TransactionType, SplitDetail } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 const modalRoot = document.getElementById('modal-root')!;
 
 interface RefundModalProps {
   originalTransaction: Transaction;
   onClose: () => void;
-  openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
   onSave: (refundTransaction: Transaction) => void;
   findOrCreateCategory: (name: string, type: TransactionType) => string;
 }
 
-const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose, openModal, onSave, findOrCreateCategory }) => {
-  const { contacts } = useContext(SettingsContext);
+const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose, onSave, findOrCreateCategory }) => {
+  const formatCurrency = useCurrencyFormatter();
   const [amount, setAmount] = useState(String(originalTransaction.amount));
-  const [contactId, setContactId] = useState('');
   const [notes, setNotes] = useState('');
+  const [refundingPersonId, setRefundingPersonId] = useState<string>('');
+
+  const potentialRefundees = useMemo(() => {
+    return originalTransaction.splitDetails?.filter(s => s.personName.toLowerCase() !== 'you') || [];
+  }, [originalTransaction.splitDetails]);
+
+  const selectedRefundee = useMemo(() => {
+    return potentialRefundees.find(p => p.id === refundingPersonId);
+  }, [potentialRefundees, refundingPersonId]);
+  
+  const maxAmount = useMemo(() => {
+      if (selectedRefundee) return selectedRefundee.amount;
+      return originalTransaction.amount;
+  }, [selectedRefundee, originalTransaction.amount]);
+  
+  useEffect(() => {
+      if (potentialRefundees.length === 1) {
+          setRefundingPersonId(potentialRefundees[0].id);
+          setAmount(String(potentialRefundees[0].amount));
+      } else {
+          setAmount(String(originalTransaction.amount));
+      }
+  }, [potentialRefundees, originalTransaction.amount]);
+  
+  useEffect(() => {
+    setAmount(String(maxAmount));
+  }, [maxAmount]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const refundAmount = parseFloat(amount);
-    if (refundAmount > 0 && refundAmount <= originalTransaction.amount) {
-      const refundCategoryId = findOrCreateCategory('Refunds', TransactionType.INCOME);
-      const contactName = contacts.find(c => c.id === contactId)?.name || 'Unknown';
+    if (refundAmount > 0 && refundAmount <= maxAmount) {
+      const refundCategoryId = findOrCreateCategory('Refunds & Rebates', TransactionType.INCOME);
       
+      const description = selectedRefundee
+        ? `Refund from ${selectedRefundee.personName} for "${originalTransaction.description}"`
+        : `Refund for "${originalTransaction.description}"`;
+
       const refundTransaction: Transaction = {
         id: self.crypto.randomUUID(),
         accountId: originalTransaction.accountId,
-        description: `Refund from ${contactName} for "${originalTransaction.description}"`,
+        description,
         amount: refundAmount,
         type: TransactionType.INCOME,
         categoryId: refundCategoryId,
@@ -41,50 +70,44 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose,
       };
       
       onSave(refundTransaction);
-      onClose();
     } else {
-        alert("Refund amount must be positive and not exceed the original transaction amount.");
+        alert(`Refund amount must be positive and not exceed ${formatCurrency(maxAmount)}.`);
     }
   };
 
-  const contactOptions = contacts.map(c => ({ value: c.id, label: c.name }));
+  const refundeeOptions = potentialRefundees.map(p => ({ value: p.id, label: p.personName }));
 
   const modalContent = (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title="Process Refund" onClose={onClose} />
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <p className="text-sm text-secondary">
-            Processing refund for: <span className="font-semibold text-primary">"{originalTransaction.description}"</span>
+            Refunding for: <span className="font-semibold text-primary">"{originalTransaction.description}"</span>
           </p>
+          {potentialRefundees.length > 0 && (
+              <div>
+                <label className="text-sm text-secondary mb-1 block">Refund From</label>
+                <CustomSelect
+                    options={refundeeOptions}
+                    value={refundingPersonId}
+                    onChange={setRefundingPersonId}
+                    placeholder="Select person..."
+                />
+              </div>
+          )}
           <div>
-            <label className="text-sm text-secondary mb-1 block">Refund Amount</label>
+            <label className="text-sm text-secondary mb-1 block">Refund Amount (Max: {formatCurrency(maxAmount)})</label>
             <input
               type="number"
               step="0.01"
               min="0.01"
-              max={originalTransaction.amount}
+              max={maxAmount}
               value={amount}
               onChange={e => setAmount(e.target.value)}
               className="w-full input-base p-2 rounded-md no-spinner"
               required
             />
-          </div>
-          <div>
-             <label className="text-sm text-secondary mb-1 block">Refund From</label>
-             <div className="flex items-center gap-2">
-                <div className="flex-grow">
-                     <CustomSelect
-                        options={contactOptions}
-                        value={contactId}
-                        onChange={setContactId}
-                        placeholder="Select Contact..."
-                    />
-                </div>
-                <button type="button" onClick={() => openModal('contacts')} className="button-secondary p-2 aspect-square h-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
-             </div>
           </div>
            <div>
             <label className="text-sm text-secondary mb-1 block">Notes (Optional)</label>

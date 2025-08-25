@@ -23,8 +23,6 @@ interface FinanceDisplayProps {
   investmentHoldings: InvestmentHolding[];
   onPayRecurring: (item: RecurringTransaction) => void;
   error: string;
-  income: number;
-  expense: number;
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
   onSettleDebt: (transactionId: string, splitDetailId: string, settlementAccountId: string) => void;
@@ -59,8 +57,8 @@ const formatDateGroup = (dateString: string) => {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-const DashboardCard = ({ title, amount, color, isVisible, children, style }: {title: string, amount: number, color: string, isVisible: boolean, children: React.ReactNode, style?: React.CSSProperties}) => {
-    const formatCurrency = useCurrencyFormatter();
+const DashboardCard = ({ title, amount, color, isVisible, children, style, currency }: {title: string, amount: number, color: string, isVisible: boolean, children: React.ReactNode, style?: React.CSSProperties, currency: string}) => {
+    const formatCurrency = useCurrencyFormatter(undefined, currency);
     return (
         <div style={style} className={`p-4 rounded-xl glass-card`}>
             <div className="flex items-center justify-between text-sm text-secondary mb-1">
@@ -73,13 +71,13 @@ const DashboardCard = ({ title, amount, color, isVisible, children, style }: {ti
 };
 
 
-const Dashboard = ({ income, expense, isVisible }: { income: number, expense: number, isVisible: boolean }) => {
+const Dashboard = ({ income, expense, isVisible, currency }: { income: number, expense: number, isVisible: boolean, currency: string }) => {
     const balance = income - expense;
     return (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left mb-6 stagger-delay">
-            <DashboardCard title="Income" amount={income} color="var(--color-accent-emerald)" isVisible={isVisible} style={{ '--stagger-index': 1 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--color-accent-emerald)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg></DashboardCard>
-            <DashboardCard title="Expenses" amount={expense} color="var(--color-accent-rose)" isVisible={isVisible} style={{ '--stagger-index': 2 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--color-accent-rose)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 12H6" /></svg></DashboardCard>
-            <DashboardCard title="Balance" amount={balance} color={balance >= 0 ? 'var(--color-text-primary)' : 'var(--color-accent-rose)'} isVisible={isVisible} style={{ '--stagger-index': 3 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 6-3 6m18-12l-3 6 3 6" /></svg></DashboardCard>
+            <DashboardCard currency={currency} title="Income" amount={income} color="var(--color-accent-emerald)" isVisible={isVisible} style={{ '--stagger-index': 1 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--color-accent-emerald)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg></DashboardCard>
+            <DashboardCard currency={currency} title="Expenses" amount={expense} color="var(--color-accent-rose)" isVisible={isVisible} style={{ '--stagger-index': 2 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--color-accent-rose)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 12H6" /></svg></DashboardCard>
+            <DashboardCard currency={currency} title="Balance" amount={balance} color={balance >= 0 ? 'var(--color-text-primary)' : 'var(--color-accent-rose)'} isVisible={isVisible} style={{ '--stagger-index': 3 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 6-3 6m18-12l-3 6 3 6" /></svg></DashboardCard>
         </div>
     );
 }
@@ -102,8 +100,8 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
                 <div className="flex items-center space-x-2 flex-shrink-0">
                     <span className="font-semibold" style={{ color: isIncome ? 'var(--color-accent-emerald)' : 'var(--color-accent-rose)' }}>{isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}</span>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                        <button onClick={() => onEdit(transaction)} className="p-1 text-secondary hover:text-primary" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg></button>
-                        <button onClick={() => onDelete(transaction.id)} className="p-1 text-secondary" style={{ '--hover-color': 'var(--color-accent-rose)' } as React.CSSProperties} onMouseOver={e => e.currentTarget.style.color = 'var(--hover-color)'} onMouseOut={e => e.currentTarget.style.color = ''} aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        <button onClick={() => onEdit(transaction)} className="p-1 text-secondary hover:text-primary" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg></button>
+                        <button onClick={() => onDelete(transaction.id)} className="p-1 text-secondary" style={{ '--hover-color': 'var(--color-accent-rose)' } as React.CSSProperties} onMouseOver={e => e.currentTarget.style.color = 'var(--hover-color)'} onMouseOut={e => e.currentTarget.style.color = ''} aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                     </div>
                 </div>
             </div>
@@ -181,7 +179,32 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, income, expense, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, isInsightLoading, mainContentRef, financialProfile, onOpenFinancialHealth, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, isInsightLoading, mainContentRef, financialProfile, onOpenFinancialHealth, ...filterProps }) => {
+    
+    const currencySummaries = useMemo(() => {
+        const summaries: Record<string, { income: number, expense: number, balance: number }> = {};
+        const accountMap = new Map(accounts.map(acc => [acc.id, acc]));
+
+        for (const t of transactions) {
+            const account = accountMap.get(t.accountId);
+            if (!account) continue;
+            const currency = account.currency;
+            if (!summaries[currency]) {
+                summaries[currency] = { income: 0, expense: 0, balance: 0 };
+            }
+            if (t.type === TransactionType.INCOME) {
+                summaries[currency].income += t.amount;
+            } else {
+                summaries[currency].expense += t.amount;
+            }
+        }
+        
+        for (const currency in summaries) {
+            summaries[currency].balance = summaries[currency].income - summaries[currency].expense;
+        }
+
+        return Object.entries(summaries).sort(([currA], [currB]) => currA.localeCompare(currB));
+    }, [transactions, accounts]);
     
     const renderContent = () => {
         if (status === ProcessingStatus.ERROR && error) {
@@ -198,11 +221,23 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
     
     const healthScoreData = { transactions: allTransactions, accounts, investmentHoldings, financialProfile, budgets, goals };
 
+    const summaryWidget = useMemo(() => {
+        if (!visibleWidgets.some(w => w.id === 'summary')) return null;
+
+        return currencySummaries.map(([currency, summary]) => (
+            <div key={currency} className="mb-4">
+                <h3 className="text-lg font-semibold text-secondary mb-2 px-1">{currency} Summary</h3>
+                <Dashboard currency={currency} income={summary.income} expense={summary.expense} isVisible={isBalanceVisible} />
+            </div>
+        ));
+    }, [currencySummaries, isBalanceVisible, visibleWidgets]);
+
+
     const widgetMap: Record<DashboardWidget['id'], React.ReactNode> = {
         financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,
-        summary: <Dashboard income={income} expense={expense} isVisible={isBalanceVisible} />,
+        summary: summaryWidget,
         debts: <DebtsSummary transactions={allTransactions} accounts={accounts} onSettle={onSettleDebt} isVisible={isBalanceVisible}/>,
         upcoming: <UpcomingBills recurringTransactions={recurringTransactions} onPay={onPayRecurring} categories={categories} />,
         goals: <GoalsSummary goals={goals} isVisible={isBalanceVisible} />,
@@ -241,10 +276,18 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
             )}
             
             {transactions.length === 0 && status !== ProcessingStatus.LOADING && (
-                 <div className="text-center text-secondary p-8 rounded-xl glass-card mt-4 border border-dashed border-divider">
-                    <p className="font-semibold text-primary">No transactions match your filters.</p>
-                    <p className="text-sm">Try adjusting your search or date range!</p>
-                </div>
+                 allTransactions.length === 0 ? (
+                    <div className="text-center text-secondary p-8 rounded-xl glass-card mt-4 border border-dashed border-divider">
+                        <p className="text-2xl mb-4">👋</p>
+                        <p className="font-semibold text-primary text-lg">Welcome to Finance Hub!</p>
+                        <p className="text-sm">Click the big '+' button below to add your first transaction.</p>
+                    </div>
+                ) : (
+                    <div className="text-center text-secondary p-8 rounded-xl glass-card mt-4 border border-dashed border-divider">
+                        <p className="font-semibold text-primary">No transactions match your filters.</p>
+                        <p className="text-sm">Try adjusting your search or date range!</p>
+                    </div>
+                )
             )}
         </div>
     );

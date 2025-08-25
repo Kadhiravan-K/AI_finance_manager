@@ -12,11 +12,15 @@ interface ManageToolsModalProps {
 }
 
 const MANAGEABLE_TOOLS: { key: ToggleableTool; name: string; icon: string; }[] = [
-    { key: 'calculator', name: 'Calculator', icon: '🧮' },
+    { key: 'achievements', name: 'Achievements', icon: '🏅' },
+    { key: 'aiCommandCenter', name: 'AI Hub', icon: '🧠' },
+    { key: 'dataHub', name: 'Data Hub', icon: '🗄️' },
     { key: 'investments', name: 'Investments', icon: '💹' },
     { key: 'payees', name: 'Payees', icon: '🏢' },
+    { key: 'refunds', name: 'Refunds', icon: '↩️' },
+    { key: 'scheduledPayments', name: 'Scheduled Payments', icon: '📅' },
     { key: 'senders', name: 'Senders', icon: '🛡️' },
-    { key: 'tripManagement', name: 'Trip Management', icon: '✈️' },
+    { key: 'shop', name: 'Shop Hub', icon: '🏪' },
 ];
 
 const ManageToolsModal: React.FC<ManageToolsModalProps> = ({ onClose }) => {

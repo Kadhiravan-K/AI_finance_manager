@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState } from "../types";
+import { Transaction, TransactionType, AppState, ParsedTransactionData } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -11,7 +11,8 @@ const transactionSchema = {
     type: Type.OBJECT,
     properties: {
         isTransaction: { type: Type.BOOLEAN, description: "Is this a legitimate financial transaction message?" },
-        isSpam: { type: Type.BOOLEAN, description: "Is this message likely spam, a phishing attempt, or an advertisement? Analyze sender, language, and content." },
+        isForwarded: { type: Type.BOOLEAN, description: "Does the message appear to be a forwarded message (e.g., starts with 'Fwd:', contains multiple headers, or indicates it was sent from someone else)?" },
+        isSpam: { type: Type.BOOLEAN, description: "Is this message likely spam, a phishing attempt, or an advertisement? Analyze sender, language, and content. A forwarded message is a strong indicator of spam." },
         spamConfidence: { type: Type.NUMBER, description: "A confidence score from 0.0 to 1.0 on whether the message is spam. 1.0 is definitely spam." },
         senderName: { type: Type.STRING, description: "The sender identifier from the message, often a short code like 'HDFCBK' or 'VK-AMZPAY'. If none, leave empty." },
         description: { type: Type.STRING, description: "A brief summary of the transaction (e.g., 'Payment to Merchant', 'Received from John')." },
@@ -22,24 +23,35 @@ const transactionSchema = {
         notes: { type: Type.STRING, description: "Any extra notes, details, or context about the transaction. Optional." },
         date: { type: Type.STRING, description: `The date of the transaction in YYYY-MM-DD format. If the text mentions a relative date like 'today', 'yesterday', or a specific day (e.g., 'June 15'), calculate and use that date based on the current date being ${new Date().toISOString().split('T')[0]}. If no date is mentioned, use the current date.` }
     },
-    required: ["isTransaction", "isSpam", "spamConfidence", "description", "amount", "type", "category", "date"],
+    required: ["isTransaction", "isForwarded", "isSpam", "spamConfidence", "description", "amount", "type", "category", "date"],
 };
 
-export async function parseTransactionText(text: string): Promise<{ 
-    id: string; description: string; amount: number; type: TransactionType; categoryName: string; date: string; notes?: string; payeeIdentifier?: string; isSpam: boolean; spamConfidence: number; senderName?: string;
- } | null> {
+export async function parseTransactionText(text: string): Promise<ParsedTransactionData | null> {
+  // Security Pre-Check: Scan for sensitive keywords locally before sending to any API.
+  const securityKeywords = /\b(otp|one time password|passkey|password|verification code|security code|login code|auth code|passcode)\b/i;
+  if (securityKeywords.test(text)) {
+    // If a sensitive keyword is found, block the request and throw a specific security error.
+    throw new Error("Security risk detected: Input contains sensitive keywords and was not sent for processing.");
+  }
+  
   if (!text) throw new Error("Input text cannot be empty.");
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Analyze the following text to determine if it's a financial transaction notification. If it is, extract the details. Also, determine if the message is spam and extract the sender's short name. Use a hierarchical category in "Parent / Child" format. Extract any unique identifiers like UPI IDs or partial account numbers. Text: "${text}"`,
+      contents: `You are a financial transaction analysis expert with a specialization in spam and fraud detection. Analyze the following text.
+1. Determine if it is a legitimate financial transaction notification.
+2. Critically assess if the message is spam, a phishing attempt, an advertisement, or a forwarded message. Look for indicators like "Fwd:", unusual links, urgent language, or generic greetings. A forwarded message should be treated with high suspicion.
+3. If it is a transaction, extract all details according to the schema.
+4. Use a hierarchical category in "Parent / Child" format. Extract any unique identifiers like UPI IDs or partial account numbers.
+Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: transactionSchema },
     });
     const result = JSON.parse(response.text);
     if (result && result.isTransaction && result.amount > 0) {
       const date = result.date && !isNaN(new Date(result.date).getTime()) ? new Date(result.date).toISOString() : new Date().toISOString();
       return {
-        id: self.crypto.randomUUID(), description: result.description, amount: result.amount, type: result.type === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE, categoryName: result.category, date: date, notes: result.notes || undefined, payeeIdentifier: result.payeeIdentifier || undefined, isSpam: result.isSpam, spamConfidence: result.spamConfidence, senderName: result.senderName || undefined,
+        id: self.crypto.randomUUID(), description: result.description, amount: result.amount, type: result.type === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE, categoryName: result.category, date: date, notes: result.notes || undefined, payeeIdentifier: result.payeeIdentifier || undefined, isSpam: result.isSpam, spamConfidence: result.spamConfidence, senderName: result.senderName || undefined, isForwarded: result.isForwarded || false,
       };
     }
     return null;
@@ -133,10 +145,54 @@ export async function getAIChatResponse(appState: AppState, question: string, hi
             model: 'gemini-2.5-flash', 
             history: history.map(({ role, parts }) => ({ role, parts: [{ text: parts }] }))
         });
-        const response = await chat.sendMessage({message: prompt});
+        const response = await chat.sendMessage({ message: prompt });
         return response.text;
     } catch (error) {
         console.error("Error getting AI chat response:", error);
         return "I'm sorry, I'm having trouble connecting to my knowledge base right now. Please try again in a moment.";
+    }
+}
+
+const commandSchema = {
+    type: Type.OBJECT,
+    properties: {
+        action: { type: Type.STRING, description: "The action to perform. Must be one of: 'create', 'update', 'delete', 'clarify'." },
+        itemType: { type: Type.STRING, description: "The type of item to act upon. Must be one of: 'account', 'category', 'expense', 'income', 'clarification_needed'." },
+        name: { type: Type.STRING, description: "The name of the item (e.g., account name, category name, transaction description). For clarifications, this is the question to ask the user." },
+        amount: { type: Type.NUMBER, description: "The numeric amount, for transactions or account opening balances." },
+        category: { type: Type.STRING, description: "The category for a transaction, in 'Parent / Child' format. If not specified, infer a likely one." },
+        accountName: { type: Type.STRING, description: "For transactions, the name of the account to use." },
+        targetName: { type: Type.STRING, description: "For 'delete' or 'update' actions, the name of the item to target." }
+    },
+    required: ["action", "itemType", "name"]
+};
+
+
+export async function parseAICommand(command: string, categories: AppState['categories'], accounts: AppState['accounts']): Promise<any> {
+    const accountList = accounts.map(a => a.name).join(', ') || 'none';
+    const prompt = `
+        You are an intelligent financial assistant. Parse the user's command into a structured JSON object based on the provided schema.
+        The user wants to manage their finances. The command is: "${command}".
+        
+        Available top-level expense categories: ${categories.filter(c => c.type === 'expense' && !c.parentId).map(c => c.name).join(', ') || 'none'}
+        Available top-level income categories: ${categories.filter(c => c.type === 'income' && !c.parentId).map(c => c.name).join(', ') || 'none'}
+        Available accounts: ${accountList}.
+
+        For 'create expense' or 'create income', if an account is mentioned, use it. If not, and there are multiple accounts, you MUST ask for clarification by setting itemType to 'clarification_needed' and name to 'Which account should I use for that?'. If there is only one account, you can assume to use that one.
+        If the command is ambiguous, ask for clarification.
+        For amounts, extract only the number.
+        For 'delete' or 'update', the 'targetName' field is crucial for identifying the item.
+    `;
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: commandSchema }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error parsing AI command:", error);
+        throw new Error("I had trouble understanding that command. Please try rephrasing.");
     }
 }

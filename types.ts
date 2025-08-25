@@ -21,6 +21,7 @@ export interface Account {
     name: string;
     accountType: AccountType;
     creditLimit?: number;
+    currency: string;
 }
 
 export interface Category {
@@ -110,18 +111,23 @@ export interface Contact {
     groupId: string;
 }
 
+export interface ParsedTransactionData {
+    id: string;
+    description: string;
+    amount: number;
+    type: TransactionType;
+    categoryName: string;
+    date: string;
+    notes?: string;
+    payeeIdentifier?: string;
+    isSpam: boolean;
+    spamConfidence: number;
+    senderName?: string;
+    isForwarded: boolean;
+}
+
 export interface SpamWarning {
-    parsedData: { 
-        id: string; 
-        description: string; 
-        amount: number; 
-        type: TransactionType; 
-        categoryName: string; 
-        date: string; 
-        notes?: string;
-        payeeIdentifier?: string;
-        senderName?: string;
-    };
+    parsedData: ParsedTransactionData;
     rawText: string;
 }
 
@@ -131,9 +137,7 @@ export interface FeedbackItem {
     timestamp: string;
 }
 
-
-export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
-export type MonthlyRepetition = 'every' | 'every_2' | 'every_3' | 'every_6';
+export type FrequencyUnit = 'days' | 'weeks' | 'months' | 'years';
 
 export interface RecurringTransaction {
     id: string;
@@ -142,12 +146,11 @@ export interface RecurringTransaction {
     amount: number;
     type: TransactionType;
     categoryId: string;
-    frequency: Frequency;
-    repetitionDays?: number[]; // Bitmask for days of the week, e.g., [0, 2, 4] for Sun, Tue, Thu
-    monthlyRepetition?: MonthlyRepetition;
     startDate: string; // ISO string
     nextDueDate: string; // ISO string
     notes?: string;
+    interval: number;
+    frequencyUnit: FrequencyUnit;
 }
 
 export interface TripParticipant {
@@ -160,6 +163,7 @@ export interface Trip {
     name: string;
     participants: TripParticipant[];
     date: string; // ISO string
+    currency: string;
 }
 
 export interface TripPayer {
@@ -176,12 +180,13 @@ export interface TripExpense {
     payers: TripPayer[];
     splitDetails: SplitDetail[];
     categoryId: string;
+    notes?: string;
 }
 
 export type Theme = 'light' | 'dark';
 
 export interface DashboardWidget {
-    id: 'financialHealth' | 'netWorth' | 'portfolio' | 'summary' | 'debts' | 'upcoming' | 'goals' | 'budgets' | 'charts';
+    id: 'financialHealth' | 'summary' | 'upcoming' | 'budgets' | 'goals' | 'netWorth' | 'portfolio' | 'debts' | 'charts';
     name: string;
     visible: boolean;
 }
@@ -215,7 +220,10 @@ export interface TrustBinDeletionPeriod {
     unit: TrustBinDeletionPeriodUnit;
 }
 
-export type ToggleableTool = 'calculator' | 'investments' | 'payees' | 'senders' | 'tripManagement';
+export type ToggleableTool = 
+  'achievements' | 'aiCommandCenter' | 'dataHub' | 
+  'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 
+  'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer';
 
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
@@ -224,6 +232,7 @@ export interface Settings {
     notificationSettings: NotificationSettings;
     trustBinDeletionPeriod: TrustBinDeletionPeriod;
     enabledTools: Record<ToggleableTool, boolean>;
+    footerActions: ActiveScreen[];
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -246,7 +255,7 @@ export interface UnlockedAchievement {
     date: string; // ISO string
 }
 
-export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense';
+export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct';
 
 export interface TrustBinItem {
   id: string; // unique id for the bin entry
@@ -255,9 +264,51 @@ export interface TrustBinItem {
   deletedAt: string; // ISO string
 }
 
-export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'allData';
+// Shop Management Types
+export interface Shop {
+    id: string;
+    name: string;
+}
+export interface ShopProduct {
+    id: string;
+    shopId: string;
+    name: string;
+    qrCode?: string; // Can be UPC, EAN, or custom QR
+    stockQuantity: number;
+    purchasePrice: number;
+    sellingPrice: number;
+    categoryId: string;
+}
+export interface ShopSaleItem {
+    productId: string;
+    quantity: number;
+    pricePerUnit: number; // Selling price at the time of sale
+    discount: number; // Percentage
+}
+export interface ShopSale {
+    id: string;
+    shopId: string;
+    timestamp: string;
+    employeeId: string;
+    items: ShopSaleItem[];
+    totalAmount: number;
+    profit: number;
+}
+export interface ShopEmployee {
+    id: string;
+    name: string;
+    contactInfo?: string;
+}
+export interface ShopShift {
+    id: string;
+    name: string; // e.g., "Morning Shift"
+    startTime: string; // "HH:MM"
+    endTime: string; // "HH:MM"
+}
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | null;
+export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn';
+
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | null;
 
 export interface ModalState {
     name: ActiveModal;
@@ -269,6 +320,7 @@ export interface ConfirmationState {
   message: string;
   onConfirm: () => void;
   confirmLabel?: string;
+  lockDuration?: number;
 }
 
 export interface FinanceTrackerProps {
@@ -279,6 +331,8 @@ export interface FinanceTrackerProps {
   isOnline: boolean;
   mainContentRef?: React.RefObject<HTMLElement>;
   onSelectionChange?: (selectedIds: string[]) => void;
+  showOnboardingGuide: boolean;
+  setShowOnboardingGuide: (show: boolean) => void;
 }
 
 export interface AllDataScreenProps {
@@ -321,4 +375,28 @@ export interface AppState {
     trips?: Trip[];
     tripExpenses?: TripExpense[];
     financialProfile: FinancialProfile;
+    // Shop Data
+    shops?: Shop[];
+    shopProducts?: ShopProduct[];
+    shopSales?: ShopSale[];
+    shopEmployees?: ShopEmployee[];
+    shopShifts?: ShopShift[];
+}
+
+// Gamification Types
+export interface UserStreak {
+    currentStreak: number;
+    longestStreak: number;
+    lastLogDate: string | null; // ISO date string
+    streakFreezes: number;
+}
+
+export type ChallengeType = 'log_transaction' | 'categorize_uncategorized' | 'set_budget' | 'review_goals';
+
+export interface Challenge {
+    id: string;
+    type: ChallengeType;
+    description: string;
+    isCompleted: boolean;
+    date: string; // YYYY-MM-DD
 }

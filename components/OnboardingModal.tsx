@@ -13,6 +13,7 @@ interface AccountData {
     name: string;
     balance: string;
     accountType: AccountType;
+    currency: string;
 }
 
 const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
@@ -22,7 +23,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
   const [, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
   const { categories } = useContext(SettingsContext);
   
-  const [initialAccounts, setInitialAccounts] = useState<AccountData[]>([{ name: 'Cash', balance: '', accountType: AccountType.DEPOSITORY }]);
+  const [initialAccounts, setInitialAccounts] = useState<AccountData[]>([{ name: 'Cash', balance: '', accountType: AccountType.DEPOSITORY, currency: settings.currency }]);
   const lastInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,7 +43,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
   };
   
   const addAccountField = () => {
-    setInitialAccounts([...initialAccounts, { name: '', balance: '', accountType: AccountType.DEPOSITORY }]);
+    setInitialAccounts([...initialAccounts, { name: '', balance: '', accountType: AccountType.DEPOSITORY, currency: settings.currency }]);
   };
   
   const removeAccountField = (indexToRemove: number) => {
@@ -59,7 +60,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
               const newAccount: Account = {
                   id: self.crypto.randomUUID(),
                   name: acc.name.trim(),
-                  accountType: acc.accountType
+                  accountType: acc.accountType,
+                  currency: acc.currency,
               };
               finalAccounts.push(newAccount);
               
@@ -84,14 +86,9 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
 
   const currencyOptions = currencies.map(c => ({
     value: c.code,
-    label: `${c.name} (${c.symbol})`
+    label: `${c.code} - ${c.name}`
   }));
   
-  const accountTypeOptions = [
-    { value: AccountType.DEPOSITORY, label: 'Bank/Cash' },
-    { value: AccountType.CREDIT, label: 'Credit Card' },
-  ];
-
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -105,8 +102,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
       case 2:
         return (
           <div className="animate-fadeInUp">
-            <h2 className="text-2xl font-bold text-primary mb-4">Select Your Currency</h2>
-            <p className="text-secondary mb-6">This will be used for all your financial entries.</p>
+            <h2 className="text-2xl font-bold text-primary mb-4">Select Your Base Currency</h2>
+            <p className="text-secondary mb-6">This will be your default currency for reports and summaries.</p>
             <CustomSelect
               value={settings.currency}
               onChange={handleCurrencyChange}
@@ -122,35 +119,40 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
         return (
             <div className="animate-fadeInUp">
                 <h2 className="text-2xl font-bold text-primary mb-2">Set Up Your First Accounts</h2>
-                <p className="text-secondary mb-6">Add your primary accounts and their current balances to get an accurate start.</p>
+                <p className="text-secondary mb-6">Add your primary accounts and their current balances. You can add more later.</p>
                 <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
                     {initialAccounts.map((acc, index) => (
-                        <div key={index} className="grid grid-cols-6 gap-2 items-center">
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
                             <input 
                                 type="text" 
                                 placeholder="Account Name" 
                                 value={acc.name}
                                 onChange={e => handleAccountChange(index, 'name', e.target.value)}
-                                className="input-base w-full rounded-lg py-2 px-3 col-span-2"
+                                className="input-base w-full rounded-lg py-2 px-3 md:col-span-2"
                                 ref={index === initialAccounts.length - 1 ? lastInputRef : null}
                                 autoFocus={index === 0}
                             />
-                            <select value={acc.accountType} onChange={e => handleAccountChange(index, 'accountType', e.target.value)} className="input-base rounded-lg py-2 px-3 col-span-2">
-                                {accountTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                            </select>
+                            <div className="md:col-span-1">
+                                <CustomSelect 
+                                    value={acc.currency} 
+                                    onChange={value => handleAccountChange(index, 'currency', value)}
+                                    options={currencyOptions} 
+                                />
+                            </div>
                             <input 
                                 type="number"
                                 step="0.01"
-                                placeholder="Balance"
+                                placeholder={`Balance`}
                                 value={acc.balance}
+                                onWheel={(e) => (e.target as HTMLElement).blur()}
                                 onChange={e => handleAccountChange(index, 'balance', e.target.value)}
-                                className="input-base w-full rounded-lg py-2 px-3 no-spinner col-span-1"
+                                className="input-base w-full rounded-lg py-2 px-3 no-spinner md:col-span-1"
                             />
                             {initialAccounts.length > 1 ? (
-                                <button type="button" onClick={() => removeAccountField(index)} className="text-rose-400 hover:text-rose-300 transition-colors h-8 w-8 flex items-center justify-center rounded-full hover:bg-rose-500/20 col-span-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                <button type="button" onClick={() => removeAccountField(index)} className="text-rose-400 hover:text-rose-300 transition-colors h-8 w-8 flex items-center justify-center rounded-full hover:bg-rose-500/20 md:col-span-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
-                            ) : <div className="col-span-1"></div>}
+                            ) : <div className="md:col-span-1"></div>}
                         </div>
                     ))}
                 </div>

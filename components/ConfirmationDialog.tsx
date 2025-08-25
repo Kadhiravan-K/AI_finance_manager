@@ -14,7 +14,7 @@ interface ConfirmationDialogProps {
   lockDuration?: number; // in seconds
 }
 
-const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', cancelLabel = 'Cancel', lockDuration = 3 }) => {
+const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', cancelLabel = 'Cancel', lockDuration = 2 }) => {
   const [countdown, setCountdown] = useState(lockDuration);
 
   useEffect(() => {
