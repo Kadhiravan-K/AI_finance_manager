@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Trip, Category, TransactionType, SplitDetail, TripExpense, Contact, TripParticipant } from '../types';
+import { Trip, Category, TransactionType, SplitDetail, TripExpense, Contact, TripParticipant, ParsedTripExpense } from '../types';
 import ModalHeader from './ModalHeader';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
 import { USER_SELF_ID } from '../constants';
+import { parseTripExpenseText } from '../services/geminiService';
+import LoadingSpinner from './LoadingSpinner';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -17,9 +19,11 @@ interface AddTripExpenseModalProps {
   categories: Category[];
   onOpenCalculator: (onResult: (result: number) => void) => void;
   onSaveContact: (contact: Omit<Contact, 'id'>) => Contact;
+  findOrCreateCategory: (fullName: string, type: TransactionType) => string;
 }
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
+type AddMode = 'manual' | 'auto';
 
 interface Item {
   id: string;
@@ -30,6 +34,52 @@ interface Item {
   parentId: string | null;
   notes: string;
 }
+
+// Helper component to prevent focus loss on inputs
+const DebouncedNumericInput: React.FC<{
+  value: string | number;
+  onCommit: (value: string) => void;
+  className?: string;
+  [key: string]: any; // for other input props
+}> = ({ value, onCommit, ...props }) => {
+    const [localValue, setLocalValue] = useState(String(value));
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        // Sync with parent when prop changes, but only if the input is not focused.
+        // This prevents the parent's recalculation from overwriting what the user is typing.
+        if (document.activeElement !== inputRef.current) {
+            setLocalValue(String(value));
+        }
+    }, [value]);
+
+    const handleCommit = () => {
+        // Use a default of '0' if the input is cleared, to avoid NaN issues
+        const valueToCommit = localValue.trim() === '' ? '0' : localValue;
+        if (valueToCommit !== String(value)) {
+            onCommit(valueToCommit);
+        }
+    };
+
+    return (
+        <input
+            ref={inputRef}
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={handleCommit}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleCommit();
+                    (e.target as HTMLInputElement).blur();
+                }
+            }}
+            onWheel={(e) => (e.target as HTMLElement).blur()}
+            {...props}
+        />
+    );
+};
+
 
 const createEmptyItem = (): Item => ({
   id: self.crypto.randomUUID(),
@@ -49,21 +99,70 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
   onUpdate,
   categories,
   onOpenCalculator,
+  findOrCreateCategory,
 }) => {
   const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
   const isEditing = !!expenseToEdit;
+  const [addMode, setAddMode] = useState<AddMode>(isEditing ? 'manual' : 'auto');
 
-  // Multi-item state
+  // Multi-item state for manual mode
   const [items, setItems] = useState<Item[]>([createEmptyItem()]);
   
   // Payer and Splitter state for the whole expense
   const [payers, setPayers] = useState<SplitDetail[]>([]);
-  const [payerMode, setPayerMode] = useState<SplitMode>('equally');
+  const [payerMode, setPayerMode] = useState<SplitMode>('manual');
   const [splitters, setSplitters] = useState<SplitDetail[]>([]);
   const [splitterMode, setSplitterMode] = useState<SplitMode>('equally');
-
   const [isSplitterCollapsed, setIsSplitterCollapsed] = useState(true);
+
+  // State for AI mode
+  const [aiText, setAiText] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setAiText(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+    };
+    recognitionRef.current = recognition;
+  }, []);
+
+  const handleListen = async () => {
+    if (!recognitionRef.current) {
+        alert("Speech recognition is not supported by your browser.");
+        return;
+    }
+    try {
+        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (permissionStatus.state === 'denied') {
+            alert("Microphone access is denied. Please enable it in your browser settings.");
+            return;
+        }
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    } catch (error) {
+        console.error("Could not check microphone permission:", error);
+    }
+  };
+
   const topLevelExpenseCategories = useMemo(() => categories.filter(c => c.type === TransactionType.EXPENSE && !c.parentId), [categories]);
   const totalAmount = useMemo(() => items.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * (parseInt(item.quantity, 10) || 0)), 0), [items]);
 
@@ -114,6 +213,8 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
         setPayers([youParticipant]);
         setSplitters(allParticipants);
     }
+    // Explicitly set payer mode to manual as per user request
+    setPayerMode('manual');
   }, [isEditing, expenseToEdit, categories, trip.participants]);
 
   useEffect(() => { setPayers(prev => calculateSplits(prev, totalAmount, payerMode)); }, [totalAmount, payerMode, calculateSplits, payers.length]);
@@ -128,6 +229,40 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
   };
   const handleQuantityStep = (itemId: string, delta: number) => {
     handleItemChange(itemId, 'quantity', String(Math.max(1, (parseInt(items.find(i => i.id === itemId)?.quantity || '1', 10) || 1) + delta)));
+  };
+
+  const handleAiParse = async () => {
+      if (!aiText.trim()) return;
+      setIsParsing(true);
+      try {
+          const participantNames = (trip.participants || []).filter(Boolean).map(p => p.name);
+          const parsed: ParsedTripExpense | null = await parseTripExpenseText(aiText, participantNames);
+          if (parsed) {
+              const categoryId = findOrCreateCategory(parsed.categoryName, TransactionType.EXPENSE);
+              const category = categories.find(c => c.id === categoryId);
+              setItems([{
+                  id: self.crypto.randomUUID(),
+                  description: parsed.description,
+                  price: String(parsed.amount),
+                  quantity: '1',
+                  notes: '',
+                  categoryId: categoryId,
+                  parentId: category?.parentId || null,
+              }]);
+              if (parsed.payerName) {
+                  const payer = trip.participants.find(p => p.name.toLowerCase() === parsed.payerName!.toLowerCase());
+                  if (payer) {
+                      setPayers([{ id: payer.contactId, personName: payer.name, amount: parsed.amount, isSettled: false, shares: '1', percentage: '100' }]);
+                  }
+              }
+              setAddMode('manual'); // Switch to manual mode for review
+          } else {
+              alert("AI couldn't understand that expense. Please try rephrasing or enter it manually.");
+          }
+      } catch (error) {
+          alert(`Error parsing expense: ${error}`);
+      }
+      setIsParsing(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -206,9 +341,17 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
     const handleRemovePerson = (id: string) => onParticipantsChange(participants.filter(p => p.id !== id));
     
     const handleDetailChange = (id: string, field: 'amount' | 'percentage' | 'shares', value: string) => {
-        let newParticipants = participants.map(p => p.id === id ? { ...p, [field]: value } : p);
-        if (mode === 'manual') newParticipants = newParticipants.map(p => p.id === id ? { ...p, amount: parseFloat(value) || 0 } : p);
-        onParticipantsChange(calculateSplits(newParticipants, totalAmount, mode));
+      const newParticipants = participants.map(p => {
+          if (p.id === id) {
+              // FIX: Ensure amount is always stored as a number, even in manual mode.
+              if (field === 'amount') {
+                  return { ...p, amount: parseFloat(value) || 0 };
+              }
+              return { ...p, [field]: value };
+          }
+          return p;
+      });
+      onParticipantsChange(calculateSplits(newParticipants, totalAmount, mode));
     };
 
     const handleNumericChange = (id: string, field: 'shares', delta: number) => {
@@ -242,9 +385,9 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
                 ) : (
                     <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span>
                 )}
-                {mode === 'percentage' && <div className="relative w-24"><input type="number" value={p.percentage || ''} onChange={e => handleDetailChange(p.id, 'percentage', e.target.value)} className="w-full text-right bg-transparent no-spinner pr-4 text-primary input-base" /><span className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary text-sm">%</span></div>}
-                {mode === 'shares' && <div className="flex items-center gap-1"><button type="button" onClick={() => handleNumericChange(p.id, 'shares', -0.5)} className="control-button control-button-minus">-</button><input type="number" step="0.5" value={p.shares || ''} onChange={e => handleDetailChange(p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" /><button type="button" onClick={() => handleNumericChange(p.id, 'shares', 0.5)} className="control-button control-button-plus">+</button></div>}
-                <input type="number" value={mode === 'manual' ? p.amount || '' : p.amount.toFixed(2)} readOnly={mode !== 'manual'} onChange={e => handleDetailChange(p.id, 'amount', e.target.value)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
+                {mode === 'percentage' && <div className="relative w-24"><DebouncedNumericInput type="text" inputMode="decimal" value={p.percentage || ''} onCommit={val => handleDetailChange(p.id, 'percentage', val)} className="w-full text-right bg-transparent no-spinner pr-4 text-primary input-base" /><span className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary text-sm">%</span></div>}
+                {mode === 'shares' && <div className="flex items-center gap-1"><button type="button" onClick={() => handleNumericChange(p.id, 'shares', -0.5)} className="control-button control-button-minus">-</button><DebouncedNumericInput type="text" inputMode="decimal" value={p.shares || ''} onCommit={val => handleDetailChange(p.id, 'shares', val)} className="w-12 text-center bg-transparent no-spinner text-primary" /><button type="button" onClick={() => handleNumericChange(p.id, 'shares', 0.5)} className="control-button control-button-plus">+</button></div>}
+                <DebouncedNumericInput type="text" inputMode="decimal" value={mode === 'manual' ? p.amount || '' : (Number(p.amount) || 0).toFixed(2)} readOnly={mode !== 'manual'} onCommit={val => handleDetailChange(p.id, 'amount', val)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
                 <button type="button" onClick={() => handleRemovePerson(p.id)} className="text-rose-400 font-bold text-xl leading-none px-1 flex-shrink-0">&times;</button>
               </div>
             ))}
@@ -255,10 +398,25 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
     );
   };
   
+  const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+    <button type="button" onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+        {children}
+    </button>
+  );
+
   return ReactDOM.createPortal(
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title={isEditing ? 'Edit Expense' : `Add Expense to ${trip.name}`} onClose={onClose} />
+        
+        {!isEditing && (
+             <div className="flex border-b border-divider flex-shrink-0">
+                <TabButton active={addMode === 'auto'} onClick={() => setAddMode('auto')}>🤖 AI Parse</TabButton>
+                <TabButton active={addMode === 'manual'} onClick={() => setAddMode('manual')}>✍️ Manual</TabButton>
+             </div>
+        )}
+       
+        {addMode === 'manual' ? (
         <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
           <div className="flex-grow overflow-y-auto p-6 space-y-4">
             {items.map((item, index) => {
@@ -270,20 +428,20 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
                         {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-secondary hover:text-rose-400 z-10 flex-shrink-0 mt-1"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        <input type="number" step="0.01" min="0" placeholder="Price" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} className="input-base w-full p-2 rounded-md no-spinner" required />
+                        <DebouncedNumericInput type="text" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Price" value={item.price} onCommit={val => handleItemChange(item.id, 'price', val)} className="input-base w-full p-2 rounded-md no-spinner" required />
                         <div className="flex items-center justify-center gap-1">
                             <button type="button" onClick={() => handleQuantityStep(item.id, -1)} className="control-button control-button-minus">-</button>
-                            <input type="number" step="1" min="1" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="input-base w-12 p-2 rounded-md no-spinner text-center" required />
+                            <DebouncedNumericInput type="text" inputMode="numeric" value={item.quantity} onCommit={val => handleItemChange(item.id, 'quantity', val)} className="input-base w-12 p-2 rounded-md no-spinner text-center" required />
                             <button type="button" onClick={() => handleQuantityStep(item.id, 1)} className="control-button control-button-plus">+</button>
                         </div>
                       </div>
-                       <div className={item.parentId && itemSubCategories.length > 0 ? "grid grid-cols-2 gap-2" : ""}>
+                       <div className="grid grid-cols-2 gap-2">
                         <CustomSelect value={item.parentId || ''} onChange={val => {
                            const subCats = categories.filter(c => c.parentId === val);
                            handleItemChange(item.id, 'parentId', val);
                            handleItemChange(item.id, 'categoryId', subCats.length > 0 ? '' : val);
                         }} options={topLevelExpenseCategories.map(c => ({ value: c.id, label: c.name}))} placeholder="Category" />
-                        {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({ value: c.id, label: c.name }))} placeholder="Subcategory" />}
+                        <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({ value: c.id, label: c.name }))} placeholder="Subcategory" disabled={!item.parentId || itemSubCategories.length === 0} />
                       </div>
                       <textarea placeholder="Notes (optional)" value={item.notes} onChange={e => handleItemChange(item.id, 'notes', e.target.value)} rows={1} className="input-base w-full p-2 rounded-md resize-none" />
                   </div>
@@ -308,6 +466,32 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
              <button type="submit" className="button-primary px-4 py-2">{isEditing ? 'Save Changes' : 'Save Expense'}</button>
           </div>
         </form>
+        ) : (
+          <div className="p-6 space-y-4">
+              <div className="relative">
+                <textarea
+                    value={aiText}
+                    onChange={(e) => setAiText(e.target.value)}
+                    placeholder='e.g., "Dinner for 3000 paid by John"'
+                    className="w-full h-24 p-3 pr-12 transition-all duration-200 resize-none shadow-inner themed-textarea"
+                    disabled={isParsing}
+                    autoFocus
+                />
+                 <button type="button" onClick={handleListen} title="Voice Input" className={`absolute bottom-3 right-3 p-2 rounded-full transition-colors ${isListening ? 'bg-rose-500/50 text-rose-300 animate-pulse' : 'bg-subtle hover:bg-card-hover'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                    </svg>
+                </button>
+              </div>
+              <button
+                onClick={handleAiParse}
+                disabled={!aiText.trim() || isParsing}
+                className="button-primary w-full flex items-center justify-center font-bold py-3 px-4"
+              >
+                {isParsing ? <LoadingSpinner /> : 'Parse Expense'}
+              </button>
+          </div>
+        )}
       </div>
     </div>,
     modalRoot

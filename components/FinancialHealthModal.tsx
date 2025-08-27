@@ -60,20 +60,37 @@ const FinancialHealthModal: React.FC<FinancialHealthModalProps> = ({ onClose, ap
     };
     recognition.onend = () => setIsListening(false);
     recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech') {
+          console.error('Speech recognition error:', event.error);
+        }
         setIsListening(false);
     };
     
     recognitionRef.current = recognition;
   }, []);
 
-  const handleListen = () => {
-    if (!recognitionRef.current) return;
-    if (isListening) {
-        recognitionRef.current.stop();
-    } else {
-        recognitionRef.current.start();
-        setIsListening(true);
+  const handleListen = async () => {
+    if (!recognitionRef.current) {
+        alert("Speech recognition is not supported by your browser.");
+        return;
+    }
+
+    try {
+        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (permissionStatus.state === 'denied') {
+            alert("Microphone access is denied. Please enable it in your browser settings to use voice input.");
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    } catch (error) {
+        console.error("Could not check microphone permission:", error);
+        alert("Could not access microphone. Please ensure you are on a secure (HTTPS) connection.");
     }
   };
 

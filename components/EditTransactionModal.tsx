@@ -19,6 +19,7 @@ interface EditTransactionModalProps {
   }) => void;
   onCancel: () => void;
   accounts: Account[];
+  contacts: Contact[];
   openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
   selectedAccountId?: string;
   onLaunchRefundPicker?: () => void;
@@ -41,8 +42,8 @@ interface Item {
     splitDetails: SplitDetail[];
 }
 
-const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, openModal, selectedAccountId, onLaunchRefundPicker, onOpenCalculator, isEmbedded = false }) => {
-  const { categories, payees, setPayees, contacts, contactGroups } = useContext(SettingsContext);
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, contacts, openModal, selectedAccountId, onLaunchRefundPicker, onOpenCalculator, isEmbedded = false }) => {
+  const { categories, payees, setPayees, contactGroups } = useContext(SettingsContext);
   const isCreating = !transaction;
 
   const defaultTransaction = useMemo(() => ({
@@ -382,7 +383,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                             <div className="flex items-center gap-1">
                                 <button type="button" onClick={() => handlePercentageChange(item.id, p.id, -5)} className="control-button control-button-minus">-</button>
                                 <div className="relative w-16">
-                                    <input type="number" value={p.percentage || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1 text-primary" />
+                                    <input type="text" inputMode="decimal" value={p.percentage || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1 text-primary" />
                                     <span className="absolute right-1 top-1/2 -translate-y-1/2 text-tertiary text-xs">%</span>
                                 </div>
                                 <button type="button" onClick={() => handlePercentageChange(item.id, p.id, 5)} className="control-button control-button-plus">+</button>
@@ -391,13 +392,13 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                         {item.splitMode === 'shares' && (
                              <div className="flex items-center gap-1">
                                 <button type="button" onClick={() => handleShareChange(item.id, p.id, -0.5)} className="control-button control-button-minus">-</button>
-                                <input type="number" step="0.5" value={p.shares || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" />
+                                <input type="text" inputMode="decimal" value={p.shares || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" />
                                 <button type="button" onClick={() => handleShareChange(item.id, p.id, 0.5)} className="control-button control-button-plus">+</button>
                             </div>
                         )}
 
                         {item.splitMode === 'manual' ?
-                            <input type="number" min="0" step="0.01" value={p.amount || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
+                            <input type="text" inputMode="decimal" value={p.amount || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
                             :
                             <span className="w-24 text-right font-mono text-sm text-primary">{formatCurrency(p.amount)}</span>
                         }
@@ -469,7 +470,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
                     <div className="grid grid-cols-2 gap-2">
                         <div className="relative">
-                            <input type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner pr-8`} />
+                            <input type="text" inputMode="decimal" placeholder="Amount" value={item.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner pr-8`} />
                             <button type="button" onClick={() => onOpenCalculator(result => handleItemChange(item.id, 'amount', String(result)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
                             </button>
@@ -513,7 +514,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     <div>
                     <label htmlFor="amount" className={labelBaseClasses}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
                     <div className="relative">
-                        <input type="number" id="amount" name="amount" value={formData.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={(e) => handleChange('amount', parseFloat(e.target.value))} step="0.01" min="0.01" className={`${inputBaseClasses} pr-8 no-spinner`} autoFocus/>
+                        <input type="text" inputMode="decimal" id="amount" name="amount" value={formData.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={(e) => handleChange('amount', parseFloat(e.target.value) || 0)} className={`${inputBaseClasses} pr-8 no-spinner`} autoFocus/>
                         <button type="button" onClick={() => onOpenCalculator(result => handleChange('amount', result))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zM6 7a1 1 0 011-1h2a1 1 0 110 2H7a1 1 0 01-1-1zm0 4a1 1 0 011-1h5a1 1 0 110 2H7a1 1 0 01-1-1zm-2 4a1 1 0 000 2h8a1 1 0 100-2H4z" clipRule="evenodd" /></svg>
                         </button>
@@ -545,7 +546,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
          <div className="space-y-4 animate-fadeInUp">
             <div>
                 <label className={labelBaseClasses}>Total Amount</label>
-                <input type="number" value={formData.amount} readOnly className={`${inputBaseClasses} opacity-70 cursor-not-allowed no-spinner`} />
+                <input type="text" inputMode="decimal" value={formData.amount} readOnly className={`${inputBaseClasses} opacity-70 cursor-not-allowed no-spinner`} />
             </div>
          </div>
        )}
@@ -595,7 +596,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
             </button>
           ) : (
             formData.type === TransactionType.EXPENSE && (
-              <button type="button" onClick={() => openModal('refund', { transaction: formData })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
+              <button type="button" onClick={() => openModal('refund', { transaction: formData, contacts })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
                 Process a Refund
               </button>
             )

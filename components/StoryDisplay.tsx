@@ -40,6 +40,7 @@ interface FinanceDisplayProps {
   mainContentRef?: React.RefObject<HTMLElement>;
   financialProfile: FinancialProfile;
   onOpenFinancialHealth: () => void;
+  selectedAccountIds: string[];
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
@@ -179,32 +180,74 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, isInsightLoading, mainContentRef, financialProfile, onOpenFinancialHealth, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, isInsightLoading, mainContentRef, financialProfile, onOpenFinancialHealth, selectedAccountIds, ...filterProps }) => {
     
     const currencySummaries = useMemo(() => {
+        // 1. Determine active currencies from selected accounts to ensure cards are always shown.
+        const activeCurrencies = new Set<string>();
+        if (selectedAccountIds.includes('all')) {
+            accounts.forEach(acc => activeCurrencies.add(acc.currency));
+        } else {
+            accounts.forEach(acc => {
+                if (selectedAccountIds.includes(acc.id)) {
+                    activeCurrencies.add(acc.currency);
+                }
+            });
+        }
+    
+        // Initialize summaries for all active currencies to 0
         const summaries: Record<string, { income: number, expense: number, balance: number }> = {};
+        activeCurrencies.forEach(currency => {
+            summaries[currency] = { income: 0, expense: 0, balance: 0 };
+        });
+    
+        // 2. Filter ALL transactions by the current date range from props.
+        let dateFilteredTransactions = allTransactions;
+        const now = new Date();
+        switch (filterProps.dateFilter) {
+            case 'today':
+                dateFilteredTransactions = allTransactions.filter(t => new Date(t.date).toDateString() === now.toDateString());
+                break;
+            case 'week':
+                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+                dateFilteredTransactions = allTransactions.filter(t => new Date(t.date) >= startOfWeek);
+                break;
+            case 'month':
+                dateFilteredTransactions = allTransactions.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
+                break;
+            case 'custom':
+                 if (filterProps.customDateRange.start && filterProps.customDateRange.end) {
+                    const start = filterProps.customDateRange.start;
+                    start.setHours(0,0,0,0);
+                    const end = filterProps.customDateRange.end;
+                    end.setHours(23,59,59,999);
+                    dateFilteredTransactions = allTransactions.filter(t => new Date(t.date) >= start && new Date(t.date) <= end);
+                }
+                break;
+        }
+    
+        // 3. Calculate totals for selected accounts using the date-filtered list.
         const accountMap = new Map(accounts.map(acc => [acc.id, acc]));
-
-        for (const t of transactions) {
-            const account = accountMap.get(t.accountId);
-            if (!account) continue;
-            const currency = account.currency;
-            if (!summaries[currency]) {
-                summaries[currency] = { income: 0, expense: 0, balance: 0 };
-            }
-            if (t.type === TransactionType.INCOME) {
-                summaries[currency].income += t.amount;
-            } else {
-                summaries[currency].expense += t.amount;
+        for (const t of dateFilteredTransactions) {
+            if (selectedAccountIds.includes('all') || selectedAccountIds.includes(t.accountId)) {
+                const account = accountMap.get(t.accountId);
+                if (account && summaries[account.currency]) {
+                    if (t.type === TransactionType.INCOME) {
+                        summaries[account.currency].income += t.amount;
+                    } else {
+                        summaries[account.currency].expense += t.amount;
+                    }
+                }
             }
         }
         
+        // 4. Calculate final balances
         for (const currency in summaries) {
             summaries[currency].balance = summaries[currency].income - summaries[currency].expense;
         }
-
+    
         return Object.entries(summaries).sort(([currA], [currB]) => currA.localeCompare(currB));
-    }, [transactions, accounts]);
+    }, [allTransactions, accounts, selectedAccountIds, filterProps.dateFilter, filterProps.customDateRange]);
     
     const renderContent = () => {
         if (status === ProcessingStatus.ERROR && error) {
@@ -242,12 +285,31 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
         upcoming: <UpcomingBills recurringTransactions={recurringTransactions} onPay={onPayRecurring} categories={categories} />,
         goals: <GoalsSummary goals={goals} isVisible={isBalanceVisible} />,
         budgets: <BudgetsSummary budgets={budgets} transactions={allTransactions} categories={categories} isVisible={isBalanceVisible} />,
-        charts: (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <CategoryPieChart title="Income Sources" transactions={transactions} categories={categories} type={TransactionType.INCOME} isVisible={isBalanceVisible} />
-                <CategoryPieChart title="Expense Categories" transactions={transactions} categories={categories} type={TransactionType.EXPENSE} isVisible={isBalanceVisible} />
-            </div>
-        )
+        charts: (() => {
+            // Group transactions by currency
+            const transactionsByCurrency: Record<string, Transaction[]> = {};
+            const accountMap = new Map(accounts.map(acc => [acc.id, acc]));
+
+            transactions.forEach(t => {
+                const currency = accountMap.get(t.accountId)?.currency;
+                if (currency) {
+                    if (!transactionsByCurrency[currency]) {
+                        transactionsByCurrency[currency] = [];
+                    }
+                    transactionsByCurrency[currency].push(t);
+                }
+            });
+
+            return Object.entries(transactionsByCurrency).map(([currency, currencyTransactions]) => (
+                <div key={currency}>
+                    <h4 className="font-semibold text-secondary px-1 mt-4">{currency} Charts</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <CategoryPieChart title="Income Sources" transactions={currencyTransactions} categories={categories} type={TransactionType.INCOME} isVisible={isBalanceVisible} currency={currency} />
+                        <CategoryPieChart title="Expense Categories" transactions={currencyTransactions} categories={categories} type={TransactionType.EXPENSE} isVisible={isBalanceVisible} currency={currency} />
+                    </div>
+                </div>
+            ));
+        })(),
     };
 
     return (
@@ -255,7 +317,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
             <div className="flex justify-between items-center mb-1">
                 <h2 className="text-xl font-bold text-primary">Dashboard</h2>
                 <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 text-secondary hover:text-primary" aria-label="Toggle balance visibility">
-                    {isBalanceVisible ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a10.05 10.05 0 015.396-6.175M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2 2l20 20" /></svg>}
+                    {isBalanceVisible ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a10.05 10.05 0 015.396-6.175M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2 2l20 20" /></svg>}
                 </button>
             </div>
             {renderContent()}

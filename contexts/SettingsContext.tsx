@@ -1,4 +1,4 @@
-import React, { createContext, useState, ReactNode } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 
@@ -52,7 +52,7 @@ const DEFAULT_SETTINGS: Settings = {
     enabledTools: {
         achievements: true,
         aiCommandCenter: true,
-        dataHub: false,
+        dataHub: true,
         investments: true,
         payees: false,
         refunds: true,
@@ -91,18 +91,17 @@ export const SettingsContext = createContext<SettingsContextType>({
 });
 
 const DEFAULT_CONTACT_GROUPS: ContactGroup[] = [
-    { id: 'group-friends', name: 'Friends' },
-    { id: 'group-work', name: 'Work Colleagues' },
-    { id: 'group-business', name: 'Business' },
-    { id: 'group-relatives', name: 'Relatives' },
+    { id: 'group-school', name: 'School Friends', icon: '🎓' },
+    { id: 'group-college', name: 'College Friends', icon: '🏛️' },
+    { id: 'group-work', name: 'Work Colleagues', icon: '💼' },
+    { id: 'group-business', name: 'Business', icon: '🤝' },
+    { id: 'group-relatives', name: 'Relatives', icon: '👨‍👩‍👧‍👦' },
 ];
 
 const DEFAULT_CONTACTS: Contact[] = [
     { id: self.crypto.randomUUID(), name: 'Alex Smith', groupId: 'group-work' },
     { id: self.crypto.randomUUID(), name: 'Ben Carter', groupId: 'group-work' },
     { id: self.crypto.randomUUID(), name: 'Chloe Davis', groupId: 'group-work' },
-    { id: self.crypto.randomUUID(), name: 'David Evans', groupId: 'group-work' },
-    { id: self.crypto.randomUUID(), name: 'Eva Foster', groupId: 'group-work' },
 ];
 
 
@@ -115,8 +114,40 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [contacts, setContacts] = useLocalStorage<Contact[]>('finance-tracker-contacts', DEFAULT_CONTACTS);
   const [financialProfile, setFinancialProfile] = useLocalStorage<FinancialProfile>('finance-tracker-financial-profile', DEFAULT_FINANCIAL_PROFILE);
 
+  const migratedSettings = useMemo(() => {
+    // This memo ensures that the settings object passed to consumers is always complete,
+    // preventing crashes from accessing properties on undefined. It merges loaded settings
+    // with defaults to fill in any missing properties from older versions.
+    if (!settings) return DEFAULT_SETTINGS;
+
+    const newSettings = { ...DEFAULT_SETTINGS, ...settings };
+    
+    // Deep merge nested objects
+    newSettings.enabledTools = {
+      ...DEFAULT_SETTINGS.enabledTools,
+      ...(settings.enabledTools || {}),
+    };
+    
+    // Safeguard: ensure Shop Hub is enabled if it was missing from saved settings
+    if (newSettings.enabledTools.shop === undefined) {
+      newSettings.enabledTools.shop = true;
+    }
+
+
+    return newSettings;
+  }, [settings]);
+
+  useEffect(() => {
+    // This effect runs after render to persist the migrated settings back to storage if they differ
+    // from what was originally loaded. This avoids render-loop issues.
+    if (JSON.stringify(settings) !== JSON.stringify(migratedSettings)) {
+      setSettings(migratedSettings);
+    }
+  }, [settings, migratedSettings, setSettings]);
+
+
   return (
-    <SettingsContext.Provider value={{ settings, setSettings, payees, setPayees, categories, setCategories, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile }}>
+    <SettingsContext.Provider value={{ settings: migratedSettings, setSettings, payees, setPayees, categories, setCategories, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile }}>
       {children}
     </SettingsContext.Provider>
   );

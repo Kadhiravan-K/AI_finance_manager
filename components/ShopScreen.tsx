@@ -1,10 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Shop, ShopProduct, ShopSale, ShopSaleItem } from '../types';
+import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from 'react';
+import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
+import { SettingsContext } from '../contexts/SettingsContext';
+import { currencies } from '../utils/currency';
+import { getCurrencyFormatter } from '../utils/currency';
 
-type ShopView = 'billing' | 'products' | 'analytics';
+type ShopView = 'billing' | 'products' | 'employees' | 'shifts' | 'analytics';
 
 // Form for creating/editing a product
 const ProductForm: React.FC<{
@@ -45,8 +48,8 @@ const ProductForm: React.FC<{
                 <input type="text" value={formState.name} onChange={e => handleChange('name', e.target.value)} placeholder="Product Name" className="w-full input-base p-2 rounded-md col-span-2" required/>
                 <input type="number" value={formState.stockQuantity} onChange={e => handleChange('stockQuantity', e.target.value)} placeholder="Stock Quantity" className="w-full input-base p-2 rounded-md no-spinner" />
                 <input type="text" value={formState.qrCode} onChange={e => handleChange('qrCode', e.target.value)} placeholder="Barcode/QR (Optional)" className="w-full input-base p-2 rounded-md" />
-                <input type="number" step="0.01" value={formState.purchasePrice} onChange={e => handleChange('purchasePrice', e.target.value)} placeholder="Purchase Price (e.g. 10.50)" className="w-full input-base p-2 rounded-md no-spinner" />
-                <input type="number" step="0.01" value={formState.sellingPrice} onChange={e => handleChange('sellingPrice', e.target.value)} placeholder="Selling Price (e.g. 15.00)" className="w-full input-base p-2 rounded-md no-spinner" />
+                <input type="text" inputMode="decimal" value={formState.purchasePrice} onChange={e => handleChange('purchasePrice', e.target.value)} placeholder="Purchase Price (e.g. 10.50)" className="w-full input-base p-2 rounded-md no-spinner" />
+                <input type="text" inputMode="decimal" value={formState.sellingPrice} onChange={e => handleChange('sellingPrice', e.target.value)} placeholder="Selling Price (e.g. 15.00)" className="w-full input-base p-2 rounded-md no-spinner" />
             </div>
             <div className="flex justify-end gap-2">
                 <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
@@ -62,11 +65,17 @@ interface ShopScreenProps {
     shops: Shop[];
     products: ShopProduct[];
     sales: ShopSale[];
+    employees: ShopEmployee[];
+    shifts: ShopShift[];
     onSaveShop: (shop: Omit<Shop, 'id'>, id?: string) => void;
     onDeleteShop: (id: string) => void;
     onSaveProduct: (shopId: string, product: Omit<ShopProduct, 'id' | 'shopId'>, id?: string) => void;
     onDeleteProduct: (id: string) => void;
     onRecordSale: (shopId: string, sale: Omit<ShopSale, 'id' | 'shopId'>) => void;
+    onSaveEmployee: (shopId: string, employee: Omit<ShopEmployee, 'id' | 'shopId'>, id?: string) => void;
+    onDeleteEmployee: (id: string) => void;
+    onSaveShift: (shopId: string, shift: Omit<ShopShift, 'id' | 'shopId'>, id?: string) => void;
+    onDeleteShift: (id: string) => void;
 }
 
 export const ShopScreen: React.FC<ShopScreenProps> = (props) => {
@@ -78,6 +87,8 @@ export const ShopScreen: React.FC<ShopScreenProps> = (props) => {
             shop={selectedShop} 
             products={props.products.filter(p => p.shopId === selectedShopId)} 
             sales={props.sales.filter(s => s.shopId === selectedShopId)}
+            employees={props.employees.filter(e => e.shopId === selectedShopId)}
+            shifts={props.shifts.filter(s => s.shopId === selectedShopId)}
             onBack={() => setSelectedShopId(null)}
             {...props}
         />
@@ -86,15 +97,23 @@ export const ShopScreen: React.FC<ShopScreenProps> = (props) => {
     return <ShopDashboard {...props} onSelectShop={setSelectedShopId} />;
 };
 
-const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => void }> = ({ shops, products, sales, onSelectShop, onSaveShop, onDeleteShop }) => {
+const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => void }> = ({ shops, sales, onSelectShop, onSaveShop, onDeleteShop }) => {
     const [isFormOpen, setIsFormOpen] = useState(shops.length === 0);
     const [editingShop, setEditingShop] = useState<Shop | null>(null);
-    const formatCurrency = useCurrencyFormatter();
 
-    const aggregateStats = React.useMemo(() => {
-        const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-        const totalProfit = sales.reduce((sum, sale) => sum + sale.profit, 0);
-        return { totalRevenue, totalProfit, totalSales: sales.length };
+    const shopsByCurrency = useMemo(() => {
+        return shops.reduce((acc, shop) => {
+            (acc[shop.currency] = acc[shop.currency] || []).push(shop);
+            return acc;
+        }, {} as Record<string, Shop[]>);
+    }, [shops]);
+
+    const profitByShop = useMemo(() => {
+        const profitMap = new Map<string, number>();
+        sales.forEach(sale => {
+            profitMap.set(sale.shopId, (profitMap.get(sale.shopId) || 0) + sale.profit);
+        });
+        return profitMap;
     }, [sales]);
 
     const handleEdit = (shop: Shop) => {
@@ -112,26 +131,42 @@ const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => 
             <div className="p-4 border-b border-divider flex-shrink-0">
                 <h2 className="text-2xl font-bold text-primary text-center">Shop Hub 🏪</h2>
             </div>
-            <div className="p-4">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="p-2 bg-subtle rounded-lg"><p className="text-xs text-secondary">Total Revenue</p><p className="font-bold text-primary">{formatCurrency(aggregateStats.totalRevenue)}</p></div>
-                    <div className="p-2 bg-subtle rounded-lg"><p className="text-xs text-secondary">Total Profit</p><p className="font-bold text-primary">{formatCurrency(aggregateStats.totalProfit)}</p></div>
-                    <div className="p-2 bg-subtle rounded-lg"><p className="text-xs text-secondary">Total Sales</p><p className="font-bold text-primary">{aggregateStats.totalSales}</p></div>
-                </div>
-            </div>
-            <div className="flex-grow p-6 pt-0 overflow-y-auto space-y-2">
-                {shops.map(shop => (
-                    <div key={shop.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center hover:scale-[1.02] transition-transform">
-                        <div onClick={() => onSelectShop(shop.id)} className="flex-grow cursor-pointer">
-                            <p className="font-semibold text-primary">{shop.name}</p>
+            <div className="flex-grow p-6 pt-4 overflow-y-auto space-y-4">
+                {Object.entries(shopsByCurrency).map(([currency, currencyShops]) => {
+                    const currencyProfit = currencyShops.reduce((sum, shop) => sum + (profitByShop.get(shop.id) || 0), 0);
+                    const formatCurrency = getCurrencyFormatter(currency).format;
+
+                    return (
+                        <div key={currency}>
+                            <div className="flex justify-between items-baseline mb-2 p-2 bg-subtle rounded-t-lg">
+                                <h3 className="font-semibold text-lg text-secondary">{currency} Shops</h3>
+                                <span className={`font-bold ${currencyProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    {formatCurrency(currencyProfit)}
+                                </span>
+                            </div>
+                            <div className="space-y-2">
+                                {currencyShops.map(shop => {
+                                    const shopProfit = profitByShop.get(shop.id) || 0;
+                                    return (
+                                        <div key={shop.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center hover:scale-[1.02] transition-transform">
+                                            <div onClick={() => onSelectShop(shop.id)} className="flex-grow cursor-pointer">
+                                                <p className="font-semibold text-primary">{shop.name}</p>
+                                                <p className={`text-sm font-medium ${shopProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                    {shopProfit >= 0 ? 'Profit: ' : 'Loss: '} {formatCurrency(Math.abs(shopProfit))}
+                                                </p>
+                                            </div>
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => handleEdit(shop)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
+                                                <button onClick={() => onDeleteShop(shop.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full ml-1">Delete</button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
                         </div>
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleEdit(shop)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                            <button onClick={() => onDeleteShop(shop.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full ml-1">Delete</button>
-                        </div>
-                    </div>
-                ))}
-                 {shops.length === 0 && !isFormOpen && <p className="text-center text-secondary py-8">Create your first shop to get started.</p>}
+                    );
+                })}
+                {shops.length === 0 && !isFormOpen && <p className="text-center text-secondary py-8">Create your first shop to get started.</p>}
             </div>
             {!isFormOpen && <div className="p-4 border-t border-divider"><button onClick={() => setIsFormOpen(true)} className="button-primary w-full py-2">Create New Shop</button></div>}
             {isFormOpen && <ShopForm shop={editingShop} onSave={onSaveShop} onCancel={handleCancel} />}
@@ -140,16 +175,36 @@ const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => 
 };
 
 const ShopForm: React.FC<{shop: Shop | null, onSave: ShopScreenProps['onSaveShop'], onCancel: () => void}> = ({ shop, onSave, onCancel }) => {
-    const [name, setName] = useState(shop?.name || '');
+    const { settings } = useContext(SettingsContext);
+    const [formState, setFormState] = useState({
+        name: shop?.name || '',
+        currency: shop?.currency || settings.currency,
+    });
+
+    const handleChange = (field: keyof typeof formState, value: string) => {
+        setFormState(prev => ({...prev, [field]: value}));
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (name.trim()) onSave({ name: name.trim() }, shop?.id);
+        if (formState.name.trim()) {
+            onSave({ name: formState.name.trim(), currency: formState.currency }, shop?.id);
+        }
         onCancel();
     };
+    
+    const currencyOptions = useMemo(() => currencies.map(c => ({
+        value: c.code,
+        label: `${c.code} - ${c.name}`
+    })), []);
+
     return (
          <form onSubmit={handleSubmit} className="p-4 border-t border-divider bg-subtle space-y-3">
              <h4 className="font-semibold text-primary">{shop ? 'Edit Shop' : 'Create New Shop'}</h4>
-             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Shop Name" className="w-full input-base p-2 rounded-md" required/>
+             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input type="text" value={formState.name} onChange={e => handleChange('name', e.target.value)} placeholder="Shop Name" className="w-full input-base p-2 rounded-md sm:col-span-2" required/>
+                <CustomSelect options={currencyOptions} value={formState.currency} onChange={val => handleChange('currency', val)} />
+             </div>
              <div className="flex justify-end gap-2">
                  <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
                  <button type="submit" className="button-primary px-4 py-2">Save</button>
@@ -165,13 +220,15 @@ interface ShopDetailViewProps extends ShopScreenProps {
 
 const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
     const [view, setView] = useState<ShopView>('billing');
-    const { shop, onBack, products, sales, onSaveProduct, onDeleteProduct, onRecordSale } = props;
+    const { shop, onBack, products, sales, employees, shifts, onSaveProduct, onDeleteProduct, onRecordSale, onSaveEmployee, onDeleteEmployee, onSaveShift, onDeleteShift } = props;
 
     const renderView = () => {
         switch(view) {
             case 'products': return <ShopProductsManager shopId={shop.id} products={products} onSaveProduct={onSaveProduct} onDeleteProduct={onDeleteProduct} />;
-            case 'billing': return <ShopBilling shopId={shop.id} products={products} onRecordSale={onRecordSale} />;
-            case 'analytics': return <ShopAnalytics sales={sales} products={products} />;
+            case 'employees': return <ShopEmployeesManager shopId={shop.id} employees={employees} shifts={shifts} onSaveEmployee={onSaveEmployee} onDeleteEmployee={onDeleteEmployee} />;
+            case 'shifts': return <ShopShiftsManager shopId={shop.id} shifts={shifts} onSaveShift={onSaveShift} onDeleteShift={onDeleteShift} />;
+            case 'billing': return <ShopBilling shop={shop} products={products} onRecordSale={onRecordSale} />;
+            case 'analytics': return <ShopAnalytics sales={sales} products={products} shop={shop} />;
         }
     }
     
@@ -185,6 +242,8 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
                  <div className="flex items-center gap-1 bg-subtle p-1 rounded-full border border-divider">
                     <button onClick={() => setView('billing')} className={`px-3 py-1 text-xs rounded-full ${view === 'billing' ? 'bg-emerald-500 text-white' : ''}`}>Billing</button>
                     <button onClick={() => setView('products')} className={`px-3 py-1 text-xs rounded-full ${view === 'products' ? 'bg-emerald-500 text-white' : ''}`}>Products</button>
+                    <button onClick={() => setView('employees')} className={`px-3 py-1 text-xs rounded-full ${view === 'employees' ? 'bg-emerald-500 text-white' : ''}`}>Employees</button>
+                    <button onClick={() => setView('shifts')} className={`px-3 py-1 text-xs rounded-full ${view === 'shifts' ? 'bg-emerald-500 text-white' : ''}`}>Shifts</button>
                     <button onClick={() => setView('analytics')} className={`px-3 py-1 text-xs rounded-full ${view === 'analytics' ? 'bg-emerald-500 text-white' : ''}`}>Analytics</button>
                 </div>
             </div>
@@ -192,6 +251,8 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
         </div>
     );
 };
+
+// ... other components from original file
 
 const ShopProductsManager: React.FC<{shopId: string, products: ShopProduct[], onSaveProduct: ShopScreenProps['onSaveProduct'], onDeleteProduct: ShopScreenProps['onDeleteProduct']}> = ({ shopId, products, onSaveProduct, onDeleteProduct }) => { 
     const [isFormOpen, setIsFormOpen] = useState(products.length === 0);
@@ -231,6 +292,102 @@ const ShopProductsManager: React.FC<{shopId: string, products: ShopProduct[], on
     );
 }
 
+const ShopEmployeesManager: React.FC<{shopId: string, employees: ShopEmployee[], shifts: ShopShift[], onSaveEmployee: ShopScreenProps['onSaveEmployee'], onDeleteEmployee: ShopScreenProps['onDeleteEmployee']}> = ({ shopId, employees, shifts, onSaveEmployee, onDeleteEmployee }) => {
+    const [isFormOpen, setIsFormOpen] = useState(employees.length === 0);
+    const [editingEmployee, setEditingEmployee] = useState<ShopEmployee | null>(null);
+    
+    const handleEdit = (employee: ShopEmployee) => {
+        setEditingEmployee(employee);
+        setIsFormOpen(true);
+    }
+    
+    const handleCancel = () => {
+        setEditingEmployee(null);
+        setIsFormOpen(false);
+    }
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex-grow p-6 overflow-y-auto space-y-2">
+                 {employees.map(e => (
+                    <div key={e.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center">
+                        <div>
+                            <p className="font-semibold text-primary">{e.name}</p>
+                            <p className="text-xs text-secondary">{shifts.find(s => s.id === e.shiftId)?.name || 'No Shift'}</p>
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={() => handleEdit(e)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
+                             <button onClick={() => onDeleteEmployee(e.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full ml-1">Delete</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {!isFormOpen && <div className="p-4 border-t border-divider"><button onClick={() => setIsFormOpen(true)} className="button-primary w-full py-2">Add New Employee</button></div>}
+            {isFormOpen && <EmployeeForm employee={editingEmployee} shifts={shifts} onSave={(emp, id) => onSaveEmployee(shopId, emp, id)} onCancel={handleCancel} />}
+        </div>
+    );
+};
+
+const EmployeeForm: React.FC<{employee: ShopEmployee | null, shifts: ShopShift[], onSave: (emp: Omit<ShopEmployee, 'id' | 'shopId'>, id?: string) => void, onCancel: () => void}> = ({ employee, shifts, onSave, onCancel }) => {
+    const [form, setForm] = useState({ name: employee?.name || '', contactInfo: employee?.contactInfo || '', salary: employee?.salary?.toString() || '', shiftId: employee?.shiftId || '' });
+    const shiftOptions = shifts.map(s => ({ value: s.id, label: s.name }));
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave({ ...form, salary: parseFloat(form.salary) || undefined }, employee?.id);
+    };
+    
+    return (
+         <form onSubmit={handleSubmit} className="p-4 border-t border-divider bg-subtle space-y-3">
+            <input type="text" value={form.name} onChange={e => setForm(f=>({...f, name: e.target.value}))} placeholder="Employee Name" className="w-full input-base p-2 rounded-md" required/>
+            <div className="grid grid-cols-2 gap-3">
+                <input type="text" value={form.contactInfo} onChange={e => setForm(f=>({...f, contactInfo: e.target.value}))} placeholder="Contact Info (Optional)" className="w-full input-base p-2 rounded-md"/>
+                <input type="text" inputMode="decimal" value={form.salary} onChange={e => setForm(f=>({...f, salary: e.target.value}))} placeholder="Salary (Optional)" className="w-full input-base p-2 rounded-md no-spinner" />
+            </div>
+            <CustomSelect options={shiftOptions} value={form.shiftId} onChange={val => setForm(f=>({...f, shiftId: val}))} placeholder="Assign Shift..." />
+            <div className="flex justify-end gap-2"><button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button><button type="submit" className="button-primary px-4 py-2">Save</button></div>
+        </form>
+    );
+};
+
+const ShopShiftsManager: React.FC<{shopId: string, shifts: ShopShift[], onSaveShift: ShopScreenProps['onSaveShift'], onDeleteShift: ShopScreenProps['onDeleteShift']}> = ({ shopId, shifts, onSaveShift, onDeleteShift }) => {
+    const [isFormOpen, setIsFormOpen] = useState(shifts.length === 0);
+    const [editingShift, setEditingShift] = useState<ShopShift | null>(null);
+
+    const handleEdit = (shift: ShopShift) => { setEditingShift(shift); setIsFormOpen(true); };
+    const handleCancel = () => { setEditingShift(null); setIsFormOpen(false); };
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex-grow p-6 overflow-y-auto space-y-2">
+                 {shifts.map(s => (
+                    <div key={s.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center">
+                        <div><p className="font-semibold text-primary">{s.name}</p><p className="text-xs text-secondary">{s.startTime} - {s.endTime}</p></div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleEdit(s)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button><button onClick={() => onDeleteShift(s.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full ml-1">Delete</button></div>
+                    </div>
+                ))}
+            </div>
+            {!isFormOpen && <div className="p-4 border-t border-divider"><button onClick={() => setIsFormOpen(true)} className="button-primary w-full py-2">Add New Shift</button></div>}
+            {isFormOpen && <ShiftForm shift={editingShift} onSave={(shift, id) => onSaveShift(shopId, shift, id)} onCancel={handleCancel} />}
+        </div>
+    );
+};
+
+const ShiftForm: React.FC<{shift: ShopShift | null, onSave: (s: Omit<ShopShift, 'id' | 'shopId'>, id?:string) => void, onCancel: () => void}> = ({ shift, onSave, onCancel }) => {
+    const [form, setForm] = useState({ name: shift?.name || '', startTime: shift?.startTime || '', endTime: shift?.endTime || '' });
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(form, shift?.id); };
+    return (
+        <form onSubmit={handleSubmit} className="p-4 border-t border-divider bg-subtle space-y-3">
+            <input type="text" value={form.name} onChange={e => setForm(f=>({...f, name: e.target.value}))} placeholder="Shift Name" className="w-full input-base p-2 rounded-md" required/>
+            <div className="grid grid-cols-2 gap-3">
+                <input type="time" value={form.startTime} onChange={e => setForm(f=>({...f, startTime: e.target.value}))} className="w-full input-base p-2 rounded-md"/>
+                <input type="time" value={form.endTime} onChange={e => setForm(f=>({...f, endTime: e.target.value}))} className="w-full input-base p-2 rounded-md"/>
+            </div>
+            <div className="flex justify-end gap-2"><button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button><button type="submit" className="button-primary px-4 py-2">Save</button></div>
+        </form>
+    );
+};
+
 const CustomItemForm: React.FC<{onSave: (name: string, price: number, quantity: number) => void, onClose: () => void}> = ({ onSave, onClose }) => {
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
@@ -250,7 +407,7 @@ const CustomItemForm: React.FC<{onSave: (name: string, price: number, quantity: 
                 <div className="p-4 space-y-3">
                     <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Item Name" className="w-full input-base p-2 rounded-md" required autoFocus />
                     <div className="grid grid-cols-2 gap-3">
-                        <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="Price" className="w-full input-base p-2 rounded-md no-spinner" required />
+                        <input type="text" inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} placeholder="Price" className="w-full input-base p-2 rounded-md no-spinner" required />
                         <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="Quantity" className="w-full input-base p-2 rounded-md no-spinner" required />
                     </div>
                 </div>
@@ -262,8 +419,8 @@ const CustomItemForm: React.FC<{onSave: (name: string, price: number, quantity: 
     );
 };
 
-const ShopBilling: React.FC<{shopId: string, products: ShopProduct[], onRecordSale: ShopScreenProps['onRecordSale']}> = ({ shopId, products, onRecordSale }) => {
-    const formatCurrency = useCurrencyFormatter();
+const ShopBilling: React.FC<{shop: Shop, products: ShopProduct[], onRecordSale: ShopScreenProps['onRecordSale']}> = ({ shop, products, onRecordSale }) => {
+    const formatCurrency = useCurrencyFormatter(undefined, shop.currency);
     const [cart, setCart] = useState<Map<string, { product: ShopProduct, quantity: number }>>(new Map());
     const [isScanning, setIsScanning] = useState(false);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -277,9 +434,9 @@ const ShopBilling: React.FC<{shopId: string, products: ShopProduct[], onRecordSa
             const currentQuantityInCart = existing ? existing.quantity : 0;
             const requestedTotalQuantity = currentQuantityInCart + quantity;
 
-            if (quantity <= 0) return prev; // Do nothing if quantity is zero or negative
+            if (quantity <= 0) return prev;
 
-            if (requestedTotalQuantity <= product.stockQuantity) {
+            if (product.id.startsWith('custom-') || requestedTotalQuantity <= product.stockQuantity) {
                 newCart.set(product.id, { product, quantity: requestedTotalQuantity });
             } else {
                 alert(`Not enough stock for ${product.name}. Only ${product.stockQuantity - currentQuantityInCart} more available.`);
@@ -289,33 +446,16 @@ const ShopBilling: React.FC<{shopId: string, products: ShopProduct[], onRecordSa
     }, []);
     
     useEffect(() => {
-        let stream: MediaStream | null = null;
-        let animationFrameId: number;
-
-        const stopScan = () => {
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            if (stream) stream.getTracks().forEach(track => track.stop());
-            setIsScanning(false);
-        };
-
-        const startScan = async () => {
-            // ... (rest of the scanning logic remains the same)
-        };
-
-        if (isScanning) startScan();
-        return () => stopScan();
+        // Barcode scanning logic is complex and requires a third-party library,
+        // which is outside the scope of this environment. This effect is a placeholder.
     }, [isScanning, products, addProductToCart]);
     
     const handleAddCustomItem = (name: string, price: number, quantity: number) => {
         const customProduct: ShopProduct = {
-            id: `custom-${self.crypto.randomUUID()}`, shopId: shopId, name: name, sellingPrice: price,
+            id: `custom-${self.crypto.randomUUID()}`, shopId: shop.id, name: name, sellingPrice: price,
             purchasePrice: price, stockQuantity: 999, categoryId: 'custom-sale',
         };
-        setCart(prev => {
-            const newCart = new Map(prev);
-            newCart.set(customProduct.id, { product: customProduct, quantity: quantity });
-            return newCart;
-        });
+        addProductToCart(customProduct, quantity);
         setIsCustomItemFormOpen(false);
     };
     
@@ -334,7 +474,7 @@ const ShopBilling: React.FC<{shopId: string, products: ShopProduct[], onRecordSa
             return sum + ((item.pricePerUnit - (product?.purchasePrice || item.pricePerUnit)) * item.quantity);
         }, 0);
         
-        onRecordSale(shopId, {
+        onRecordSale(shop.id, {
             timestamp: new Date().toISOString(),
             employeeId: 'default',
             items,
@@ -346,7 +486,6 @@ const ShopBilling: React.FC<{shopId: string, products: ShopProduct[], onRecordSa
 
     return (
         <div className="flex flex-col h-full">
-            {isScanning && <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center" onClick={() => setIsScanning(false)}><video ref={videoRef} autoPlay playsInline className="w-full max-w-md h-auto" /><p className="text-white mt-4">Point camera at QR/Barcode</p></div>}
             {isPickerOpen && <ProductPicker products={products} onSelect={addProductToCart} onClose={() => setIsPickerOpen(false)} />}
             {isCustomItemFormOpen && <CustomItemForm onSave={handleAddCustomItem} onClose={() => setIsCustomItemFormOpen(false)} />}
             
@@ -394,7 +533,6 @@ const ProductPicker: React.FC<{products: ShopProduct[], onSelect: (p: ShopProduc
         const quantity = parseInt(quantities[product.id] || '1', 10);
         if (quantity > 0) {
             onSelect(product, quantity);
-            onClose();
         }
     };
     
@@ -427,14 +565,16 @@ const ProductPicker: React.FC<{products: ShopProduct[], onSelect: (p: ShopProduc
     );
 };
 
-const ShopAnalytics: React.FC<{sales: ShopSale[], products: ShopProduct[]}> = ({ sales, products }) => {
-    const formatCurrency = useCurrencyFormatter();
+const ShopAnalytics: React.FC<{sales: ShopSale[], products: ShopProduct[], shop: Shop}> = ({ sales, products, shop }) => {
+    const formatCurrency = useCurrencyFormatter(undefined, shop.currency);
     const stats = useMemo(() => {
         const revenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
         const profit = sales.reduce((sum, s) => sum + s.profit, 0);
         
         const productSales = sales.flatMap(s => s.items).reduce((acc, item) => {
-            acc[item.productId] = (acc[item.productId] || 0) + item.quantity;
+            if (!item.productId.startsWith('custom-')) {
+                acc[item.productId] = (acc[item.productId] || 0) + item.quantity;
+            }
             return acc;
         }, {} as Record<string, number>);
         
@@ -468,6 +608,7 @@ const ShopAnalytics: React.FC<{sales: ShopSale[], products: ShopProduct[]}> = ({
                             <span className="font-semibold">{quantity} sold</span>
                         </div>
                     ) : null)}
+                     {stats.bestsellers.length === 0 && <p className="text-center text-sm text-secondary">No sales data yet.</p>}
                 </div>
             </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Transaction, TransactionType, SplitDetail } from '../types';
+import { Transaction, TransactionType, SplitDetail, Contact } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -9,20 +9,24 @@ const modalRoot = document.getElementById('modal-root')!;
 
 interface RefundModalProps {
   originalTransaction: Transaction;
+  contacts?: Contact[];
   onClose: () => void;
   onSave: (refundTransaction: Transaction) => void;
   findOrCreateCategory: (name: string, type: TransactionType) => string;
 }
 
-const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose, onSave, findOrCreateCategory }) => {
+const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts = [], onClose, onSave, findOrCreateCategory }) => {
   const formatCurrency = useCurrencyFormatter();
   const [amount, setAmount] = useState(String(originalTransaction.amount));
   const [notes, setNotes] = useState('');
   const [refundingPersonId, setRefundingPersonId] = useState<string>('');
+  const [refundingContactId, setRefundingContactId] = useState<string>('');
 
   const potentialRefundees = useMemo(() => {
     return originalTransaction.splitDetails?.filter(s => s.personName.toLowerCase() !== 'you') || [];
   }, [originalTransaction.splitDetails]);
+  
+  const isSplitTransaction = (originalTransaction.splitDetails?.length || 0) > 0;
 
   const selectedRefundee = useMemo(() => {
     return potentialRefundees.find(p => p.id === refundingPersonId);
@@ -53,9 +57,13 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose,
     if (refundAmount > 0 && refundAmount <= maxAmount) {
       const refundCategoryId = findOrCreateCategory('Refunds & Rebates', TransactionType.INCOME);
       
+      const selectedContact = contacts.find(c => c.id === refundingContactId);
+
       const description = selectedRefundee
         ? `Refund from ${selectedRefundee.personName} for "${originalTransaction.description}"`
-        : `Refund for "${originalTransaction.description}"`;
+        : selectedContact
+          ? `Refund from ${selectedContact.name} for "${originalTransaction.description}"`
+          : `Refund for "${originalTransaction.description}"`;
 
       const refundTransaction: Transaction = {
         id: self.crypto.randomUUID(),
@@ -76,6 +84,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose,
   };
 
   const refundeeOptions = potentialRefundees.map(p => ({ value: p.id, label: p.personName }));
+  const contactOptions = contacts.map(c => ({ value: c.id, label: c.name }));
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onClose}>
@@ -85,7 +94,8 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose,
           <p className="text-sm text-secondary">
             Refunding for: <span className="font-semibold text-primary">"{originalTransaction.description}"</span>
           </p>
-          {potentialRefundees.length > 0 && (
+          {isSplitTransaction ? (
+              potentialRefundees.length > 0 && (
               <div>
                 <label className="text-sm text-secondary mb-1 block">Refund From</label>
                 <CustomSelect
@@ -93,6 +103,17 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, onClose,
                     value={refundingPersonId}
                     onChange={setRefundingPersonId}
                     placeholder="Select person..."
+                />
+              </div>
+              )
+          ) : (
+             <div>
+                <label className="text-sm text-secondary mb-1 block">Refund Issued By (Optional)</label>
+                <CustomSelect
+                    options={contactOptions}
+                    value={refundingContactId}
+                    onChange={setRefundingContactId}
+                    placeholder="Select contact..."
                 />
               </div>
           )}

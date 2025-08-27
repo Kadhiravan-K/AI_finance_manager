@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState, ParsedTransactionData } from "../types";
+import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -195,4 +195,101 @@ export async function parseAICommand(command: string, categories: AppState['cate
         console.error("Error parsing AI command:", error);
         throw new Error("I had trouble understanding that command. Please try rephrasing.");
     }
+}
+
+const tripExpenseSchema = {
+    type: Type.OBJECT,
+    properties: {
+        isValid: { type: Type.BOOLEAN, description: "Is this a valid expense that can be parsed?" },
+        description: { type: Type.STRING, description: "A brief summary of the expense (e.g., 'Dinner at a restaurant', 'Groceries')." },
+        amount: { type: Type.NUMBER, description: "The total numeric value of the expense." },
+        category: { type: Type.STRING, description: "Categorize the expense using a 'Parent / Child' format. E.g., 'Food & Groceries / Restaurant', 'Travel & Transport / Taxi'. Be specific and create new sub-categories if it makes sense." },
+        payerName: { type: Type.STRING, description: "The name of the person who paid for this expense, if mentioned. Must be one of the provided participant names. If not mentioned, leave empty." }
+    },
+    required: ["isValid", "description", "amount", "category"],
+};
+
+export async function parseTripExpenseText(text: string, participants: string[]): Promise<ParsedTripExpense | null> {
+  if (!text) throw new Error("Input text cannot be empty.");
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `You are an expert at parsing expense details for group trips. Analyze the following text and extract the details. The trip participants are: ${participants.join(', ')}.
+Text: "${text}"`,
+      config: { responseMimeType: "application/json", responseSchema: tripExpenseSchema },
+    });
+    const result = JSON.parse(response.text);
+    if (result && result.isValid && result.amount > 0) {
+      return {
+        description: result.description, amount: result.amount, categoryName: result.category, payerName: result.payerName || undefined,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error parsing trip expense from Gemini API:", error);
+    throw new Error(error instanceof Error ? `Failed to parse trip expense: ${error.message}` : "An unknown error occurred during parsing.");
+  }
+}
+
+const tripDetailsSchema = {
+    type: Type.OBJECT,
+    properties: {
+        tripName: { type: Type.STRING, description: "A concise and descriptive name for the trip, like 'Goa Vacation' or 'Team Offsite'." },
+        participants: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING },
+            description: "A list of participant names mentioned in the text. Exclude any mention of the user themselves (e.g., 'me', 'I', 'myself')." 
+        },
+        plan: {
+            type: Type.OBJECT,
+            description: "If the user asks to 'plan' the trip, generate a plan. Otherwise, this can be null.",
+            properties: {
+                itinerary: { 
+                    type: Type.ARRAY, 
+                    items: { type: Type.STRING },
+                    description: "A day-by-day itinerary. Each string is a plan for one day. E.g., 'Day 1: Arrive, check in, explore market.'" 
+                },
+                budgetSuggestions: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: "A list of suggested budget items and estimated costs. E.g., 'Flights: $300', 'Accommodation: $400'."
+                },
+                packingChecklist: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: "A list of suggested items to pack for the trip."
+                }
+            },
+        }
+    },
+    required: ["tripName", "participants"]
+};
+
+export async function parseTripCreationText(text: string): Promise<{ tripName: string; participants: string[]; plan?: { itinerary: string[]; budgetSuggestions: string[]; packingChecklist: string[] } } | null> {
+  if (!text) throw new Error("Input text cannot be empty.");
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `You are an expert at parsing trip details from text. Analyze the following text. 
+1. Extract a trip name.
+2. Extract a list of participants. The user who is inputting the text is also a participant, but do NOT include them in the list.
+3. If the user uses words like "plan", "suggest", or "itinerary", generate a simple plan for the trip including a brief itinerary, budget suggestions, and a packing checklist.
+Text: "${text}"`,
+      config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema },
+    });
+    const result = JSON.parse(response.text);
+    if (result && result.tripName) {
+      return {
+        tripName: result.tripName,
+        participants: result.participants || [],
+        plan: result.plan || undefined
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error parsing trip creation text from Gemini API:", error);
+    throw new Error(error instanceof Error ? `Failed to parse trip text: ${error.message}` : "An unknown error occurred during parsing.");
+  }
 }

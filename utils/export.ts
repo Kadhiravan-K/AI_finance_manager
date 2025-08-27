@@ -1,4 +1,4 @@
-import { Transaction, Account, Category, Sender } from '../types';
+import { Transaction, Account, Category, Sender, AppState } from '../types';
 
 const getCategoryPath = (categoryId: string, categories: Category[]): string => {
     const path: string[] = [];
@@ -80,4 +80,27 @@ export const exportTransactionsToCsv = (
         link.click();
         document.body.removeChild(link);
     }
+};
+
+export const exportSelectedDataToJson = (appState: AppState, keysToExport: (keyof AppState)[]) => {
+  const dataToExport: Partial<AppState> = {};
+  
+  for (const key of keysToExport) {
+    if (key in appState) {
+      dataToExport[key] = appState[key] as any;
+    }
+  }
+
+  const jsonContent = JSON.stringify(dataToExport, null, 2);
+  const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `finance_hub_export_${new Date().toISOString().split('T')[0]}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };

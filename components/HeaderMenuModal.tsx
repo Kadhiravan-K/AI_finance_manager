@@ -28,7 +28,7 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
     { screen: 'dataHub', label: 'Data Hub', icon: '🗄️'},
     { screen: 'budgets', label: 'Budgets', icon: '🎯'},
     { screen: 'goals', label: 'Goals', icon: '🏆' },
-    { screen: 'calculator', label: 'Calculator', icon: '🮲' },
+    { screen: 'calculator', label: 'Calculator', icon: '🧮' },
     { modal: 'contacts', label: 'Contacts', icon: '👥' },
     { modal: 'dashboardSettings', label: 'Customize Dashboard', icon: '🎨' },
     { modal: 'importExport', label: 'Import/Export Data', icon: '📄' },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import EditTransactionModal from './EditTransactionModal';
-import { Transaction, Account, ModalState } from '../types';
+import { Transaction, Account, ModalState, Contact } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import LoadingSpinner from './LoadingSpinner';
@@ -19,6 +19,7 @@ interface AddTransactionModalProps {
     isDisabled: boolean;
     initialText?: string | null;
     accounts: Account[];
+    contacts: Contact[];
     openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
     onOpenCalculator: (onResult: (result: number) => void) => void;
     selectedAccountId?: string;
@@ -31,6 +32,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     isDisabled,
     initialText,
     accounts,
+    contacts,
     openModal,
     onOpenCalculator,
     selectedAccountId,
@@ -67,20 +69,40 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         };
         recognition.onend = () => setIsListening(false);
         recognition.onerror = (event: any) => {
-            console.error('Speech recognition error:', event.error);
+            // The new permission check should prevent 'not-allowed', but this is a good fallback.
+            if (event.error !== 'no-speech') {
+              console.error('Speech recognition error:', event.error);
+            }
             setIsListening(false);
         };
         
         recognitionRef.current = recognition;
     }, []);
 
-    const handleListen = () => {
-        if (!recognitionRef.current) return;
-        if (isListening) {
-            recognitionRef.current.stop();
-        } else {
-            recognitionRef.current.start();
-            setIsListening(true);
+    const handleListen = async () => {
+        if (!recognitionRef.current) {
+            alert("Speech recognition is not supported by your browser.");
+            return;
+        }
+        
+        // Check for microphone permission
+        try {
+            const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+            if (permissionStatus.state === 'denied') {
+                alert("Microphone access is denied. Please enable it in your browser settings to use voice input.");
+                return;
+            }
+            
+            // permissionStatus.state is 'granted' or 'prompt'
+            if (isListening) {
+                recognitionRef.current.stop();
+            } else {
+                recognitionRef.current.start();
+                setIsListening(true);
+            }
+        } catch (error) {
+            console.error("Could not check microphone permission:", error);
+            alert("Could not access microphone. Please ensure you are on a secure (HTTPS) connection.");
         }
     };
 
@@ -164,6 +186,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                    onSave={onSaveManual}
                    onCancel={onCancel}
                    accounts={accounts}
+                   contacts={contacts}
                    openModal={openModal}
                    onOpenCalculator={onOpenCalculator}
                    selectedAccountId={selectedAccountId}

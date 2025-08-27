@@ -75,7 +75,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ options, value, onChange, p
 
       {isOpen && !disabled && (
         <div 
-          className="absolute z-50 mt-1 w-full glass-card rounded-lg shadow-lg border border-divider flex flex-col max-h-60"
+          className="absolute z-[600] mt-1 w-full glass-card rounded-lg shadow-lg border border-divider flex flex-col max-h-60"
           style={{ animation: 'fadeInUp 0.2s ease-out' }}
         >
           <div className="p-2 sticky top-0 bg-subtle backdrop-blur-sm z-10">

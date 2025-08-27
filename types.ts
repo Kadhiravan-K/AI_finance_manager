@@ -103,6 +103,7 @@ export interface Sender {
 export interface ContactGroup {
     id: string;
     name: string;
+    icon?: string;
 }
 
 export interface Contact {
@@ -158,17 +159,34 @@ export interface TripParticipant {
     name: string;
 }
 
+export interface TripPlace {
+    id: string;
+    name: string;
+    date: string; // ISO string
+    notes?: string;
+    status: 'visited' | 'planned';
+}
+
 export interface Trip {
     id: string;
     name: string;
     participants: TripParticipant[];
     date: string; // ISO string
     currency: string;
+    notes?: string;
+    places?: TripPlace[];
 }
 
 export interface TripPayer {
     contactId: string;
     amount: number;
+}
+
+export interface ParsedTripExpense {
+    description: string;
+    amount: number;
+    categoryName: string;
+    payerName?: string;
 }
 
 export interface TripExpense {
@@ -255,7 +273,7 @@ export interface UnlockedAchievement {
     date: string; // ISO string
 }
 
-export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct';
+export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift';
 
 export interface TrustBinItem {
   id: string; // unique id for the bin entry
@@ -268,6 +286,7 @@ export interface TrustBinItem {
 export interface Shop {
     id: string;
     name: string;
+    currency: string;
 }
 export interface ShopProduct {
     id: string;
@@ -296,15 +315,20 @@ export interface ShopSale {
 }
 export interface ShopEmployee {
     id: string;
+    shopId: string;
     name: string;
     contactInfo?: string;
+    salary?: number;
+    shiftId?: string;
 }
 export interface ShopShift {
     id: string;
+    shopId: string;
     name: string; // e.g., "Morning Shift"
     startTime: string; // "HH:MM"
     endTime: string; // "HH:MM"
 }
+
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn';
 

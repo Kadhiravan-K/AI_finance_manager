@@ -22,22 +22,19 @@ const COLORS = [
   '#64748b', // slate-500
 ];
 
-const getCategory = (categoryId: string, categories: Category[]): Category | undefined => {
-    return categories.find(c => c.id === categoryId);
-};
-
-const getCategoryPath = (categoryId: string, categories: Category[]): string => {
-    const path: string[] = [];
-    let current = getCategory(categoryId, categories);
-    while (current) {
-        path.unshift(current.name);
-        current = categories.find(c => c.id === current.parentId);
+const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
+    let current = categories.find(c => c.id === categoryId);
+    if (!current) return undefined;
+    while (current.parentId) {
+        const parent = categories.find(c => c.id === current.parentId);
+        if (!parent) break;
+        current = parent;
     }
-    return path.join(' / ') || 'Uncategorized';
+    return current;
 };
 
 const PieSlice = ({ percentage, startPercentage, color }: { percentage: number, startPercentage: number; color: string }) => {
-    if (percentage >= 100) {
+    if (percentage >= 99.99) { // Use a threshold to handle floating point issues
         return <circle cx="50" cy="50" r="40" fill={color}></circle>;
     }
     
@@ -63,81 +60,95 @@ const PieSlice = ({ percentage, startPercentage, color }: { percentage: number, 
 
 
 const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible, currency }) => {
-  const formatTotal = useCurrencyFormatter(undefined, currency);
-  const formatItem = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
 
   const categoryData = useMemo(() => {
-    const filtered = transactions.filter(t => t.type === type);
-    const totals = filtered.reduce((acc, t) => {
-      acc[t.categoryId] = (acc[t.categoryId] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
+    const topLevelTotals: Record<string, { total: number; icon: string, name: string }> = {};
 
-    const totalAmount = Object.values(totals).reduce((sum, amount) => sum + amount, 0);
+    transactions.filter(t => t.type === type).forEach(t => {
+      const topLevelCat = getTopLevelCategory(t.categoryId, categories);
+      if (topLevelCat) {
+        if (!topLevelTotals[topLevelCat.id]) {
+          topLevelTotals[topLevelCat.id] = { total: 0, icon: topLevelCat.icon || '📁', name: topLevelCat.name };
+        }
+        topLevelTotals[topLevelCat.id].total += t.amount;
+      }
+    });
+
+    const totalAmount = Object.values(topLevelTotals).reduce((sum, item) => sum + item.total, 0);
 
     if (totalAmount === 0) {
       return { categories: [], totalAmount: 0 };
     }
 
     return {
-      categories: Object.entries(totals)
-        .sort(([, a], [, b]) => b - a)
-        .map(([categoryId, amount]) => {
-          const category = getCategory(categoryId, categories);
-          return {
-            name: getCategoryPath(categoryId, categories),
-            amount,
-            percentage: (amount / totalAmount) * 100,
-            icon: category?.icon,
-          }
-        }),
+      categories: Object.entries(topLevelTotals)
+        .sort(([, a], [, b]) => b.total - a.total)
+        .map(([categoryId, data]) => ({
+          id: categoryId,
+          name: data.name,
+          amount: data.total,
+          percentage: (data.total / totalAmount) * 100,
+          icon: data.icon,
+        })),
       totalAmount,
     };
   }, [transactions, categories, type]);
 
-  const cardBaseStyle = "my-3 p-4 bg-subtle rounded-xl shadow-lg border border-divider";
+  const cardBaseStyle = "my-3 p-4 bg-subtle rounded-xl shadow-lg border border-divider h-full flex flex-col";
 
   if (categoryData.categories.length === 0) {
     return (
-        <div className={`${cardBaseStyle} h-full flex flex-col`}>
+        <div className={cardBaseStyle}>
              <h3 className="text-lg font-bold text-primary">{title}</h3>
              <div className="flex-grow flex items-center justify-center">
-                <p className="text-sm text-secondary mt-2 text-center py-8">No {type} data to display.</p>
+                <p className="text-sm text-secondary mt-2 text-center py-8">No data available for this period.</p>
              </div>
         </div>
     );
   }
-  
-  let cumulativePercent = 0;
+
+  let startPercentage = 0;
 
   return (
     <div className={cardBaseStyle}>
-      <h3 className="text-lg font-bold mb-4 text-primary">
-          {title}
-          <span className="block text-sm font-normal text-secondary">{isVisible ? formatTotal(categoryData.totalAmount) : '••••'}</span>
-      </h3>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <div className="relative w-full aspect-square">
-           <svg viewBox="0 0 100 100">
-             {categoryData.categories.map((category, i) => {
-                 const slice = <PieSlice key={category.name} percentage={category.percentage} startPercentage={cumulativePercent} color={COLORS[i % COLORS.length]} />;
-                 cumulativePercent += category.percentage;
-                 return slice;
-             })}
-           </svg>
+      <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
+      <div className="flex-grow flex flex-col sm:flex-row items-center gap-4">
+        <div className="w-40 h-40 flex-shrink-0">
+          <svg viewBox="0 0 100 100">
+            {categoryData.categories.map((category, i) => {
+              const currentStart = startPercentage;
+              startPercentage += category.percentage;
+              return (
+                <PieSlice
+                  key={category.id}
+                  percentage={category.percentage}
+                  startPercentage={currentStart}
+                  color={COLORS[i % COLORS.length]}
+                />
+              );
+            })}
+          </svg>
         </div>
-        <div className="w-full space-y-1 self-start max-h-40 overflow-y-auto pr-1">
-            {categoryData.categories.map((category, i) => (
-                <div key={category.name} className="flex items-center justify-between text-sm p-1 rounded-md transition-colors hover-bg-stronger">
-                    <div className="flex items-center space-x-2 overflow-hidden">
-                        <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
-                        <span className="text-lg flex-shrink-0">{category.icon || '📁'}</span>
-                        <span className="text-primary truncate" title={category.name}>{category.name}</span>
-                    </div>
-                    <span className="font-semibold text-secondary ml-2 flex-shrink-0">{isVisible ? formatItem(category.amount) : '••••'}</span>
-                </div>
-            ))}
+        <div className="flex-grow w-full space-y-2 overflow-y-auto max-h-40 pr-2">
+          {categoryData.categories.map((category, i) => (
+            <div key={category.id} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                ></div>
+                <span className="text-primary truncate">{category.name}</span>
+              </div>
+              <span className="font-semibold text-secondary">
+                {isVisible ? formatCurrency(category.amount) : '••••'}
+              </span>
+            </div>
+          ))}
         </div>
+      </div>
+      <div className="text-right text-primary font-bold mt-4 border-t border-divider pt-2">
+        Total: {isVisible ? formatCurrency(categoryData.totalAmount) : '••••'}
       </div>
     </div>
   );

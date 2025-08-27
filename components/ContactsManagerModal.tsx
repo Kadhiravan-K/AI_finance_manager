@@ -5,14 +5,16 @@ import ModalHeader from './ModalHeader';
 
 interface ContactsManagerModalProps {
   onClose: () => void;
+  onSaveContact: (contact: Omit<Contact, 'id'>, id?: string) => Contact;
+  onSaveGroup: (group: Omit<ContactGroup, 'id'>, id?: string) => ContactGroup;
   onDeleteGroup: (groupId: string) => void;
   onDeleteContact: (contactId: string) => void;
 }
 
 const inputStyle = "w-full input-base rounded-lg py-2 px-3";
 
-const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose, onDeleteGroup, onDeleteContact }) => {
-  const { contacts, setContacts, contactGroups, setContactGroups } = useContext(SettingsContext);
+const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose, onSaveContact, onSaveGroup, onDeleteGroup, onDeleteContact }) => {
+  const { contacts, contactGroups } = useContext(SettingsContext);
   
   const [view, setView] = useState<'groups' | 'contacts'>('groups');
   const [selectedGroup, setSelectedGroup] = useState<ContactGroup | null>(null);
@@ -40,10 +42,10 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose, on
     const name = (editingGroup ? editingGroup.name : newGroupName).trim();
     if (name) {
         if (editingGroup) {
-            setContactGroups(prev => prev.map(g => g.id === editingGroup.id ? {...g, name} : g));
+            onSaveGroup({ name }, editingGroup.id);
             setEditingGroup(null);
         } else {
-            setContactGroups(prev => [...prev, { id: self.crypto.randomUUID(), name }]);
+            onSaveGroup({ name });
             setNewGroupName('');
         }
     }
@@ -55,10 +57,10 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose, on
       const name = (editingContact ? editingContact.name : newContactName).trim();
       if (name && selectedGroup) {
           if (editingContact) {
-              setContacts(prev => prev.map(c => c.id === editingContact.id ? {...c, name} : c));
+              onSaveContact({ name, groupId: selectedGroup.id }, editingContact.id);
               setEditingContact(null);
           } else {
-              setContacts(prev => [...prev, { id: self.crypto.randomUUID(), name, groupId: selectedGroup.id }]);
+              onSaveContact({ name, groupId: selectedGroup.id });
               setNewContactName('');
           }
       }
@@ -81,12 +83,13 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({ onClose, on
                 contactGroups.map(group => (
                     <div key={group.id} className="flex items-center justify-between p-2 bg-subtle rounded-lg group transition-all duration-200 hover-bg-stronger hover:scale-[1.02]">
                         <div onClick={() => handleGroupClick(group)} className="flex-grow flex items-center gap-3 cursor-pointer">
+                            <span className="text-xl w-6 text-center">{group.icon || '📁'}</span>
                             <span className="font-medium text-primary">{group.name}</span>
                         </div>
                         <div className="flex items-center space-x-1 flex-shrink-0">
                              <button onClick={() => setEditingGroup(group)} className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-full transition-colors opacity-0 group-hover:opacity-100">Edit</button>
                              <button onClick={() => onDeleteGroup(group.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2 py-1 rounded-full transition-colors opacity-0 group-hover:opacity-100">Delete</button>
-                             <div onClick={() => handleGroupClick(group)} className="p-1 cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></div>
+                             <div onClick={() => handleGroupClick(group)} className="p-1 cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></div>
                         </div>
                     </div>
                 ))

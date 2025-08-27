@@ -31,7 +31,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ contact, onSave, on
   const groupOptions = contactGroups.map(g => ({ value: g.id, label: g.name }));
 
   const modalContent = (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[600] p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-sm p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title={isCreating ? "Add New Contact" : "Edit Contact"} onClose={onClose} />
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
