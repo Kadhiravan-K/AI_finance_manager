@@ -1,6 +1,8 @@
-import React, { createContext, useState, ReactNode, useEffect, useMemo } from 'react';
-import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen } from '../types';
+import React, { createContext, useState, ReactNode, useEffect, useMemo, useContext, useCallback } from 'react';
+// FIX: Added ChallengeType to the import list to resolve type errors.
+import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
+import { calculateNextDueDate } from '../utils/date';
 
 interface SettingsContextType {
   settings: Settings;
@@ -152,3 +154,182 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     </SettingsContext.Provider>
   );
 };
+
+
+// --- APP DATA CONTEXT ---
+
+// Define the shape of the context
+interface AppDataContextType {
+  // State
+  transactions: Transaction[];
+  setTransactions: (value: Transaction[] | ((val: Transaction[]) => Transaction[])) => Promise<void>;
+  accounts: Account[];
+  setAccounts: (value: Account[] | ((val: Account[]) => Account[])) => Promise<void>;
+  budgets: Budget[];
+  setBudgets: (value: Budget[] | ((val: Budget[]) => Budget[])) => Promise<void>;
+  recurringTransactions: RecurringTransaction[];
+  setRecurringTransactions: (value: RecurringTransaction[] | ((val: RecurringTransaction[]) => RecurringTransaction[])) => Promise<void>;
+  goals: Goal[];
+  setGoals: (value: Goal[] | ((val: Goal[]) => Goal[])) => Promise<void>;
+  investmentHoldings: InvestmentHolding[];
+  setInvestmentHoldings: (value: InvestmentHolding[] | ((val: InvestmentHolding[]) => InvestmentHolding[])) => Promise<void>;
+  trips: Trip[];
+  setTrips: (value: Trip[] | ((val: Trip[]) => Trip[])) => Promise<void>;
+  tripExpenses: TripExpense[];
+  // FIX: The setter for tripExpenses was incorrectly typed to return Trip[] instead of TripExpense[].
+  setTripExpenses: (value: TripExpense[] | ((val: TripExpense[]) => TripExpense[])) => Promise<void>;
+  shops: Shop[];
+  setShops: (value: Shop[] | ((val: Shop[]) => Shop[])) => Promise<void>;
+  shopProducts: ShopProduct[];
+  setShopProducts: (value: ShopProduct[] | ((val: ShopProduct[]) => ShopProduct[])) => Promise<void>;
+  shopSales: ShopSale[];
+  setShopSales: (value: ShopSale[] | ((val: ShopSale[]) => ShopSale[])) => Promise<void>;
+  shopEmployees: ShopEmployee[];
+  setShopEmployees: (value: ShopEmployee[] | ((val: ShopEmployee[]) => ShopEmployee[])) => Promise<void>;
+  shopShifts: ShopShift[];
+  setShopShifts: (value: ShopShift[] | ((val: ShopShift[]) => ShopShift[])) => Promise<void>;
+  trustBin: TrustBinItem[];
+  setTrustBin: (value: TrustBinItem[] | ((val: TrustBinItem[]) => TrustBinItem[])) => Promise<void>;
+  unlockedAchievements: UnlockedAchievement[];
+  setUnlockedAchievements: (value: UnlockedAchievement[] | ((val: UnlockedAchievement[]) => UnlockedAchievement[])) => Promise<void>;
+  streaks: UserStreak;
+  setStreaks: (value: UserStreak | ((val: UserStreak) => UserStreak)) => Promise<void>;
+  challenges: Challenge[];
+  setChallenges: (value: Challenge[] | ((val: Challenge[]) => Challenge[])) => Promise<void>;
+
+  // Functions
+  findOrCreateCategory: (fullName: string, type: TransactionType) => string;
+  updateStreak: () => void;
+  checkAndCompleteChallenge: (type: ChallengeType) => void;
+  deleteItem: (itemId: string, itemType: ItemType) => void;
+}
+
+export const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
+
+export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts } = useContext(SettingsContext);
+
+    const [transactions, setTransactions] = useLocalStorage<Transaction[]>('finance-tracker-transactions', []);
+    const [accounts, setAccounts] = useLocalStorage<Account[]>('finance-tracker-accounts', []);
+    const [budgets, setBudgets] = useLocalStorage<Budget[]>('finance-tracker-budgets', []);
+    const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('finance-tracker-recurring', []);
+    const [goals, setGoals] = useLocalStorage<Goal[]>('finance-tracker-goals', []);
+    const [investmentHoldings, setInvestmentHoldings] = useLocalStorage<InvestmentHolding[]>('finance-tracker-investments', []);
+    const [trips, setTrips] = useLocalStorage<Trip[]>('finance-tracker-trips', []);
+    const [tripExpenses, setTripExpenses] = useLocalStorage<TripExpense[]>('finance-tracker-trip-expenses', []);
+    const [trustBin, setTrustBin] = useLocalStorage<TrustBinItem[]>('finance-tracker-trust-bin', []);
+    const [shops, setShops] = useLocalStorage<Shop[]>('finance-tracker-shops', []);
+    const [shopProducts, setShopProducts] = useLocalStorage<ShopProduct[]>('finance-tracker-shop-products', []);
+    const [shopSales, setShopSales] = useLocalStorage<ShopSale[]>('finance-tracker-shop-sales', []);
+    const [shopEmployees, setShopEmployees] = useLocalStorage<ShopEmployee[]>('finance-tracker-shop-employees', []);
+    const [shopShifts, setShopShifts] = useLocalStorage<ShopShift[]>('finance-tracker-shop-shifts', []);
+    const [unlockedAchievements, setUnlockedAchievements] = useLocalStorage<UnlockedAchievement[]>('finance-tracker-achievements', []);
+    const [streaks, setStreaks] = useLocalStorage<UserStreak>('finance-tracker-streaks', { currentStreak: 0, longestStreak: 0, lastLogDate: null, streakFreezes: 3 });
+    const [challenges, setChallenges] = useLocalStorage<Challenge[]>('finance-tracker-challenges', []);
+
+    const findOrCreateCategory = useCallback((fullName: string, type: TransactionType): string => {
+        const parts = fullName.split('/').map(p => p.trim());
+        let parentId: string | null = null;
+        let finalCategoryId = '';
+        let currentCategories = [...categories];
+        for (const part of parts) {
+          let existingCategory = currentCategories.find(c => c.name.toLowerCase() === part.toLowerCase() && c.type === type && c.parentId === parentId);
+          if (existingCategory) {
+            parentId = existingCategory.id;
+            finalCategoryId = existingCategory.id;
+          } else {
+            const newCategory: Category = { id: self.crypto.randomUUID(), name: part, type, parentId, icon: '🆕' };
+            currentCategories.push(newCategory);
+            parentId = newCategory.id;
+            finalCategoryId = newCategory.id;
+          }
+        }
+        setCategories(currentCategories);
+        return finalCategoryId;
+    }, [categories, setCategories]);
+
+    const updateStreak = useCallback(() => {
+        const today = new Date().toISOString().split('T')[0];
+        if (streaks.lastLogDate === today) return;
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        let newStreak = streaks.currentStreak;
+        if (streaks.lastLogDate === yesterdayStr) {
+            newStreak += 1; // Continue streak
+        } else {
+            newStreak = 1; // Reset or start new streak
+        }
+
+        setStreaks({
+            ...streaks,
+            currentStreak: newStreak,
+            longestStreak: Math.max(streaks.longestStreak, newStreak),
+            lastLogDate: today,
+        });
+    }, [streaks, setStreaks]);
+
+    const checkAndCompleteChallenge = useCallback((type: ChallengeType) => {
+        const today = new Date().toISOString().split('T')[0];
+        const dailyChallenge = challenges.find(c => c.date === today);
+        if (dailyChallenge && !dailyChallenge.isCompleted && dailyChallenge.type === type) {
+            setChallenges(prev => prev.map(c => c.id === dailyChallenge.id ? { ...c, isCompleted: true } : c));
+        }
+    }, [challenges, setChallenges]);
+
+    const deleteItem = useCallback((itemId: string, itemType: ItemType) => {
+        // BUG FIX: Create a map of setters to call the correct state update function.
+        const setterMap: Record<string, (items: any[]) => Promise<void>> = {
+          'transaction': setTransactions, 'category': setCategories, 'payee': setPayees,
+          'sender': setSenders, 'contact': setContacts, 'contactGroup': setContactGroups,
+          'goal': setGoals, 'recurringTransaction': setRecurringTransactions, 'account': setAccounts,
+          'trip': setTrips, 'tripExpense': setTripExpenses, 'shop': setShops,
+          'shopProduct': setShopProducts, 'shopEmployee': setShopEmployees, 'shopShift': setShopShifts,
+        };
+
+        const itemMap: Record<string, any[]> = {
+          'transaction': transactions, 'category': categories, 'payee': payees,
+          'sender': senders, 'contact': contacts, 'contactGroup': contactGroups,
+          'goal': goals, 'recurringTransaction': recurringTransactions, 'account': accounts,
+          'trip': trips, 'tripExpense': tripExpenses, 'shop': shops,
+          'shopProduct': shopProducts, 'shopEmployee': shopEmployees, 'shopShift': shopShifts,
+        };
+      
+      const items = itemMap[itemType];
+      const setter = setterMap[itemType];
+
+      if (!items || !setter) return;
+
+      const itemToDelete = items.find(item => item.id === itemId);
+      if(itemToDelete) {
+          const newTrustBinItem: TrustBinItem = { id: self.crypto.randomUUID(), item: itemToDelete, itemType, deletedAt: new Date().toISOString() };
+          setTrustBin(prev => [...prev, newTrustBinItem]);
+          setter(items.filter(item => item.id !== itemId));
+      }
+    }, [
+        // BUG FIX: Added all relevant setters and data arrays to the dependency list.
+        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts,
+        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts, setTrustBin
+    ]);
+
+
+    const value = useMemo(() => ({
+        transactions, setTransactions, accounts, setAccounts, budgets, setBudgets,
+        recurringTransactions, setRecurringTransactions, goals, setGoals, investmentHoldings, setInvestmentHoldings,
+        trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
+        shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
+        trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
+        challenges, setChallenges, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+    }), [
+        transactions, setTransactions, accounts, setAccounts, budgets, setBudgets,
+        recurringTransactions, setRecurringTransactions, goals, setGoals, investmentHoldings, setInvestmentHoldings,
+        trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
+        shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
+        trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
+        challenges, setChallenges, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+    ]);
+
+    return <AppDataContext.Provider value={value as any}>{children}</AppDataContext.Provider>;
+}

@@ -108,7 +108,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts
               )
           ) : (
              <div>
-                <label className="text-sm text-secondary mb-1 block">Refund Issued By (Optional)</label>
+                <label className="text-sm text-secondary mb-1 block">Refund From (Optional)</label>
                 <CustomSelect
                     options={contactOptions}
                     value={refundingContactId}

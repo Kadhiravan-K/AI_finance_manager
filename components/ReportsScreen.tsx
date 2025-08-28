@@ -6,6 +6,8 @@ import TimeSeriesBarChart from './TimeSeriesBarChart';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import CustomCheckbox from './CustomCheckbox';
+import ToggleSwitch from './ToggleSwitch';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface ReportsScreenProps {
   transactions: Transaction[];
@@ -16,6 +18,7 @@ interface ReportsScreenProps {
 }
 
 type ReportType = 'breakdown' | 'trend';
+type ComparePeriodType = 'previous' | 'last_year' | 'last_month' | 'last_quarter' | 'custom';
 
 // A functional AccountSelector for this screen's needs
 const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string[], onChange: (ids: string[]) => void }> = ({ accounts, selectedIds, onChange }) => {
@@ -130,17 +133,38 @@ const CategorySelector: React.FC<{ categories: Category[], selectedIds: string[]
 const filterTransactions = (
     transactions: Transaction[], 
     accounts: Account[],
-    period: ReportPeriod, 
-    customDateRange: CustomDateRange, 
-    transactionType: TransactionType,
+    allCategories: Category[],
     accountIds: string[],
     categoryIds: string[],
-    allCategories: Category[],
-    reportCurrency: string
+    reportCurrency: string,
+    period: ReportPeriod, 
+    customDateRange: CustomDateRange,
 ) => {
-    const now = new Date();
     let startDate: Date | null = new Date();
-    let endDate: Date | null = new Date(now.getTime() + 86400000);
+    let endDate: Date | null = new Date();
+    
+    const now = new Date();
+    switch (period) {
+        case 'week':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+            endDate = new Date();
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date();
+            break;
+        case 'year':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            endDate = new Date();
+            break;
+        case 'custom':
+            startDate = customDateRange.start;
+            endDate = customDateRange.end;
+            break;
+    }
+
+    if (startDate) startDate.setHours(0, 0, 0, 0);
+    if (endDate) endDate.setHours(23, 59, 59, 999);
 
     // Primary currency filter
     const accountsInCurrency = new Set(accounts.filter(a => a.currency === reportCurrency).map(a => a.id));
@@ -166,27 +190,8 @@ const filterTransactions = (
         filtered = filtered.filter(t => selectedCategorySet.has(t.categoryId));
     }
 
-    switch (period) {
-        case 'week':
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-            break;
-        case 'month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            break;
-        case 'year':
-            startDate = new Date(now.getFullYear(), 0, 1);
-            break;
-        case 'custom':
-            startDate = customDateRange.start;
-            endDate = customDateRange.end ? new Date(customDateRange.end.getTime() + 86400000) : null; // include end date
-            break;
-    }
-
-    if (startDate) startDate.setHours(0, 0, 0, 0);
-
-    filtered = filtered.filter(t => t.type === transactionType);
     if(startDate) filtered = filtered.filter(t => new Date(t.date) >= startDate!);
-    if(endDate) filtered = filtered.filter(t => new Date(t.date) < endDate!);
+    if(endDate) filtered = filtered.filter(t => new Date(t.date) <= endDate!);
     
     return filtered;
 };
@@ -199,6 +204,12 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   const [reportAccountIds, setReportAccountIds] = useState(selectedAccountIds);
   const [categoryIds, setCategoryIds] = useState(['all']);
   const [reportCurrency, setReportCurrency] = useState(baseCurrency);
+  const formatCurrency = useCurrencyFormatter(undefined, reportCurrency);
+
+  // Comparison state
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [comparePeriodType, setComparePeriodType] = useState<ComparePeriodType>('previous');
+  const [compareCustomDateRange, setCompareCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
 
   const availableCurrencies = useMemo(() => {
     const currencies = new Set(accounts.map(a => a.currency));
@@ -207,76 +218,165 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   
   const accountsForCurrency = useMemo(() => accounts.filter(a => a.currency === reportCurrency), [accounts, reportCurrency]);
 
-  const filteredTransactions = useMemo(() => {
-    return filterTransactions(
-      transactions,
-      accounts,
-      period,
-      customDateRange,
-      transactionType,
-      reportAccountIds,
-      categoryIds,
-      categories,
-      reportCurrency
+  const { filteredTransactions, compareTransactions } = useMemo(() => {
+    const baseTxs = filterTransactions(
+      transactions, accounts, categories, reportAccountIds, categoryIds, reportCurrency,
+      period, customDateRange
     );
-  }, [transactions, accounts, period, customDateRange, transactionType, reportAccountIds, categoryIds, categories, reportCurrency]);
+
+    let compareTxs: Transaction[] = [];
+    if (isCompareMode) {
+      let compareStartDate: Date | null = null;
+      let compareEndDate: Date | null = null;
+      
+      const getPrimaryDateRange = () => {
+          const now = new Date();
+          switch (period) {
+              case 'week': return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()), end: now };
+              case 'month': return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
+              case 'year': return { start: new Date(now.getFullYear(), 0, 1), end: now };
+              case 'custom': return { start: customDateRange.start, end: customDateRange.end };
+          }
+      };
+
+      const primaryRange = getPrimaryDateRange();
+      const now = new Date();
+
+      if (primaryRange.start) {
+        if (comparePeriodType === 'previous') {
+            const duration = (primaryRange.end?.getTime() || now.getTime()) - primaryRange.start.getTime();
+            compareEndDate = new Date(primaryRange.start.getTime() - 1);
+            compareStartDate = new Date(compareEndDate.getTime() - duration);
+        } else if (comparePeriodType === 'last_month') {
+            compareEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
+            compareStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        } else if (comparePeriodType === 'last_quarter') {
+            const currentQuarter = Math.floor(now.getMonth() / 3);
+            const lastQuarterStartMonth = currentQuarter * 3 - 3;
+            compareStartDate = new Date(now.getFullYear(), lastQuarterStartMonth, 1);
+            compareEndDate = new Date(now.getFullYear(), lastQuarterStartMonth + 3, 0);
+        } else if (comparePeriodType === 'last_year') {
+            compareStartDate = new Date(primaryRange.start);
+            compareStartDate.setFullYear(compareStartDate.getFullYear() - 1);
+            if (primaryRange.end) {
+                compareEndDate = new Date(primaryRange.end);
+                compareEndDate.setFullYear(compareEndDate.getFullYear() - 1);
+            }
+        } else if (comparePeriodType === 'custom') {
+            compareStartDate = compareCustomDateRange.start;
+            compareEndDate = compareCustomDateRange.end;
+        }
+      }
+      
+      compareTxs = filterTransactions(
+          transactions, accounts, categories, reportAccountIds, categoryIds, reportCurrency,
+          'custom', { start: compareStartDate, end: compareEndDate }
+      );
+    }
+    
+    return {
+      filteredTransactions: baseTxs,
+      compareTransactions: compareTxs,
+    };
+  }, [
+    transactions, accounts, categories, reportAccountIds, categoryIds, reportCurrency,
+    period, customDateRange, isCompareMode, comparePeriodType, compareCustomDateRange
+  ]);
+
+  const incomeTransactions = filteredTransactions.filter(t => t.type === TransactionType.INCOME);
+  const expenseTransactions = filteredTransactions.filter(t => t.type === TransactionType.EXPENSE);
+  const compareIncomeTxs = compareTransactions.filter(t => t.type === TransactionType.INCOME);
+  const compareExpenseTxs = compareTransactions.filter(t => t.type === TransactionType.EXPENSE);
+
+  const totalPrimary = (transactionType === TransactionType.EXPENSE ? expenseTransactions : incomeTransactions).reduce((sum, t) => sum + t.amount, 0);
+  const totalCompare = (transactionType === TransactionType.EXPENSE ? compareExpenseTxs : compareIncomeTxs).reduce((sum, t) => sum + t.amount, 0);
+  const percentageChange = totalCompare > 0 ? ((totalPrimary - totalCompare) / totalCompare) * 100 : totalPrimary > 0 ? 100 : 0;
   
   const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
     <button onClick={onClick} className={`w-full py-2 text-sm font-semibold rounded-full transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary'}`}>
       {children}
     </button>
   );
+  
+  const ChartContainer: React.FC<{children: React.ReactNode}> = ({children}) => <div className={isCompareMode ? 'md:col-span-1' : 'md:col-span-2'}>{children}</div>;
+  
+  const ReportDataView: React.FC<{txs: Transaction[], title: string}> = ({ txs, title }) => (
+    <div className="animate-fadeInUp">
+        {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
+        {reportType === 'breakdown' ? (
+        <>
+            <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
+            <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} />
+        </>
+        ) : (
+            <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
+        )}
+    </div>
+  );
 
   return (
     <div className="p-4 flex-grow overflow-y-auto pr-2">
       <h2 className="text-2xl font-bold text-primary mb-4 text-center">Reports</h2>
       
-      {/* Filters */}
-      <div className="p-4 rounded-xl glass-card space-y-4 mb-6">
+      <div className="p-4 rounded-xl glass-card space-y-4 mb-6 relative z-20">
         <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
             <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expense</TabButton>
             <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
         </div>
          <div className="grid grid-cols-2 gap-4">
-            <CustomSelect
-                options={availableCurrencies}
-                value={reportCurrency}
-                onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }}
-            />
+            <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
             <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
         </div>
         <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
         <CustomSelect 
             options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
-            value={period}
-            onChange={(val) => setPeriod(val as ReportPeriod)}
+            value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
         />
-        {period === 'custom' && (
-            <div className="grid grid-cols-2 gap-4 animate-fadeInUp">
-                <CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} />
-                <CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} />
-            </div>
+        {period === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-fadeInUp"><CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} /></div>)}
+        <div className="pt-2 border-t border-divider"><ToggleSwitch checked={isCompareMode} onChange={setIsCompareMode} label="Compare Periods" /></div>
+        {isCompareMode && (
+          <div className="space-y-2 animate-fadeInUp">
+            <CustomSelect
+              options={[
+                  {value: 'previous', label: 'Previous Period'},
+                  {value: 'last_month', label: 'Last Month'},
+                  {value: 'last_quarter', label: 'Last Quarter'},
+                  {value: 'last_year', label: 'Same Period Last Year'},
+                  {value: 'custom', label: 'Custom'}
+              ]}
+              value={comparePeriodType} onChange={(v) => setComparePeriodType(v as ComparePeriodType)}
+            />
+            {comparePeriodType === 'custom' && (<div className="grid grid-cols-2 gap-4"><CustomDatePicker value={compareCustomDateRange.start} onChange={d => setCompareCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={compareCustomDateRange.end} onChange={d => setCompareCustomDateRange(p => ({...p, end: d}))} /></div>)}
+          </div>
         )}
       </div>
-
-      {/* Report Content */}
+      
+      {isCompareMode && (
+          <div className="p-4 rounded-xl glass-card text-center mb-6 animate-fadeInUp">
+              <h3 className="font-semibold text-lg text-primary">Comparison Summary</h3>
+              <div className="grid grid-cols-3 gap-2 items-center mt-2">
+                  <div><p className="text-sm text-secondary">Current</p><p className="font-bold text-xl text-primary">{formatCurrency(totalPrimary)}</p></div>
+                  <div><p className="text-sm text-secondary">vs. Previous</p><p className="font-bold text-xl text-primary">{formatCurrency(totalCompare)}</p></div>
+                  <div><p className="text-sm text-secondary">Change</p><p className={`font-bold text-xl ${percentageChange >= 0 ? (transactionType === 'income' ? 'text-emerald-400' : 'text-rose-400') : (transactionType === 'income' ? 'text-rose-400' : 'text-emerald-400')}`}>{percentageChange >= 0 ? '▲' : '▼'}{Math.abs(percentageChange).toFixed(1)}%</p></div>
+              </div>
+          </div>
+      )}
+      
       <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
         <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
         <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
       </div>
       
-      {reportType === 'breakdown' && (
-        <div className="animate-fadeInUp">
-          <CategoryPieChart title="Category Overview" transactions={filteredTransactions} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
-          <CategoryBarChart title="Top-Level Categories" transactions={filteredTransactions} categories={categories} type={transactionType} />
-        </div>
-      )}
-      
-      {reportType === 'trend' && (
-        <div className="animate-fadeInUp">
-          <TimeSeriesBarChart title="Spending Over Time" transactions={filteredTransactions} period={period} type={transactionType} />
-        </div>
-      )}
+      <div className={`grid grid-cols-1 ${isCompareMode ? 'md:grid-cols-2' : ''} gap-4`}>
+          <ChartContainer>
+            <ReportDataView txs={transactionType === 'expense' ? expenseTransactions : incomeTransactions} title={isCompareMode ? "Current Period" : ""} />
+          </ChartContainer>
+          {isCompareMode && (
+              <ChartContainer>
+                <ReportDataView txs={transactionType === 'expense' ? compareExpenseTxs : compareIncomeTxs} title="Comparison Period" />
+              </ChartContainer>
+          )}
+      </div>
     </div>
   );
 };

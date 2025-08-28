@@ -293,3 +293,35 @@ Text: "${text}"`,
     throw new Error(error instanceof Error ? `Failed to parse trip text: ${error.message}` : "An unknown error occurred during parsing.");
   }
 }
+
+const financialTopicSchema = {
+    type: Type.OBJECT,
+    properties: {
+        explanation: { 
+            type: Type.STRING, 
+            description: "A clear, simple, and easy-to-understand explanation of the financial topic. Avoid jargon or explain it clearly. Use paragraphs for readability." 
+        },
+        actionableTips: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "A list of 2-4 short, practical, and actionable tips a user can take related to this topic."
+        }
+    },
+    required: ["explanation", "actionableTips"]
+};
+
+export async function getFinancialTopicExplanation(topic: string): Promise<{ explanation: string; actionableTips: string[] }> {
+    if (!topic) throw new Error("Topic cannot be empty.");
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `You are a friendly and knowledgeable financial educator. Explain the topic "${topic}" in a simple and easy-to-understand way for a beginner. Provide a main explanation and a few actionable tips.`,
+            config: { responseMimeType: "application/json", responseSchema: financialTopicSchema },
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error getting financial topic explanation from Gemini API:", error);
+        throw new Error(error instanceof Error ? `Failed to get explanation: ${error.message}` : "An unknown error occurred.");
+    }
+}

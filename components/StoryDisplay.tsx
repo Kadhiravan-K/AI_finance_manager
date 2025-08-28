@@ -36,7 +36,6 @@ interface FinanceDisplayProps {
   isBalanceVisible: boolean;
   setIsBalanceVisible: (visible: boolean) => void;
   dashboardWidgets: DashboardWidget[];
-  isInsightLoading: boolean;
   mainContentRef?: React.RefObject<HTMLElement>;
   financialProfile: FinancialProfile;
   onOpenFinancialHealth: () => void;
@@ -180,7 +179,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, isInsightLoading, mainContentRef, financialProfile, onOpenFinancialHealth, selectedAccountIds, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, selectedAccountIds, ...filterProps }) => {
     
     const currencySummaries = useMemo(() => {
         // 1. Determine active currencies from selected accounts to ensure cards are always shown.

@@ -1,8 +1,9 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
-import { FinanceTracker } from './components/StoryGenerator';
-import { SettingsProvider, SettingsContext } from './contexts/SettingsContext';
+// FIX: Changed to a named import as MainContent is not a default export.
+import { MainContent } from './components/StoryGenerator';
+import { SettingsProvider, SettingsContext, AppDataProvider } from './contexts/SettingsContext';
 import { ActiveScreen, ActiveModal, ModalState } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import useLocalStorage from './hooks/useLocalStorage';
@@ -10,7 +11,7 @@ import PrivacyConsentModal from './components/PrivacyConsentModal';
 import OnboardingModal from './components/OnboardingModal';
 import Footer from './components/Footer';
 import HeaderMenuModal from './components/HeaderMenuModal';
-import GlobalSearchResults from './components/GlobalSearchResults';
+import AICommandModal from './components/AICommandModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -25,8 +26,6 @@ const AppContent: React.FC = () => {
   const { settings } = useContext(SettingsContext);
   const mainContentRef = useRef<HTMLElement>(null);
   const [isQuickAddDisabled, setIsQuickAddDisabled] = useState(false);
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   
   const activeModal = modalStack[modalStack.length - 1] || null;
   const setActiveModal = (modal: ModalState | null) => {
@@ -77,8 +76,10 @@ const AppContent: React.FC = () => {
   const handleNavigation = (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => {
       if (screen) setActiveScreen(screen);
       if (modal) setActiveModal({name: modal, props: modalProps });
-      setIsSearchActive(false);
-      setSearchQuery('');
+      // Close AI Command Center on navigation
+      if(activeModal?.name === 'aiCommandCenter') {
+        setActiveModal(null);
+      }
   }
 
   return (
@@ -95,17 +96,13 @@ const AppContent: React.FC = () => {
               onOpenTransfer={() => setActiveModal({name: 'transfer'})}
               onOpenMenu={() => setActiveModal({name: 'headerMenu'})}
               onOpenNotifications={() => setActiveModal({name: 'notifications'})}
-              onOpenAIAssistant={() => setActiveModal({name: 'financialHealth'})}
+              onOpenAICommandCenter={() => setActiveModal({name: 'aiCommandCenter'})}
               isOnline={isOnline}
-              isSearchActive={isSearchActive}
-              setIsSearchActive={setIsSearchActive}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
               enabledTools={settings.enabledTools}
             />
           </div>
           <main ref={mainContentRef} className="flex-grow overflow-y-auto opacity-0 animate-fadeInUp pb-20" style={{animationDelay: '200ms'}}>
-            <FinanceTracker 
+            <MainContent 
               activeScreen={activeScreen}
               setActiveScreen={setActiveScreen}
               modalStack={modalStack}
@@ -116,10 +113,11 @@ const AppContent: React.FC = () => {
               onSelectionChange={selectedIds => setIsQuickAddDisabled(selectedIds.length !== 1)}
               showOnboardingGuide={showOnboardingGuide}
               setShowOnboardingGuide={setShowOnboardingGuide}
+              onNavigate={handleNavigation}
             />
           </main>
           <Footer activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
-          {!isSearchActive && (
+          
             <button 
               onClick={() => setActiveModal({name: 'addTransaction'})}
               className="fab"
@@ -131,7 +129,7 @@ const AppContent: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
             </button>
-          )}
+          
            {activeModal?.name === 'headerMenu' && ReactDOM.createPortal(
             <HeaderMenuModal 
               onClose={() => setActiveModal(null)}
@@ -145,14 +143,6 @@ const AppContent: React.FC = () => {
             />,
             modalRoot
           )}
-          {isSearchActive && ReactDOM.createPortal(
-            <GlobalSearchResults
-                query={searchQuery}
-                onNavigate={handleNavigation}
-                onClose={() => setIsSearchActive(false)}
-            />,
-            modalRoot
-          )}
         </div>
       </div>
     </>
@@ -163,7 +153,9 @@ const AppContent: React.FC = () => {
 function App(): React.ReactNode {
   return (
     <SettingsProvider>
-      <AppContent />
+      <AppDataProvider>
+        <AppContent />
+      </AppDataProvider>
     </SettingsProvider>
   );
 }

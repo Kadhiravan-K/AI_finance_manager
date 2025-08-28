@@ -60,6 +60,10 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
 
 
   const [formData, setFormData] = useState<Transaction>(transaction || defaultTransaction);
+  const [time, setTime] = useState(() => {
+    const date = new Date(transaction?.date || defaultTransaction.date);
+    return date.toTimeString().slice(0, 5);
+  });
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const formatCurrency = useCurrencyFormatter({currencyDisplay: 'narrowSymbol'});
   
@@ -158,6 +162,20 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
         newFormData.categoryId = '';
     }
     setFormData(newFormData);
+  };
+  
+  const handleDateChange = (date: Date) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    date.setHours(hours, minutes);
+    handleChange('date', date.toISOString());
+  };
+
+  const handleTimeChange = (newTime: string) => {
+    setTime(newTime);
+    const date = new Date(formData.date);
+    const [hours, minutes] = newTime.split(':').map(Number);
+    date.setHours(hours, minutes);
+    handleChange('date', date.toISOString());
   };
   
   const handleParentCategoryChange = (parentId: string) => {
@@ -459,13 +477,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
     
     return (
-        <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider relative">
-             {items.length > 1 && (
-                <button type="button" onClick={() => handleRemoveItem(item.id)} className="absolute top-2 right-2 p-1 text-secondary hover:text-rose-400 bg-subtle rounded-full z-10">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            )}
-            <div className="flex items-start gap-2">
+        <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
+             <div className="flex justify-between items-start gap-2">
                 <div className="flex-grow space-y-2">
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
                     <div className="grid grid-cols-2 gap-2">
@@ -485,7 +498,14 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     </div>
                     {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Subcategory" defaultValue={item.parentId || ''} />}
                 </div>
-                 <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors h-fit mt-1 ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
+                 <div className="flex flex-col gap-2 items-center flex-shrink-0 pt-1">
+                    <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
+                     {items.length > 1 && (
+                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1.5 text-secondary hover:text-rose-400 bg-subtle rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    )}
+                 </div>
             </div>
             {splittingItemId === item.id && renderSplitManager(item)}
         </div>
@@ -495,14 +515,17 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const formBody = (
     <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto flex-grow">
        {/* Row 1: Account & Date */}
-       <div className="grid grid-cols-2 gap-4">
-           <div>
+       <div className="grid grid-cols-5 gap-4">
+           <div className="col-span-3">
             <label className={labelBaseClasses}>Account</label>
             <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
           </div>
-          <div>
-            <label className={labelBaseClasses}>Date</label>
-            <CustomDatePicker value={new Date(formData.date)} onChange={(date) => handleChange('date', date.toISOString())}/>
+          <div className="col-span-2">
+            <label className={labelBaseClasses}>Date & Time</label>
+            <div className="flex gap-2">
+                <CustomDatePicker value={new Date(formData.date)} onChange={handleDateChange}/>
+                <input type="time" value={time} onChange={e => handleTimeChange(e.target.value)} className={`${inputBaseClasses} w-24`} />
+            </div>
           </div>
        </div>
        
@@ -595,7 +618,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
               Find Expense to Refund
             </button>
           ) : (
-            formData.type === TransactionType.EXPENSE && (
+            !isCreating && formData.type === TransactionType.EXPENSE && (
               <button type="button" onClick={() => openModal('refund', { transaction: formData, contacts })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
                 Process a Refund
               </button>
