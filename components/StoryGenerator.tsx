@@ -840,7 +840,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
 
     const renderActiveScreen = () => {
         switch (activeScreen) {
-            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} />;
+            // FIX: Passed the missing 'setCustomDateRange' prop to the FinanceDisplay component to resolve a TypeScript error. The prop is required for handling custom date range selections in the transaction filters.
+            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} baseCurrency={settings.currency} />;
             case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency} />;
             case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
             case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'goal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} />;
@@ -866,7 +867,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                 shops={shops}
                 trips={trips}
                 contacts={contacts}
-                onAddAccount={() => openModal('accountsManager')}
+                onAddAccount={() => openModal('editAccount')}
                 onEditAccount={(a) => openModal('editAccount', { account: a })}
                 onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
                 onAddTransaction={() => openModal('addTransaction')}
@@ -1007,17 +1008,6 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                         return ReactDOM.createPortal(<TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />, modalRoot);
                     case 'editAccount':
                          return ReactDOM.createPortal(<EditAccountModal account={modalProps.account} onClose={closeActiveModal} onSave={(acc) => setAccounts(prev => prev.map(a => a.id === acc.id ? acc : a))} />, modalRoot);
-                    case 'accountsManager':
-                        return ReactDOM.createPortal(
-                            <AccountsManagerModal 
-                                onClose={closeActiveModal}
-                                accounts={accounts}
-                                onAddAccount={handleAddAccount}
-                                onEditAccount={(acc) => setAccounts(prev => prev.map(a => a.id === acc.id ? acc : a))}
-                                onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')}
-                            />, 
-                            modalRoot
-                        );
                     case 'editTrip':
                         return ReactDOM.createPortal(<EditTripModal onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onOpenContactsManager={() => openModal('contacts')} {...modalProps} />, modalRoot);
                     case 'editContact':
@@ -1038,6 +1028,17 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                         return ReactDOM.createPortal(<FooterSettingsModal onClose={closeActiveModal} />, modalRoot);
                     case 'aiCommandCenter':
                         return ReactDOM.createPortal(<AICommandModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} />, modalRoot);
+                    case 'accountsManager':
+                        return ReactDOM.createPortal(
+                            <AccountsManagerModal
+                                onClose={closeActiveModal}
+                                accounts={accounts}
+                                onAddAccount={handleAddAccount}
+                                onEditAccount={(a) => openModal('editAccount', { account: a })}
+                                onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')}
+                            />,
+                            modalRoot
+                        );
                     default:
                         return null;
                 }

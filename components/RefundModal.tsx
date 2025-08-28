@@ -34,7 +34,8 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts
   
   const maxAmount = useMemo(() => {
       if (selectedRefundee) return selectedRefundee.amount;
-      return originalTransaction.amount;
+      const alreadyRefunded = 0; // In a more complex system, we'd calculate this
+      return originalTransaction.amount - alreadyRefunded;
   }, [selectedRefundee, originalTransaction.amount]);
   
   const isInvalidForRefund = maxAmount <= 0;
@@ -133,7 +134,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts
               disabled={isInvalidForRefund}
             />
           </div>
-          {isInvalidForRefund && <p className="text-xs text-center text-rose-400">This transaction cannot be refunded as its value is zero.</p>}
+          {isInvalidForRefund && <p className="text-xs text-center text-rose-400">This transaction cannot be refunded as its value is zero or less.</p>}
            <div>
             <label className="text-sm text-secondary mb-1 block">Notes (Optional)</label>
             <textarea

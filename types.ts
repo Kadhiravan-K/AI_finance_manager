@@ -283,33 +283,52 @@ export interface TrustBinItem {
 }
 
 // Shop Management Types
+export type ShopType = 'physical' | 'online' | 'freelance' | 'garage_sale' | 'other';
 export interface Shop {
     id: string;
     name: string;
     currency: string;
+    type: ShopType;
+    taxRate?: number; // As a percentage, e.g., 18 for 18%
+    tags?: string[];
 }
 export interface ShopProduct {
     id: string;
     shopId: string;
     name: string;
+    description?: string;
+    tags?: string[];
     qrCode?: string; // Can be UPC, EAN, or custom QR
     stockQuantity: number;
+    lowStockThreshold?: number;
     purchasePrice: number;
     sellingPrice: number;
-    categoryId: string;
+    categoryId: string; // Link to main category system
 }
 export interface ShopSaleItem {
-    productId: string;
+    productId: string; // Links to ShopProduct
+    productName: string; // Denormalized for receipt generation
     quantity: number;
     pricePerUnit: number; // Selling price at the time of sale
-    discount: number; // Percentage
+    purchasePricePerUnit: number; // Cost at time of sale for profit calc
 }
+
+export type DiscountType = 'percentage' | 'flat';
+export interface Discount {
+    type: DiscountType;
+    value: number; // e.g., 10 for 10% or 100 for 100 currency units
+}
+
 export interface ShopSale {
     id: string;
     shopId: string;
     timestamp: string;
-    employeeId: string;
+    employeeId?: string; // Optional
+    customerName?: string; // Optional
     items: ShopSaleItem[];
+    subtotal: number;
+    discount?: Discount;
+    taxAmount: number;
     totalAmount: number;
     profit: number;
 }
@@ -332,7 +351,6 @@ export interface ShopShift {
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn';
 
-// FIX: Added 'aiCommandCenter' to the ActiveModal type union.
 export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | null;
 
 export interface ModalState {

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from 'react';
-import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift } from '../types';
+// FIX: Added ShopType to the import list to resolve type errors.
+import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift, ShopType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
@@ -179,6 +180,7 @@ const ShopForm: React.FC<{shop: Shop | null, onSave: ShopScreenProps['onSaveShop
     const [formState, setFormState] = useState({
         name: shop?.name || '',
         currency: shop?.currency || settings.currency,
+        type: shop?.type || 'physical',
     });
 
     const handleChange = (field: keyof typeof formState, value: string) => {
@@ -188,7 +190,8 @@ const ShopForm: React.FC<{shop: Shop | null, onSave: ShopScreenProps['onSaveShop
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (formState.name.trim()) {
-            onSave({ name: formState.name.trim(), currency: formState.currency }, shop?.id);
+            // FIX: The 'type' property was missing. Added it to the object passed to onSave.
+            onSave({ name: formState.name.trim(), currency: formState.currency, type: formState.type as ShopType }, shop?.id);
         }
         onCancel();
     };
@@ -197,12 +200,21 @@ const ShopForm: React.FC<{shop: Shop | null, onSave: ShopScreenProps['onSaveShop
         value: c.code,
         label: `${c.code} - ${c.name}`
     })), []);
+    
+    const shopTypeOptions: { value: ShopType, label: string }[] = [
+        { value: 'physical', label: 'Physical' },
+        { value: 'online', label: 'Online' },
+        { value: 'freelance', label: 'Freelance' },
+        { value: 'garage_sale', label: 'Garage Sale' },
+        { value: 'other', label: 'Other' }
+    ];
 
     return (
          <form onSubmit={handleSubmit} className="p-4 border-t border-divider bg-subtle space-y-3">
              <h4 className="font-semibold text-primary">{shop ? 'Edit Shop' : 'Create New Shop'}</h4>
-             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input type="text" value={formState.name} onChange={e => handleChange('name', e.target.value)} placeholder="Shop Name" className="w-full input-base p-2 rounded-md sm:col-span-2" required/>
+                <CustomSelect options={shopTypeOptions} value={formState.type} onChange={val => handleChange('type', val)} />
                 <CustomSelect options={currencyOptions} value={formState.currency} onChange={val => handleChange('currency', val)} />
              </div>
              <div className="flex justify-end gap-2">
@@ -459,27 +471,36 @@ const ShopBilling: React.FC<{shop: Shop, products: ShopProduct[], onRecordSale: 
         setIsCustomItemFormOpen(false);
     };
     
-    const totalAmount = Array.from(cart.values()).reduce((sum, item) => sum + (item.product.sellingPrice * item.quantity), 0);
+    const cartTotals = useMemo(() => {
+        const subtotal = Array.from(cart.values()).reduce((sum, item) => sum + (item.product.sellingPrice * item.quantity), 0);
+        const taxAmount = shop.taxRate ? subtotal * (shop.taxRate / 100) : 0;
+        const totalAmount = subtotal + taxAmount;
+        return { subtotal, taxAmount, totalAmount };
+    }, [cart, shop.taxRate]);
     
     const handleCheckout = () => {
         if (cart.size === 0) return;
+        // FIX: Added missing productName and purchasePricePerUnit properties to match the ShopSaleItem type.
         const items: ShopSaleItem[] = Array.from(cart.values()).map(item => ({
             productId: item.product.id,
+            productName: item.product.name,
             quantity: item.quantity,
             pricePerUnit: item.product.sellingPrice,
-            discount: 0
+            purchasePricePerUnit: item.product.purchasePrice,
         }));
+
         const profit = items.reduce((sum, item) => {
-            const product = products.find(p => p.id === item.productId);
-            return sum + ((item.pricePerUnit - (product?.purchasePrice || item.pricePerUnit)) * item.quantity);
+            return sum + (item.pricePerUnit - item.purchasePricePerUnit) * item.quantity;
         }, 0);
         
+        // FIX: Added missing subtotal and taxAmount properties to match the ShopSale type.
         onRecordSale(shop.id, {
             timestamp: new Date().toISOString(),
-            employeeId: 'default',
             items,
-            totalAmount,
-            profit
+            subtotal: cartTotals.subtotal,
+            taxAmount: cartTotals.taxAmount,
+            totalAmount: cartTotals.totalAmount,
+            profit,
         });
         setCart(new Map());
     }
@@ -506,7 +527,7 @@ const ShopBilling: React.FC<{shop: Shop, products: ShopProduct[], onRecordSale: 
             <div className="p-4 border-t border-divider bg-subtle">
                 <div className="flex justify-between items-center mb-4">
                     <span className="text-xl font-bold text-primary">Total</span>
-                    <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount)}</span>
+                    <span className="text-2xl font-bold text-primary">{formatCurrency(cartTotals.totalAmount)}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-2">
                     <button onClick={() => setIsScanning(true)} className="button-secondary w-full py-2">Scan</button>

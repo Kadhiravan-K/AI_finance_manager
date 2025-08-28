@@ -27,10 +27,10 @@ const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
     { id: 'upcoming', name: 'Upcoming/Due Bills', visible: true },
     { id: 'budgets', name: 'Budgets Summary', visible: true },
     { id: 'goals', name: 'Goals Summary', visible: true },
+    { id: 'charts', name: 'Spending Charts', visible: true },
     { id: 'netWorth', name: 'Net Worth', visible: false },
     { id: 'portfolio', name: 'Investment Portfolio', visible: false },
     { id: 'debts', name: 'Debts (Owed to You)', visible: false },
-    { id: 'charts', name: 'Spending Charts', visible: true },
 ];
 
 const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {

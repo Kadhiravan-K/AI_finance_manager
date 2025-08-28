@@ -41,9 +41,11 @@ interface FinanceDisplayProps {
   financialProfile: FinancialProfile;
   onOpenFinancialHealth: () => void;
   selectedAccountIds: string[];
+  onAccountChange: (ids: string[]) => void;
   onAddAccount: (name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => void;
   onEditAccount: (account: Account) => void;
   onDeleteAccount: (id: string) => void;
+  baseCurrency: string;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
@@ -79,8 +81,8 @@ const Dashboard = ({ income, expense, isVisible, currency }: { income: number, e
     const balance = income - expense;
     return (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left mb-6 stagger-delay">
-            <DashboardCard currency={currency} title="Income" amount={income} color="var(--color-accent-emerald)" isVisible={isVisible} style={{ '--stagger-index': 1 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--color-accent-emerald)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg></DashboardCard>
-            <DashboardCard currency={currency} title="Expenses" amount={expense} color="var(--color-accent-rose)" isVisible={isVisible} style={{ '--stagger-index': 2 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--color-accent-rose)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 12H6" /></svg></DashboardCard>
+            <DashboardCard currency={currency} title="Income" amount={income} color="var(--color-accent-emerald)" isVisible={isVisible} style={{ '--stagger-index': 1 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" style={{ color: "var(--color-accent-emerald)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg></DashboardCard>
+            <DashboardCard currency={currency} title="Expenses" amount={expense} color="var(--color-accent-rose)" isVisible={isVisible} style={{ '--stagger-index': 2 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" style={{ color: "var(--color-accent-rose)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 12H6" /></svg></DashboardCard>
             <DashboardCard currency={currency} title="Balance" amount={balance} color={balance >= 0 ? 'var(--color-text-primary)' : 'var(--color-accent-rose)'} isVisible={isVisible} style={{ '--stagger-index': 3 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 6-3 6m18-12l-3 6 3 6" /></svg></DashboardCard>
         </div>
     );
@@ -183,16 +185,16 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, selectedAccountIds, onAddAccount, onEditAccount, onDeleteAccount, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, ...rest }) => {
     
     const currencySummaries = useMemo(() => {
         // 1. Determine active currencies from selected accounts to ensure cards are always shown.
         const activeCurrencies = new Set<string>();
-        if (selectedAccountIds.includes('all')) {
+        if (rest.selectedAccountIds.includes('all')) {
             accounts.forEach(acc => activeCurrencies.add(acc.currency));
         } else {
             accounts.forEach(acc => {
-                if (selectedAccountIds.includes(acc.id)) {
+                if (rest.selectedAccountIds.includes(acc.id)) {
                     activeCurrencies.add(acc.currency);
                 }
             });
@@ -207,7 +209,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
         // 2. Filter ALL transactions by the current date range from props.
         let dateFilteredTransactions = allTransactions;
         const now = new Date();
-        switch (filterProps.dateFilter) {
+        switch (rest.dateFilter) {
             case 'today':
                 dateFilteredTransactions = allTransactions.filter(t => new Date(t.date).toDateString() === now.toDateString());
                 break;
@@ -219,10 +221,10 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
                 dateFilteredTransactions = allTransactions.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
                 break;
             case 'custom':
-                 if (filterProps.customDateRange.start && filterProps.customDateRange.end) {
-                    const start = filterProps.customDateRange.start;
+                 if (rest.customDateRange.start && rest.customDateRange.end) {
+                    const start = rest.customDateRange.start;
                     start.setHours(0,0,0,0);
-                    const end = filterProps.customDateRange.end;
+                    const end = rest.customDateRange.end;
                     end.setHours(23,59,59,999);
                     dateFilteredTransactions = allTransactions.filter(t => new Date(t.date) >= start && new Date(t.date) <= end);
                 }
@@ -232,7 +234,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
         // 3. Calculate totals for selected accounts using the date-filtered list.
         const accountMap = new Map(accounts.map(acc => [acc.id, acc]));
         for (const t of dateFilteredTransactions) {
-            if (selectedAccountIds.includes('all') || selectedAccountIds.includes(t.accountId)) {
+            if (rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.includes(t.accountId)) {
                 const account = accountMap.get(t.accountId);
                 if (account && summaries[account.currency]) {
                     if (t.type === TransactionType.INCOME) {
@@ -250,7 +252,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
         }
     
         return Object.entries(summaries).sort(([currA], [currB]) => currA.localeCompare(currB));
-    }, [allTransactions, accounts, selectedAccountIds, filterProps.dateFilter, filterProps.customDateRange]);
+    }, [allTransactions, accounts, rest.selectedAccountIds, rest.dateFilter, rest.customDateRange]);
     
     const renderContent = () => {
         if (status === ProcessingStatus.ERROR && error) {
@@ -319,40 +321,41 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
         <div className="px-4">
             <div className="flex justify-between items-center mb-1">
                 <h2 className="text-xl font-bold text-primary">Dashboard</h2>
-                <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 text-secondary hover:text-primary" aria-label="Toggle balance visibility">
-                    {isBalanceVisible ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a10.05 10.05 0 015.396-6.175M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2 2l20 20" /></svg>}
+                <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 rounded-full text-secondary hover:text-primary transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isBalanceVisible ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z" : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" } /></svg>
                 </button>
             </div>
-            {renderContent()}
+            
+            <AccountSelector
+              accounts={accounts}
+              allTransactions={allTransactions}
+              selectedAccountIds={rest.selectedAccountIds}
+              onAccountChange={rest.onAccountChange}
+              onAddAccount={rest.onAddAccount}
+              onEditAccount={rest.onEditAccount}
+              onDeleteAccount={rest.onDeleteAccount}
+              baseCurrency={rest.baseCurrency}
+            />
+            
+            <TransactionFilters
+                searchQuery={rest.searchQuery} setSearchQuery={rest.setSearchQuery}
+                onNaturalLanguageSearch={rest.onNaturalLanguageSearch}
+                dateFilter={rest.dateFilter} setDateFilter={rest.setDateFilter}
+                customDateRange={rest.customDateRange} setCustomDateRange={rest.setCustomDateRange}
+            />
 
-            {visibleWidgets.map(widget => <div key={widget.id}>{widgetMap[widget.id]}</div>)}
+            <div className="mt-6">
+                {renderContent()}
+                {visibleWidgets.map(widget => <div key={widget.id}>{widgetMap[widget.id]}</div>)}
+            </div>
 
-            <div className="my-6 relative z-20"><TransactionFilters {...filterProps} /></div>
-            
-            {status === ProcessingStatus.LOADING && (
-                <div className="text-center text-secondary p-4 animate-pulse"><p>Analyzing transaction...</p></div>
-            )}
-            
-            {transactions.length > 0 && (
-                <VirtualizedTransactionList
-                    transactions={transactions} categories={categories} onEdit={onEdit}
-                    onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef}
-                />
-            )}
-            
-            {transactions.length === 0 && status !== ProcessingStatus.LOADING && (
-                 allTransactions.length === 0 ? (
-                    <div className="text-center text-secondary p-8 rounded-xl glass-card mt-4 border border-dashed border-divider">
-                        <p className="text-2xl mb-4">👋</p>
-                        <p className="font-semibold text-primary text-lg">Welcome to Finance Hub!</p>
-                        <p className="text-sm">Click the big '+' button below to add your first transaction.</p>
-                    </div>
-                ) : (
-                    <div className="text-center text-secondary p-8 rounded-xl glass-card mt-4 border border-dashed border-divider">
-                        <p className="font-semibold text-primary">No transactions match your filters.</p>
-                        <p className="text-sm">Try adjusting your search or date range!</p>
-                    </div>
-                )
+            {transactions.length > 0 ? (
+                <VirtualizedTransactionList transactions={transactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
+            ) : (
+                <div className="text-center py-12">
+                    <p className="text-lg font-medium text-secondary">No transactions found</p>
+                    <p className="text-sm text-tertiary">Add one using the '+' button below.</p>
+                </div>
             )}
         </div>
     );

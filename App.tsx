@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
-// FIX: Changed to a named import as MainContent is not a default export.
 import { MainContent } from './components/StoryGenerator';
 import { SettingsProvider, SettingsContext, AppDataProvider } from './contexts/SettingsContext';
 import { ActiveScreen, ActiveModal, ModalState } from './types';
@@ -11,7 +10,6 @@ import PrivacyConsentModal from './components/PrivacyConsentModal';
 import OnboardingModal from './components/OnboardingModal';
 import Footer from './components/Footer';
 import HeaderMenuModal from './components/HeaderMenuModal';
-import AICommandModal from './components/AICommandModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
