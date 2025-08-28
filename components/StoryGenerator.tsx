@@ -217,6 +217,10 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   const handleOpenCalculator = (onResult: (result: number) => void) => {
     openModal('miniCalculator', { onResult });
   };
+  
+  const handleLaunchRefundPicker = () => {
+    openModal('selectRefund');
+  };
 
   const allLocalStorageKeys = [
     'finance-tracker-transactions', 'finance-tracker-accounts', 'finance-tracker-settings', 
@@ -836,7 +840,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
 
     const renderActiveScreen = () => {
         switch (activeScreen) {
-            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} />;
+            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} />;
             case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency} />;
             case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
             case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'goal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} />;
@@ -853,8 +857,37 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                 if (!trip) return <p>Trip not found</p>;
                 {/* FIX: Removed invalid 'setTrips' prop */}
                 return <TripDetailsScreen trip={trip} expenses={tripExpenses.filter(e => e.tripId === trip.id)} onBack={() => setActiveScreen('tripManagement')} onAddExpense={() => openModal('addTripExpense', { trip: trip })} onEditExpense={(exp) => openModal('editTripExpense', { trip, expenseToEdit: exp })} onDeleteExpense={handleDeleteTripExpense} categories={categories} />;
-            case 'refunds': return <RefundsScreen transactions={transactions} categories={categories} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} />;
-            case 'dataHub': return <DataHubScreen transactions={transactions} accounts={accounts} categories={categories} goals={goals} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'item')} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')} onEditCategory={(c) => openModal('editCategory', { category: c })} onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c=>c.id===id)?.name || 'item')} onEditGoal={(g) => openModal('editGoal', { goal: g })} onDeleteGoal={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'item')} />;
+            case 'refunds': return <RefundsScreen transactions={transactions} categories={categories} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} />;
+            case 'dataHub': return <DataHubScreen 
+                transactions={transactions} 
+                accounts={accounts} 
+                categories={categories} 
+                goals={goals} 
+                shops={shops}
+                trips={trips}
+                contacts={contacts}
+                onAddAccount={() => openModal('accountsManager')}
+                onEditAccount={(a) => openModal('editAccount', { account: a })}
+                onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
+                onAddTransaction={() => openModal('addTransaction')}
+                onEditTransaction={(t) => openModal('editTransaction', { transaction: t })}
+                onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'item')}
+                onAddCategory={() => openModal('categories')}
+                onEditCategory={(c) => openModal('editCategory', { category: c })}
+                onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c=>c.id===id)?.name || 'item')}
+                onAddGoal={() => openModal('editGoal')}
+                onEditGoal={(g) => openModal('editGoal', { goal: g })}
+                onDeleteGoal={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'item')}
+                onAddShop={() => { /* This would open a shop editor modal, not yet created */ }}
+                onEditShop={(s) => { /* This would open a shop editor modal */ }}
+                onDeleteShop={(id) => confirmDelete(id, 'shop', shops.find(s=>s.id===id)?.name || 'item')}
+                onAddTrip={() => openModal('editTrip')}
+                onEditTrip={(t) => openModal('editTrip', {trip: t})}
+                onDeleteTrip={(id) => confirmDelete(id, 'trip', trips.find(t=>t.id===id)?.name || 'item')}
+                onAddContact={() => openModal('editContact')}
+                onEditContact={(c) => openModal('editContact', {contact: c})}
+                onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'item')}
+            />;
             {/* FIX: Changed `shift` to `'shift'` to fix a typo causing a type error. */}
             case 'shop': return <ShopScreen shops={shops} products={shopProducts} sales={shopSales} employees={shopEmployees} shifts={shopShifts} onSaveShop={handleSaveShop} onDeleteShop={(id) => confirmDelete(id, 'shop', shops.find(s=>s.id===id)?.name || 'shop')} onSaveProduct={handleSaveProduct} onDeleteProduct={(id) => confirmDelete(id, 'shopProduct', shopProducts.find(p=>p.id===id)?.name || 'product')} onRecordSale={handleRecordSale} onSaveEmployee={handleSaveEmployee} onDeleteEmployee={(id) => confirmDelete(id, 'shopEmployee', shopEmployees.find(e=>e.id===id)?.name || 'employee')} onSaveShift={handleSaveShift} onDeleteShift={(id) => confirmDelete(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')} />;
         }
@@ -908,6 +941,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 contacts={contacts}
                                 openModal={openModal}
                                 onOpenCalculator={handleOpenCalculator}
+                                onLaunchRefundPicker={handleLaunchRefundPicker}
                                 selectedAccountId={selectedAccountIds[0]}
                                 {...modalProps}
                             />,
@@ -922,6 +956,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 contacts={contacts}
                                 openModal={openModal}
                                 onOpenCalculator={handleOpenCalculator}
+                                onLaunchRefundPicker={handleLaunchRefundPicker}
                                 {...modalProps}
                             />,
                             modalRoot
@@ -965,7 +1000,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                         return ReactDOM.createPortal(<RefundModal originalTransaction={modalProps.transaction} contacts={contacts} onClose={closeActiveModal} onSave={handleSaveTransaction} findOrCreateCategory={findOrCreateCategory} />, modalRoot);
                     case 'selectRefund':
                         return ReactDOM.createPortal(<RefundTransactionSelector transactions={transactions} categories={categories} onCancel={closeActiveModal} onSelect={(t) => {
-                           openModal('editTransaction', { transaction: { ...t, type: TransactionType.INCOME, isRefundFor: t.id }, onLaunchRefundPicker: () => {} });
+                           closeActiveModal();
+                           openModal('refund', { transaction: t });
                         }} />, modalRoot);
                     case 'trustBin':
                         return ReactDOM.createPortal(<TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />, modalRoot);

@@ -478,10 +478,10 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     
     return (
         <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
-             <div className="flex justify-between items-start gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-2">
                 <div className="flex-grow space-y-2">
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div className="relative">
                             <input type="text" inputMode="decimal" placeholder="Amount" value={item.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner pr-8`} />
                             <button type="button" onClick={() => onOpenCalculator(result => handleItemChange(item.id, 'amount', String(result)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
@@ -498,7 +498,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     </div>
                     {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Subcategory" defaultValue={item.parentId || ''} />}
                 </div>
-                 <div className="flex flex-col gap-2 items-center flex-shrink-0 pt-1">
+                 <div className="flex items-center gap-2 flex-shrink-0 pt-1">
                     <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
                      {items.length > 1 && (
                         <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1.5 text-secondary hover:text-rose-400 bg-subtle rounded-full">
@@ -515,12 +515,12 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const formBody = (
     <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto flex-grow">
        {/* Row 1: Account & Date */}
-       <div className="grid grid-cols-5 gap-4">
-           <div className="col-span-3">
+       <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+           <div className="col-span-1 sm:col-span-3">
             <label className={labelBaseClasses}>Account</label>
             <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
           </div>
-          <div className="col-span-2">
+          <div className="col-span-1 sm:col-span-2">
             <label className={labelBaseClasses}>Date & Time</label>
             <div className="flex gap-2">
                 <CustomDatePicker value={new Date(formData.date)} onChange={handleDateChange}/>
@@ -533,7 +533,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
        {!isItemized ? (
         <div className='space-y-4 animate-fadeInUp'>
             {/* Row 2: Amount & Type */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                     <label htmlFor="amount" className={labelBaseClasses}>Amount ({formatCurrency(0).replace(/[\d\s.,]/g, '')})</label>
                     <div className="relative">
@@ -549,7 +549,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     </div>
             </div>
             {/* Row 3: Category & Subcategory */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                 <label className={labelBaseClasses}>Category</label>
                 <CustomSelect value={selectedParentId || ''} onChange={handleParentCategoryChange} options={parentCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Select Category"/>

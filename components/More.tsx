@@ -47,7 +47,6 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
             <div>
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Settings & Management</h3>
                 <div className="space-y-3">
-                     <button onClick={() => handleNav('accountsManager')} className="settings-management-button"><span>Manage Accounts</span><span>🏦</span></button>
                      <button onClick={() => handleNav('manageTools')} className="settings-management-button"><span>Manage Tools</span><span>🛠️</span></button>
                      <button onClick={() => handleNav('categories')} className="settings-management-button"><span>Manage Categories</span><span>🏷️</span></button>
                      <button onClick={() => handleNav('contacts')} className="settings-management-button"><span>Manage Contacts</span><span>👥</span></button>

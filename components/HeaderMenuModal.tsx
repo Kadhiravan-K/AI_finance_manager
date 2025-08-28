@@ -87,7 +87,7 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="All Tools" onClose={onClose} icon="🧭" />
+        <ModalHeader title="All Tools" onClose={onClose} icon="🧭" onSettingsClick={() => setActiveModal('manageTools')} />
         <div className="p-4 overflow-y-auto">
           <div className="management-grid">
             {menuItems.map(item => (

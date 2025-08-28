@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
@@ -10,6 +10,7 @@ import DebtsSummary from './DebtsSummary';
 import NetWorthSummary from './NetWorthSummary';
 import PortfolioSummary from './PortfolioSummary';
 import FinancialHealthScore from './FinancialHealthScore';
+import AccountSelector from './AccountSelector';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -40,6 +41,9 @@ interface FinanceDisplayProps {
   financialProfile: FinancialProfile;
   onOpenFinancialHealth: () => void;
   selectedAccountIds: string[];
+  onAddAccount: (name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => void;
+  onEditAccount: (account: Account) => void;
+  onDeleteAccount: (id: string) => void;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
@@ -179,7 +183,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, selectedAccountIds, ...filterProps }) => {
+const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, selectedAccountIds, onAddAccount, onEditAccount, onDeleteAccount, ...filterProps }) => {
     
     const currencySummaries = useMemo(() => {
         // 1. Determine active currencies from selected accounts to ensure cards are always shown.

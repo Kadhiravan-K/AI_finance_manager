@@ -10,6 +10,7 @@ interface RefundsScreenProps {
   transactions: Transaction[];
   categories: Category[];
   onEditTransaction: (transaction: Transaction) => void;
+  onDeleteTransaction: (id: string) => void;
 }
 
 const getCategoryPath = (categoryId: string, categories: Category[]): string => {
@@ -18,7 +19,7 @@ const getCategoryPath = (categoryId: string, categories: Category[]): string => 
     return path.join(' / ') || 'Uncategorized';
 };
 
-const RefundsScreen: React.FC<RefundsScreenProps> = ({ transactions, categories, onEditTransaction }) => {
+const RefundsScreen: React.FC<RefundsScreenProps> = ({ transactions, categories, onEditTransaction, onDeleteTransaction }) => {
   const formatCurrency = useCurrencyFormatter();
   const refundTransactions = transactions.filter(t => t.isRefundFor);
   const originalTransactions = new Map(transactions.map(t => [t.id, t]));
@@ -32,7 +33,7 @@ const RefundsScreen: React.FC<RefundsScreenProps> = ({ transactions, categories,
         {refundTransactions.map(refund => {
           const original = refund.isRefundFor ? originalTransactions.get(refund.isRefundFor) : null;
           return (
-            <div key={refund.id} className="p-3 bg-subtle rounded-lg">
+            <div key={refund.id} className="p-3 bg-subtle rounded-lg group">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-medium text-primary">{refund.description}</p>
@@ -45,6 +46,10 @@ const RefundsScreen: React.FC<RefundsScreenProps> = ({ transactions, categories,
                   <p>Refund for: "{original.description}" ({formatCurrency(original.amount)}) on {new Date(original.date).toLocaleDateString()}</p>
                 </div>
               )}
+               <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => onEditTransaction(refund)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
+                    <button onClick={() => onDeleteTransaction(refund.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                </div>
             </div>
           );
         })}

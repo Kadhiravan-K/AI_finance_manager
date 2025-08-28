@@ -37,6 +37,8 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts
       return originalTransaction.amount;
   }, [selectedRefundee, originalTransaction.amount]);
   
+  const isInvalidForRefund = maxAmount <= 0;
+  
   useEffect(() => {
       if (potentialRefundees.length === 1) {
           setRefundingPersonId(potentialRefundees[0].id);
@@ -108,7 +110,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts
               )
           ) : (
              <div>
-                <label className="text-sm text-secondary mb-1 block">Refund From (Optional)</label>
+                <label className="text-sm text-secondary mb-1 block">Refund Issued By (Optional)</label>
                 <CustomSelect
                     options={contactOptions}
                     value={refundingContactId}
@@ -128,8 +130,10 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts
               onChange={e => setAmount(e.target.value)}
               className="w-full input-base p-2 rounded-md no-spinner"
               required
+              disabled={isInvalidForRefund}
             />
           </div>
+          {isInvalidForRefund && <p className="text-xs text-center text-rose-400">This transaction cannot be refunded as its value is zero.</p>}
            <div>
             <label className="text-sm text-secondary mb-1 block">Notes (Optional)</label>
             <textarea
@@ -141,7 +145,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ originalTransaction, contacts
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
-            <button type="submit" className="button-primary px-4 py-2">Confirm Refund</button>
+            <button type="submit" disabled={isInvalidForRefund} className="button-primary px-4 py-2">Confirm Refund</button>
           </div>
         </form>
       </div>
