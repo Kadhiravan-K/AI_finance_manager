@@ -139,6 +139,7 @@ export interface FeedbackItem {
 }
 
 export type FrequencyUnit = 'days' | 'weeks' | 'months' | 'years';
+export type ReminderUnit = 'minutes' | 'hours' | 'days';
 
 export interface RecurringTransaction {
     id: string;
@@ -152,6 +153,11 @@ export interface RecurringTransaction {
     notes?: string;
     interval: number;
     frequencyUnit: FrequencyUnit;
+    startTime?: string; // "HH:MM"
+    reminder?: {
+        value: number;
+        unit: ReminderUnit;
+    }
 }
 
 export interface TripParticipant {
@@ -273,7 +279,7 @@ export interface UnlockedAchievement {
     date: string; // ISO string
 }
 
-export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift';
+export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'refund';
 
 export interface TrustBinItem {
   id: string; // unique id for the bin entry
@@ -400,6 +406,20 @@ export interface FinancialProfile {
     emergencyFundGoal: number;
 }
 
+export interface Refund {
+    id: string;
+    description: string;
+    amount: number;
+    date: string; // ISO string when it was issued
+    accountId: string; // Account to receive the funds
+    isClaimed: boolean;
+    claimedDate?: string; // ISO string when claimed
+    originalTransactionId?: string; // The expense this is a refund for
+    notes?: string;
+    contactId?: string;
+    expectedDate?: string; // ISO String
+}
+
 // For Backup
 export interface AppState {
     transactions: Transaction[];
@@ -419,6 +439,7 @@ export interface AppState {
     trips?: Trip[];
     tripExpenses?: TripExpense[];
     financialProfile: FinancialProfile;
+    refunds?: Refund[];
     // Shop Data
     shops?: Shop[];
     shopProducts?: ShopProduct[];

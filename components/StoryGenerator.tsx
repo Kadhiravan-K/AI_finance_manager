@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund } from '../types';
 import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
@@ -33,7 +33,7 @@ import NotificationSettingsModal from './NotificationSettingsModal';
 import { requestNotificationPermission, checkAndSendNotifications } from '../utils/notifications';
 import TripManagementScreen from './TripManagementScreen';
 import TripDetailsScreen from './TripDetailsScreen';
-import RefundsScreen, { RefundTransactionSelector } from './RefundsScreen';
+import RefundsScreen from './RefundsScreen';
 import AddTripExpenseModal from './AddTripExpenseModal';
 import RefundModal from './RefundModal';
 import TrustBinModal from './TrustBinModal';
@@ -176,7 +176,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     goals, setGoals, investmentHoldings, setInvestmentHoldings, trips, setTrips, tripExpenses, setTripExpenses,
     trustBin, setTrustBin, shops, setShops, shopProducts, setShopProducts, shopSales, setShopSales,
     shopEmployees, setShopEmployees, shopShifts, setShopShifts, unlockedAchievements, setUnlockedAchievements,
-    streaks, challenges, setChallenges, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+    streaks, challenges, setChallenges, refunds, setRefunds, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
   } = dataContext;
   
   const [text, setText] = useState<string>('');
@@ -216,10 +216,6 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     openModal('miniCalculator', { onResult });
   };
   
-  const handleLaunchRefundPicker = () => {
-    openModal('selectRefund');
-  };
-
   const allLocalStorageKeys = [
     'finance-tracker-transactions', 'finance-tracker-accounts', 'finance-tracker-settings', 
     'finance-tracker-categories', 'finance-tracker-payees', 'finance-tracker-senders',
@@ -230,7 +226,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     'finance-tracker-achievements', 'finance-tracker-trust-bin', 'finance-tracker-shops',
     'finance-tracker-shop-products', 'finance-tracker-shop-sales', 'finance-tracker-shop-employees', 'finance-tracker-shop-shifts', 'finance-tracker-consent',
     'finance-tracker-onboarding-complete', 'finance-tracker-crypto-key', 'finance-tracker-show-guide',
-    'finance-tracker-streaks', 'finance-tracker-challenges'
+    'finance-tracker-streaks', 'finance-tracker-challenges', 'finance-tracker-refunds'
   ];
 
   const handleResetApp = () => {
@@ -250,8 +246,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
 
 
   const appState: AppState = useMemo(() => ({
-    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts]);
+    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds]);
 
   useEffect(() => {
     onSelectionChange?.(selectedAccountIds);
@@ -814,6 +810,42 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
       }
   };
   
+  const handleSaveRefund = (refundData: Omit<Refund, 'id' | 'isClaimed' | 'claimedDate'>, id?: string) => {
+    if (id) {
+      // Update logic: make sure to preserve isClaimed and claimedDate from the original
+      setRefunds(prev => (prev || []).map(r => r.id === id ? { ...r, ...refundData, date: r.date, isClaimed: r.isClaimed, claimedDate: r.claimedDate } : r));
+    } else {
+      // Create logic
+      const newRefund: Refund = {
+          ...refundData,
+          id: self.crypto.randomUUID(),
+          isClaimed: false,
+      };
+      setRefunds(prev => [...(prev || []), newRefund]);
+    }
+    closeActiveModal();
+  };
+
+  const handleClaimRefund = (refundId: string) => {
+      const refundToClaim = refunds.find(r => r.id === refundId);
+      if (!refundToClaim) return;
+      
+      const incomeCategory = findOrCreateCategory('Refunds & Rebates', TransactionType.INCOME);
+      const incomeTx: Transaction = {
+          id: self.crypto.randomUUID(),
+          accountId: refundToClaim.accountId,
+          description: refundToClaim.description,
+          amount: refundToClaim.amount,
+          type: TransactionType.INCOME,
+          categoryId: incomeCategory,
+          date: new Date().toISOString(),
+          notes: `Claimed refund for transaction ID: ${refundToClaim.originalTransactionId || 'N/A'}`
+      };
+      setTransactions(prev => [incomeTx, ...prev]);
+      
+      setRefunds(prev => prev.map(r => r.id === refundId ? {...r, isClaimed: true, claimedDate: new Date().toISOString() } : r));
+  };
+  
   const filteredTransactions = useMemo(() => {
         let filtered = transactions;
         if (selectedAccountIds.length > 0 && !selectedAccountIds.includes('all')) {
@@ -863,7 +895,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                 if (!trip) return <p>Trip not found</p>;
                 return <TripDetailsScreen trip={trip} expenses={tripExpenses.filter(e => e.tripId === trip.id)} onBack={() => setActiveScreen('tripManagement')} onAddExpense={() => openModal('addTripExpense', { trip: trip })} onEditExpense={(exp) => openModal('editTripExpense', { trip, expenseToEdit: exp })} onDeleteExpense={handleDeleteTripExpense} categories={categories} />;
             }
-            case 'refunds': return <RefundsScreen transactions={transactions} categories={categories} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} />;
+            case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => confirmDelete(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} />;
             case 'dataHub': return <DataHubScreen 
                 transactions={transactions} 
                 accounts={accounts} 
@@ -946,7 +978,6 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 contacts={contacts}
                                 openModal={openModal}
                                 onOpenCalculator={handleOpenCalculator}
-                                onLaunchRefundPicker={handleLaunchRefundPicker}
                                 selectedAccountId={selectedAccountIds[0]}
                                 {...modalProps}
                             />,
@@ -961,7 +992,6 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 contacts={contacts}
                                 openModal={openModal}
                                 onOpenCalculator={handleOpenCalculator}
-                                onLaunchRefundPicker={handleLaunchRefundPicker}
                                 {...modalProps}
                             />,
                             modalRoot
@@ -999,12 +1029,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                          return ReactDOM.createPortal(<AddTripExpenseModal onClose={closeActiveModal} onSave={() => {}} onUpdate={expense => handleUpdateTripExpense(trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} onSaveContact={handleSaveContact} findOrCreateCategory={findOrCreateCategory} trip={trip} expenseToEdit={expenseToEdit} />, modalRoot);
                     }
                     case 'refund':
-                        return ReactDOM.createPortal(<RefundModal originalTransaction={modalProps.transaction} contacts={contacts} onClose={closeActiveModal} onSave={handleSaveTransaction} findOrCreateCategory={findOrCreateCategory} />, modalRoot);
-                    case 'selectRefund':
-                        return ReactDOM.createPortal(<RefundTransactionSelector transactions={transactions} categories={categories} onCancel={closeActiveModal} onSelect={(t) => {
-                           closeActiveModal();
-                           openModal('refund', { transaction: t });
-                        }} />, modalRoot);
+                        return ReactDOM.createPortal(<RefundModal allTransactions={transactions} accounts={accounts} contacts={contacts} refunds={refunds} onClose={closeActiveModal} onSave={handleSaveRefund} {...modalProps} />, modalRoot);
                     case 'trustBin':
                         return ReactDOM.createPortal(<TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />, modalRoot);
                     case 'editAccount':

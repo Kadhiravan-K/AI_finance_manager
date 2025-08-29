@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useMemo, useContext, useCallback } from 'react';
-import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData } from '../types';
+import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData, Refund } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { calculateNextDueDate } from '../utils/date';
 
@@ -194,6 +194,8 @@ interface AppDataContextType {
   setStreaks: (value: UserStreak | ((val: UserStreak) => UserStreak)) => Promise<void>;
   challenges: Challenge[];
   setChallenges: (value: Challenge[] | ((val: Challenge[]) => Challenge[])) => Promise<void>;
+  refunds: Refund[];
+  setRefunds: (value: Refund[] | ((val: Refund[]) => Refund[])) => Promise<void>;
 
   // Functions
   findOrCreateCategory: (fullName: string, type: TransactionType) => string;
@@ -224,6 +226,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [unlockedAchievements, setUnlockedAchievements] = useLocalStorage<UnlockedAchievement[]>('finance-tracker-achievements', []);
     const [streaks, setStreaks] = useLocalStorage<UserStreak>('finance-tracker-streaks', { currentStreak: 0, longestStreak: 0, lastLogDate: null, streakFreezes: 3 });
     const [challenges, setChallenges] = useLocalStorage<Challenge[]>('finance-tracker-challenges', []);
+    const [refunds, setRefunds] = useLocalStorage<Refund[]>('finance-tracker-refunds', []);
 
     const findOrCreateCategory = useCallback((fullName: string, type: TransactionType): string => {
         const parts = fullName.split('/').map(p => p.trim());
@@ -284,6 +287,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'goal': setGoals, 'recurringTransaction': setRecurringTransactions, 'account': setAccounts,
           'trip': setTrips, 'tripExpense': setTripExpenses, 'shop': setShops,
           'shopProduct': setShopProducts, 'shopEmployee': setShopEmployees, 'shopShift': setShopShifts,
+          'refund': setRefunds,
         };
 
         const itemMap: Record<string, any[]> = {
@@ -292,6 +296,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'goal': goals, 'recurringTransaction': recurringTransactions, 'account': accounts,
           'trip': trips, 'tripExpense': tripExpenses, 'shop': shops,
           'shopProduct': shopProducts, 'shopEmployee': shopEmployees, 'shopShift': shopShifts,
+          'refund': refunds,
         };
       
       const items = itemMap[itemType];
@@ -306,8 +311,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setter(items.filter(item => item.id !== itemId));
       }
     }, [
-        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts, setTrustBin,
-        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts
+        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts, refunds, setTrustBin,
+        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts, setRefunds
     ]);
 
 
@@ -317,14 +322,14 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
-        challenges, setChallenges, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+        challenges, setChallenges, refunds, setRefunds, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
     }), [
         transactions, setTransactions, accounts, setAccounts, budgets, setBudgets,
         recurringTransactions, setRecurringTransactions, goals, setGoals, investmentHoldings, setInvestmentHoldings,
         trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
-        challenges, setChallenges, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+        challenges, setChallenges, refunds, setRefunds, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
     ]);
 
     return <AppDataContext.Provider value={value as any}>{children}</AppDataContext.Provider>;

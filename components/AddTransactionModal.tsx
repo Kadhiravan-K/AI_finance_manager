@@ -23,7 +23,6 @@ interface AddTransactionModalProps {
     openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
     onOpenCalculator: (onResult: (result: number) => void) => void;
     selectedAccountId?: string;
-    onLaunchRefundPicker: () => void;
 }
 
 const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
@@ -37,7 +36,6 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     openModal,
     onOpenCalculator,
     selectedAccountId,
-    onLaunchRefundPicker,
 }) => {
     const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialText ? 'auto' : 'manual');
     const [text, setText] = useState(initialText || '');
@@ -191,7 +189,6 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                    contacts={contacts}
                    openModal={openModal}
                    onOpenCalculator={onOpenCalculator}
-                   onLaunchRefundPicker={onLaunchRefundPicker}
                    selectedAccountId={selectedAccountId}
                 />
             )}

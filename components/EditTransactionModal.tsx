@@ -22,7 +22,6 @@ interface EditTransactionModalProps {
   contacts: Contact[];
   openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
   selectedAccountId?: string;
-  onLaunchRefundPicker?: () => void;
   onOpenCalculator: (onResult: (result: number) => void) => void;
   isEmbedded?: boolean;
 }
@@ -42,7 +41,7 @@ interface Item {
     splitDetails: SplitDetail[];
 }
 
-const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, contacts, openModal, selectedAccountId, onLaunchRefundPicker, onOpenCalculator, isEmbedded = false }) => {
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, contacts, openModal, selectedAccountId, onOpenCalculator, isEmbedded = false }) => {
   const { categories, payees, setPayees, contactGroups } = useContext(SettingsContext);
   const isCreating = !transaction;
 
@@ -613,17 +612,15 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
       )}
       <div className="flex justify-between items-center pt-4 border-t border-divider mt-4">
         <div>
-          {isCreating && onLaunchRefundPicker ? (
-            <button type="button" onClick={onLaunchRefundPicker} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
-              Find Expense to Refund
-            </button>
-          ) : (
-            !isCreating && formData.type === TransactionType.EXPENSE && (
-              <button type="button" onClick={() => openModal('refund', { transaction: formData, contacts })} className="button-secondary px-4 py-2 text-sm" style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
-                Process a Refund
+           {formData.type === TransactionType.EXPENSE && (
+              <button 
+                type="button" 
+                onClick={() => openModal('refund', { transaction: isCreating ? undefined : formData, contacts })} 
+                className="button-secondary px-4 py-2 text-sm" 
+                style={{borderColor: 'var(--color-accent-sky)', color: 'var(--color-accent-sky)'}}>
+                Process Refund
               </button>
-            )
-          )}
+            )}
         </div>
         <div className="flex justify-end space-x-3">
           <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
