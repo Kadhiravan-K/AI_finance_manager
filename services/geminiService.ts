@@ -156,9 +156,9 @@ export async function getAIChatResponse(appState: AppState, question: string, hi
 const commandSchema = {
     type: Type.OBJECT,
     properties: {
-        action: { type: Type.STRING, description: "The action to perform. Must be one of: 'create', 'update', 'delete', 'clarify'." },
-        itemType: { type: Type.STRING, description: "The type of item to act upon. Must be one of: 'account', 'category', 'expense', 'income', 'clarification_needed'." },
-        name: { type: Type.STRING, description: "The name of the item (e.g., account name, category name, transaction description). For clarifications, this is the question to ask the user." },
+        action: { type: Type.STRING, description: "The action to perform. Must be one of: 'create', 'update', 'delete', 'clarify', 'general_query'." },
+        itemType: { type: Type.STRING, description: "The type of item to act upon. For 'general_query', this can be 'file_content'. Must be one of: 'account', 'category', 'expense', 'income', 'clarification_needed', 'file_content'." },
+        name: { type: Type.STRING, description: "The name of the item (e.g., account name, category name, transaction description). For clarifications or queries, this is the question to ask the user or the query itself." },
         amount: { type: Type.NUMBER, description: "The numeric amount, for transactions or account opening balances." },
         category: { type: Type.STRING, description: "The category for a transaction, in 'Parent / Child' format. If not specified, infer a likely one." },
         accountName: { type: Type.STRING, description: "For transactions, the name of the account to use." },
@@ -167,10 +167,10 @@ const commandSchema = {
     required: ["action", "itemType", "name"]
 };
 
-
-export async function parseAICommand(command: string, categories: AppState['categories'], accounts: AppState['accounts']): Promise<any> {
+export async function parseAICommand(command: string, categories: AppState['categories'], accounts: AppState['accounts'], file?: { mimeType: string, data: string }): Promise<any> {
     const accountList = accounts.map(a => a.name).join(', ') || 'none';
-    const prompt = `
+    
+    let prompt = `
         You are an intelligent financial assistant. Parse the user's command into a structured JSON object based on the provided schema.
         The user wants to manage their finances. The command is: "${command}".
         
@@ -178,16 +178,29 @@ export async function parseAICommand(command: string, categories: AppState['cate
         Available top-level income categories: ${categories.filter(c => c.type === 'income' && !c.parentId).map(c => c.name).join(', ') || 'none'}
         Available accounts: ${accountList}.
 
+        If a file is provided with the command, analyze its content to answer the user's question or perform an action. For general questions about the file, use the 'general_query' action and put your text answer in the 'name' field.
         For 'create expense' or 'create income', if an account is mentioned, use it. If not, and there are multiple accounts, you MUST ask for clarification by setting itemType to 'clarification_needed' and name to 'Which account should I use for that?'. If there is only one account, you can assume to use that one.
         If the command is ambiguous, ask for clarification.
         For amounts, extract only the number.
         For 'delete' or 'update', the 'targetName' field is crucial for identifying the item.
     `;
     
+    let contents: any = { parts: [{ text: prompt }]};
+
+    if (file) {
+      // For multimodal input, send parts with inlineData
+      contents.parts.push({
+        inlineData: {
+          mimeType: file.mimeType,
+          data: file.data,
+        },
+      });
+    }
+    
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: contents,
             config: { responseMimeType: "application/json", responseSchema: commandSchema }
         });
         return JSON.parse(response.text);

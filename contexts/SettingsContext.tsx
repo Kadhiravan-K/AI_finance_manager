@@ -1,5 +1,4 @@
 import React, { createContext, useState, ReactNode, useEffect, useMemo, useContext, useCallback } from 'react';
-// FIX: Added ChallengeType to the import list to resolve type errors.
 import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { calculateNextDueDate } from '../utils/date';
@@ -176,7 +175,6 @@ interface AppDataContextType {
   trips: Trip[];
   setTrips: (value: Trip[] | ((val: Trip[]) => Trip[])) => Promise<void>;
   tripExpenses: TripExpense[];
-  // FIX: The setter for tripExpenses was incorrectly typed to return Trip[] instead of TripExpense[].
   setTripExpenses: (value: TripExpense[] | ((val: TripExpense[]) => TripExpense[])) => Promise<void>;
   shops: Shop[];
   setShops: (value: Shop[] | ((val: Shop[]) => Shop[])) => Promise<void>;
@@ -280,7 +278,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, [challenges, setChallenges]);
 
     const deleteItem = useCallback((itemId: string, itemType: ItemType) => {
-        // BUG FIX: Create a map of setters to call the correct state update function.
         const setterMap: Record<string, (items: any[]) => Promise<void>> = {
           'transaction': setTransactions, 'category': setCategories, 'payee': setPayees,
           'sender': setSenders, 'contact': setContacts, 'contactGroup': setContactGroups,
@@ -309,9 +306,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setter(items.filter(item => item.id !== itemId));
       }
     }, [
-        // BUG FIX: Added all relevant setters and data arrays to the dependency list.
-        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts,
-        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts, setTrustBin
+        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts, setTrustBin,
+        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts
     ]);
 
 

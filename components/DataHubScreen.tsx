@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, Account, Category, Goal, Shop, Trip, Contact } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-// FIX: Import getCurrencyFormatter to correctly format amounts for accounts with potentially different currencies.
 import { getCurrencyFormatter } from '../utils/currency';
 
 interface DataHubProps {
@@ -88,9 +87,6 @@ const DataHubScreen: React.FC<DataHubProps> = (props) => {
   const renderContent = () => {
     switch (activeTab) {
         case 'transactions': return <ListItem title="Description" items={filteredData.transactions} onEdit={props.onEditTransaction} onDelete={props.onDeleteTransaction} renderDetails={t => <span className={`font-semibold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>{formatCurrency(t.amount)}</span>} />;
-        // FIX: The useCurrencyFormatter hook returns a function that expects only one argument.
-        // To format amounts for accounts with different currencies, we use getCurrencyFormatter directly,
-        // which creates a specific formatter for each account's currency.
         case 'accounts': return <ListItem title="Account Name" items={filteredData.accounts} onEdit={props.onEditAccount} onDelete={props.onDeleteAccount} renderDetails={a => <span className="font-semibold">{getCurrencyFormatter(a.currency).format(accountBalances.get(a.id) || 0)}</span>} />;
         case 'categories': return <ListItem title="Category Name" items={filteredData.categories} onEdit={props.onEditCategory} onDelete={props.onDeleteCategory} renderDetails={c => <span className="text-xs text-secondary">{getCategoryPath(c.id, props.categories)}</span>} />;
         case 'shops': return <ListItem title="Shop Name" items={filteredData.shops} onEdit={props.onEditShop} onDelete={props.onDeleteShop} renderDetails={s => <span className="text-xs text-secondary">{s.currency}</span>} />;

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from 'react';
-// FIX: Added ShopType to the import list to resolve type errors.
+import ReactDOM from 'react-dom';
 import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift, ShopType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
@@ -9,6 +9,66 @@ import { currencies } from '../utils/currency';
 import { getCurrencyFormatter } from '../utils/currency';
 
 type ShopView = 'billing' | 'products' | 'employees' | 'shifts' | 'analytics';
+
+const ShopFormModal: React.FC<{
+    shop: Shop | null, 
+    onSave: ShopScreenProps['onSaveShop'], 
+    onCancel: () => void
+}> = ({ shop, onSave, onCancel }) => {
+    const { settings } = useContext(SettingsContext);
+    const [formState, setFormState] = useState({
+        name: shop?.name || '',
+        currency: shop?.currency || settings.currency,
+        type: shop?.type || 'physical',
+    });
+
+    const handleChange = (field: keyof typeof formState, value: string) => {
+        setFormState(prev => ({...prev, [field]: value}));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (formState.name.trim()) {
+            onSave({ name: formState.name.trim(), currency: formState.currency, type: formState.type as ShopType }, shop?.id);
+        }
+        onCancel();
+    };
+    
+    const currencyOptions = useMemo(() => currencies.map(c => ({
+        value: c.code,
+        label: `${c.code} - ${c.name}`
+    })), []);
+    
+    const shopTypeOptions: { value: ShopType, label: string }[] = [
+        { value: 'physical', label: 'Physical' },
+        { value: 'online', label: 'Online' },
+        { value: 'freelance', label: 'Freelance' },
+        { value: 'garage_sale', label: 'Garage Sale' },
+        { value: 'other', label: 'Other' }
+    ];
+
+    const modalContent = (
+         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
+            <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
+                <ModalHeader title={shop ? 'Edit Shop' : 'Create New Shop'} onClose={onCancel} />
+                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input type="text" value={formState.name} onChange={e => handleChange('name', e.target.value)} placeholder="Shop Name" className="w-full input-base p-2 rounded-md sm:col-span-2" required autoFocus/>
+                        <CustomSelect options={shopTypeOptions} value={formState.type} onChange={val => handleChange('type', val)} />
+                        <CustomSelect options={currencyOptions} value={formState.currency} onChange={val => handleChange('currency', val)} />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                        <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+                        <button type="submit" className="button-primary px-4 py-2">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+    
+    return ReactDOM.createPortal(modalContent, document.getElementById('modal-root')!);
+};
+
 
 // Form for creating/editing a product
 const ProductForm: React.FC<{
@@ -170,60 +230,10 @@ const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => 
                 {shops.length === 0 && !isFormOpen && <p className="text-center text-secondary py-8">Create your first shop to get started.</p>}
             </div>
             {!isFormOpen && <div className="p-4 border-t border-divider"><button onClick={() => setIsFormOpen(true)} className="button-primary w-full py-2">Create New Shop</button></div>}
-            {isFormOpen && <ShopForm shop={editingShop} onSave={onSaveShop} onCancel={handleCancel} />}
+            {isFormOpen && <ShopFormModal shop={editingShop} onSave={onSaveShop} onCancel={handleCancel} />}
         </div>
     );
 };
-
-const ShopForm: React.FC<{shop: Shop | null, onSave: ShopScreenProps['onSaveShop'], onCancel: () => void}> = ({ shop, onSave, onCancel }) => {
-    const { settings } = useContext(SettingsContext);
-    const [formState, setFormState] = useState({
-        name: shop?.name || '',
-        currency: shop?.currency || settings.currency,
-        type: shop?.type || 'physical',
-    });
-
-    const handleChange = (field: keyof typeof formState, value: string) => {
-        setFormState(prev => ({...prev, [field]: value}));
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (formState.name.trim()) {
-            // FIX: The 'type' property was missing. Added it to the object passed to onSave.
-            onSave({ name: formState.name.trim(), currency: formState.currency, type: formState.type as ShopType }, shop?.id);
-        }
-        onCancel();
-    };
-    
-    const currencyOptions = useMemo(() => currencies.map(c => ({
-        value: c.code,
-        label: `${c.code} - ${c.name}`
-    })), []);
-    
-    const shopTypeOptions: { value: ShopType, label: string }[] = [
-        { value: 'physical', label: 'Physical' },
-        { value: 'online', label: 'Online' },
-        { value: 'freelance', label: 'Freelance' },
-        { value: 'garage_sale', label: 'Garage Sale' },
-        { value: 'other', label: 'Other' }
-    ];
-
-    return (
-         <form onSubmit={handleSubmit} className="p-4 border-t border-divider bg-subtle space-y-3">
-             <h4 className="font-semibold text-primary">{shop ? 'Edit Shop' : 'Create New Shop'}</h4>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input type="text" value={formState.name} onChange={e => handleChange('name', e.target.value)} placeholder="Shop Name" className="w-full input-base p-2 rounded-md sm:col-span-2" required/>
-                <CustomSelect options={shopTypeOptions} value={formState.type} onChange={val => handleChange('type', val)} />
-                <CustomSelect options={currencyOptions} value={formState.currency} onChange={val => handleChange('currency', val)} />
-             </div>
-             <div className="flex justify-end gap-2">
-                 <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
-                 <button type="submit" className="button-primary px-4 py-2">Save</button>
-             </div>
-        </form>
-    );
-}
 
 interface ShopDetailViewProps extends ShopScreenProps {
     shop: Shop;
@@ -480,7 +490,6 @@ const ShopBilling: React.FC<{shop: Shop, products: ShopProduct[], onRecordSale: 
     
     const handleCheckout = () => {
         if (cart.size === 0) return;
-        // FIX: Added missing productName and purchasePricePerUnit properties to match the ShopSaleItem type.
         const items: ShopSaleItem[] = Array.from(cart.values()).map(item => ({
             productId: item.product.id,
             productName: item.product.name,
@@ -493,7 +502,6 @@ const ShopBilling: React.FC<{shop: Shop, products: ShopProduct[], onRecordSale: 
             return sum + (item.pricePerUnit - item.purchasePricePerUnit) * item.quantity;
         }, 0);
         
-        // FIX: Added missing subtotal and taxAmount properties to match the ShopSale type.
         onRecordSale(shop.id, {
             timestamp: new Date().toISOString(),
             items,

@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
 import { MainContent } from './components/StoryGenerator';
-import { SettingsProvider, SettingsContext, AppDataProvider } from './contexts/SettingsContext';
+import { SettingsProvider, SettingsContext, AppDataProvider, AppDataContext } from './contexts/SettingsContext';
 import { ActiveScreen, ActiveModal, ModalState } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import useLocalStorage from './hooks/useLocalStorage';
@@ -22,9 +22,16 @@ const AppContent: React.FC = () => {
   const [showOnboardingGuide, setShowOnboardingGuide] = useLocalStorage('finance-tracker-show-guide', true);
   const [sharedText, setSharedText] = useState<string | null>(null);
   const { settings } = useContext(SettingsContext);
+  const dataContext = useContext(AppDataContext);
   const mainContentRef = useRef<HTMLElement>(null);
   const [isQuickAddDisabled, setIsQuickAddDisabled] = useState(false);
   
+  if (!dataContext) {
+    // This is a failsafe. Given the structure in App, this should not be hit.
+    return null; 
+  }
+  const { streaks } = dataContext;
+
   const activeModal = modalStack[modalStack.length - 1] || null;
   const setActiveModal = (modal: ModalState | null) => {
       if (modal) {
@@ -95,8 +102,10 @@ const AppContent: React.FC = () => {
               onOpenMenu={() => setActiveModal({name: 'headerMenu'})}
               onOpenNotifications={() => setActiveModal({name: 'notifications'})}
               onOpenAICommandCenter={() => setActiveModal({name: 'aiCommandCenter'})}
+              onOpenSearch={() => setActiveModal({name: 'globalSearch'})}
               isOnline={isOnline}
               enabledTools={settings.enabledTools}
+              currentStreak={streaks.currentStreak}
             />
           </div>
           <main ref={mainContentRef} className="flex-grow overflow-y-auto opacity-0 animate-fadeInUp pb-20" style={{animationDelay: '200ms'}}>

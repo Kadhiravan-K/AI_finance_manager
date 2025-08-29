@@ -7,7 +7,7 @@ import FinanceDisplay from './StoryDisplay';
 import AccountSelector from './AccountSelector';
 import EditTransactionModal from './EditTransactionModal';
 import TransferModal from './TransferModal';
-import ReportsScreen from './ReportsScreen';
+import ReportsScreen from './ReportsModal';
 import BudgetsScreen from './BudgetsModal';
 import MoreScreen from './More';
 import ScheduledPaymentsScreen from './ScheduledPaymentsModal';
@@ -58,6 +58,7 @@ import ChallengesScreen from './ChallengesScreen';
 import LearnScreen from './LearnScreen';
 import AICommandModal from './AICommandModal';
 import AccountsManagerModal from './AccountsManagerModal';
+import GlobalSearchModal from './GlobalSearchModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -130,9 +131,6 @@ const generateCategories = (): Category[] => {
         ]},
     ];
     // System categories
-    // FIX: Added explicit type to systemCats to match the structure of the 'categories' array,
-    // which includes an optional 'children' property. This resolves the TypeScript error when
-    // iterating over the combined array.
     const systemCats: { name: string, type: TransactionType, parent: string | null, icon: string, children?: any[] }[] = [
         { name: 'Opening Balance', type: TransactionType.INCOME, parent: null, icon: '🏦' },
         { name: 'Transfers', type: TransactionType.INCOME, parent: null, icon: '↔️' },
@@ -252,8 +250,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
 
 
   const appState: AppState = useMemo(() => ({
-    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts]);
+    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts]);
 
   useEffect(() => {
     onSelectionChange?.(selectedAccountIds);
@@ -722,10 +720,13 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     });
     // Record income transaction
     const incomeCategory = findOrCreateCategory('Shop Sales', TransactionType.INCOME);
+    const shop = shops.find(s => s.id === shopId);
+    const accountForSale = accounts.find(a => a.currency === shop?.currency);
+
     const incomeTx: Transaction = {
         id: self.crypto.randomUUID(),
-        accountId: selectedAccountIds[0] || accounts[0]?.id, // Needs a better account selection strategy
-        description: `Sale at ${shops.find(s => s.id === shopId)?.name || 'Shop'}`,
+        accountId: accountForSale?.id || accounts[0]?.id,
+        description: `Sale at ${shop?.name || 'Shop'}`,
         amount: newSale.totalAmount,
         type: TransactionType.INCOME,
         categoryId: incomeCategory,
@@ -746,12 +747,17 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   }
 
 
-  const handleSendCommand = async (command: string): Promise<string> => {
+  const handleSendCommand = async (command: string, file?: {name: string, type: string, data: string}): Promise<string> => {
       try {
-          const parsed = await parseAICommand(command, categories, accounts);
+          const geminiFile = file ? { mimeType: file.type, data: file.data } : undefined;
+          const parsed = await parseAICommand(command, categories, accounts, geminiFile);
           
           if (parsed.action === 'clarify' || parsed.itemType === 'clarification_needed') {
               return parsed.name || "I need more information. Could you please clarify?";
+          }
+          
+          if (parsed.action === 'general_query' && parsed.itemType === 'file_content') {
+              return parsed.name || "I have processed the file but couldn't extract a specific answer. You can ask me more questions about it.";
           }
 
           switch (`${parsed.action}-${parsed.itemType}`) {
@@ -840,7 +846,6 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
 
     const renderActiveScreen = () => {
         switch (activeScreen) {
-            // FIX: Passed the missing 'setCustomDateRange' prop to the FinanceDisplay component to resolve a TypeScript error. The prop is required for handling custom date range selections in the transaction filters.
             case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} baseCurrency={settings.currency} />;
             case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency} />;
             case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
@@ -853,11 +858,11 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
             case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
             case 'learn': return <LearnScreen />;
             case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setActiveScreen('tripDetails'); setTripDetailsId(id); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(t) => openModal('editTrip', {trip: t})} onDeleteTrip={(id) => confirmDelete(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
-            case 'tripDetails':
+            case 'tripDetails': {
                 const trip = trips.find(t => t.id === tripDetailsId);
                 if (!trip) return <p>Trip not found</p>;
-                {/* FIX: Removed invalid 'setTrips' prop */}
                 return <TripDetailsScreen trip={trip} expenses={tripExpenses.filter(e => e.tripId === trip.id)} onBack={() => setActiveScreen('tripManagement')} onAddExpense={() => openModal('addTripExpense', { trip: trip })} onEditExpense={(exp) => openModal('editTripExpense', { trip, expenseToEdit: exp })} onDeleteExpense={handleDeleteTripExpense} categories={categories} />;
+            }
             case 'refunds': return <RefundsScreen transactions={transactions} categories={categories} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} />;
             case 'dataHub': return <DataHubScreen 
                 transactions={transactions} 
@@ -867,20 +872,20 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                 shops={shops}
                 trips={trips}
                 contacts={contacts}
-                onAddAccount={() => openModal('editAccount')}
-                onEditAccount={(a) => openModal('editAccount', { account: a })}
-                onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
                 onAddTransaction={() => openModal('addTransaction')}
                 onEditTransaction={(t) => openModal('editTransaction', { transaction: t })}
                 onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'item')}
+                onAddAccount={() => openModal('editAccount')}
+                onEditAccount={(a) => openModal('editAccount', { account: a })}
+                onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
                 onAddCategory={() => openModal('categories')}
                 onEditCategory={(c) => openModal('editCategory', { category: c })}
                 onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c=>c.id===id)?.name || 'item')}
                 onAddGoal={() => openModal('editGoal')}
                 onEditGoal={(g) => openModal('editGoal', { goal: g })}
                 onDeleteGoal={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'item')}
-                onAddShop={() => { /* This would open a shop editor modal, not yet created */ }}
-                onEditShop={(s) => { /* This would open a shop editor modal */ }}
+                onAddShop={() => openModal('editShop')}
+                onEditShop={(s) => openModal('editShop', { shop: s })}
                 onDeleteShop={(id) => confirmDelete(id, 'shop', shops.find(s=>s.id===id)?.name || 'item')}
                 onAddTrip={() => openModal('editTrip')}
                 onEditTrip={(t) => openModal('editTrip', {trip: t})}
@@ -889,11 +894,10 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                 onEditContact={(c) => openModal('editContact', {contact: c})}
                 onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'item')}
             />;
-            {/* FIX: Changed `shift` to `'shift'` to fix a typo causing a type error. */}
             case 'shop': return <ShopScreen shops={shops} products={shopProducts} sales={shopSales} employees={shopEmployees} shifts={shopShifts} onSaveShop={handleSaveShop} onDeleteShop={(id) => confirmDelete(id, 'shop', shops.find(s=>s.id===id)?.name || 'shop')} onSaveProduct={handleSaveProduct} onDeleteProduct={(id) => confirmDelete(id, 'shopProduct', shopProducts.find(p=>p.id===id)?.name || 'product')} onRecordSale={handleRecordSale} onSaveEmployee={handleSaveEmployee} onDeleteEmployee={(id) => confirmDelete(id, 'shopEmployee', shopEmployees.find(e=>e.id===id)?.name || 'employee')} onSaveShift={handleSaveShift} onDeleteShift={(id) => confirmDelete(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')} />;
         }
     }
-    {/* FIX: Added the missing return statement for the component, which renders the active screen and any active modals. */}
+    
     return (
         <>
             {renderActiveScreen()}
@@ -969,7 +973,6 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                     case 'categories':
                         return ReactDOM.createPortal(<CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddNewCategory={handleAddNewCategory} onEditCategory={(c) => openModal('editCategory', { category: c })} onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c => c.id === id)?.name || 'category')} />, modalRoot);
                     case 'editCategory': {
-                        // FIX: Explicitly pass the 'category' prop to satisfy EditCategoryModalProps typing. Spreading a weakly typed `modalProps` does not guarantee the prop's presence to the compiler.
                         const { category } = modalProps;
                         return ReactDOM.createPortal(<EditCategoryModal onSave={handleUpdateCategory} onCancel={closeActiveModal} categories={categories} category={category} />, modalRoot);
                     }
@@ -988,12 +991,10 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                     case 'notificationSettings':
                         return ReactDOM.createPortal(<NotificationSettingsModal onClose={closeActiveModal} budgets={budgets} categories={categories} />, modalRoot);
                     case 'addTripExpense': {
-                        // FIX: Explicitly pass the 'trip' prop to satisfy AddTripExpenseModalProps typing, which is required by the component.
                         const { trip } = modalProps;
                         return ReactDOM.createPortal(<AddTripExpenseModal onClose={closeActiveModal} onSave={items => handleAddTripExpense(trip.id, items)} onUpdate={expense => handleUpdateTripExpense(trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} onSaveContact={handleSaveContact} findOrCreateCategory={findOrCreateCategory} trip={trip} />, modalRoot);
                     }
                     case 'editTripExpense': {
-                         // FIX: Explicitly pass the 'trip' and 'expenseToEdit' props to satisfy AddTripExpenseModalProps typing.
                          const { trip, expenseToEdit } = modalProps;
                          return ReactDOM.createPortal(<AddTripExpenseModal onClose={closeActiveModal} onSave={() => {}} onUpdate={expense => handleUpdateTripExpense(trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} onSaveContact={handleSaveContact} findOrCreateCategory={findOrCreateCategory} trip={trip} expenseToEdit={expenseToEdit} />, modalRoot);
                     }
@@ -1036,6 +1037,14 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 onAddAccount={handleAddAccount}
                                 onEditAccount={(a) => openModal('editAccount', { account: a })}
                                 onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')}
+                            />,
+                            modalRoot
+                        );
+                    case 'globalSearch':
+                        return ReactDOM.createPortal(
+                            <GlobalSearchModal
+                                onClose={closeActiveModal}
+                                onNavigate={onNavigate}
                             />,
                             modalRoot
                         );

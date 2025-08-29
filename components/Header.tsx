@@ -7,7 +7,9 @@ interface HeaderProps {
   onOpenNotifications: () => void;
   isOnline: boolean;
   onOpenAICommandCenter: () => void;
+  onOpenSearch: () => void;
   enabledTools: Record<ToggleableTool, boolean>;
+  currentStreak: number;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -16,7 +18,9 @@ const Header: React.FC<HeaderProps> = ({
   onOpenNotifications,
   isOnline, 
   onOpenAICommandCenter,
+  onOpenSearch,
   enabledTools,
+  currentStreak,
 }) => {
 
   return (
@@ -37,10 +41,23 @@ const Header: React.FC<HeaderProps> = ({
                 <path d="M3 10.5H21" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
             </div>
-            <h1 className="text-xl font-bold tracking-tight truncate text-primary">Finance Hub</h1>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold tracking-tight truncate text-primary leading-tight">Finance Hub</h1>
+              {currentStreak > 0 && (
+                <div className="flex items-center gap-1 text-xs font-bold text-amber-400 animate-fadeInUp" style={{ animationDelay: '300ms' }}>
+                  <span>🔥</span>
+                  <span>{currentStreak} Day Streak</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className={`flex items-center space-x-1`}>
+           <button onClick={onOpenSearch} className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 text-secondary hover:text-primary" aria-label="Open search">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+           </button>
            {enabledTools.aiCommandCenter && (
             <button onClick={onOpenAICommandCenter} className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 text-secondary hover:text-primary text-xl" aria-label="Open AI Command Center">
               ✨

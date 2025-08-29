@@ -8,7 +8,7 @@ const modalRoot = document.getElementById('modal-root')!;
 
 interface AICommandModalProps {
   onClose: () => void;
-  onSendCommand: (command: string) => Promise<string>;
+  onSendCommand: (command: string, file?: {name: string, type: string, data: string}) => Promise<string>;
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;
 }
 
@@ -16,6 +16,7 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
   const [command, setCommand] = useState('');
   const [history, setHistory] = useState<{ role: 'user' | 'model', text: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [file, setFile] = useState<{name: string, type: string, data: string} | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,11 +74,20 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
   };
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setHistory(prev => [...prev, { role: 'model', text: `You've selected a file: ${file.name}. File processing is a future feature.` }]);
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+        setHistory(prev => [...prev, { role: 'model', text: `Selected file: ${selectedFile.name}. What would you like to know or do with it?` }]);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const base64Data = (e.target?.result as string).split(',')[1];
+            if (base64Data) {
+                setFile({ name: selectedFile.name, type: selectedFile.type, data: base64Data });
+                inputRef.current?.focus();
+            }
+        };
+        reader.onerror = (error) => console.error("Error reading file:", error);
+        reader.readAsDataURL(selectedFile);
     }
-    // Reset file input to allow selecting the same file again
     if (event.target) event.target.value = '';
   };
 
@@ -86,17 +96,19 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
     if (!command.trim() || isLoading) return;
 
     const userCommand = command;
+    const attachedFile = file;
+    
     setHistory(prev => [...prev, { role: 'user', text: userCommand }]);
     setCommand('');
+    setFile(null);
     setIsLoading(true);
 
     try {
-      const response = await onSendCommand(userCommand);
+      const response = await onSendCommand(userCommand, attachedFile);
       setHistory(prev => [...prev, { role: 'model', text: response }]);
 
       // Simple navigation heuristic
       if (response.toLowerCase().includes("opening") || response.toLowerCase().includes("navigating")) {
-        // FIX: Explicitly type `screens` as `ActiveScreen[]` to prevent type errors when calling `onNavigate`.
         const screens: ActiveScreen[] = ['dashboard', 'reports', 'budgets', 'goals', 'investments', 'shop', 'tripManagement'];
         for (const screen of screens) {
             if(userCommand.toLowerCase().includes(screen)) {
