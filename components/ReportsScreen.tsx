@@ -204,6 +204,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   const [reportAccountIds, setReportAccountIds] = useState(selectedAccountIds);
   const [categoryIds, setCategoryIds] = useState(['all']);
   const [reportCurrency, setReportCurrency] = useState(baseCurrency);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const formatCurrency = useCurrencyFormatter(undefined, reportCurrency);
 
   // Comparison state
@@ -318,35 +319,46 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
     <div className="p-4 flex-grow overflow-y-auto pr-2">
       <h2 className="text-2xl font-bold text-primary mb-4 text-center">Reports</h2>
       
-      <div className="p-4 rounded-xl glass-card space-y-4 mb-6 relative z-20">
-        <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
-            <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expense</TabButton>
-            <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
-        </div>
-         <div className="grid grid-cols-2 gap-4">
-            <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
-            <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
-        </div>
-        <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
-        <CustomSelect 
-            options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
-            value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
-        />
-        {period === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-fadeInUp"><CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} /></div>)}
-        <div className="pt-2 border-t border-divider"><ToggleSwitch checked={isCompareMode} onChange={setIsCompareMode} label="Compare Periods" /></div>
-        {isCompareMode && (
-          <div className="space-y-2 animate-fadeInUp">
-            <CustomSelect
-              options={[
-                  {value: 'previous', label: 'Previous Period'},
-                  {value: 'last_month', label: 'Last Month'},
-                  {value: 'last_quarter', label: 'Last Quarter'},
-                  {value: 'last_year', label: 'Same Period Last Year'},
-                  {value: 'custom', label: 'Custom'}
-              ]}
-              value={comparePeriodType} onChange={(v) => setComparePeriodType(v as ComparePeriodType)}
-            />
-            {comparePeriodType === 'custom' && (<div className="grid grid-cols-2 gap-4"><CustomDatePicker value={compareCustomDateRange.start} onChange={d => setCompareCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={compareCustomDateRange.end} onChange={d => setCompareCustomDateRange(p => ({...p, end: d}))} /></div>)}
+      <div className="rounded-xl glass-card mb-6 relative z-20 overflow-hidden">
+        <button type="button" onClick={() => setFiltersOpen(!filtersOpen)} className="w-full p-4 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-primary">Filters</h3>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+        </button>
+
+        {filtersOpen && (
+          <div className="p-4 pt-0 space-y-4 animate-fadeInUp">
+            <div className="border-t border-divider pt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
+                  <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expense</TabButton>
+                  <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                  <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
+                  <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
+              </div>
+              <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
+              <CustomSelect 
+                  options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
+                  value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
+              />
+              {period === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-fadeInUp"><CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} /></div>)}
+              <div className="pt-2 border-t border-divider"><ToggleSwitch checked={isCompareMode} onChange={setIsCompareMode} label="Compare Periods" /></div>
+              {isCompareMode && (
+                <div className="space-y-2 animate-fadeInUp">
+                  <CustomSelect
+                    options={[
+                        {value: 'previous', label: 'Previous Period'},
+                        {value: 'last_month', label: 'Last Month'},
+                        {value: 'last_quarter', label: 'Last Quarter'},
+                        {value: 'last_year', label: 'Same Period Last Year'},
+                        {value: 'custom', label: 'Custom'}
+                    ]}
+                    value={comparePeriodType} onChange={(v) => setComparePeriodType(v as ComparePeriodType)}
+                  />
+                  {comparePeriodType === 'custom' && (<div className="grid grid-cols-2 gap-4"><CustomDatePicker value={compareCustomDateRange.start} onChange={d => setCompareCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={compareCustomDateRange.end} onChange={d => setCompareCustomDateRange(p => ({...p, end: d}))} /></div>)}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

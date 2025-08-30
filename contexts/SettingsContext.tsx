@@ -22,6 +22,7 @@ interface SettingsContextType {
 
 const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
     { id: 'financialHealth', name: "Financial Health", visible: true },
+    { id: 'aiCoach', name: "AI Financial Coach", visible: true },
     { id: 'summary', name: 'Monthly Summary', visible: true },
     { id: 'upcoming', name: 'Upcoming/Due Bills', visible: true },
     { id: 'budgets', name: 'Budgets Summary', visible: true },
@@ -41,7 +42,7 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
     investments: { enabled: true },
 };
 
-const DEFAULT_SETTINGS: Settings = {
+export const DEFAULT_SETTINGS: Settings = {
     currency: 'INR',
     theme: 'dark',
     dashboardWidgets: DEFAULT_DASHBOARD_WIDGETS,

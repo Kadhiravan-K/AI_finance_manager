@@ -7,22 +7,38 @@ import CustomSelect from './CustomSelect';
 const modalRoot = document.getElementById('modal-root')!;
 
 interface EditCategoryModalProps {
-  category: Category;
+  category?: Category;
+  initialParentId?: string;
+  initialType?: TransactionType;
   categories: Category[];
-  onSave: (category: Category) => void;
+  onSave: (category: Omit<Category, 'id'>, id?: string) => void;
   onCancel: () => void;
 }
 
 const labelStyle = "block text-sm font-medium text-secondary mb-1";
 
-const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categories, onSave, onCancel }) => {
-  const [formData, setFormData] = useState<Category>(category);
+const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ 
+  category, 
+  initialParentId, 
+  initialType, 
+  categories, 
+  onSave, 
+  onCancel 
+}) => {
+  const isCreating = !category;
+  
+  const [formData, setFormData] = useState({
+    name: category?.name || '',
+    icon: category?.icon || '📁',
+    type: category?.type || initialType || TransactionType.EXPENSE,
+    parentId: category?.parentId || initialParentId || null,
+  });
 
-  const handleChange = (name: string, value: string | TransactionType) => {
+  const handleChange = (name: string, value: string | TransactionType | null) => {
     let newFormData = { ...formData, [name]: value };
 
     if (name === 'type') {
-      newFormData.parentId = null;
+      newFormData.parentId = null; // Reset parent if type changes
     }
     
     if (name === 'parentId' && value === '') {
@@ -34,17 +50,18 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSave(formData, category?.id);
+    onCancel();
   };
 
   const parentOptions = useMemo(() => {
     return [
         { value: '', label: 'Make this a Top-Level Category'},
         ...categories
-            .filter(c => c.id !== formData.id && c.type === formData.type && !c.parentId)
+            .filter(c => c.id !== category?.id && c.type === formData.type && !c.parentId)
             .map(c => ({ value: c.id, label: c.name }))
     ];
-  }, [categories, formData.type, formData.id]);
+  }, [categories, formData.type, category?.id]);
   
   const typeOptions = [
       { value: TransactionType.EXPENSE, label: 'Expense' },
@@ -62,7 +79,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
         className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-divider opacity-0 animate-scaleIn"
         onClick={e => e.stopPropagation()}
       >
-        <ModalHeader title="Edit Category" onClose={onCancel} />
+        <ModalHeader title={isCreating ? "Add Category" : "Edit Category"} onClose={onCancel} />
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div className="grid grid-cols-6 gap-3">
              <div className="col-span-1">
@@ -95,6 +112,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
                 value={formData.type}
                 onChange={(v) => handleChange('type', v as TransactionType)}
                 options={typeOptions}
+                disabled={!!initialParentId}
             />
           </div>
           <div>
@@ -103,6 +121,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ category, categor
                 value={formData.parentId || ''}
                 onChange={(v) => handleChange('parentId', v)}
                 options={parentOptions}
+                disabled={!!initialParentId}
             />
           </div>
           <div className="flex justify-end space-x-3 pt-4">

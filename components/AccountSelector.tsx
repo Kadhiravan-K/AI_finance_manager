@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Account, AccountType, Transaction } from '../types';
 import CustomCheckbox from './CustomCheckbox';
 import CustomSelect from './CustomSelect';
 import { currencies } from '../utils/currency';
-// FIX: Imported getCurrencyFormatter from the correct utility file instead of the hook file.
 import { getCurrencyFormatter } from '../utils/currency';
 
 interface AccountSelectorProps {
@@ -18,40 +17,51 @@ interface AccountSelectorProps {
 }
 
 const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, allTransactions, selectedAccountIds, onAccountChange, onAddAccount, onEditAccount, onDeleteAccount, baseCurrency }) => {
+  const [isOpen, setIsOpen] = useState(true);
   const [showAddForm, setShowAddForm] = useState(accounts.length === 0);
-  
+
   const accountBalances = useMemo(() => {
-    const balances = new Map<string, number>();
-    accounts.forEach(acc => balances.set(acc.id, 0)); // Initialize all accounts
+    const balances = new Map<string, { balance: number, currency: string }>();
+    accounts.forEach(acc => balances.set(acc.id, { balance: 0, currency: acc.currency }));
     allTransactions.forEach(t => {
       if (balances.has(t.accountId)) {
         const current = balances.get(t.accountId)!;
-        balances.set(t.accountId, current + (t.type === 'income' ? t.amount : -t.amount));
+        const newBalance = current.balance + (t.type === 'income' ? t.amount : -t.amount);
+        balances.set(t.accountId, { ...current, balance: newBalance });
       }
     });
     return balances;
   }, [accounts, allTransactions]);
+  
+  const totalSelectedBalanceByCurrency = useMemo(() => {
+    const totals: Record<string, number> = {};
+    selectedAccountIds.forEach(id => {
+        const accDetails = accountBalances.get(id);
+        if (accDetails) {
+            totals[accDetails.currency] = (totals[accDetails.currency] || 0) + accDetails.balance;
+        }
+    });
+    return Object.entries(totals);
+  }, [selectedAccountIds, accountBalances]);
 
   const handleSelectionChange = (accountId: string) => {
-    let newSelection: string[];
     if (accountId === 'all') {
-      newSelection = selectedAccountIds.includes('all') ? [] : ['all'];
-    } else {
-      const currentSelection = selectedAccountIds.filter(id => id !== 'all');
-      if (currentSelection.includes(accountId)) {
-        newSelection = currentSelection.filter(id => id !== accountId);
+      if (selectedAccountIds.length === accounts.length) {
+        onAccountChange([]); // Deselect all
       } else {
-        newSelection = [...currentSelection, accountId];
+        onAccountChange(accounts.map(a => a.id)); // Select all
       }
-      if (newSelection.length === accounts.length || newSelection.length === 0) {
-        newSelection = ['all'];
+    } else {
+      const newSelection = new Set(selectedAccountIds);
+      if (newSelection.has(accountId)) {
+        newSelection.delete(accountId);
+      } else {
+        newSelection.add(accountId);
       }
+      onAccountChange(Array.from(newSelection));
     }
-    onAccountChange(newSelection);
   };
-  
-  // FIX: Refactored AccountForm to remove the unused `onSave` prop which caused a type error,
-  // and removed dead code related to editing, as this form is only used for adding accounts.
+
   const AccountForm = ({ onCancel }: { onCancel: () => void; }) => {
     const [name, setName] = useState('');
     const [openingBalance, setOpeningBalance] = useState('');
@@ -88,49 +98,70 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, allTransact
   }
 
   return (
-    <div className="mb-6 p-4 rounded-xl glass-card relative z-30">
-        <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-bold text-primary">Accounts</h3>
-            <button 
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="p-2 bg-subtle rounded-full hover-bg-stronger transition-colors flex-shrink-0"
+    <div className="mb-6 rounded-xl glass-card relative z-30 overflow-hidden">
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full p-4 flex justify-between items-center">
+        <h3 className="text-lg font-bold text-primary">Accounts</h3>
+        <div className="flex items-center gap-4">
+          <button 
+              onClick={(e) => { e.stopPropagation(); setShowAddForm(!showAddForm); if(!isOpen) setIsOpen(true); }}
+              className="p-2 bg-subtle rounded-full hover-bg-stronger transition-colors flex-shrink-0 flex items-center justify-center"
               aria-label={showAddForm ? 'Cancel adding account' : 'Add new account'}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-300 text-primary ${showAddForm ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-            </button>
+          </button>
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
         </div>
+      </button>
       
-      {showAddForm && <AccountForm onCancel={() => setShowAddForm(false)} />}
-
-       <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-         <div className="p-2 border-b border-divider">
-            <CustomCheckbox
-                id="acc-all"
-                label="All Accounts (Filter)"
-                checked={selectedAccountIds.includes('all')}
-                onChange={() => handleSelectionChange('all')}
-            />
+      {isOpen && (
+        <div className="p-4 pt-0 animate-fadeInUp">
+          <div className="border-t border-divider pt-4">
+            {showAddForm && <AccountForm onCancel={() => setShowAddForm(false)} />}
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+              <div className="p-2 border-b border-divider flex justify-between items-center">
+                  <CustomCheckbox
+                      id="acc-all"
+                      label="All Accounts"
+                      checked={accounts.length > 0 && selectedAccountIds.length === accounts.length}
+                      onChange={() => handleSelectionChange('all')}
+                  />
+                  <div className="text-right">
+                      <p className="font-semibold text-primary text-sm">Total Selected</p>
+                      {totalSelectedBalanceByCurrency.length > 0 ? totalSelectedBalanceByCurrency.map(([currency, balance]) => (
+                          <p key={currency} className="text-xs font-mono text-secondary">{getCurrencyFormatter(currency).format(balance)}</p>
+                      )) : <p className="text-xs font-mono text-secondary">{getCurrencyFormatter(baseCurrency).format(0)}</p>}
+                  </div>
+              </div>
+              {accounts.map(account => {
+                  const balanceInfo = accountBalances.get(account.id);
+                  const formatCurrency = getCurrencyFormatter(account.currency).format;
+                  const isSelected = selectedAccountIds.includes(account.id);
+                  return (
+                      <div key={account.id} className={`p-2 flex justify-between items-center group hover-bg-stronger rounded-md transition-colors ${isSelected ? '' : 'opacity-60'}`}>
+                          <div className="flex-grow">
+                              <CustomCheckbox
+                                  id={`acc-${account.id}`}
+                                  label={account.name}
+                                  checked={isSelected}
+                                  onChange={() => handleSelectionChange(account.id)}
+                              />
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-primary">{formatCurrency(balanceInfo?.balance || 0)}</p>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => onEditAccount(account)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-primary bg-transparent hover:bg-subtle rounded-full transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg></button>
+                                  <button onClick={() => onDeleteAccount(account.id)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 bg-transparent hover:bg-subtle rounded-full transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                              </div>
+                          </div>
+                      </div>
+                  )
+              })}
+              </div>
+          </div>
         </div>
-        {accounts.map(account => {
-            const balance = accountBalances.get(account.id) || 0;
-            const formatCurrency = getCurrencyFormatter(account.currency).format;
-            const isSelected = selectedAccountIds.includes('all') || selectedAccountIds.includes(account.id);
-            return (
-                <div key={account.id} className={`p-2 flex justify-between items-center group hover-bg-stronger rounded-md transition-colors ${isSelected ? '' : 'opacity-60'}`}>
-                    <div onClick={() => handleSelectionChange(account.id)} className="flex-grow cursor-pointer">
-                        <p className="font-semibold text-primary">{account.name}</p>
-                        <p className="text-sm font-bold text-primary">{formatCurrency(balance)}</p>
-                    </div>
-                    <div className="space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => onEditAccount(account)} className="p-1 text-secondary hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg></button>
-                        <button onClick={() => onDeleteAccount(account.id)} className="p-1 text-secondary hover:text-rose-400"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                    </div>
-                </div>
-            )
-        })}
-        </div>
+      )}
     </div>
   );
 };

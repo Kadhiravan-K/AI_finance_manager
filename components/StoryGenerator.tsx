@@ -43,6 +43,7 @@ import ConfirmationDialog from './ConfirmationDialog';
 import MiniCalculatorModal from './MiniCalculatorModal';
 import EditTripModal from './EditTripModal';
 import EditContactModal from './EditContactModal';
+import EditContactGroupModal from './EditContactGroupModal';
 import GlobalTripSummaryModal from './GlobalTripSummaryModal';
 import NotificationsModal from './NotificationsModal';
 import EditGoalModal from './EditGoalModal';
@@ -265,7 +266,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
 
   useEffect(() => {
     if (isInitialLoad.current && accounts.length > 0 && selectedAccountIds.length === 1 && selectedAccountIds[0] === 'all') {
-        setSelectedAccountIds([accounts[0].id]);
+        // Migrate legacy 'all' selection to a full list of account IDs
+        setSelectedAccountIds(accounts.map(a => a.id));
     }
     isInitialLoad.current = false;
   }, [accounts, selectedAccountIds, setSelectedAccountIds]);
@@ -488,9 +490,13 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     checkAndCompleteChallenge('set_budget');
   };
   
-  const handleAddNewCategory = useCallback((category: Omit<Category, 'id'>) => setCategories(prev => [...prev, { ...category, id: self.crypto.randomUUID() }]), [setCategories]);
-  const handleUpdateCategory = (updatedCategory: Category) => {
-    setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+  const handleSaveCategory = (categoryData: Omit<Category, 'id'>, id?: string) => {
+    if (id) {
+        setCategories(prev => prev.map(c => c.id === id ? { ...c, ...categoryData, id } : c));
+    } else {
+        setCategories(prev => [...prev, { ...categoryData, id: self.crypto.randomUUID() }]);
+    }
+    closeActiveModal();
   };
   
   const handleSaveGoal = (goal: Omit<Goal, 'id' | 'currentAmount'>, id?: string) => {
@@ -623,27 +629,18 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
         savedContact = { ...contactData, id: self.crypto.randomUUID() };
         setContacts(prev => [...prev, savedContact]);
       }
+      closeActiveModal();
       return savedContact;
   }, [setContacts])
   
-  const handleSaveContactGroup = useCallback((groupData: Omit<ContactGroup, 'id'>, id?: string): ContactGroup => {
-    let savedGroup: ContactGroup;
-    if (id) {
-        let tempGroup: ContactGroup | undefined;
-        setContactGroups(prev => prev.map(g => {
-            if(g.id === id) {
-                tempGroup = { ...g, ...groupData };
-                return tempGroup;
-            }
-            return g;
-        }));
-        savedGroup = tempGroup!;
-    } else {
-        savedGroup = { ...groupData, id: self.crypto.randomUUID() };
-        setContactGroups(prev => [...prev, savedGroup]);
-    }
-    return savedGroup;
-  }, [setContactGroups])
+  const handleSaveContactGroup = (groupData: Omit<ContactGroup, 'id'>, id?: string) => {
+      if (id) {
+          setContactGroups(prev => prev.map(g => g.id === id ? { ...g, ...groupData, id } : g));
+      } else {
+          setContactGroups(prev => [...prev, { ...groupData, id: self.crypto.randomUUID() }]);
+      }
+      closeActiveModal();
+  };
 
   
   const confirmDelete = (itemId: string, itemType: ItemType, name: string) => {
@@ -812,10 +809,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   
   const handleSaveRefund = (refundData: Omit<Refund, 'id' | 'isClaimed' | 'claimedDate'>, id?: string) => {
     if (id) {
-      // Update logic: make sure to preserve isClaimed and claimedDate from the original
-      setRefunds(prev => (prev || []).map(r => r.id === id ? { ...r, ...refundData, date: r.date, isClaimed: r.isClaimed, claimedDate: r.claimedDate } : r));
+      setRefunds(prev => (prev || []).map(r => r.id === id ? { ...r, ...refundData } : r));
     } else {
-      // Create logic
       const newRefund: Refund = {
           ...refundData,
           id: self.crypto.randomUUID(),
@@ -847,10 +842,15 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   };
   
   const filteredTransactions = useMemo(() => {
-        let filtered = transactions;
-        if (selectedAccountIds.length > 0 && !selectedAccountIds.includes('all')) {
-            filtered = filtered.filter(t => selectedAccountIds.includes(t.accountId));
+        let filtered;
+
+        // If no accounts are selected, show no transactions.
+        if (selectedAccountIds.length === 0) {
+            filtered = [];
+        } else {
+            filtered = transactions.filter(t => selectedAccountIds.includes(t.accountId));
         }
+        
         if (searchQuery) {
             const lowerCaseQuery = searchQuery.toLowerCase();
             filtered = filtered.filter(t => t.description.toLowerCase().includes(lowerCaseQuery));
@@ -910,7 +910,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                 onAddAccount={() => openModal('editAccount')}
                 onEditAccount={(a) => openModal('editAccount', { account: a })}
                 onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
-                onAddCategory={() => openModal('categories')}
+                onAddCategory={() => openModal('editCategory')}
                 onEditCategory={(c) => openModal('editCategory', { category: c })}
                 onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c=>c.id===id)?.name || 'item')}
                 onAddGoal={() => openModal('editGoal')}
@@ -972,7 +972,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 onCancel={closeActiveModal}
                                 onSaveAuto={handleAddTransaction}
                                 onSaveManual={handleSaveTransaction}
-                                isDisabled={selectedAccountIds.length !== 1 && accounts.length > 0}
+                                isDisabled={selectedAccountIds.length === 0 && accounts.length > 0}
                                 initialText={text}
                                 accounts={accounts}
                                 contacts={contacts}
@@ -1001,11 +1001,19 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                     case 'appSettings':
                         return ReactDOM.createPortal(<AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={(state) => { console.log("Restore not fully implemented in UI", state); }} />, modalRoot);
                     case 'categories':
-                        return ReactDOM.createPortal(<CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddNewCategory={handleAddNewCategory} onEditCategory={(c) => openModal('editCategory', { category: c })} onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c => c.id === id)?.name || 'category')} />, modalRoot);
-                    case 'editCategory': {
-                        const { category } = modalProps;
-                        return ReactDOM.createPortal(<EditCategoryModal onSave={handleUpdateCategory} onCancel={closeActiveModal} categories={categories} category={category} />, modalRoot);
-                    }
+                        return ReactDOM.createPortal(
+                            <CategoryManagerModal 
+                                onClose={closeActiveModal} 
+                                categories={categories} 
+                                onAddTopLevelCategory={() => openModal('editCategory')}
+                                onAddSubcategory={(parent) => openModal('editCategory', { initialParentId: parent.id, initialType: parent.type })}
+                                onEditCategory={(cat) => openModal('editCategory', { category: cat })} 
+                                onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c => c.id === id)?.name || 'category')} 
+                            />, 
+                            modalRoot
+                        );
+                    case 'editCategory':
+                        return ReactDOM.createPortal(<EditCategoryModal onSave={handleSaveCategory} onCancel={closeActiveModal} categories={categories} {...modalProps} />, modalRoot);
                     case 'payees':
                         return ReactDOM.createPortal(<PayeesModal onClose={closeActiveModal} payees={payees} setPayees={setPayees} categories={categories} onDelete={(id) => confirmDelete(id, 'payee', payees.find(p=>p.id===id)?.name || 'payee')} />, modalRoot);
                     case 'importExport':
@@ -1013,7 +1021,18 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                     case 'senderManager':
                         return ReactDOM.createPortal(<SenderManagerModal onClose={closeActiveModal} onDelete={(id) => confirmDelete(id, 'sender', senders.find(s=>s.id===id)?.name || 'sender')} />, modalRoot);
                     case 'contacts':
-                        return ReactDOM.createPortal(<ContactsManagerModal onClose={closeActiveModal} onSaveContact={handleSaveContact} onSaveGroup={handleSaveContactGroup} onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} onDeleteGroup={(id) => confirmDelete(id, 'contactGroup', contactGroups.find(g=>g.id===id)?.name || 'group')} />, modalRoot);
+                        return ReactDOM.createPortal(
+                            <ContactsManagerModal 
+                                onClose={closeActiveModal} 
+                                onAddGroup={() => openModal('editContactGroup')}
+                                onEditGroup={(group) => openModal('editContactGroup', { group })}
+                                onDeleteGroup={(id) => confirmDelete(id, 'contactGroup', contactGroups.find(g=>g.id===id)?.name || 'group')}
+                                onAddContact={(group) => openModal('editContact', { initialGroupId: group.id })}
+                                onEditContact={(contact) => openModal('editContact', { contact })}
+                                onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} 
+                            />, 
+                            modalRoot
+                        );
                     case 'feedback':
                         return ReactDOM.createPortal(<FeedbackModal onClose={closeActiveModal} onSend={handleSendFeedback} isSending={isSendingFeedback} />, modalRoot);
                     case 'dashboardSettings':
@@ -1038,6 +1057,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                         return ReactDOM.createPortal(<EditTripModal onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onOpenContactsManager={() => openModal('contacts')} {...modalProps} />, modalRoot);
                     case 'editContact':
                         return ReactDOM.createPortal(<EditContactModal onClose={closeActiveModal} onSave={handleSaveContact} {...modalProps} />, modalRoot);
+                    case 'editContactGroup':
+                        return ReactDOM.createPortal(<EditContactGroupModal onClose={closeActiveModal} onSave={handleSaveContactGroup} {...modalProps} />, modalRoot);
                     case 'globalTripSummary':
                         return ReactDOM.createPortal(<GlobalTripSummaryModal trips={trips} allExpenses={tripExpenses} onClose={closeActiveModal} />, modalRoot);
                     case 'miniCalculator':

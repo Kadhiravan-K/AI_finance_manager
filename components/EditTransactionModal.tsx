@@ -500,7 +500,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                  <div className="flex items-center gap-2 flex-shrink-0 pt-1">
                     <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
                      {items.length > 1 && (
-                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1.5 text-secondary hover:text-rose-400 bg-subtle rounded-full">
+                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 bg-subtle rounded-full">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     )}
@@ -514,17 +514,18 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const formBody = (
     <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto flex-grow">
        {/* Row 1: Account & Date */}
-       <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-           <div className="col-span-1 sm:col-span-3">
+       <div>
             <label className={labelBaseClasses}>Account</label>
             <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelBaseClasses}>Date</label>
+            <CustomDatePicker value={new Date(formData.date)} onChange={handleDateChange}/>
           </div>
-          <div className="col-span-1 sm:col-span-2">
-            <label className={labelBaseClasses}>Date & Time</label>
-            <div className="flex gap-2">
-                <CustomDatePicker value={new Date(formData.date)} onChange={handleDateChange}/>
-                <input type="time" value={time} onChange={e => handleTimeChange(e.target.value)} className={`${inputBaseClasses} w-24`} />
-            </div>
+          <div>
+            <label className={labelBaseClasses}>Time</label>
+            <input type="time" value={time} onChange={e => handleTimeChange(e.target.value)} className={`${inputBaseClasses} w-full`} />
           </div>
        </div>
        

@@ -210,7 +210,7 @@ export interface TripExpense {
 export type Theme = 'light' | 'dark';
 
 export interface DashboardWidget {
-    id: 'financialHealth' | 'summary' | 'upcoming' | 'budgets' | 'goals' | 'netWorth' | 'portfolio' | 'debts' | 'charts';
+    id: 'financialHealth' | 'summary' | 'upcoming' | 'budgets' | 'goals' | 'netWorth' | 'portfolio' | 'debts' | 'charts' | 'aiCoach';
     name: string;
     visible: boolean;
 }
@@ -357,7 +357,7 @@ export interface ShopShift {
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | null;
 
 export interface ModalState {
     name: ActiveModal;

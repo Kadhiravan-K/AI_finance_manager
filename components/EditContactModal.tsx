@@ -1,6 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Contact, ContactGroup } from '../types';
+import { Contact } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
@@ -9,16 +9,24 @@ const modalRoot = document.getElementById('modal-root')!;
 
 interface EditContactModalProps {
   contact?: Contact;
+  initialGroupId?: string;
   onSave: (contact: Omit<Contact, 'id'>, id?: string) => void;
   onClose: () => void;
 }
 
-const EditContactModal: React.FC<EditContactModalProps> = ({ contact, onSave, onClose }) => {
+const EditContactModal: React.FC<EditContactModalProps> = ({ contact, initialGroupId, onSave, onClose }) => {
   const { contactGroups } = useContext(SettingsContext);
   const isCreating = !contact;
   
   const [name, setName] = useState(contact?.name || '');
-  const [groupId, setGroupId] = useState(contact?.groupId || contactGroups[0]?.id || '');
+  const [groupId, setGroupId] = useState(contact?.groupId || initialGroupId || contactGroups[0]?.id || '');
+
+  useEffect(() => {
+      // Ensure groupId is set if contact is provided after initial render
+      if (contact?.groupId) {
+          setGroupId(contact.groupId);
+      }
+  }, [contact]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

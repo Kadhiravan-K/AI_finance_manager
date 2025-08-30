@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { Account, AccountType, ItemType } from '../types';
+import { Account, AccountType } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import { currencies } from '../utils/currency';
+import { SettingsContext } from '../contexts/SettingsContext';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -27,15 +28,6 @@ const AccountsManagerModal: React.FC<AccountsManagerModalProps> = ({ onClose, ac
   const handleCancel = () => {
     setEditingAccount(null);
     setIsFormOpen(false);
-  };
-  
-  const handleSave = (accountData: Account | Omit<Account, 'id'>, id?: string) => {
-      if ('id' in accountData) {
-          onEditAccount(accountData);
-      } else {
-          onAddAccount(accountData.name, accountData.accountType, accountData.currency, accountData.creditLimit);
-      }
-      handleCancel();
   };
 
   return ReactDOM.createPortal(
@@ -67,7 +59,8 @@ const AccountsManagerModal: React.FC<AccountsManagerModalProps> = ({ onClose, ac
         {isFormOpen && (
           <AccountForm
             account={editingAccount}
-            onSave={handleSave}
+            onAddAccount={onAddAccount}
+            onEditAccount={onEditAccount}
             onCancel={handleCancel}
           />
         )}
@@ -77,25 +70,31 @@ const AccountsManagerModal: React.FC<AccountsManagerModalProps> = ({ onClose, ac
   );
 };
 
-const AccountForm: React.FC<{
+interface AccountFormProps {
   account: Account | null;
-  onSave: (accountData: Account | Omit<Account, 'id'>, id?: string) => void;
+  onAddAccount: AccountsManagerModalProps['onAddAccount'];
+  onEditAccount: AccountsManagerModalProps['onEditAccount'];
   onCancel: () => void;
-}> = ({ account, onSave, onCancel }) => {
+}
+
+const AccountForm: React.FC<AccountFormProps> = ({ account, onAddAccount, onEditAccount, onCancel }) => {
+  const { settings } = useContext(SettingsContext);
   const [formData, setFormData] = useState<Omit<Account, 'id'>>({
     name: account?.name || '',
     accountType: account?.accountType || AccountType.DEPOSITORY,
-    currency: account?.currency || 'INR',
+    currency: account?.currency || settings.currency,
     creditLimit: account?.creditLimit,
   });
+  const [openingBalance, setOpeningBalance] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if(account) {
-        onSave({ ...account, ...formData });
+        onEditAccount({ ...account, ...formData });
     } else {
-        onSave(formData);
+        onAddAccount(formData.name, formData.accountType, formData.currency, formData.creditLimit, parseFloat(openingBalance) || undefined);
     }
+    onCancel();
   };
   
   const accountTypeOptions = [
@@ -133,6 +132,18 @@ const AccountForm: React.FC<{
                 onChange={v => setFormData(p => ({ ...p, currency: v }))}
             />
         </div>
+        {!account && (
+            <div className="animate-fadeInUp">
+              <label className="text-sm text-secondary mb-1 block">Opening Balance (Optional)</label>
+              <input
+                type="number"
+                value={openingBalance}
+                onChange={e => setOpeningBalance(e.target.value)}
+                className="w-full input-base p-2 rounded-lg no-spinner"
+                placeholder="0.00"
+              />
+            </div>
+        )}
          {formData.accountType === AccountType.CREDIT && (
             <div className="animate-fadeInUp">
               <label className="text-sm text-secondary mb-1 block">Credit Limit (Optional)</label>

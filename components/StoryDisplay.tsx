@@ -11,6 +11,9 @@ import NetWorthSummary from './NetWorthSummary';
 import PortfolioSummary from './PortfolioSummary';
 import FinancialHealthScore from './FinancialHealthScore';
 import AccountSelector from './AccountSelector';
+import AIFinancialCoach from './AIFinancialCoach';
+import { getAIFinancialTips } from '../services/geminiService';
+import { calculateFinancialHealthScore } from '../utils/financialHealth';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -188,17 +191,13 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
 const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, ...rest }) => {
     
     const currencySummaries = useMemo(() => {
-        // 1. Determine active currencies from selected accounts to ensure cards are always shown.
+        // 1. Determine active currencies from selected accounts.
         const activeCurrencies = new Set<string>();
-        if (rest.selectedAccountIds.includes('all')) {
-            accounts.forEach(acc => activeCurrencies.add(acc.currency));
-        } else {
-            accounts.forEach(acc => {
-                if (rest.selectedAccountIds.includes(acc.id)) {
-                    activeCurrencies.add(acc.currency);
-                }
-            });
-        }
+        accounts.forEach(acc => {
+            if (rest.selectedAccountIds.includes(acc.id)) {
+                activeCurrencies.add(acc.currency);
+            }
+        });
     
         // Initialize summaries for all active currencies to 0
         const summaries: Record<string, { income: number, expense: number, balance: number }> = {};
@@ -234,7 +233,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
         // 3. Calculate totals for selected accounts using the date-filtered list.
         const accountMap = new Map(accounts.map(acc => [acc.id, acc]));
         for (const t of dateFilteredTransactions) {
-            if (rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.includes(t.accountId)) {
+            if (rest.selectedAccountIds.includes(t.accountId)) {
                 const account = accountMap.get(t.accountId);
                 if (account && summaries[account.currency]) {
                     if (t.type === TransactionType.INCOME) {
@@ -269,6 +268,36 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
     
     const healthScoreData = { transactions: allTransactions, accounts, investmentHoldings, financialProfile, budgets, goals };
 
+    const { totalScore, breakdown } = useMemo(() => calculateFinancialHealthScore(healthScoreData), [healthScoreData]);
+    const [aiInsight, setAiInsight] = useState('');
+    const [isInsightLoading, setIsInsightLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchTips = async () => {
+            if (!isMounted) return;
+            setIsInsightLoading(true);
+            try {
+                const tips = await getAIFinancialTips(totalScore, breakdown);
+                if (isMounted) setAiInsight(tips);
+            } catch (error) {
+                console.error("Failed to fetch AI financial tips:", error);
+                if (isMounted) setAiInsight("Could not load financial tips at the moment.");
+            } finally {
+                if (isMounted) setIsInsightLoading(false);
+            }
+        };
+
+        if (financialProfile?.monthlySalary > 0) {
+            fetchTips();
+        } else {
+            setAiInsight("Complete your financial profile in the AI Hub to get personalized tips!");
+            setIsInsightLoading(false);
+        }
+
+        return () => { isMounted = false; };
+    }, [totalScore, breakdown, financialProfile?.monthlySalary]);
+
     const summaryWidget = useMemo(() => {
         if (!visibleWidgets.some(w => w.id === 'summary')) return null;
 
@@ -283,6 +312,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
 
     const widgetMap: Record<DashboardWidget['id'], React.ReactNode> = {
         financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
+        aiCoach: <AIFinancialCoach insight={aiInsight} isLoading={isInsightLoading} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         summary: summaryWidget,
@@ -353,8 +383,8 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
                 <VirtualizedTransactionList transactions={transactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
             ) : (
                 <div className="text-center py-12">
-                    <p className="text-lg font-medium text-secondary">No transactions found</p>
-                    <p className="text-sm text-tertiary">Add one using the '+' button below.</p>
+                    <p className="text-lg font-medium text-secondary">{rest.selectedAccountIds.length > 0 ? 'No transactions found' : 'Select an account to view transactions'}</p>
+                    {rest.selectedAccountIds.length > 0 && <p className="text-sm text-tertiary">Add one using the '+' button below.</p>}
                 </div>
             )}
         </div>
