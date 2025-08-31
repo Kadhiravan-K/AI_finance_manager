@@ -8,6 +8,7 @@ import CustomSelect from './CustomSelect';
 import CustomCheckbox from './CustomCheckbox';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import TimeSeriesLineChart from './TimeSeriesLineChart';
 
 interface ReportsScreenProps {
   transactions: Transaction[];
@@ -19,6 +20,7 @@ interface ReportsScreenProps {
 
 type ReportType = 'breakdown' | 'trend';
 type ComparePeriodType = 'previous' | 'last_year' | 'last_month' | 'last_quarter' | 'custom';
+type ChartType = 'bar' | 'line';
 
 // A functional AccountSelector for this screen's needs
 const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string[], onChange: (ids: string[]) => void }> = ({ accounts, selectedIds, onChange }) => {
@@ -205,6 +207,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   const [categoryIds, setCategoryIds] = useState(['all']);
   const [reportCurrency, setReportCurrency] = useState(baseCurrency);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [chartType, setChartType] = useState<ChartType>('bar');
   const formatCurrency = useCurrencyFormatter(undefined, reportCurrency);
 
   // Comparison state
@@ -310,7 +313,13 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
             <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} />
         </>
         ) : (
-            <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
+            <>
+              {chartType === 'bar' ?
+                <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
+                :
+                <TimeSeriesLineChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
+              }
+            </>
         )}
     </div>
   );
@@ -322,7 +331,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
       <div className="rounded-xl glass-card mb-6 relative z-20 overflow-hidden">
         <button type="button" onClick={() => setFiltersOpen(!filtersOpen)} className="w-full p-4 flex justify-between items-center">
             <h3 className="text-lg font-bold text-primary">Filters</h3>
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
         </button>
 
         {filtersOpen && (
@@ -374,11 +383,19 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
           </div>
       )}
       
-      <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
+      <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
         <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
         <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
       </div>
       
+      {reportType === 'trend' && (
+        <div className="flex justify-center items-center gap-4 my-4">
+            <span className="text-sm text-secondary">Bar</span>
+            <ToggleSwitch checked={chartType === 'line'} onChange={(checked) => setChartType(checked ? 'line' : 'bar')} />
+            <span className="text-sm text-secondary">Line</span>
+        </div>
+      )}
+
       <div className={`grid grid-cols-1 ${isCompareMode ? 'md:grid-cols-2' : ''} gap-4`}>
           <ChartContainer>
             <ReportDataView txs={transactionType === 'expense' ? expenseTransactions : incomeTransactions} title={isCompareMode ? "Current Period" : ""} />

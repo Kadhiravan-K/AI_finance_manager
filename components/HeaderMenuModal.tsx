@@ -29,6 +29,8 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
     { screen: 'budgets', label: 'Budgets', icon: '🎯'},
     { screen: 'goals', label: 'Goals', icon: '🏆' },
     { screen: 'calculator', label: 'Calculator', icon: '🧮' },
+    { screen: 'calendar', label: 'Calendar', icon: '🗓️' },
+    { screen: 'notes', label: 'Notes', icon: '📝' },
     { modal: 'contacts', label: 'Contacts', icon: '👥' },
     { modal: 'dashboardSettings', label: 'Customize Dashboard', icon: '🎨' },
     { modal: 'importExport', label: 'Import/Export Data', icon: '📄' },
@@ -57,6 +59,8 @@ const HeaderMenuModal: React.FC<HeaderMenuModalProps> = ({ onClose, setActiveScr
     senderManager: 'senders',
     shop: 'shop',
     calculator: 'calculator',
+    calendar: 'calendar',
+    notes: 'notes',
     tripManagement: 'tripManagement',
   };
 

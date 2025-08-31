@@ -12,6 +12,7 @@ const modalRoot = document.getElementById('modal-root')!;
 
 interface EditTransactionModalProps {
   transaction?: Transaction;
+  initialData?: Partial<Transaction> & { itemizedItems?: { description: string; amount: string }[] };
   onSave: (data: Transaction | { 
     action: 'split-and-replace';
     originalTransactionId: string;
@@ -41,7 +42,7 @@ interface Item {
     splitDetails: SplitDetail[];
 }
 
-const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, onSave, onCancel, accounts, contacts, openModal, selectedAccountId, onOpenCalculator, isEmbedded = false }) => {
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction, initialData, onSave, onCancel, accounts, contacts, openModal, selectedAccountId, onOpenCalculator, isEmbedded = false }) => {
   const { categories, payees, setPayees, contactGroups } = useContext(SettingsContext);
   const isCreating = !transaction;
 
@@ -57,16 +58,23 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     splitDetails: [],
   }), [selectedAccountId, accounts]);
 
+  const getInitialFormData = () => {
+      if (transaction) return transaction;
+      if (initialData) {
+          return { ...defaultTransaction, ...initialData, id: '' };
+      }
+      return defaultTransaction;
+  };
 
-  const [formData, setFormData] = useState<Transaction>(transaction || defaultTransaction);
+  const [formData, setFormData] = useState<Transaction>(getInitialFormData());
   const [time, setTime] = useState(() => {
-    const date = new Date(transaction?.date || defaultTransaction.date);
+    const date = new Date(transaction?.date || initialData?.date || defaultTransaction.date);
     return date.toTimeString().slice(0, 5);
   });
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const formatCurrency = useCurrencyFormatter({currencyDisplay: 'narrowSymbol'});
   
-  const [isItemized, setIsItemized] = useState(false);
+  const [isItemized, setIsItemized] = useState(!!(initialData?.itemizedItems || transaction?.splitDetails?.length));
   const [items, setItems] = useState<Item[]>([]);
   const [splittingItemId, setSplittingItemId] = useState<string | null>(null);
   const [showContactPicker, setShowContactPicker] = useState<string | null>(null);
@@ -77,11 +85,31 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
       setFormData(transaction);
       const initialCategory = categories.find(c => c.id === transaction.categoryId);
       setSelectedParentId(initialCategory?.parentId || (initialCategory ? initialCategory.id : null));
+    } else if (initialData?.itemizedItems) {
+        const newItems: Item[] = initialData.itemizedItems.map(item => {
+            const amountValue = parseFloat(item.amount) || 0;
+            const youSplit: SplitDetail = { 
+                id: 'you', personName: 'You', amount: amountValue, isSettled: true, shares: '1', percentage: '100'
+            };
+            return {
+                id: self.crypto.randomUUID(),
+                description: item.description,
+                amount: item.amount,
+                categoryId: '',
+                parentId: null,
+                splitMode: 'equally',
+                splitDetails: [youSplit]
+            };
+        });
+        setItems(newItems);
+        setIsItemized(true);
+        const totalAmount = newItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        setFormData(prev => ({ ...prev, amount: totalAmount }));
     }
-  }, [transaction, categories]);
+  }, [transaction, initialData, categories]);
   
   useEffect(() => {
-    if (isItemized && items.length === 0) {
+    if (isItemized && items.length === 0 && !initialData?.itemizedItems) {
       const initialCategory = categories.find(c => c.id === formData.categoryId);
       const youSplit: SplitDetail = { 
         id: 'you', 
@@ -419,7 +447,9 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                             :
                             <span className="w-24 text-right font-mono text-sm text-primary">{formatCurrency(p.amount)}</span>
                         }
-                        <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} className="text-rose-400 text-xl leading-none px-1 flex-shrink-0">&times;</button>
+                        <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} className="w-7 h-7 flex items-center justify-center text-rose-400 rounded-full flex-shrink-0 hover:bg-rose-500/10">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
                     </div>
                 ))}
                  {!youIsIncluded && (
@@ -500,8 +530,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                  <div className="flex items-center gap-2 flex-shrink-0 pt-1">
                     <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
                      {items.length > 1 && (
-                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 bg-subtle rounded-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400">
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     )}
                  </div>
@@ -514,19 +544,19 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const formBody = (
     <form onSubmit={handleSubmit} className="space-y-4 p-6 overflow-y-auto flex-grow">
        {/* Row 1: Account & Date */}
-       <div>
-            <label className={labelBaseClasses}>Account</label>
-            <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelBaseClasses}>Date</label>
-            <CustomDatePicker value={new Date(formData.date)} onChange={handleDateChange}/>
-          </div>
-          <div>
-            <label className={labelBaseClasses}>Time</label>
-            <input type="time" value={time} onChange={e => handleTimeChange(e.target.value)} className={`${inputBaseClasses} w-full`} />
-          </div>
+       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
+                <label className={labelBaseClasses}>Account</label>
+                <CustomSelect value={formData.accountId} onChange={(value) => handleChange('accountId', value)} options={accounts.map(account => ({ value: account.id, label: account.name }))}/>
+            </div>
+            <div className="sm:col-span-1">
+                <label className={labelBaseClasses}>Date</label>
+                <CustomDatePicker value={new Date(formData.date)} onChange={handleDateChange}/>
+            </div>
+            <div className="sm:col-span-1">
+                <label className={labelBaseClasses}>Time</label>
+                <input type="time" value={time} onChange={e => handleTimeChange(e.target.value)} className={`${inputBaseClasses} w-full`} />
+            </div>
        </div>
        
        {/* Main form switch */}

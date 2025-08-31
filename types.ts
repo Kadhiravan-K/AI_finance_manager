@@ -247,7 +247,7 @@ export interface TrustBinDeletionPeriod {
 export type ToggleableTool = 
   'achievements' | 'aiCommandCenter' | 'dataHub' | 
   'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 
-  'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer';
+  'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'notes';
 
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
@@ -257,6 +257,12 @@ export interface Settings {
     trustBinDeletionPeriod: TrustBinDeletionPeriod;
     enabledTools: Record<ToggleableTool, boolean>;
     footerActions: ActiveScreen[];
+    fabActions: {
+        top: string;
+        left: string;
+        right: string;
+        bottom: string;
+    };
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -279,7 +285,7 @@ export interface UnlockedAchievement {
     date: string; // ISO string
 }
 
-export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'refund';
+export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'refund' | 'note';
 
 export interface TrustBinItem {
   id: string; // unique id for the bin entry
@@ -355,21 +361,13 @@ export interface ShopShift {
 }
 
 
-export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn';
+export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'notes';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | 'editNote' | 'fabSettings' | null;
 
 export interface ModalState {
     name: ActiveModal;
     props?: Record<string, any>;
-}
-
-export interface ConfirmationState {
-  title: string;
-  message: string;
-  onConfirm: () => void;
-  confirmLabel?: string;
-  lockDuration?: number;
 }
 
 export interface FinanceTrackerProps {
@@ -420,6 +418,20 @@ export interface Refund {
     expectedDate?: string; // ISO String
 }
 
+export interface Note {
+    id: string; // UUID
+    title?: string;
+    content: string; // Markdown content
+    tags: string[]; // e.g., ['💰', 'trip']
+    category: 'general' | 'glossary';
+    amount?: number; // For glossary items
+    isArchived: boolean;
+    isPinned: boolean;
+    color: string; // e.g., 'red', 'orange', 'default'
+    createdAt: string; // ISO string
+    updatedAt: string; // ISO string
+}
+
 // For Backup
 export interface AppState {
     transactions: Transaction[];
@@ -440,6 +452,7 @@ export interface AppState {
     tripExpenses?: TripExpense[];
     financialProfile: FinancialProfile;
     refunds?: Refund[];
+    notes?: Note[];
     // Shop Data
     shops?: Shop[];
     shopProducts?: ShopProduct[];
@@ -464,4 +477,13 @@ export interface Challenge {
     description: string;
     isCompleted: boolean;
     date: string; // YYYY-MM-DD
+}
+
+export interface CalendarEvent {
+    id: string;
+    date: Date;
+    title: string;
+    type: 'bill' | 'goal' | 'refund' | 'trip';
+    color: 'rose' | 'violet' | 'sky' | 'amber';
+    data: any;
 }

@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useMemo, useContext, useCallback } from 'react';
-import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData, Refund } from '../types';
+import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData, Refund, Note } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { calculateNextDueDate } from '../utils/date';
 
@@ -64,8 +64,16 @@ export const DEFAULT_SETTINGS: Settings = {
         calculator: true,
         tripManagement: true,
         accountTransfer: true,
+        calendar: true,
+        notes: true,
     },
     footerActions: ['dashboard', 'reports', 'budgets', 'more'],
+    fabActions: {
+        top: 'addTransaction',
+        left: 'openCalendar',
+        right: 'openNotes',
+        bottom: 'openTrip',
+    },
 };
 
 const DEFAULT_FINANCIAL_PROFILE: FinancialProfile = {
@@ -128,6 +136,10 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     newSettings.enabledTools = {
       ...DEFAULT_SETTINGS.enabledTools,
       ...(settings.enabledTools || {}),
+    };
+     newSettings.fabActions = {
+      ...DEFAULT_SETTINGS.fabActions,
+      ...(settings.fabActions || {}),
     };
     
     // Safeguard: ensure Shop Hub is enabled if it was missing from saved settings
@@ -197,12 +209,19 @@ interface AppDataContextType {
   setChallenges: (value: Challenge[] | ((val: Challenge[]) => Challenge[])) => Promise<void>;
   refunds: Refund[];
   setRefunds: (value: Refund[] | ((val: Refund[]) => Refund[])) => Promise<void>;
+  notes: Note[];
+  setNotes: (value: Note[] | ((val: Note[]) => Note[])) => Promise<void>;
 
   // Functions
   findOrCreateCategory: (fullName: string, type: TransactionType) => string;
   updateStreak: () => void;
   checkAndCompleteChallenge: (type: ChallengeType) => void;
   deleteItem: (itemId: string, itemType: ItemType) => void;
+  moveTempNoteToTrustBin: (tempNote: { content: string, timestamp: number }) => void;
+  updateNoteContent: (noteId: string, newContent: string) => void;
+  archiveNote: (noteId: string, isArchived: boolean) => void;
+  pinNote: (noteId: string, isPinned: boolean) => void;
+  changeNoteColor: (noteId: string, color: string) => void;
 }
 
 export const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
@@ -228,6 +247,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [streaks, setStreaks] = useLocalStorage<UserStreak>('finance-tracker-streaks', { currentStreak: 0, longestStreak: 0, lastLogDate: null, streakFreezes: 3 });
     const [challenges, setChallenges] = useLocalStorage<Challenge[]>('finance-tracker-challenges', []);
     const [refunds, setRefunds] = useLocalStorage<Refund[]>('finance-tracker-refunds', []);
+    const [notes, setNotes] = useLocalStorage<Note[]>('finance-tracker-notes', []);
 
     const findOrCreateCategory = useCallback((fullName: string, type: TransactionType): string => {
         const parts = fullName.split('/').map(p => p.trim());
@@ -288,7 +308,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'goal': setGoals, 'recurringTransaction': setRecurringTransactions, 'account': setAccounts,
           'trip': setTrips, 'tripExpense': setTripExpenses, 'shop': setShops,
           'shopProduct': setShopProducts, 'shopEmployee': setShopEmployees, 'shopShift': setShopShifts,
-          'refund': setRefunds,
+          'refund': setRefunds, 'note': setNotes,
         };
 
         const itemMap: Record<string, any[]> = {
@@ -297,7 +317,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'goal': goals, 'recurringTransaction': recurringTransactions, 'account': accounts,
           'trip': trips, 'tripExpense': tripExpenses, 'shop': shops,
           'shopProduct': shopProducts, 'shopEmployee': shopEmployees, 'shopShift': shopShifts,
-          'refund': refunds,
+          'refund': refunds, 'note': notes,
         };
       
       const items = itemMap[itemType];
@@ -312,9 +332,49 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setter(items.filter(item => item.id !== itemId));
       }
     }, [
-        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts, refunds, setTrustBin,
-        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts, setRefunds
+        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts, refunds, notes, setTrustBin,
+        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts, setRefunds, setNotes
     ]);
+
+    const moveTempNoteToTrustBin = useCallback((tempNote: { content: string; timestamp: number }) => {
+        if (!tempNote.content.trim()) return;
+
+        const now = new Date().toISOString();
+        const newNote: Note = {
+            id: self.crypto.randomUUID(),
+            content: `[Archived Scratchpad]\n${tempNote.content}`,
+            tags: ['scratchpad'],
+            category: 'general',
+            isArchived: false,
+            isPinned: false,
+            color: 'grey',
+            createdAt: now,
+            updatedAt: now,
+        };
+        const newTrustBinItem: TrustBinItem = {
+            id: self.crypto.randomUUID(),
+            item: newNote,
+            itemType: 'note',
+            deletedAt: now
+        };
+        setTrustBin(prev => [...prev, newTrustBinItem]);
+    }, [setTrustBin]);
+    
+    const updateNoteContent = useCallback((noteId: string, newContent: string) => {
+        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, updatedAt: new Date().toISOString() } : n));
+    }, [setNotes]);
+
+    const archiveNote = useCallback((noteId: string, isArchived: boolean) => {
+        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isArchived, updatedAt: new Date().toISOString() } : n));
+    }, [setNotes]);
+    
+    const pinNote = useCallback((noteId: string, isPinned: boolean) => {
+        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isPinned, updatedAt: new Date().toISOString() } : n));
+    }, [setNotes]);
+
+    const changeNoteColor = useCallback((noteId: string, color: string) => {
+        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, color, updatedAt: new Date().toISOString() } : n));
+    }, [setNotes]);
 
 
     const value = useMemo(() => ({
@@ -323,14 +383,18 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
-        challenges, setChallenges, refunds, setRefunds, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+        challenges, setChallenges, refunds, setRefunds, notes, setNotes, 
+        findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+        moveTempNoteToTrustBin, updateNoteContent, archiveNote, pinNote, changeNoteColor,
     }), [
         transactions, setTransactions, accounts, setAccounts, budgets, setBudgets,
         recurringTransactions, setRecurringTransactions, goals, setGoals, investmentHoldings, setInvestmentHoldings,
         trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
-        challenges, setChallenges, refunds, setRefunds, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+        challenges, setChallenges, refunds, setRefunds, notes, setNotes,
+        findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+        moveTempNoteToTrustBin, updateNoteContent, archiveNote, pinNote, changeNoteColor,
     ]);
 
     return <AppDataContext.Provider value={value as any}>{children}</AppDataContext.Provider>;

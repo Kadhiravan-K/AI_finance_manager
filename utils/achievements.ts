@@ -25,7 +25,6 @@ export const checkAchievements = (
   unlockedIds: Set<string>
 ): string[] => {
   const newlyUnlocked: string[] = [];
-  // FIX: Destructured `financialProfile` to make it available within the function scope and resolve a "Cannot find name" error.
   const { transactions, goals, budgets, investmentHoldings, streaks, trips, shops, accounts, settings, financialProfile } = appState;
   
   if (!streaks || !transactions || !goals || !budgets || !accounts || !settings) return [];

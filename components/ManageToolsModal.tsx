@@ -21,6 +21,8 @@ const MANAGEABLE_TOOLS: { key: ToggleableTool; name: string; icon: string; }[] =
     { key: 'scheduledPayments', name: 'Scheduled Payments', icon: '📅' },
     { key: 'senders', name: 'Senders', icon: '🛡️' },
     { key: 'shop', name: 'Shop Hub', icon: '🏪' },
+    { key: 'calendar', name: 'Calendar', icon: '🗓️' },
+    { key: 'notes', name: 'Notes', icon: '📝' },
 ];
 
 const ManageToolsModal: React.FC<ManageToolsModalProps> = ({ onClose }) => {

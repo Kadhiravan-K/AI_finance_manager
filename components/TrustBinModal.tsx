@@ -119,7 +119,7 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
         
         {selectedIds.size > 0 && (
           <div className="flex-shrink-0 p-4 border-t border-divider flex justify-end gap-3 animate-fadeInUp">
-            <button onClick={handleRestoreSelected} className="button-secondary px-4 py-2 text-sm">
+            <button onClick={handleRestoreSelected} className="button-primary px-4 py-2 text-sm">
                 Restore ({selectedIds.size})
             </button>
             <button onClick={handlePermanentDeleteSelected} className="button-primary px-4 py-2 text-sm bg-rose-600 hover:bg-rose-500">

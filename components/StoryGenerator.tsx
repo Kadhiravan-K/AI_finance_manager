@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, ConfirmationState, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund, Note } from '../types';
 import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
@@ -60,109 +60,16 @@ import LearnScreen from './LearnScreen';
 import AICommandModal from './AICommandModal';
 import AccountsManagerModal from './AccountsManagerModal';
 import GlobalSearchModal from './GlobalSearchModal';
+import CalendarScreen from './CalendarScreen';
+import NotesScreen from './NotesScreen';
+import EditNoteModal from './EditNoteModal';
+import UndoToast from './UndoToast';
+import { DEFAULT_CATEGORIES } from '../utils/categories';
+import FabSettingsModal from './FabSettingsModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
-const generateCategories = (): Category[] => {
-    const categories: { name: string, type: TransactionType, parent: string | null, icon: string, children?: any[] }[] = [
-        // Income
-        { name: 'Salary', type: TransactionType.INCOME, parent: null, icon: '💼', children: [
-            { name: 'Job', icon: '👨‍💻' }, { name: 'Part-time', icon: '🕒' }, { name: 'Freelance', icon: '🧑‍🔧' }, { name: 'Overtime Pay', icon: '🧾' }, { name: 'Performance Bonus', icon: '🎯' }
-        ]},
-        { name: 'Business', type: TransactionType.INCOME, parent: null, icon: '🏢', children: [
-            { name: 'Product Sales', icon: '📦' }, { name: 'Service Income', icon: '🛠️' }, { name: 'Royalties', icon: '🎧' }, { name: 'Consulting Fees', icon: '🧮' }, { name: 'Affiliate Earnings', icon: '🧾' }
-        ]},
-        { name: 'Investments', type: TransactionType.INCOME, parent: null, icon: '📈', children: [
-            { name: 'Dividends', icon: '💸' }, { name: 'Interest', icon: '🏦' }, { name: 'Capital Gains', icon: '📊' }, { name: 'Crypto Profits', icon: '🪙' }, { name: 'REIT Income', icon: '🏠' }
-        ]},
-        { name: 'Rental Income', type: TransactionType.INCOME, parent: null, icon: '🏠', children: [
-            { name: 'Residential Rent', icon: '🏡' }, { name: 'Commercial Rent', icon: '🏬' }, { name: 'Airbnb/Short-Term', icon: '🛏️' }, { name: 'Storage Rental', icon: '🧺' }
-        ]},
-        { name: 'Gifts & Donations', type: TransactionType.INCOME, parent: null, icon: '🎁', children: [
-            { name: 'Cash Gifts', icon: '💰' }, { name: 'Crowdfunding', icon: '🤝' }, { name: 'Inheritance', icon: '🧾' }, { name: 'Wedding Gifts', icon: '🎉' }, { name: 'Graduation Gifts', icon: '🎓' }
-        ]},
-        { name: 'Refunds & Rebates', type: TransactionType.INCOME, parent: null, icon: '🔁', children: [
-            { name: 'Tax Refund', icon: '🧾' }, { name: 'Purchase Rebate', icon: '💳' }, { name: 'Cashback', icon: '💵' }, { name: 'Return Refund', icon: '🛍️' }, { name: 'Service Refund', icon: '🧼' }
-        ]},
-        { name: 'Other Income', type: TransactionType.INCOME, parent: null, icon: '🎲', children: [
-            { name: 'Lottery', icon: '🎟️' }, { name: 'Prize Money', icon: '🏆' }, { name: 'Miscellaneous', icon: '❓' }, { name: 'Survey Rewards', icon: '🧠' }, { name: 'App Referral Bonus', icon: '📱' }
-        ]},
-        // Expenses
-        { name: 'Housing', type: TransactionType.EXPENSE, parent: null, icon: '🏠', children: [
-            { name: 'Rent', icon: '🏘️' }, { name: 'Mortgage', icon: '🏦' }, { name: 'Property Tax', icon: '🧾' }, { name: 'Repairs', icon: '🔧' }, { name: 'Home Improvement', icon: '🪜' }
-        ]},
-        { name: 'Utilities', type: TransactionType.EXPENSE, parent: null, icon: '🔌', children: [
-            { name: 'Electricity', icon: '💡' }, { name: 'Water', icon: '🚰' }, { name: 'Gas', icon: '🔥' }, { name: 'Internet', icon: '🌐' }, { name: 'Phone', icon: '📞' }, { name: 'Cable TV', icon: '📡' }
-        ]},
-        { name: 'Food & Groceries', type: TransactionType.EXPENSE, parent: null, icon: '🍽️', children: [
-            { name: 'Supermarket', icon: '🛒' }, { name: 'Dining Out', icon: '🍴' }, { name: 'Snacks', icon: '🍫' }, { name: 'Beverages', icon: '🧃' }, { name: 'Meal Delivery', icon: '🧑‍🍳' }
-        ]},
-        { name: 'Transportation', type: TransactionType.EXPENSE, parent: null, icon: '🚗', children: [
-            { name: 'Fuel', icon: '⛽' }, { name: 'Public Transport', icon: '🚌' }, { name: 'Vehicle Maintenance', icon: '🔧' }, { name: 'Car Insurance', icon: '🚘' }, { name: 'Parking Fees', icon: '🅿️' }, { name: 'Ride-Hailing (Uber/Ola)', icon: '🚕' }
-        ]},
-        { name: 'Health & Insurance', type: TransactionType.EXPENSE, parent: null, icon: '🩺', children: [
-            { name: 'Medical Bills', icon: '🧾' }, { name: 'Health Insurance', icon: '🛡️' }, { name: 'Gym', icon: '🏋️' }, { name: 'Medicines', icon: '💊' }, { name: 'Lab Tests', icon: '🧪' }, { name: 'Dental Care', icon: '🦷' }
-        ]},
-        { name: 'Education', type: TransactionType.EXPENSE, parent: null, icon: '📚', children: [
-            { name: 'Tuition', icon: '🎓' }, { name: 'Books', icon: '📖' }, { name: 'Online Courses', icon: '💻' }, { name: 'Coaching Classes', icon: '🧠' }, { name: 'Exam Fees', icon: '📝' }
-        ]},
-        { name: 'Entertainment', type: TransactionType.EXPENSE, parent: null, icon: '🎉', children: [
-            { name: 'Movies', icon: '🎬' }, { name: 'Subscriptions', icon: '📺' }, { name: 'Events', icon: '🎟️' }, { name: 'Gaming', icon: '🎮' }, { name: 'Music & Podcasts', icon: '🎧' }
-        ]},
-        { name: 'Shopping', type: TransactionType.EXPENSE, parent: null, icon: '🛍️', children: [
-            { name: 'Clothing', icon: '👕' }, { name: 'Electronics', icon: '📱' }, { name: 'Home Goods', icon: '🪑' }, { name: 'Travel Gear', icon: '🧳' }, { name: 'Accessories', icon: '🕶️' }
-        ]},
-        { name: 'Finance', type: TransactionType.EXPENSE, parent: null, icon: '💳', children: [
-            { name: 'Loan Payments', icon: '🏦' }, { name: 'Credit Card Bills', icon: '💳' }, { name: 'Bank Fees', icon: '🧾' }, { name: 'Interest Charges', icon: '📉' }, { name: 'Late Payment Penalties', icon: '🧾' }
-        ]},
-        { name: 'Savings & Investment', type: TransactionType.EXPENSE, parent: null, icon: '💼', children: [
-            { name: 'Emergency Fund', icon: '🆘' }, { name: 'SIPs', icon: '📈' }, { name: 'Stock Purchases', icon: '📊' }, { name: 'Crypto Investments', icon: '🪙' }, { name: 'Real Estate Investment', icon: '🏠' }
-        ]},
-        { name: 'Personal Care', type: TransactionType.EXPENSE, parent: null, icon: '🧖', children: [
-            { name: 'Salon', icon: '💇' }, { name: 'Skincare', icon: '🧴' }, { name: 'Hygiene Products', icon: '🧼' }, { name: 'Spa & Nails', icon: '💅' }, { name: 'Wellness Therapy', icon: '🧘' }
-        ]},
-        { name: 'Family & Kids', type: TransactionType.EXPENSE, parent: null, icon: '👨‍👩‍👧', children: [
-            { name: 'School Fees', icon: '🏫' }, { name: 'Toys', icon: '🧸' }, { name: 'Childcare', icon: '🧑‍🍼' }, { name: 'Kids Clothing', icon: '🧥' }, { name: 'Lunch & Snacks', icon: '🍱' }
-        ]},
-        { name: 'Donations', type: TransactionType.EXPENSE, parent: null, icon: '🙏', children: [
-            { name: 'Charity', icon: '❤️' }, { name: 'Religious Offerings', icon: '🕉️' }, { name: 'Clothing Donation', icon: '🧥' }, { name: 'Book Donation', icon: '📚' }
-        ]},
-        { name: 'Miscellaneous', type: TransactionType.EXPENSE, parent: null, icon: '🌀', children: [
-            { name: 'Pet Care', icon: '🐶' }, { name: 'Gifts', icon: '🎁' }, { name: 'Unexpected Expenses', icon: '⚠️' }, { name: 'Travel Insurance', icon: '🧳' }, { name: 'Subscription Renewals', icon: '🧾' }
-        ]},
-    ];
-    // System categories
-    const systemCats: { name: string, type: TransactionType, parent: string | null, icon: string, children?: any[] }[] = [
-        { name: 'Opening Balance', type: TransactionType.INCOME, parent: null, icon: '🏦' },
-        { name: 'Transfers', type: TransactionType.INCOME, parent: null, icon: '↔️' },
-        { name: 'Debt Repayment', type: TransactionType.INCOME, parent: null, icon: '🤝' },
-        { name: 'Transfers', type: TransactionType.EXPENSE, parent: null, icon: '↔️' },
-        { name: 'Goal Contributions', type: TransactionType.EXPENSE, parent: null, icon: '🎯' },
-        { name: 'Money Lent', type: TransactionType.EXPENSE, parent: null, icon: '💸' },
-        { name: 'Shop Sales', type: TransactionType.INCOME, parent: null, icon: '🏪' },
-    ];
-    
-    const allCategories: Category[] = [];
-    const addCategory = (name: string, type: TransactionType, parentId: string | null, icon: string) => {
-        allCategories.push({ id: self.crypto.randomUUID(), name, type, parentId, icon });
-    };
-
-    [...categories, ...systemCats].forEach(cat => {
-        const parentId = self.crypto.randomUUID();
-        allCategories.push({ id: parentId, name: cat.name, type: cat.type, parentId: null, icon: cat.icon });
-        if (cat.children) {
-            cat.children.forEach(child => {
-                allCategories.push({ id: self.crypto.randomUUID(), name: child.name, type: cat.type, parentId: parentId, icon: child.icon });
-            });
-        }
-    });
-
-    return allCategories;
-};
-
-const DEFAULT_CATEGORIES = generateCategories();
-
-export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string | null, onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void }> = ({ 
+const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string | null, onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void }> = ({ 
   activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, showOnboardingGuide, setShowOnboardingGuide, onNavigate
 }) => {
   const { settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile } = useContext(SettingsContext);
@@ -177,7 +84,9 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     goals, setGoals, investmentHoldings, setInvestmentHoldings, trips, setTrips, tripExpenses, setTripExpenses,
     trustBin, setTrustBin, shops, setShops, shopProducts, setShopProducts, shopSales, setShopSales,
     shopEmployees, setShopEmployees, shopShifts, setShopShifts, unlockedAchievements, setUnlockedAchievements,
-    streaks, challenges, setChallenges, refunds, setRefunds, findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+    streaks, challenges, setChallenges, refunds, setRefunds, notes, setNotes,
+    findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
+    updateNoteContent, archiveNote, pinNote, changeNoteColor, moveTempNoteToTrustBin
   } = dataContext;
   
   const [text, setText] = useState<string>('');
@@ -193,7 +102,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   const [spamWarning, setSpamWarning] = useState<SpamWarning | null>(null);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
-  const [confirmationState, setConfirmationState] = useState<ConfirmationState | null>(null);
+  const [undoAction, setUndoAction] = useState<{ message: string; onUndo: () => void } | null>(null);
+  const [resetConfirmation, setResetConfirmation] = useState<boolean>(false);
   
   const dailyChallenge = useMemo(() => {
     const challenge = getDailyChallenge(challenges);
@@ -216,7 +126,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   const handleOpenCalculator = (onResult: (result: number) => void) => {
     openModal('miniCalculator', { onResult });
   };
-  
+
   const allLocalStorageKeys = [
     'finance-tracker-transactions', 'finance-tracker-accounts', 'finance-tracker-settings', 
     'finance-tracker-categories', 'finance-tracker-payees', 'finance-tracker-senders',
@@ -227,7 +137,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     'finance-tracker-achievements', 'finance-tracker-trust-bin', 'finance-tracker-shops',
     'finance-tracker-shop-products', 'finance-tracker-shop-sales', 'finance-tracker-shop-employees', 'finance-tracker-shop-shifts', 'finance-tracker-consent',
     'finance-tracker-onboarding-complete', 'finance-tracker-crypto-key', 'finance-tracker-show-guide',
-    'finance-tracker-streaks', 'finance-tracker-challenges', 'finance-tracker-refunds'
+    'finance-tracker-streaks', 'finance-tracker-challenges', 'finance-tracker-refunds',
+    'finance-tracker-notes', 'finance-tracker-temp-note',
   ];
 
   const handleResetApp = () => {
@@ -236,19 +147,13 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   }
 
   const confirmResetApp = () => {
-    setConfirmationState({
-        title: 'Reset Application?',
-        message: 'This will permanently delete all your data, including accounts, transactions, and settings. This action cannot be undone.',
-        onConfirm: handleResetApp,
-        confirmLabel: 'Reset',
-        lockDuration: 5
-    });
+    setResetConfirmation(true);
   }
 
 
   const appState: AppState = useMemo(() => ({
-    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds]);
+    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, notes
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, notes]);
 
   useEffect(() => {
     onSelectionChange?.(selectedAccountIds);
@@ -610,7 +515,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
   };
 
   const handleDeleteTripExpense = (expenseId: string) => {
-      confirmDelete(expenseId, 'tripExpense', tripExpenses.find(t => t.id === expenseId)?.description || 'trip expense');
+      handleItemDeletion(expenseId, 'tripExpense', tripExpenses.find(t => t.id === expenseId)?.description || 'trip expense');
   }
   
   const handleSaveContact = useCallback((contactData: Omit<Contact, 'id'>, id?: string): Contact => {
@@ -641,19 +546,60 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
       }
       closeActiveModal();
   };
-
   
-  const confirmDelete = (itemId: string, itemType: ItemType, name: string) => {
-    setConfirmationState({
-        title: `Delete ${itemType}?`,
-        message: `Are you sure you want to delete "${name}"? This will move the item to the Trust Bin.`,
-        onConfirm: () => {
-          deleteItem(itemId, itemType);
-          setConfirmationState(null);
-        },
-        confirmLabel: 'Delete'
-    })
-  }
+  const handleSaveNote = (noteData: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'isArchived'>, id?: string) => {
+    if (id) {
+        setNotes(prev => prev.map(n => n.id === id ? { ...n, ...noteData, updatedAt: new Date().toISOString() } : n));
+    } else {
+        const now = new Date().toISOString();
+        const newNote: Note = {
+            ...noteData,
+            id: self.crypto.randomUUID(),
+            createdAt: now,
+            updatedAt: now,
+            isArchived: false,
+        };
+        setNotes(prev => [...prev, newNote]);
+    }
+    closeActiveModal();
+  };
+
+  const handleCreateTransactionFromNote = (note: Note) => {
+    const items: { description: string, amount: string }[] = [];
+    const regex = /\[x\]\s*(.+?)(?:\s*-\s*(\d*\.?\d+))?/gi;
+    let match;
+    while ((match = regex.exec(note.content)) !== null) {
+        items.push({
+            description: match[1].trim(),
+            amount: match[2] || '0',
+        });
+    }
+
+    if (items.length > 0) {
+        openModal('editTransaction', { 
+            initialData: {
+                description: note.title || `Billed from note`,
+                accountId: accounts[0]?.id,
+                itemizedItems: items,
+            }
+        });
+    } else {
+        alert("No checked items with the format '[x] Item Name - Price' found in the note.");
+    }
+  };
+
+  const handleItemDeletion = (itemId: string, itemType: ItemType, name: string) => {
+    deleteItem(itemId, itemType);
+    setUndoAction({
+        message: `${name} moved to Trust Bin.`,
+        onUndo: () => {
+          const lastDeleted = trustBin[trustBin.length - 1];
+          if (lastDeleted && lastDeleted.item.id === itemId) {
+             handleRestoreFromTrustBin([lastDeleted.id]);
+          }
+        }
+    });
+  };
   
   const handleRestoreFromTrustBin = (itemIds: string[]) => {
     const itemsToRestore = trustBin.filter(item => itemIds.includes(item.id));
@@ -680,6 +626,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
     if (restoredItemsByType.shopProduct) setShopProducts(prev => [...prev, ...restoredItemsByType.shopProduct!]);
     if (restoredItemsByType.shopEmployee) setShopEmployees(prev => [...prev, ...restoredItemsByType.shopEmployee!]);
     if (restoredItemsByType.shopShift) setShopShifts(prev => [...prev, ...restoredItemsByType.shopShift!]);
+    if (restoredItemsByType.note) setNotes(prev => [...prev, ...restoredItemsByType.note!]);
 
     setTrustBin(prev => prev.filter(item => !itemIds.includes(item.id)));
   };
@@ -795,8 +742,8 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                   if (!targetName) return "Which transaction should I delete?";
                   const txToDelete = transactions.find(t => t.description.toLowerCase().includes(targetName.toLowerCase()));
                   if (!txToDelete) return `I couldn't find a transaction matching "${targetName}".`;
-                  confirmDelete(txToDelete.id, 'transaction', txToDelete.description);
-                  return `OK. I've opened a confirmation to delete "${txToDelete.description}".`;
+                  handleItemDeletion(txToDelete.id, 'transaction', txToDelete.description);
+                  return `OK. I've deleted "${txToDelete.description}". You can undo this for a few seconds.`;
               }
               
               default:
@@ -878,24 +825,26 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
 
     const renderActiveScreen = () => {
         switch (activeScreen) {
-            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} baseCurrency={settings.currency} />;
+            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => handleItemDeletion(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} baseCurrency={settings.currency} />;
             case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency} />;
             case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
-            case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'goal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} />;
+            case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g=>g.id===id)?.name || 'goal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} />;
             case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={handleBuyInvestment} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}}/>;
-            case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions} categories={categories} accounts={accounts} onDelete={(id) => confirmDelete(id, 'recurringTransaction', recurringTransactions.find(r=>r.id===id)?.description || 'item')} />;
+            case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions} categories={categories} accounts={accounts} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(r=>r.id===id)?.description || 'item')} />;
             case 'calculator': return <CalculatorScreen />;
+            case 'calendar': return <CalendarScreen />;
+            case 'notes': return <NotesScreen onEditNote={(note) => openModal('editNote', { note })} onDeleteNote={(id) => handleItemDeletion(id, 'note', notes.find(n => n.id === id)?.title || notes.find(n => n.id === id)?.content.slice(0, 20) || 'note')} onUpdateContent={updateNoteContent} onArchiveNote={archiveNote} onPinNote={pinNote} onChangeNoteColor={changeNoteColor} onMoveTempNoteToTrustBin={moveTempNoteToTrustBin} onCreateTransactionFromNote={handleCreateTransactionFromNote} />;
             case 'more': return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={(m) => openModal(m)} onResetApp={confirmResetApp} />;
             case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
             case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
             case 'learn': return <LearnScreen />;
-            case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setActiveScreen('tripDetails'); setTripDetailsId(id); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(t) => openModal('editTrip', {trip: t})} onDeleteTrip={(id) => confirmDelete(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
+            case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setActiveScreen('tripDetails'); setTripDetailsId(id); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(t) => openModal('editTrip', {trip: t})} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
             case 'tripDetails': {
                 const trip = trips.find(t => t.id === tripDetailsId);
                 if (!trip) return <p>Trip not found</p>;
                 return <TripDetailsScreen trip={trip} expenses={tripExpenses.filter(e => e.tripId === trip.id)} onBack={() => setActiveScreen('tripManagement')} onAddExpense={() => openModal('addTripExpense', { trip: trip })} onEditExpense={(exp) => openModal('editTripExpense', { trip, expenseToEdit: exp })} onDeleteExpense={handleDeleteTripExpense} categories={categories} />;
             }
-            case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => confirmDelete(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} />;
+            case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => handleItemDeletion(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} />;
             case 'dataHub': return <DataHubScreen 
                 transactions={transactions} 
                 accounts={accounts} 
@@ -906,27 +855,27 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                 contacts={contacts}
                 onAddTransaction={() => openModal('addTransaction')}
                 onEditTransaction={(t) => openModal('editTransaction', { transaction: t })}
-                onDeleteTransaction={(id) => confirmDelete(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'item')}
+                onDeleteTransaction={(id) => handleItemDeletion(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'item')}
                 onAddAccount={() => openModal('editAccount')}
                 onEditAccount={(a) => openModal('editAccount', { account: a })}
-                onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
+                onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
                 onAddCategory={() => openModal('editCategory')}
                 onEditCategory={(c) => openModal('editCategory', { category: c })}
-                onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c=>c.id===id)?.name || 'item')}
+                onDeleteCategory={(id) => handleItemDeletion(id, 'category', categories.find(c=>c.id===id)?.name || 'item')}
                 onAddGoal={() => openModal('editGoal')}
                 onEditGoal={(g) => openModal('editGoal', { goal: g })}
-                onDeleteGoal={(id) => confirmDelete(id, 'goal', goals.find(g=>g.id===id)?.name || 'item')}
+                onDeleteGoal={(id) => handleItemDeletion(id, 'goal', goals.find(g=>g.id===id)?.name || 'item')}
                 onAddShop={() => openModal('editShop')}
                 onEditShop={(s) => openModal('editShop', { shop: s })}
-                onDeleteShop={(id) => confirmDelete(id, 'shop', shops.find(s=>s.id===id)?.name || 'item')}
+                onDeleteShop={(id) => handleItemDeletion(id, 'shop', shops.find(s=>s.id===id)?.name || 'item')}
                 onAddTrip={() => openModal('editTrip')}
                 onEditTrip={(t) => openModal('editTrip', {trip: t})}
-                onDeleteTrip={(id) => confirmDelete(id, 'trip', trips.find(t=>t.id===id)?.name || 'item')}
+                onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'item')}
                 onAddContact={() => openModal('editContact')}
                 onEditContact={(c) => openModal('editContact', {contact: c})}
-                onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'item')}
+                onDeleteContact={(id) => handleItemDeletion(id, 'contact', contacts.find(c=>c.id===id)?.name || 'item')}
             />;
-            case 'shop': return <ShopScreen shops={shops} products={shopProducts} sales={shopSales} employees={shopEmployees} shifts={shopShifts} onSaveShop={handleSaveShop} onDeleteShop={(id) => confirmDelete(id, 'shop', shops.find(s=>s.id===id)?.name || 'shop')} onSaveProduct={handleSaveProduct} onDeleteProduct={(id) => confirmDelete(id, 'shopProduct', shopProducts.find(p=>p.id===id)?.name || 'product')} onRecordSale={handleRecordSale} onSaveEmployee={handleSaveEmployee} onDeleteEmployee={(id) => confirmDelete(id, 'shopEmployee', shopEmployees.find(e=>e.id===id)?.name || 'employee')} onSaveShift={handleSaveShift} onDeleteShift={(id) => confirmDelete(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')} />;
+            case 'shop': return <ShopScreen shops={shops} products={shopProducts} sales={shopSales} employees={shopEmployees} shifts={shopShifts} onSaveShop={handleSaveShop} onDeleteShop={(id) => handleItemDeletion(id, 'shop', shops.find(s=>s.id===id)?.name || 'shop')} onSaveProduct={handleSaveProduct} onDeleteProduct={(id) => handleItemDeletion(id, 'shopProduct', shopProducts.find(p=>p.id===id)?.name || 'product')} onRecordSale={handleRecordSale} onSaveEmployee={handleSaveEmployee} onDeleteEmployee={(id) => handleItemDeletion(id, 'shopEmployee', shopEmployees.find(e=>e.id===id)?.name || 'employee')} onSaveShift={handleSaveShift} onDeleteShift={(id) => handleItemDeletion(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')} />;
         }
     }
     
@@ -934,13 +883,28 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
         <>
             {renderActiveScreen()}
 
-            {confirmationState && ReactDOM.createPortal(
-                <ConfirmationDialog 
-                    isOpen={!!confirmationState}
-                    {...confirmationState}
-                    onCancel={() => setConfirmationState(null)}
+            {resetConfirmation && ReactDOM.createPortal(
+                <ConfirmationDialog
+                    isOpen={resetConfirmation}
+                    title="Reset Application?"
+                    message="This will permanently delete all your data, including accounts, transactions, and settings. This action cannot be undone."
+                    onConfirm={() => { handleResetApp(); setResetConfirmation(false); }}
+                    onCancel={() => setResetConfirmation(false)}
+                    confirmLabel="Reset"
                 />,
                 modalRoot
+            )}
+            
+            {undoAction && ReactDOM.createPortal(
+                <UndoToast
+                    message={undoAction.message}
+                    onUndo={() => {
+                        undoAction.onUndo();
+                        setUndoAction(null);
+                    }}
+                    onDismiss={() => setUndoAction(null)}
+                />,
+                document.body
             )}
 
             {toastQueue.length > 0 && ReactDOM.createPortal(
@@ -1008,28 +972,28 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 onAddTopLevelCategory={() => openModal('editCategory')}
                                 onAddSubcategory={(parent) => openModal('editCategory', { initialParentId: parent.id, initialType: parent.type })}
                                 onEditCategory={(cat) => openModal('editCategory', { category: cat })} 
-                                onDeleteCategory={(id) => confirmDelete(id, 'category', categories.find(c => c.id === id)?.name || 'category')} 
+                                onDeleteCategory={(id) => handleItemDeletion(id, 'category', categories.find(c => c.id === id)?.name || 'category')} 
                             />, 
                             modalRoot
                         );
                     case 'editCategory':
                         return ReactDOM.createPortal(<EditCategoryModal onSave={handleSaveCategory} onCancel={closeActiveModal} categories={categories} {...modalProps} />, modalRoot);
                     case 'payees':
-                        return ReactDOM.createPortal(<PayeesModal onClose={closeActiveModal} payees={payees} setPayees={setPayees} categories={categories} onDelete={(id) => confirmDelete(id, 'payee', payees.find(p=>p.id===id)?.name || 'payee')} />, modalRoot);
+                        return ReactDOM.createPortal(<PayeesModal onClose={closeActiveModal} payees={payees} setPayees={setPayees} categories={categories} onDelete={(id) => handleItemDeletion(id, 'payee', payees.find(p=>p.id===id)?.name || 'payee')} />, modalRoot);
                     case 'importExport':
                         return ReactDOM.createPortal(<ImportExportModal onClose={closeActiveModal} appState={appState} />, modalRoot);
                     case 'senderManager':
-                        return ReactDOM.createPortal(<SenderManagerModal onClose={closeActiveModal} onDelete={(id) => confirmDelete(id, 'sender', senders.find(s=>s.id===id)?.name || 'sender')} />, modalRoot);
+                        return ReactDOM.createPortal(<SenderManagerModal onClose={closeActiveModal} onDelete={(id) => handleItemDeletion(id, 'sender', senders.find(s=>s.id===id)?.name || 'sender')} />, modalRoot);
                     case 'contacts':
                         return ReactDOM.createPortal(
                             <ContactsManagerModal 
                                 onClose={closeActiveModal} 
                                 onAddGroup={() => openModal('editContactGroup')}
                                 onEditGroup={(group) => openModal('editContactGroup', { group })}
-                                onDeleteGroup={(id) => confirmDelete(id, 'contactGroup', contactGroups.find(g=>g.id===id)?.name || 'group')}
+                                onDeleteGroup={(id) => handleItemDeletion(id, 'contactGroup', contactGroups.find(g=>g.id===id)?.name || 'group')}
                                 onAddContact={(group) => openModal('editContact', { initialGroupId: group.id })}
                                 onEditContact={(contact) => openModal('editContact', { contact })}
-                                onDeleteContact={(id) => confirmDelete(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} 
+                                onDeleteContact={(id) => handleItemDeletion(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} 
                             />, 
                             modalRoot
                         );
@@ -1067,12 +1031,16 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                         return ReactDOM.createPortal(<NotificationsModal onClose={closeActiveModal} notifications={[]} />, modalRoot); // Dummy data for now
                     case 'editGoal':
                         return ReactDOM.createPortal(<EditGoalModal onClose={closeActiveModal} onSave={handleSaveGoal} {...modalProps} />, modalRoot);
+                    case 'editNote':
+                        return ReactDOM.createPortal(<EditNoteModal onSave={handleSaveNote} onCancel={closeActiveModal} {...modalProps} />, modalRoot);
                     case 'manageTools':
                         return ReactDOM.createPortal(<ManageToolsModal onClose={closeActiveModal} />, modalRoot);
                     case 'financialHealth':
                         return ReactDOM.createPortal(<FinancialHealthModal onClose={closeActiveModal} appState={appState} onSaveProfile={setFinancialProfile} onSaveBudget={handleSaveBudget} />, modalRoot);
                     case 'footerSettings':
                         return ReactDOM.createPortal(<FooterSettingsModal onClose={closeActiveModal} />, modalRoot);
+                    case 'fabSettings':
+                        return ReactDOM.createPortal(<FabSettingsModal onClose={closeActiveModal} />, modalRoot);
                     case 'aiCommandCenter':
                         return ReactDOM.createPortal(<AICommandModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} />, modalRoot);
                     case 'accountsManager':
@@ -1082,7 +1050,7 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
                                 accounts={accounts}
                                 onAddAccount={handleAddAccount}
                                 onEditAccount={(a) => openModal('editAccount', { account: a })}
-                                onDeleteAccount={(id) => confirmDelete(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')}
+                                onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')}
                             />,
                             modalRoot
                         );
@@ -1101,3 +1069,4 @@ export const MainContent: React.FC<FinanceTrackerProps & { initialText?: string 
         </>
     );
 }
+export const MainContent = React.memo(MainContentMemoized);

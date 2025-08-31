@@ -7,6 +7,8 @@ import CustomSelect from './CustomSelect';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import { getCurrencyFormatter } from '../utils/currency';
+import { getShopInsights } from '../services/geminiService';
+import LoadingSpinner from './LoadingSpinner';
 
 type ShopView = 'billing' | 'products' | 'employees' | 'shifts' | 'analytics';
 
@@ -596,6 +598,24 @@ const ProductPicker: React.FC<{products: ShopProduct[], onSelect: (p: ShopProduc
 
 const ShopAnalytics: React.FC<{sales: ShopSale[], products: ShopProduct[], shop: Shop}> = ({ sales, products, shop }) => {
     const formatCurrency = useCurrencyFormatter(undefined, shop.currency);
+    const [insights, setInsights] = useState<string[]>([]);
+    const [isLoadingInsights, setIsLoadingInsights] = useState(true);
+
+    useEffect(() => {
+        const fetchInsights = async () => {
+            setIsLoadingInsights(true);
+            try {
+                const result = await getShopInsights(sales, products);
+                setInsights(result);
+            } catch (e) {
+                setInsights(["Could not load AI insights."]);
+            } finally {
+                setIsLoadingInsights(false);
+            }
+        };
+        fetchInsights();
+    }, [sales, products]);
+    
     const stats = useMemo(() => {
         const revenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
         const profit = sales.reduce((sum, s) => sum + s.profit, 0);
@@ -627,6 +647,18 @@ const ShopAnalytics: React.FC<{sales: ShopSale[], products: ShopProduct[], shop:
             <div className="grid grid-cols-2 gap-4">
                 <StatCard title="Total Revenue" value={formatCurrency(stats.revenue)} />
                 <StatCard title="Total Profit" value={formatCurrency(stats.profit)} />
+            </div>
+            <div>
+                <h4 className="font-semibold text-primary mb-2">AI Insights ✨</h4>
+                <div className="p-4 bg-subtle rounded-lg">
+                    {isLoadingInsights ? (
+                        <div className="flex justify-center items-center"><LoadingSpinner /></div>
+                    ) : (
+                        <ul className="space-y-2 list-disc list-inside text-secondary text-sm">
+                            {insights.map((insight, i) => <li key={i}>{insight}</li>)}
+                        </ul>
+                    )}
+                </div>
             </div>
             <div>
                 <h4 className="font-semibold text-primary mb-2">Bestselling Products</h4>

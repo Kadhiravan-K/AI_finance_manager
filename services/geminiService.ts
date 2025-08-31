@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense } from "../types";
+import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, Note } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -128,6 +128,41 @@ export async function getAIFinancialTips(healthScore: number, scoreBreakdown: an
     } catch (error) {
         console.error("Error getting AI financial tips:", error);
         return "Could not fetch tips at this moment. Please check your connection.";
+    }
+}
+
+export async function getDashboardInsights(transactions: Transaction[], categories: AppState['categories'], dateFilterLabel: string): Promise<string> {
+    if (transactions.length < 3) return "Log a few more transactions to start getting personalized insights.";
+    
+    // Summarize data to keep the prompt concise
+    const totalSpent = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const topSpendingCategories = transactions
+        .filter(t => t.type === 'expense')
+        .reduce((acc, t) => {
+            const category = categories.find(c => c.id === t.categoryId);
+            const parent = category?.parentId ? categories.find(c => c.id === category.parentId) : category;
+            if (parent) {
+                acc[parent.name] = (acc[parent.name] || 0) + t.amount;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+    
+    const top3 = Object.entries(topSpendingCategories).sort(([,a],[,b]) => b-a).slice(0, 3).map(([name, amount]) => `${name} (${amount.toFixed(0)})`).join(', ');
+
+    const prompt = `You are a helpful financial analyst. Based on this summary of a user's transactions for the period "${dateFilterLabel}", provide one short, actionable, and encouraging insight. 
+    Data:
+    - Total Spent: ${totalSpent.toFixed(2)}
+    - Top Spending Categories: ${top3}
+    - Total Transactions: ${transactions.length}
+    
+    Insight:`;
+
+    try {
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        return response.text;
+    } catch (error) {
+        console.error("Error getting dashboard insights:", error);
+        return "Could not fetch insights at this moment.";
     }
 }
 
@@ -336,5 +371,111 @@ export async function getFinancialTopicExplanation(topic: string): Promise<{ exp
     } catch (error) {
         console.error("Error getting financial topic explanation from Gemini API:", error);
         throw new Error(error instanceof Error ? `Failed to get explanation: ${error.message}` : "An unknown error occurred.");
+    }
+}
+
+const shopInsightsSchema = {
+    type: Type.OBJECT,
+    properties: {
+        insights: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "A list of 2-3 short, actionable insights based on the sales data."
+        }
+    },
+    required: ["insights"]
+};
+
+export async function getShopInsights(sales: ShopSale[] | undefined, products: ShopProduct[] | undefined): Promise<string[]> {
+    if (!sales || sales.length === 0) return ["No sales data available to analyze yet."];
+    
+    // Summarize data to avoid hitting token limits
+    const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+    const productSales = sales.flatMap(s => s.items).reduce((acc, item) => {
+        const name = products?.find(p => p.id === item.productId)?.name || 'Unknown Product';
+        acc[name] = (acc[name] || 0) + item.quantity;
+        return acc;
+    }, {} as Record<string, number>);
+    const bestsellers = Object.entries(productSales).sort(([,a],[,b]) => b - a).slice(0, 3).map(([name, q]) => `${name} (${q} sold)`);
+
+    const summary = {
+        totalRevenue: totalRevenue.toFixed(2),
+        totalProfit: totalProfit.toFixed(2),
+        totalSalesCount: sales.length,
+        bestsellingProducts: bestsellers,
+    };
+
+    const prompt = `You are a business analyst for a small shop. Analyze this sales summary and provide 2-3 concise, actionable insights. Focus on bestsellers, profit, and potential opportunities. Data: ${JSON.stringify(summary)}`;
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: shopInsightsSchema },
+        });
+        const result = JSON.parse(response.text);
+        return result.insights || ["Could not generate insights at this time."];
+    } catch (error) {
+        console.error("Error getting shop insights:", error);
+        throw new Error("Could not generate AI insights for the shop.");
+    }
+}
+
+const goalSuggestionSchema = {
+    type: Type.OBJECT,
+    properties: {
+        name: { type: Type.STRING, description: "A short, engaging name for the savings goal." },
+        targetAmount: { type: Type.NUMBER, description: "A realistic target amount for the goal, as a round number." },
+        reasoning: { type: Type.STRING, description: "A brief, one-sentence explanation for why this goal is suggested." }
+    },
+    required: ["name", "targetAmount", "reasoning"]
+};
+
+export async function getAIGoalSuggestion(transactions: AppState['transactions'], profile: AppState['financialProfile']): Promise<{ name: string; targetAmount: number; reasoning: string }> {
+    const recentExpenses = transactions
+        ?.filter(t => t.type === 'expense')
+        .slice(0, 50) // Limit to last 50 for brevity
+        .map(t => ({ d: t.description, a: t.amount }));
+
+    const context = {
+        monthlySalary: profile.monthlySalary,
+        recentExpenses,
+    };
+
+    const prompt = `You are a financial coach. Based on this user's financial context, suggest one specific, realistic, and motivating savings goal (e.g., "Weekend Trip Fund", "New Gadget"). Provide a goal name, a sensible target amount as a round number, and a brief reason. Context: ${JSON.stringify(context)}`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: goalSuggestionSchema }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error getting AI goal suggestion:", error);
+        throw new Error("Could not generate an AI goal suggestion.");
+    }
+}
+
+const summarySchema = {
+    type: Type.ARRAY,
+    items: { type: Type.STRING },
+    description: "A list of 3-5 bullet points summarizing the key information in the note."
+};
+
+export async function summarizeNote(noteContent: string): Promise<string[]> {
+    if (!noteContent.trim()) return ["Note is empty."];
+    const prompt = `You are an expert at summarizing text. Read the following note and provide a concise summary as a list of bullet points. Note:\n\n"${noteContent}"`;
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: summarySchema },
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error getting note summary:", error);
+        throw new Error("Could not generate an AI summary for the note.");
     }
 }

@@ -152,7 +152,11 @@ const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transacti
                             :
                             <span className="w-24 text-right font-mono">{formatCurrency(p.amount)}</span>
                         }
-                        {p.id !== 'you' && <button onClick={() => handleRemoveParticipant(p.id)} className="text-rose-400 text-2xl leading-none px-1">&times;</button>}
+                        {p.id !== 'you' && (
+                           <button onClick={() => handleRemoveParticipant(p.id)} className="w-7 h-7 flex items-center justify-center text-rose-400 flex-shrink-0 hover:bg-rose-500/10 rounded-full">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                           </button>
+                        )}
                     </div>
                 ))}
             </div>

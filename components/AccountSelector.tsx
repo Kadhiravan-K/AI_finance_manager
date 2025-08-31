@@ -104,14 +104,14 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, allTransact
         <div className="flex items-center gap-4">
           <button 
               onClick={(e) => { e.stopPropagation(); setShowAddForm(!showAddForm); if(!isOpen) setIsOpen(true); }}
-              className="p-2 bg-subtle rounded-full hover-bg-stronger transition-colors flex-shrink-0 flex items-center justify-center"
+              className="p-1.5 flex items-center justify-center rounded-full hover-bg-stronger transition-colors flex-shrink-0"
               aria-label={showAddForm ? 'Cancel adding account' : 'Add new account'}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-300 text-primary ${showAddForm ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-300 text-primary ${showAddForm ? 'rotate-45 text-rose-400' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
           </button>
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
         </div>
       </button>
       
@@ -151,8 +151,8 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({ accounts, allTransact
                           <div className="flex items-center gap-2">
                               <p className="text-sm font-bold text-primary">{formatCurrency(balanceInfo?.balance || 0)}</p>
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => onEditAccount(account)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-primary bg-transparent hover:bg-subtle rounded-full transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg></button>
-                                  <button onClick={() => onDeleteAccount(account.id)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 bg-transparent hover:bg-subtle rounded-full transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                  <button onClick={() => onEditAccount(account)} className="p-1 text-secondary hover:text-primary rounded-full transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg></button>
+                                  <button onClick={() => onDeleteAccount(account.id)} className="p-1 text-secondary hover:text-rose-400 rounded-full transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                               </div>
                           </div>
                       </div>

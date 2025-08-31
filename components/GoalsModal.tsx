@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Goal, Account } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
+import { getAIGoalSuggestion } from '../services/geminiService';
+import LoadingSpinner from './LoadingSpinner';
+import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 
 interface GoalsScreenProps {
   goals: Goal[];
@@ -16,6 +19,10 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
   const formatCurrency = useCurrencyFormatter();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: '', icon: '🏆', targetAmount: '', productLink: '' });
+  const [aiSuggestion, setAiSuggestion] = useState<{ name: string, targetAmount: number, reasoning: string } | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const dataContext = useContext(AppDataContext);
+  const settingsContext = useContext(SettingsContext);
   
   const [contributionState, setContributionState] = useState<{ goalId: string; amount: string; accountId: string; } | null>(null);
 
@@ -47,8 +54,49 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
   
   const accountOptions = accounts.map(acc => ({ value: acc.id, label: acc.name }));
 
+  const handleGetAiSuggestion = async () => {
+    if (!dataContext || !settingsContext) return;
+    setIsAiLoading(true);
+    setAiSuggestion(null);
+    try {
+        const suggestion = await getAIGoalSuggestion(dataContext.transactions, settingsContext.financialProfile);
+        setAiSuggestion(suggestion);
+    } catch (error) {
+        alert(error instanceof Error ? error.message : "Failed to get suggestion.");
+    } finally {
+        setIsAiLoading(false);
+    }
+  };
+
+  const handleAcceptSuggestion = () => {
+      if (!aiSuggestion) return;
+      setNewGoal({
+          name: aiSuggestion.name,
+          icon: '🎯',
+          targetAmount: aiSuggestion.targetAmount.toString(),
+          productLink: '',
+      });
+      setShowAddForm(true);
+      setAiSuggestion(null);
+  };
+
   return (
     <div className="h-full flex flex-col">
+      {aiSuggestion && (
+          <div className="p-4 m-4 mb-0 bg-violet-900/50 border border-violet-700 rounded-lg animate-fadeInUp">
+              <div className="flex items-start gap-3">
+                  <span className="text-2xl mt-1">✨</span>
+                  <div>
+                      <h4 className="font-semibold text-violet-300">AI Goal Suggestion</h4>
+                      <p className="text-sm text-secondary mt-1">{aiSuggestion.reasoning}</p>
+                      <div className="flex items-center gap-4 mt-3">
+                          <button onClick={handleAcceptSuggestion} className="button-primary px-3 py-1 text-sm">Set Goal: {formatCurrency(aiSuggestion.targetAmount)}</button>
+                          <button onClick={() => setAiSuggestion(null)} className="text-xs text-secondary">Dismiss</button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
         <h2 className="text-2xl font-bold text-primary">Financial Goals 🏆</h2>
         {goals.map(goal => {
@@ -119,6 +167,11 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
       </div>
 
       <div className="flex-shrink-0 p-6 border-t border-divider bg-subtle">
+        <div className="mb-2">
+            <button onClick={handleGetAiSuggestion} disabled={isAiLoading} className="w-full text-center p-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-violet-400 flex items-center justify-center gap-2">
+                  {isAiLoading ? <LoadingSpinner /> : '✨ Get AI Suggestion'}
+            </button>
+        </div>
         {showAddForm ? (
           <form onSubmit={handleAddGoal} className="space-y-3 animate-fadeInUp">
             <h3 className="font-semibold text-primary">Create New Goal</h3>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -11,25 +11,10 @@ interface ConfirmationDialogProps {
   onCancel: () => void;
   confirmLabel?: string;
   cancelLabel?: string;
-  lockDuration?: number; // in seconds
 }
 
-const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', cancelLabel = 'Cancel', lockDuration = 2 }) => {
-  const [countdown, setCountdown] = useState(lockDuration);
-
-  useEffect(() => {
-    if (isOpen && lockDuration > 0) {
-      setCountdown(lockDuration);
-      const interval = setInterval(() => {
-        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [isOpen, lockDuration]);
-
+const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', cancelLabel = 'Cancel' }) => {
   if (!isOpen) return null;
-
-  const isLocked = countdown > 0;
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={onCancel}>
@@ -40,8 +25,8 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, 
           <button onClick={onCancel} className="button-secondary px-4 py-2">
             {cancelLabel}
           </button>
-          <button onClick={onConfirm} disabled={isLocked} className="button-primary px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-500 disabled:cursor-not-allowed">
-            {isLocked ? `${confirmLabel} (${countdown})` : confirmLabel}
+          <button onClick={onConfirm} className="button-primary px-4 py-2 bg-rose-600 hover:bg-rose-500">
+            {confirmLabel}
           </button>
         </div>
       </div>

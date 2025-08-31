@@ -30,6 +30,8 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
                     <button onClick={() => handleScreenNav('goals')} className="management-tool-button"><span className="icon text-3xl">🏆</span><span className="text-xs">Goals</span></button>
                     <button onClick={() => handleScreenNav('scheduled')} className="management-tool-button"><span className="icon text-3xl">📅</span><span className="text-xs">Scheduled</span></button>
                     <button onClick={() => handleScreenNav('calculator')} className="management-tool-button"><span className="icon text-3xl">🧮</span><span className="text-xs">Calculator</span></button>
+                    <button onClick={() => handleScreenNav('calendar')} className="management-tool-button"><span className="icon text-3xl">🗓️</span><span className="text-xs">Calendar</span></button>
+                    <button onClick={() => handleScreenNav('notes')} className="management-tool-button"><span className="icon text-3xl">📝</span><span className="text-xs">Notes</span></button>
                     <button onClick={() => handleScreenNav('tripManagement')} className="management-tool-button"><span className="icon text-3xl">✈️</span><span className="text-xs">Trip Management</span></button>
                     <button onClick={() => handleScreenNav('shop')} className="management-tool-button"><span className="icon text-3xl">🏪</span><span className="text-xs">Shop Hub</span></button>
                     <button onClick={() => handleScreenNav('refunds')} className="management-tool-button"><span className="icon text-3xl">↩️</span><span className="text-xs">Refunds</span></button>
@@ -52,6 +54,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
                      <button onClick={() => handleNav('categories')} className="settings-management-button"><span>Manage Categories</span><span>🏷️</span></button>
                      <button onClick={() => handleNav('contacts')} className="settings-management-button"><span>Manage Contacts</span><span>👥</span></button>
                      <button onClick={() => handleNav('dashboardSettings')} className="settings-management-button"><span>Customize Dashboard</span><span>🎨</span></button>
+                     <button onClick={() => handleNav('fabSettings')} className="settings-management-button"><span>Customize FAB</span><span>✨</span></button>
                      <button onClick={() => handleNav('footerSettings')} className="settings-management-button"><span>Customize Footer Nav</span><span>⚓</span></button>
                      <button onClick={() => handleNav('notificationSettings')} className="settings-management-button"><span>Notification Settings</span><span>🔔</span></button>
                 </div>

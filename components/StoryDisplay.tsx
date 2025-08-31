@@ -11,8 +11,7 @@ import NetWorthSummary from './NetWorthSummary';
 import PortfolioSummary from './PortfolioSummary';
 import FinancialHealthScore from './FinancialHealthScore';
 import AccountSelector from './AccountSelector';
-import AIFinancialCoach from './AIFinancialCoach';
-import { getAIFinancialTips } from '../services/geminiService';
+import DynamicAIInsights from './DynamicAIInsights';
 import { calculateFinancialHealthScore } from '../utils/financialHealth';
 
 interface FinanceDisplayProps {
@@ -91,9 +90,10 @@ const Dashboard = ({ income, expense, isVisible, currency }: { income: number, e
     );
 }
 
-const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete, isVisible }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, isVisible: boolean }) => {
+const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete, isVisible, accounts }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, isVisible: boolean, accounts: Account[] }) => {
     const isIncome = transaction.type === TransactionType.INCOME, isTransfer = !!transaction.transferId, isSplit = !!transaction.splitDetails && transaction.splitDetails.length > 0;
-    const formatCurrency = useCurrencyFormatter();
+    const account = accounts.find(a => a.id === transaction.accountId);
+    const formatCurrency = useCurrencyFormatter(undefined, account?.currency);
     const totalOwed = isSplit ? transaction.splitDetails?.filter(s => s.personName.toLowerCase() !== 'you' && !s.isSettled).reduce((acc, s) => acc + s.amount, 0) : 0;
     return (
         <li className="flex flex-col glass-card p-3 rounded-xl group">
@@ -120,7 +120,7 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
 };
 
 // VIRTUALIZED LIST COMPONENT
-const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete, isBalanceVisible, mainContentRef }: Pick<FinanceDisplayProps, 'transactions' | 'categories' | 'onEdit' | 'onDelete' | 'isBalanceVisible' | 'mainContentRef'>) => {
+const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete, isBalanceVisible, mainContentRef, accounts }: Pick<FinanceDisplayProps, 'transactions' | 'categories' | 'onEdit' | 'onDelete' | 'isBalanceVisible' | 'mainContentRef' | 'accounts'>) => {
     const ITEM_HEIGHT = 92; // Estimated height for a transaction item
     const HEADER_HEIGHT = 40; // Estimated height for a date header
     const OVERSCAN = 5;
@@ -180,7 +180,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
                 const categoryPath = getCategoryPath(t.categoryId, categories);
                 return (
                     <div key={t.id} className="virtual-scroll-item" style={{ transform: `translateY(${item.offsetTop}px)`, height: `${ITEM_HEIGHT}px`, paddingTop: '0.75rem'}}>
-                        <TransactionItem transaction={t} category={category} categoryPath={categoryPath} onEdit={onEdit} onDelete={onDelete} isVisible={isBalanceVisible} />
+                        <TransactionItem transaction={t} category={category} categoryPath={categoryPath} onEdit={onEdit} onDelete={onDelete} isVisible={isBalanceVisible} accounts={accounts} />
                     </div>
                 );
             })}
@@ -188,7 +188,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, ...rest }) => {
+const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, ...rest }) => {
     
     const currencySummaries = useMemo(() => {
         // 1. Determine active currencies from selected accounts.
@@ -268,36 +268,6 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
     
     const healthScoreData = { transactions: allTransactions, accounts, investmentHoldings, financialProfile, budgets, goals };
 
-    const { totalScore, breakdown } = useMemo(() => calculateFinancialHealthScore(healthScoreData), [healthScoreData]);
-    const [aiInsight, setAiInsight] = useState('');
-    const [isInsightLoading, setIsInsightLoading] = useState(true);
-
-    useEffect(() => {
-        let isMounted = true;
-        const fetchTips = async () => {
-            if (!isMounted) return;
-            setIsInsightLoading(true);
-            try {
-                const tips = await getAIFinancialTips(totalScore, breakdown);
-                if (isMounted) setAiInsight(tips);
-            } catch (error) {
-                console.error("Failed to fetch AI financial tips:", error);
-                if (isMounted) setAiInsight("Could not load financial tips at the moment.");
-            } finally {
-                if (isMounted) setIsInsightLoading(false);
-            }
-        };
-
-        if (financialProfile?.monthlySalary > 0) {
-            fetchTips();
-        } else {
-            setAiInsight("Complete your financial profile in the AI Hub to get personalized tips!");
-            setIsInsightLoading(false);
-        }
-
-        return () => { isMounted = false; };
-    }, [totalScore, breakdown, financialProfile?.monthlySalary]);
-
     const summaryWidget = useMemo(() => {
         if (!visibleWidgets.some(w => w.id === 'summary')) return null;
 
@@ -312,7 +282,7 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
 
     const widgetMap: Record<DashboardWidget['id'], React.ReactNode> = {
         financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
-        aiCoach: <AIFinancialCoach insight={aiInsight} isLoading={isInsightLoading} />,
+        aiCoach: <DynamicAIInsights transactions={transactions} categories={categories} dateFilter={rest.dateFilter} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         summary: summaryWidget,
@@ -379,16 +349,18 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = ({ status, transactions, a
                 {visibleWidgets.map(widget => <div key={widget.id}>{widgetMap[widget.id]}</div>)}
             </div>
 
-            {transactions.length > 0 ? (
-                <VirtualizedTransactionList transactions={transactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
-            ) : (
-                <div className="text-center py-12">
-                    <p className="text-lg font-medium text-secondary">{rest.selectedAccountIds.length > 0 ? 'No transactions found' : 'Select an account to view transactions'}</p>
-                    {rest.selectedAccountIds.length > 0 && <p className="text-sm text-tertiary">Add one using the '+' button below.</p>}
-                </div>
-            )}
+            <div className="mt-6">
+                {transactions.length > 0 ? (
+                    <VirtualizedTransactionList accounts={accounts} transactions={transactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
+                ) : (
+                    <div className="text-center py-12">
+                        <p className="text-lg font-medium text-secondary">{rest.selectedAccountIds.length > 0 ? 'No transactions found' : 'Select an account to view transactions'}</p>
+                        {rest.selectedAccountIds.length > 0 && <p className="text-sm text-tertiary">Add one using the '+' button below.</p>}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
-
+const FinanceDisplay = React.memo(FinanceDisplayMemoized);
 export default FinanceDisplay;

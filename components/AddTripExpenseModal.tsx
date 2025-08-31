@@ -7,6 +7,7 @@ import CustomSelect from './CustomSelect';
 import { USER_SELF_ID } from '../constants';
 import { parseTripExpenseText } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
+import CustomCheckbox from './CustomCheckbox';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -119,6 +120,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
   const [aiText, setAiText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [parsedExpense, setParsedExpense] = useState<ParsedTripExpense | null>(null);
   const recognitionRef = useRef<any>(null);
   
   useEffect(() => {
@@ -234,28 +236,12 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
   const handleAiParse = async () => {
       if (!aiText.trim()) return;
       setIsParsing(true);
+      setParsedExpense(null);
       try {
           const participantNames = (trip.participants || []).filter(Boolean).map(p => p.name);
-          const parsed: ParsedTripExpense | null = await parseTripExpenseText(aiText, participantNames);
+          const parsed = await parseTripExpenseText(aiText, participantNames);
           if (parsed) {
-              const categoryId = findOrCreateCategory(parsed.categoryName, TransactionType.EXPENSE);
-              const category = categories.find(c => c.id === categoryId);
-              setItems([{
-                  id: self.crypto.randomUUID(),
-                  description: parsed.description,
-                  price: String(parsed.amount),
-                  quantity: '1',
-                  notes: '',
-                  categoryId: categoryId,
-                  parentId: category?.parentId || null,
-              }]);
-              if (parsed.payerName) {
-                  const payer = trip.participants.find(p => p.name.toLowerCase() === parsed.payerName!.toLowerCase());
-                  if (payer) {
-                      setPayers([{ id: payer.contactId, personName: payer.name, amount: parsed.amount, isSettled: false, shares: '1', percentage: '100' }]);
-                  }
-              }
-              setAddMode('manual'); // Switch to manual mode for review
+              setParsedExpense(parsed);
           } else {
               alert("AI couldn't understand that expense. Please try rephrasing or enter it manually.");
           }
@@ -264,6 +250,29 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
       }
       setIsParsing(false);
   };
+  
+  const handleAcceptAndEdit = () => {
+    if (!parsedExpense) return;
+    const categoryId = findOrCreateCategory(parsedExpense.categoryName, TransactionType.EXPENSE);
+    const category = categories.find(c => c.id === categoryId);
+    setItems([{
+        id: self.crypto.randomUUID(),
+        description: parsedExpense.description,
+        price: String(parsedExpense.amount),
+        quantity: '1',
+        notes: '',
+        categoryId: categoryId,
+        parentId: category?.parentId || null,
+    }]);
+    if (parsedExpense.payerName) {
+        const payer = trip.participants.find(p => p.name.toLowerCase() === parsedExpense.payerName!.toLowerCase());
+        if (payer) {
+            setPayers([{ id: payer.contactId, personName: payer.name, amount: parsedExpense.amount, isSettled: false, shares: '1', percentage: '100' }]);
+        }
+    }
+    setParsedExpense(null);
+    setAddMode('manual');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,6 +316,9 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
     tripParticipants?: TripParticipant[];
   }> = ({ title, mode, onModeChange, participants, onParticipantsChange, isPayerManager, tripParticipants }) => {
     
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
+    const [tempSelected, setTempSelected] = useState(new Set<string>());
+
     const participantOptions = useMemo(() => {
         if (!isPayerManager || !tripParticipants) return [];
         const all = [{ contactId: USER_SELF_ID, name: 'You' }, ...tripParticipants.filter(p => p.contactId !== USER_SELF_ID)];
@@ -333,17 +345,28 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
         }));
     };
     
-    const handleAddPerson = (person: TripParticipant) => {
-        if (!participants.some(p => p.id === person.contactId)) {
-            onParticipantsChange([...participants, { id: person.contactId, personName: person.name, amount: 0, isSettled: person.contactId === USER_SELF_ID, shares: '1', percentage: '0' }]);
-        }
+    const handleAddPeople = () => {
+        const peopleToAdd = (trip.participants || [])
+            .filter(Boolean)
+            .filter(p => tempSelected.has(p.contactId) && !participants.some(pp => pp.id === p.contactId));
+        
+        const newParticipants = peopleToAdd.map(p => ({
+            id: p.contactId,
+            personName: p.name,
+            amount: 0,
+            isSettled: p.contactId === USER_SELF_ID,
+            shares: '1',
+            percentage: '0'
+        }));
+        onParticipantsChange([...participants, ...newParticipants]);
+        setIsPickerOpen(false);
+        setTempSelected(new Set());
     };
     const handleRemovePerson = (id: string) => onParticipantsChange(participants.filter(p => p.id !== id));
     
     const handleDetailChange = (id: string, field: 'amount' | 'percentage' | 'shares', value: string) => {
       const newParticipants = participants.map(p => {
           if (p.id === id) {
-              // FIX: Ensure amount is always stored as a number, even in manual mode.
               if (field === 'amount') {
                   return { ...p, amount: parseFloat(value) || 0 };
               }
@@ -365,6 +388,9 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
     const totalAssigned = useMemo(() => participants.reduce((sum, p) => sum + p.amount, 0), [participants]);
     const remainder = totalAmount - totalAssigned;
     const TabButton = (props: { active: boolean; children: React.ReactNode; onClick: () => void; }) => <button type="button" {...props} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${props.active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`} />;
+    
+    const availableParticipants = (tripParticipants || []).filter(Boolean).filter(tp => !participants.some(p => p.id === tp.contactId));
+    const allSelected = availableParticipants.length > 0 && availableParticipants.every(p => tempSelected.has(p.contactId));
 
     return (
         <div className="p-4 rounded-xl border border-divider bg-subtle">
@@ -379,9 +405,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             {participants.map(p => (
               <div key={p.id} className="flex items-center gap-2 p-1.5 bg-subtle rounded-lg">
                 {isPayerManager ? (
-                    <div className="flex-grow">
-                        <CustomSelect value={p.id} onChange={newId => handlePayerChange(p.id, newId)} options={participantOptions} />
-                    </div>
+                    <div className="flex-grow z-10"><CustomSelect value={p.id} onChange={newId => handlePayerChange(p.id, newId)} options={participantOptions} /></div>
                 ) : (
                     <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span>
                 )}
@@ -392,7 +416,20 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
               </div>
             ))}
             </div>
-            <CustomSelect options={(trip.participants||[]).filter(Boolean).filter(tp => !participants.some(p => p.id === tp.contactId)).map(p => ({ value: p.contactId, label: p.name }))} value="" onChange={contactId => handleAddPerson(trip.participants.find(p=>p.contactId===contactId)!)} placeholder="+ Add Person..." />
+            <div className="relative mt-2">
+                <button type="button" onClick={() => setIsPickerOpen(!isPickerOpen)} className="w-full text-left p-1.5 rounded-full border border-divider hover-bg-stronger text-xs text-center text-sky-400">
+                    + Add Person...
+                </button>
+                 {isPickerOpen && (
+                    <div className="absolute bottom-full mb-1 w-full z-20 glass-card rounded-lg shadow-lg max-h-40 flex flex-col p-2">
+                        <div className="flex justify-end p-1 border-b border-divider"><CustomCheckbox id="select-all" label="Select All" checked={allSelected} onChange={checked => setTempSelected(new Set(checked ? availableParticipants.map(p => p.contactId) : []))} /></div>
+                        <div className="overflow-y-auto">
+                            {availableParticipants.map(p => <div className="p-1" key={p.contactId}><CustomCheckbox id={p.contactId} label={p.name} checked={tempSelected.has(p.contactId)} onChange={checked => setTempSelected(prev => { const n = new Set(prev); if(checked) n.add(p.contactId); else n.delete(p.contactId); return n; })}/></div>)}
+                        </div>
+                        <button type="button" onClick={handleAddPeople} className="w-full text-center p-2 text-sm text-white rounded-b-lg sticky bottom-0 bg-emerald-500">Add Selected</button>
+                    </div>
+                )}
+            </div>
             <div className="text-right text-xs text-secondary mt-2">Remaining: <span className={`font-mono ${Math.abs(remainder) > 0.01 ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(remainder)}</span></div>
         </div>
     );
@@ -411,7 +448,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
         
         {!isEditing && (
              <div className="flex border-b border-divider flex-shrink-0">
-                <TabButton active={addMode === 'auto'} onClick={() => setAddMode('auto')}>🤖 AI Parse</TabButton>
+                <TabButton active={addMode === 'auto'} onClick={() => { setAddMode('auto'); setParsedExpense(null); }}>🤖 AI Parse</TabButton>
                 <TabButton active={addMode === 'manual'} onClick={() => setAddMode('manual')}>✍️ Manual</TabButton>
              </div>
         )}
@@ -490,6 +527,19 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
               >
                 {isParsing ? <LoadingSpinner /> : 'Parse Expense'}
               </button>
+              {parsedExpense && (
+                <div className="p-4 bg-subtle rounded-lg border border-divider space-y-3 animate-fadeInUp">
+                  <h4 className="font-semibold text-primary">AI Result - Please Review</h4>
+                  <p className="text-sm"><strong className="text-secondary">Description:</strong> {parsedExpense.description}</p>
+                  <p className="text-sm"><strong className="text-secondary">Amount:</strong> {formatCurrency(parsedExpense.amount)}</p>
+                  <p className="text-sm"><strong className="text-secondary">Category:</strong> {parsedExpense.categoryName}</p>
+                  <p className="text-sm"><strong className="text-secondary">Payer:</strong> {parsedExpense.payerName || 'Not specified'}</p>
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setParsedExpense(null)} className="button-secondary px-3 py-1 text-xs">Reject</button>
+                    <button onClick={handleAcceptAndEdit} className="button-primary px-3 py-1 text-xs">Accept & Edit</button>
+                  </div>
+                </div>
+              )}
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import PrivacyConsentModal from './components/PrivacyConsentModal';
 import OnboardingModal from './components/OnboardingModal';
 import Footer from './components/Footer';
 import HeaderMenuModal from './components/HeaderMenuModal';
+import InteractiveFab from './components/InteractiveFab';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -24,7 +25,6 @@ const AppContent: React.FC = () => {
   const { settings } = useContext(SettingsContext);
   const dataContext = useContext(AppDataContext);
   const mainContentRef = useRef<HTMLElement>(null);
-  const [isQuickAddDisabled, setIsQuickAddDisabled] = useState(false);
   
   if (!dataContext) {
     // This is a failsafe. Given the structure in App, this should not be hit.
@@ -117,7 +117,6 @@ const AppContent: React.FC = () => {
               isOnline={isOnline}
               mainContentRef={mainContentRef}
               initialText={sharedText}
-              onSelectionChange={selectedIds => setIsQuickAddDisabled(selectedIds.length !== 1)}
               showOnboardingGuide={showOnboardingGuide}
               setShowOnboardingGuide={setShowOnboardingGuide}
               onNavigate={handleNavigation}
@@ -125,17 +124,9 @@ const AppContent: React.FC = () => {
           </main>
           <Footer activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
           
-            <button 
-              onClick={() => setActiveModal({name: 'addTransaction'})}
-              className="fab"
-              aria-label="Add Transaction"
-              disabled={isQuickAddDisabled}
-              title={isQuickAddDisabled ? "Select a single account to add a transaction" : "Add Transaction"}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+           {!['notes', 'shop'].includes(activeScreen) && (
+             <InteractiveFab onNavigate={handleNavigation} />
+           )}
           
            {activeModal?.name === 'headerMenu' && ReactDOM.createPortal(
             <HeaderMenuModal 
