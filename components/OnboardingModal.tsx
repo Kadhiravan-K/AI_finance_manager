@@ -123,7 +123,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-lg flex items-center justify-center z-50 p-4">
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-divider animate-scaleIn flex flex-col max-h-[90vh]">
-        <div className="p-6 text-center border-b border-divider">
+        <div className="p-6 text-center border-b border-divider flex-shrink-0">
             <h2 className="text-2xl font-bold text-primary">Initial Setup</h2>
             <p className="text-sm text-secondary mt-1">Set your currency and add your accounts to begin.</p>
         </div>
@@ -142,12 +142,12 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
                     <label className="font-semibold text-primary">2. Your Accounts</label>
                     <p className="text-xs text-secondary">Add your primary accounts and their current balances.</p>
                 </div>
-                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                <div className="space-y-3">
                     {accountFields.map((account, index) => (
                         <div key={account.id} className="p-4 bg-subtle rounded-lg border border-divider relative animate-slideFadeIn">
                             <div className="space-y-3">
                                 <input type="text" placeholder="Account Name (e.g., Savings)" value={account.name} onChange={e => handleAccountChange(account.id, 'name', e.target.value)} className="input-base p-2 rounded-md w-full" />
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <CustomSelect options={accountTypeOptions} value={account.accountType} onChange={val => handleAccountChange(account.id, 'accountType', val)} />
                                     <input type="text" inputMode="decimal" placeholder="Current Balance" value={account.amount} onWheel={e => e.currentTarget.blur()} onChange={e => handleAccountChange(account.id, 'amount', e.target.value)} className="input-base p-2 rounded-md no-spinner" />
                                 </div>
