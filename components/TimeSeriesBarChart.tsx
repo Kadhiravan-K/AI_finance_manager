@@ -66,16 +66,14 @@ const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transact
         <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
         <div className="no-scrollbar flex items-end h-64 space-x-4" style={{ minWidth: `${chartData.labels.length * 3}rem` }}>
             {chartData.labels.length > 0 ? chartData.labels.map((label, index) => (
-            <div key={label} className="flex-1 flex flex-col items-center justify-end h-full group" style={{ minWidth: '2rem' }}>
+            <div key={label} className="flex-1 flex flex-col items-center justify-end h-full group chart-tooltip-wrapper" style={{ minWidth: '2rem' }}>
+                <div className="chart-tooltip">{formatCurrency(chartData.data[index].amount)}</div>
                 <div className="relative w-full h-full flex items-end justify-center">
-                <div
-                    className="w-3/4 rounded-t-md transition-all duration-300 group-hover:opacity-80"
-                    style={{ height: `${chartData.data[index].height}%`, animation: 'growUp 1s ease-out forwards', backgroundColor: color }}
-                >
-                    <div className="absolute bottom-full mb-1 w-max px-2 py-1 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)' }}>
-                        {formatCurrency(chartData.data[index].amount)}
+                    <div
+                        className="w-3/4 rounded-t-md transition-all duration-300 group-hover:brightness-125"
+                        style={{ height: `${chartData.data[index].height}%`, animation: 'growUp 1s ease-out forwards', backgroundColor: color }}
+                    >
                     </div>
-                </div>
                 </div>
                 <span className="text-xs text-secondary mt-2 text-center">{label}</span>
             </div>

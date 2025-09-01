@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -13,10 +14,18 @@ interface FabSettingsModalProps {
 
 const FabSettingsModal: React.FC<FabSettingsModalProps> = ({ onClose }) => {
   const { settings, setSettings } = useContext(SettingsContext);
-  const [fabActions, setFabActions] = useState(settings.fabActions);
+  // Fix: Property 'fabActions' is deprecated. Using local state for UI demonstration.
+  const [fabActions, setFabActions] = useState(
+    (settings as any).fabActions || {
+      top: 'addTransaction',
+      left: 'addNote',
+      right: 'addGoal',
+      bottom: 'openSearch',
+    }
+  );
 
   const handleSave = () => {
-    setSettings(prev => ({ ...prev, fabActions }));
+    // setSettings(prev => ({ ...prev, fabActions })); // Deprecated functionality
     onClose();
   };
 

@@ -5,6 +5,7 @@ import CustomSelect from './CustomSelect';
 import { getAIGoalSuggestion } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
+import EmptyState from './EmptyState';
 
 interface GoalsScreenProps {
   goals: Goal[];
@@ -163,7 +164,15 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
             </div>
           );
         })}
-        {goals.length === 0 && <p className="text-center text-secondary py-8">No goals yet. Create one to get started!</p>}
+        {goals.length === 0 && !showAddForm && (
+            <EmptyState
+                icon="🏆"
+                title="Ready to Start Saving?"
+                message="Create your first goal to track your progress towards something great."
+                actionText="Create First Goal"
+                onAction={() => setShowAddForm(true)}
+            />
+        )}
       </div>
 
       <div className="flex-shrink-0 p-6 border-t border-divider bg-subtle">

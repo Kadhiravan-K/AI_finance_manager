@@ -249,6 +249,8 @@ export type ToggleableTool =
   'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 
   'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'notes';
 
+export type HeaderAction = 'transfer' | 'search' | 'aiCommandCenter' | 'notifications';
+
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
     theme: Theme;
@@ -257,12 +259,6 @@ export interface Settings {
     trustBinDeletionPeriod: TrustBinDeletionPeriod;
     enabledTools: Record<ToggleableTool, boolean>;
     footerActions: ActiveScreen[];
-    fabActions: {
-        top: string;
-        left: string;
-        right: string;
-        bottom: string;
-    };
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -363,7 +359,7 @@ export interface ShopShift {
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'notes';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | 'editNote' | 'fabSettings' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | 'editNote' | 'editRecurring' | 'buyInvestment' | 'addTransactionMode' | 'aiChat' | 'accountSelector' | 'shareGuide' | null;
 
 export interface ModalState {
     name: ActiveModal;
@@ -380,6 +376,8 @@ export interface FinanceTrackerProps {
   onSelectionChange?: (selectedIds: string[]) => void;
   showOnboardingGuide: boolean;
   setShowOnboardingGuide: (show: boolean) => void;
+  onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;
+  isLoading: boolean;
 }
 
 export interface AllDataScreenProps {
@@ -430,6 +428,10 @@ export interface Note {
     color: string; // e.g., 'red', 'orange', 'default'
     createdAt: string; // ISO string
     updatedAt: string; // ISO string
+    image?: { // New field for image attachments
+        data: string; // base64 encoded image
+        mimeType: string;
+    };
 }
 
 // For Backup

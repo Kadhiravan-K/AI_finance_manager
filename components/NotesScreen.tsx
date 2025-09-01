@@ -77,9 +77,10 @@ const NoteCard: React.FC<{
     return (
         <div 
             onClick={onEdit}
-            className="p-4 rounded-lg border cursor-pointer break-inside-avoid-column"
+            className="p-4 rounded-lg border cursor-pointer break-inside-avoid-column mb-4"
             style={{ backgroundColor: color.bg, borderColor: color.border }}
         >
+            {note.image && <img src={`data:${note.image.mimeType};base64,${note.image.data}`} alt="note attachment" className="note-image-thumbnail" />}
             {note.title && <h3 className="font-bold text-primary mb-2">{note.title}</h3>}
             <div className="text-sm space-y-2">{renderContent()}</div>
             <div className="flex items-end justify-between mt-3 pt-2 border-t" style={{ borderColor: 'rgba(127,127,127,0.2)'}}>
@@ -116,6 +117,8 @@ const NoteCard: React.FC<{
 const NotesScreen: React.FC<NotesScreenProps> = ({ onEditNote, onDeleteNote, onUpdateContent, onArchiveNote, onPinNote, onChangeNoteColor, onMoveTempNoteToTrustBin, onCreateTransactionFromNote }) => {
     const dataContext = useContext(AppDataContext);
     const [activeTab, setActiveTab] = useState<'notes' | 'archived' | 'temp'>('notes');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
     const [tempNoteData, setTempNoteData] = useLocalStorage<{ content: string; timestamp: number } | null>('finance-tracker-temp-note', null);
 
@@ -136,13 +139,33 @@ const NotesScreen: React.FC<NotesScreenProps> = ({ onEditNote, onDeleteNote, onU
     
     if (!dataContext) return null;
     const { notes } = dataContext;
+
+    const allTags = useMemo(() => {
+        const tags = new Set<string>();
+        (notes || []).forEach(note => note.tags.forEach(tag => tags.add(tag)));
+        return Array.from(tags).sort();
+    }, [notes]);
     
     const { pinned, other, archived } = useMemo(() => {
+        let filteredNotes = notes || [];
+
+        if (selectedTag) {
+            filteredNotes = filteredNotes.filter(note => note.tags.includes(selectedTag));
+        }
+
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            filteredNotes = filteredNotes.filter(note => 
+                (note.title && note.title.toLowerCase().includes(lowerQuery)) ||
+                note.content.toLowerCase().includes(lowerQuery)
+            );
+        }
+
         const pinned: Note[] = [];
         const other: Note[] = [];
         const archived: Note[] = [];
 
-        (notes || []).forEach(note => {
+        filteredNotes.forEach(note => {
             if (note.isArchived) {
                 archived.push(note);
             } else if (note.isPinned) {
@@ -152,7 +175,7 @@ const NotesScreen: React.FC<NotesScreenProps> = ({ onEditNote, onDeleteNote, onU
             }
         });
         return { pinned, other, archived };
-    }, [notes]);
+    }, [notes, searchQuery, selectedTag]);
     
     const currentNotes = activeTab === 'notes' ? [...pinned, ...other] : archived;
 
@@ -184,35 +207,38 @@ const NotesScreen: React.FC<NotesScreenProps> = ({ onEditNote, onDeleteNote, onU
                         />
                     </div>
                 ) : (
-                    <div className="p-4">
-                        {currentNotes.length === 0 && (
-                            <p className="text-center text-secondary py-8">No notes here.</p>
-                        )}
-                        {pinned.length > 0 && activeTab === 'notes' && (
-                            <div className="mb-6">
-                                <h3 className="text-xs font-semibold text-secondary uppercase mb-2">Pinned</h3>
-                                <div className="columns-1 sm:columns-2 gap-4">
-                                    {pinned.map(note => <NoteCard key={note.id} note={note} onEdit={() => onEditNote(note)} onDelete={() => onDeleteNote(note.id)} onUpdateContent={(c) => onUpdateContent(note.id, c)} onArchive={(a) => onArchiveNote(note.id, a)} onPin={(p) => onPinNote(note.id, p)} onChangeColor={(c) => onChangeNoteColor(note.id, c)} onCreateTransaction={() => onCreateTransactionFromNote(note)} />)}
-                                </div>
+                    <>
+                        <div className="p-4 sticky top-0 bg-slate-900/50 backdrop-blur-sm z-10">
+                             <div className="relative">
+                                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search notes..." className="input-base w-full rounded-full py-2 px-3 pl-10" />
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-tertiary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             </div>
-                        )}
-                         <div className="columns-1 sm:columns-2 gap-4">
-                            {(activeTab === 'notes' ? other : archived).map(note => <NoteCard key={note.id} note={note} onEdit={() => onEditNote(note)} onDelete={() => onDeleteNote(note.id)} onUpdateContent={(c) => onUpdateContent(note.id, c)} onArchive={(a) => onArchiveNote(note.id, a)} onPin={(p) => onPinNote(note.id, p)} onChangeColor={(c) => onChangeNoteColor(note.id, c)} onCreateTransaction={() => onCreateTransactionFromNote(note)} />)}
-                         </div>
-                    </div>
+                            <div className="notes-tag-filter">
+                                <button onClick={() => setSelectedTag(null)} className={`notes-tag-button ${!selectedTag ? 'active' : ''}`}>All</button>
+                                {allTags.map(tag => (
+                                    <button key={tag} onClick={() => setSelectedTag(tag)} className={`notes-tag-button ${selectedTag === tag ? 'active' : ''}`}>{tag}</button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 pt-0">
+                            {currentNotes.length === 0 && (
+                                <p className="text-center text-secondary py-8">No notes here.</p>
+                            )}
+                            {pinned.length > 0 && activeTab === 'notes' && (
+                                <div className="mb-6">
+                                    <h3 className="text-xs font-semibold text-secondary uppercase mb-2">Pinned</h3>
+                                    <div className="notes-grid">
+                                        {pinned.map(note => <NoteCard key={note.id} note={note} onEdit={() => onEditNote(note)} onDelete={() => onDeleteNote(note.id)} onUpdateContent={(c) => onUpdateContent(note.id, c)} onArchive={(a) => onArchiveNote(note.id, a)} onPin={(p) => onPinNote(note.id, p)} onChangeColor={(c) => onChangeNoteColor(note.id, c)} onCreateTransaction={() => onCreateTransactionFromNote(note)} />)}
+                                    </div>
+                                </div>
+                            )}
+                             <div className="notes-grid">
+                                {(activeTab === 'notes' ? other : archived).map(note => <NoteCard key={note.id} note={note} onEdit={() => onEditNote(note)} onDelete={() => onDeleteNote(note.id)} onUpdateContent={(c) => onUpdateContent(note.id, c)} onArchive={(a) => onArchiveNote(note.id, a)} onPin={(p) => onPinNote(note.id, p)} onChangeColor={(c) => onChangeNoteColor(note.id, c)} onCreateTransaction={() => onCreateTransactionFromNote(note)} />)}
+                             </div>
+                        </div>
+                    </>
                 )}
             </div>
-             {activeTab !== 'temp' && (
-                <button 
-                    onClick={() => onEditNote()}
-                    className="notes-fab"
-                    aria-label="Add New Note"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                </button>
-            )}
         </div>
     );
 };

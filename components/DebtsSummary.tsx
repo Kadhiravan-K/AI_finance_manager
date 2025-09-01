@@ -6,7 +6,7 @@ import CustomSelect from './CustomSelect';
 interface DebtsSummaryProps {
   transactions: Transaction[];
   accounts: Account[];
-  onSettle: (transactionId: string, splitDetailId: string, settlementAccountId: string) => void;
+  onSettle: (transactionId: string, splitDetailId: string, settlementAccountId: string, amount: number) => void;
   isVisible: boolean;
 }
 
@@ -22,13 +22,14 @@ const DebtsSummary: React.FC<DebtsSummaryProps> = ({ transactions, accounts, onS
   const formatCurrency = useCurrencyFormatter();
   const [settlingDebt, setSettlingDebt] = useState<UnsettledDebt | null>(null);
   const [settlementAccountId, setSettlementAccountId] = useState<string>(accounts[0]?.id || '');
+  const [settlementAmount, setSettlementAmount] = useState<string>('');
   
   const unsettledDebts = useMemo(() => {
     const debts: UnsettledDebt[] = [];
     transactions.forEach(t => {
       if (t.splitDetails) {
         t.splitDetails.forEach(split => {
-          if (!split.isSettled && split.personName.toLowerCase() !== 'you') {
+          if (!split.isSettled && split.personName.toLowerCase() !== 'you' && split.amount > 0) {
             debts.push({
               transactionId: t.id,
               transactionDescription: t.description,
@@ -52,12 +53,15 @@ const DebtsSummary: React.FC<DebtsSummaryProps> = ({ transactions, accounts, onS
   const handleSettleClick = (debt: UnsettledDebt) => {
       setSettlingDebt(debt);
       setSettlementAccountId(accounts[0]?.id || '');
+      setSettlementAmount(String(debt.amount));
   }
 
   const handleConfirmSettle = () => {
-      if (settlingDebt && settlementAccountId) {
-          onSettle(settlingDebt.transactionId, settlingDebt.id, settlementAccountId);
+      const amount = parseFloat(settlementAmount);
+      if (settlingDebt && settlementAccountId && amount > 0) {
+          onSettle(settlingDebt.transactionId, settlingDebt.id, settlementAccountId, amount);
           setSettlingDebt(null);
+          setSettlementAmount('');
       }
   }
 
@@ -82,12 +86,22 @@ const DebtsSummary: React.FC<DebtsSummaryProps> = ({ transactions, accounts, onS
                 )}
             </div>
             {settlingDebt?.id === debt.id && (
-                <div className="mt-2 pt-2 border-t border-divider flex items-center gap-2 animate-fadeInUp">
-                    <div className="flex-grow">
+                <div className="mt-2 pt-2 border-t border-divider space-y-2 animate-fadeInUp">
+                    <div className="grid grid-cols-2 gap-2">
+                         <input
+                            type="number"
+                            value={settlementAmount}
+                            onChange={e => setSettlementAmount(e.target.value)}
+                            className="w-full input-base p-2 rounded-md no-spinner"
+                            max={debt.amount}
+                            step="0.01"
+                        />
                         <CustomSelect options={accountOptions} value={settlementAccountId} onChange={setSettlementAccountId} />
                     </div>
-                    <button onClick={handleConfirmSettle} className="px-3 py-1 text-sm font-semibold bg-emerald-600 text-white rounded-md">Confirm</button>
-                    <button onClick={() => setSettlingDebt(null)} className="px-3 py-1 text-sm font-semibold bg-slate-600 text-white rounded-md">Cancel</button>
+                    <div className="flex justify-end gap-2">
+                        <button onClick={handleConfirmSettle} className="button-primary px-3 py-1 text-sm">Confirm</button>
+                        <button onClick={() => setSettlingDebt(null)} className="button-secondary px-3 py-1 text-sm">Cancel</button>
+                    </div>
                 </div>
             )}
           </div>

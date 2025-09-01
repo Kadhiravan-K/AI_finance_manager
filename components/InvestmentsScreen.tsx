@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { InvestmentHolding, Account, AccountType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import CustomSelect from './CustomSelect';
-import NumberStepper from './NumberStepper';
+import EmptyState from './EmptyState';
 
 interface InvestmentsScreenProps {
   accounts: Account[];
@@ -13,27 +12,19 @@ interface InvestmentsScreenProps {
   onRefresh: () => void;
 }
 
-const labelStyle = "block text-sm font-medium text-secondary mb-1";
 
 const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holdings, onBuy, onSell, onUpdateValue, onRefresh }) => {
-  const [view, setView] = useState<'list' | 'buy' | 'sell' | 'update'>('list');
+  const [view, setView] = useState<'list' | 'sell' | 'update'>('list');
   const [selectedHolding, setSelectedHolding] = useState<InvestmentHolding | null>(null);
-  const [formData, setFormData] = useState({ name: '', quantity: 0, price: '', accountId: '', linkedAccountId: '', currentValue: '' });
+  const [formData, setFormData] = useState({ quantity: 0, price: '', linkedAccountId: '', currentValue: '' });
   const formatCurrency = useCurrencyFormatter();
-
-  const investmentAccounts = accounts.filter(a => a.accountType === AccountType.INVESTMENT);
+  
   const depositoryAccounts = accounts.filter(a => a.accountType === AccountType.DEPOSITORY);
   
   const resetForm = () => {
-      setFormData({ name: '', quantity: 0, price: '', accountId: '', linkedAccountId: '', currentValue: ''});
+      setFormData({ quantity: 0, price: '', linkedAccountId: '', currentValue: ''});
       setSelectedHolding(null);
       setView('list');
-  }
-
-  const handleBuySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // onBuy(formData.accountId, formData.name, formData.quantity, parseFloat(formData.price), formData.linkedAccountId);
-    resetForm();
   }
 
   const handleSellSubmit = (e: React.FormEvent) => {
@@ -65,12 +56,14 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
        </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
         {holdings.length === 0 ? (
-            <div className="text-center py-12">
-                <p className="text-lg font-medium text-secondary">Start your investment journey.</p>
-                <p className="text-sm text-tertiary">Track your stocks, funds, and other assets here.</p>
-            </div>
-        ) : null}
-        {holdings.map(h => {
+            <EmptyState
+                icon="💹"
+                title="Start Your Investment Journey"
+                message="Track your stocks, funds, and other assets to see your portfolio grow."
+                actionText="Track First Investment"
+                onAction={onBuy}
+            />
+        ) : holdings.map(h => {
           const gainLoss = h.currentValue - (h.quantity * h.averageCost);
           const isGain = gainLoss >= 0;
           return (

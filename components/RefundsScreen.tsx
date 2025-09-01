@@ -62,20 +62,30 @@ const RefundsScreen: React.FC<RefundsScreenProps> = ({ refunds, contacts, onAddR
         </button>
       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
-        <div>
-            <h3 className="font-semibold text-lg text-primary mb-2">Pending Refunds</h3>
-            <div className="space-y-3">
-                {pendingRefunds.map(refund => <RefundItem key={refund.id} refund={refund} />)}
-                {pendingRefunds.length === 0 && <p className="text-center text-secondary py-4">No pending refunds.</p>}
+        {refunds.length === 0 ? (
+            <div className="text-center py-12">
+                <p className="text-lg font-medium text-secondary">Track your expected refunds.</p>
+                <p className="text-sm text-tertiary mb-4">Never forget about money that's owed back to you.</p>
+                <button onClick={onAddRefund} className="button-primary px-4 py-2">Create First Refund</button>
             </div>
-        </div>
-        <div>
-            <h3 className="font-semibold text-lg text-primary mb-2">Claimed History</h3>
-            <div className="space-y-3">
-                {claimedRefunds.map(refund => <RefundItem key={refund.id} refund={refund} />)}
-                {claimedRefunds.length === 0 && <p className="text-center text-secondary py-4">No claimed refunds yet.</p>}
-            </div>
-        </div>
+        ) : (
+            <>
+                <div>
+                    <h3 className="font-semibold text-lg text-primary mb-2">Pending Refunds</h3>
+                    <div className="space-y-3">
+                        {pendingRefunds.map(refund => <RefundItem key={refund.id} refund={refund} />)}
+                        {pendingRefunds.length === 0 && <p className="text-center text-secondary py-4">No pending refunds.</p>}
+                    </div>
+                </div>
+                <div>
+                    <h3 className="font-semibold text-lg text-primary mb-2">Claimed History</h3>
+                    <div className="space-y-3">
+                        {claimedRefunds.map(refund => <RefundItem key={refund.id} refund={refund} />)}
+                        {claimedRefunds.length === 0 && <p className="text-center text-secondary py-4">No claimed refunds yet.</p>}
+                    </div>
+                </div>
+            </>
+        )}
       </div>
     </div>
   );

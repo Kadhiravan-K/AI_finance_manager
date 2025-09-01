@@ -144,8 +144,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
                 </div>
                 <div className="space-y-3">
                     {accountFields.map((account, index) => (
-                        <div key={account.id} className="p-4 bg-subtle rounded-lg border border-divider relative animate-slideFadeIn">
-                            <div className="space-y-3">
+                        <div key={account.id} className="p-4 bg-subtle rounded-lg border border-divider animate-slideFadeIn flex items-start gap-2">
+                            <div className="space-y-3 flex-grow">
                                 <input type="text" placeholder="Account Name (e.g., Savings)" value={account.name} onChange={e => handleAccountChange(account.id, 'name', e.target.value)} className="input-base p-2 rounded-md w-full" />
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <CustomSelect options={accountTypeOptions} value={account.accountType} onChange={val => handleAccountChange(account.id, 'accountType', val)} />
@@ -154,8 +154,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
                                 <CustomSelect options={currencyOptions} value={account.currency} onChange={val => handleAccountChange(account.id, 'currency', val)} />
                             </div>
                             {accountFields.length > 1 && (
-                                <button onClick={() => removeAccountField(account.id)} className="absolute -top-2 -right-2 w-7 h-7 bg-rose-500 text-white rounded-full flex items-center justify-center text-lg font-bold shadow-lg close-button" aria-label="Remove account">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                <button onClick={() => removeAccountField(account.id)} className="w-7 h-7 mt-1 text-rose-400 hover:text-rose-300 rounded-full flex items-center justify-center transition-colors flex-shrink-0" aria-label="Remove account">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             )}
                         </div>

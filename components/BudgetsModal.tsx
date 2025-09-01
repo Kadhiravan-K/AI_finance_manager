@@ -7,9 +7,10 @@ interface BudgetsScreenProps {
   transactions: Transaction[];
   budgets: Budget[];
   onSaveBudget: (categoryId: string, amount: number) => void;
+  onAddBudget: () => void;
 }
 
-const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions, budgets, onSaveBudget }) => {
+const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions, budgets, onSaveBudget, onAddBudget }) => {
   const [budgetAmounts, setBudgetAmounts] = useState<Record<string, string>>({});
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const formatCurrency = useCurrencyFormatter();
@@ -104,7 +105,7 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
               className="w-28 text-right rounded-md py-1 px-2 input-base no-spinner"
             />
             {children.length > 0 && (
-              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             )}
           </div>
         </div>
@@ -131,10 +132,20 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
     );
   };
 
+  const hasBudgets = budgets.some(b => b.month === currentMonth);
+
   return (
     <div className="p-6 flex-grow overflow-y-auto pr-2">
       <h2 className="text-2xl font-bold text-primary mb-2">Monthly Budgets</h2>
       <p className="text-sm text-secondary mb-4">Set spending limits for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
+      
+      {!hasBudgets ? (
+        <div className="text-center py-12">
+          <p className="text-lg font-medium text-secondary">No budgets set for this month.</p>
+          <p className="text-sm text-tertiary">Start by setting a budget for a category below.</p>
+        </div>
+      ) : null}
+
       {topLevelCategories.map(category => renderCategoryBudget(category))}
     </div>
   );

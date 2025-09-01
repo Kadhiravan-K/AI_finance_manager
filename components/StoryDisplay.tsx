@@ -10,9 +10,8 @@ import DebtsSummary from './DebtsSummary';
 import NetWorthSummary from './NetWorthSummary';
 import PortfolioSummary from './PortfolioSummary';
 import FinancialHealthScore from './FinancialHealthScore';
-import AccountSelector from './AccountSelector';
 import DynamicAIInsights from './DynamicAIInsights';
-import { calculateFinancialHealthScore } from '../utils/financialHealth';
+import EmptyState from './EmptyState';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -28,7 +27,7 @@ interface FinanceDisplayProps {
   error: string;
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
-  onSettleDebt: (transactionId: string, splitDetailId: string, settlementAccountId: string) => void;
+  onSettleDebt: (transactionId: string, splitDetailId: string, settlementAccountId: string, amount: number) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onNaturalLanguageSearch: () => void;
@@ -48,6 +47,8 @@ interface FinanceDisplayProps {
   onEditAccount: (account: Account) => void;
   onDeleteAccount: (id: string) => void;
   baseCurrency: string;
+  isLoading: boolean;
+  onAddTransaction: () => void;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
@@ -65,32 +66,25 @@ const formatDateGroup = (dateString: string) => {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-const DashboardCard = ({ title, amount, color, isVisible, children, style, currency }: {title: string, amount: number, color: string, isVisible: boolean, children: React.ReactNode, style?: React.CSSProperties, currency: string}) => {
-    const formatCurrency = useCurrencyFormatter(undefined, currency);
-    return (
-        <div style={style} className={`p-4 rounded-xl glass-card`}>
-            <div className="flex items-center justify-between text-sm text-secondary mb-1">
-              <span>{title}</span>
-              {children}
-            </div>
-            <p className="text-2xl font-bold" style={{ color }}>{isVisible ? formatCurrency(amount) : '••••'}</p>
+const DashboardSkeleton: React.FC = () => (
+    <div className="px-4">
+        <div className="h-28 mb-6 skeleton-loader"></div>
+        <div className="h-12 mb-6 skeleton-loader"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left mb-6">
+            <div className="h-24 skeleton-loader"></div>
+            <div className="h-24 skeleton-loader"></div>
+            <div className="h-24 skeleton-loader"></div>
         </div>
-    );
-};
-
-
-const Dashboard = ({ income, expense, isVisible, currency }: { income: number, expense: number, isVisible: boolean, currency: string }) => {
-    const balance = income - expense;
-    return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left mb-6 stagger-delay">
-            <DashboardCard currency={currency} title="Income" amount={income} color="var(--color-accent-emerald)" isVisible={isVisible} style={{ '--stagger-index': 1 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" style={{ color: "var(--color-accent-emerald)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg></DashboardCard>
-            <DashboardCard currency={currency} title="Expenses" amount={expense} color="var(--color-accent-rose)" isVisible={isVisible} style={{ '--stagger-index': 2 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" style={{ color: "var(--color-accent-rose)"}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 12H6" /></svg></DashboardCard>
-            <DashboardCard currency={currency} title="Balance" amount={balance} color={balance >= 0 ? 'var(--color-text-primary)' : 'var(--color-accent-rose)'} isVisible={isVisible} style={{ '--stagger-index': 3 } as React.CSSProperties}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 6-3 6m18-12l-3 6 3 6" /></svg></DashboardCard>
+        <div className="space-y-3">
+            <div className="h-16 skeleton-loader"></div>
+            <div className="h-16 skeleton-loader"></div>
+            <div className="h-16 skeleton-loader"></div>
+            <div className="h-16 skeleton-loader"></div>
         </div>
-    );
-}
+    </div>
+);
 
-const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete, isVisible, accounts }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, isVisible: boolean, accounts: Account[] }) => {
+const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdit, onDelete, isVisible, accounts }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, isVisible: boolean, accounts: Account[] }) => {
     const isIncome = transaction.type === TransactionType.INCOME, isTransfer = !!transaction.transferId, isSplit = !!transaction.splitDetails && transaction.splitDetails.length > 0;
     const account = accounts.find(a => a.id === transaction.accountId);
     const formatCurrency = useCurrencyFormatter(undefined, account?.currency);
@@ -117,7 +111,7 @@ const TransactionItem = ({ transaction, category, categoryPath, onEdit, onDelete
              {isSplit && totalOwed > 0 && <div className="mt-2 pl-16 text-xs" style={{ color: 'var(--color-accent-yellow)' }}>Owed to you: {isVisible ? formatCurrency(totalOwed) : '••••'}</div>}
         </li>
     );
-};
+});
 
 // VIRTUALIZED LIST COMPONENT
 const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete, isBalanceVisible, mainContentRef, accounts }: Pick<FinanceDisplayProps, 'transactions' | 'categories' | 'onEdit' | 'onDelete' | 'isBalanceVisible' | 'mainContentRef' | 'accounts'>) => {
@@ -188,7 +182,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, ...rest }) => {
+const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, ...rest }) => {
     
     const currencySummaries = useMemo(() => {
         // 1. Determine active currencies from selected accounts.
@@ -252,6 +246,41 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
     
         return Object.entries(summaries).sort(([currA], [currB]) => currA.localeCompare(currB));
     }, [allTransactions, accounts, rest.selectedAccountIds, rest.dateFilter, rest.customDateRange]);
+
+    const DashboardCard = React.memo(({ title, amount, isVisible, color, currency }: {title: string, amount: number, isVisible: boolean, color: 'emerald' | 'rose' | 'primary', currency: string}) => {
+        const formatCurrency = useCurrencyFormatter(undefined, currency);
+        const colorClass = {
+            emerald: 'text-emerald-400',
+            rose: 'text-rose-400',
+            primary: 'text-primary'
+        }[color];
+        return (
+            <div className="glass-card p-4 rounded-2xl flex-grow transition-all">
+                <div className="flex items-center text-base text-secondary">
+                    <span>{title}</span>
+                </div>
+                <p className={`text-4xl font-bold truncate mt-2 ${colorClass}`}>{isVisible ? formatCurrency(amount) : '••••'}</p>
+            </div>
+        );
+    });
+
+    const Dashboard = ({ income, expense, isVisible, currency }: { income: number, expense: number, isVisible: boolean, currency: string }) => {
+        const balance = income - expense;
+
+        return (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left stagger-delay">
+                 <div style={{ '--stagger-index': 1 } as React.CSSProperties}>
+                    <DashboardCard currency={currency} title="Income" amount={income} isVisible={isVisible} color="emerald" />
+                </div>
+                <div style={{ '--stagger-index': 2 } as React.CSSProperties}>
+                    <DashboardCard currency={currency} title="Expenses" amount={expense} isVisible={isVisible} color="rose" />
+                </div>
+                <div style={{ '--stagger-index': 3 } as React.CSSProperties}>
+                    <DashboardCard currency={currency} title="Balance" amount={balance} isVisible={isVisible} color="primary" />
+                </div>
+            </div>
+        )
+    }
     
     const renderContent = () => {
         if (status === ProcessingStatus.ERROR && error) {
@@ -317,25 +346,18 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
         })(),
     };
 
+    if (isLoading) {
+        return <DashboardSkeleton />;
+    }
+
     return (
         <div className="px-4">
-            <div className="flex justify-between items-center mb-1">
+            <div className="flex justify-between items-center my-4">
                 <h2 className="text-xl font-bold text-primary">Dashboard</h2>
                 <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 rounded-full text-secondary hover:text-primary transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isBalanceVisible ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z" : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" } /></svg>
                 </button>
             </div>
-            
-            <AccountSelector
-              accounts={accounts}
-              allTransactions={allTransactions}
-              selectedAccountIds={rest.selectedAccountIds}
-              onAccountChange={rest.onAccountChange}
-              onAddAccount={rest.onAddAccount}
-              onEditAccount={rest.onEditAccount}
-              onDeleteAccount={rest.onDeleteAccount}
-              baseCurrency={rest.baseCurrency}
-            />
             
             <TransactionFilters
                 searchQuery={rest.searchQuery} setSearchQuery={rest.setSearchQuery}
@@ -353,10 +375,13 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
                 {transactions.length > 0 ? (
                     <VirtualizedTransactionList accounts={accounts} transactions={transactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
                 ) : (
-                    <div className="text-center py-12">
-                        <p className="text-lg font-medium text-secondary">{rest.selectedAccountIds.length > 0 ? 'No transactions found' : 'Select an account to view transactions'}</p>
-                        {rest.selectedAccountIds.length > 0 && <p className="text-sm text-tertiary">Add one using the '+' button below.</p>}
-                    </div>
+                    <EmptyState
+                        icon="💸"
+                        title={rest.selectedAccountIds.length > 0 ? 'No Transactions Yet' : 'Select an Account'}
+                        message={rest.selectedAccountIds.length > 0 ? "Your recent transactions will appear here once you add them." : "Choose an account from the header to see your transactions."}
+                        actionText="Add First Transaction"
+                        onAction={onAddTransaction}
+                    />
                 )}
             </div>
         </div>

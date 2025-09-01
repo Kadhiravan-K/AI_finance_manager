@@ -65,7 +65,12 @@ const TripManagementScreen: React.FC<TripManagementScreenProps> = ({ trips, trip
             </div>
           );
         })}
-        {trips.length === 0 && <p className="text-center text-secondary py-8">No trips yet. Create one to start managing shared expenses!</p>}
+        {trips.length === 0 && (
+            <div className="text-center py-12">
+                <p className="text-lg font-medium text-secondary">Ready for an adventure?</p>
+                <p className="text-sm text-tertiary">Create your first trip to manage shared expenses with friends.</p>
+            </div>
+        )}
       </div>
 
       <div className="flex-shrink-0 p-6 border-t border-divider bg-subtle">

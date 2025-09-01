@@ -317,7 +317,10 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
               {chartType === 'bar' ?
                 <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
                 :
-                <TimeSeriesLineChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
+                (txs.length > 1 ? 
+                  <TimeSeriesLineChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
+                  : <div className="text-center text-secondary p-8">Not enough data for a line chart.</div>
+                )
               }
             </>
         )}
@@ -328,7 +331,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
     <div className="p-4 flex-grow overflow-y-auto pr-2">
       <h2 className="text-2xl font-bold text-primary mb-4 text-center">Reports</h2>
       
-      <div className="rounded-xl glass-card mb-6 relative z-20 overflow-hidden">
+      <div className="rounded-xl glass-card mb-6 relative z-20 overflow-hidden no-hover">
         <button type="button" onClick={() => setFiltersOpen(!filtersOpen)} className="w-full p-4 flex justify-between items-center">
             <h3 className="text-lg font-bold text-primary">Filters</h3>
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
@@ -383,7 +386,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
           </div>
       )}
       
-      <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
+      <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
         <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
         <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
       </div>

@@ -25,6 +25,7 @@ interface EditTransactionModalProps {
   selectedAccountId?: string;
   onOpenCalculator: (onResult: (result: number) => void) => void;
   isEmbedded?: boolean;
+  initialTab?: 'auto' | 'manual'; // New prop
 }
 
 const inputBaseClasses = "w-full rounded-lg py-2 px-3 shadow-inner transition-all duration-200 input-base";
@@ -447,8 +448,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                             :
                             <span className="w-24 text-right font-mono text-sm text-primary">{formatCurrency(p.amount)}</span>
                         }
-                        <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} className="w-7 h-7 flex items-center justify-center text-rose-400 rounded-full flex-shrink-0 hover:bg-rose-500/10">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        <button type="button" onClick={() => handleRemoveParticipant(item.id, p.id)} title="Remove participant" className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 rounded-full flex-shrink-0 hover:bg-rose-500/10 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                     </div>
                 ))}
@@ -506,11 +507,21 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
     
     return (
-        <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-                <div className="flex-grow space-y-2">
+        <div key={item.id} className="p-4 bg-subtle rounded-lg space-y-3 border border-divider relative">
+            {items.length > 1 && (
+                <button 
+                  type="button" 
+                  onClick={() => handleRemoveItem(item.id)} 
+                  className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 bg-card/70 hover:bg-rose-500/20 rounded-full z-10 transition-colors"
+                  aria-label="Remove item"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            )}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                <div className="flex-grow space-y-3">
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="relative">
                             <input type="text" inputMode="decimal" placeholder="Amount" value={item.amount} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} className={`${inputBaseClasses} no-spinner pr-8`} />
                             <button type="button" onClick={() => onOpenCalculator(result => handleItemChange(item.id, 'amount', String(result)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-primary">
@@ -527,13 +538,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     </div>
                     {item.parentId && itemSubCategories.length > 0 && <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(cat => ({ value: cat.id, label: `${cat.icon} ${cat.name}` }))} placeholder="Subcategory" defaultValue={item.parentId || ''} />}
                 </div>
-                 <div className="flex items-center gap-2 flex-shrink-0 pt-1">
-                    <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-2 py-1 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
-                     {items.length > 1 && (
-                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400">
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    )}
+                 <div className="flex items-center gap-2 flex-shrink-0 self-center sm:self-start sm:pt-2">
+                    <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-3 py-1.5 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
                  </div>
             </div>
             {splittingItemId === item.id && renderSplitManager(item)}
@@ -621,7 +627,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
           <div className="pt-4 border-t border-divider">
             <div className="flex items-center justify-between">
                 <label htmlFor="isItemized" className="font-medium text-primary">Itemize & Split Transaction</label>
-                <button type="button" onClick={() => setIsItemized(!isItemized)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${isItemized ? 'bg-emerald-500' : 'bg-subtle'}`}>
+                <button type="button" onClick={() => setIsItemized(!isItemized)} className={`itemization-toggle-switch relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${isItemized ? 'bg-emerald-500' : 'bg-subtle'}`}>
                     <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${isItemized ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
             </div>

@@ -11,9 +11,19 @@ interface ScheduledPaymentsScreenProps {
   onDelete: (id: string) => void;
 }
 
-const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recurringTransactions, onAdd, onEdit, onDelete }) => {
+const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recurringTransactions, categories, onAdd, onEdit, onDelete }) => {
   const formatCurrency = useCurrencyFormatter();
   
+  const getCategoryPath = (categoryId: string): string => {
+    const path: string[] = [];
+    let current = categories.find(c => c.id === categoryId);
+    while (current) {
+        path.unshift(current.name);
+        current = categories.find(c => c.id === current.parentId);
+    }
+    return path.join(' / ') || 'Uncategorized';
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-divider flex-shrink-0">

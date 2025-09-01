@@ -33,32 +33,6 @@ const getTopLevelCategory = (categoryId: string, categories: Category[]): Catego
     return current;
 };
 
-const PieSlice = ({ percentage, startPercentage, color }: { percentage: number, startPercentage: number; color: string }) => {
-    if (percentage >= 99.99) { // Use a threshold to handle floating point issues
-        return <circle cx="50" cy="50" r="40" fill={color}></circle>;
-    }
-    
-    const r = 40;
-    const cx = 50;
-    const cy = 50;
-
-    const startAngle = (startPercentage / 100) * 360;
-    const endAngle = ((startPercentage + percentage) / 100) * 360;
-
-    // Use -90 degrees offset to start from the top
-    const x1 = cx + r * Math.cos(Math.PI * (startAngle - 90) / 180);
-    const y1 = cy + r * Math.sin(Math.PI * (startAngle - 90) / 180);
-    const x2 = cx + r * Math.cos(Math.PI * (endAngle - 90) / 180);
-    const y2 = cy + r * Math.sin(Math.PI * (endAngle - 90) / 180);
-
-    const largeArcFlag = percentage > 50 ? 1 : 0;
-
-    const pathData = `M ${cx},${cy} L ${x1},${y1} A ${r},${r} 0 ${largeArcFlag},1 ${x2},${y2} Z`;
-
-    return <path d={pathData} fill={color} />;
-};
-
-
 const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible, currency }) => {
   const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
 
@@ -108,27 +82,40 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
     );
   }
 
-  let startPercentage = 0;
+  let accumulatedPercentage = 0;
+  const circumference = 2 * Math.PI * 40; // radius = 40
 
   return (
     <div className={cardBaseStyle}>
       <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
       <div className="flex-grow flex flex-col sm:flex-row items-center gap-4">
-        <div className="w-40 h-40 flex-shrink-0">
-          <svg viewBox="0 0 100 100">
+        <div className="w-40 h-40 flex-shrink-0 relative">
+          <svg viewBox="0 0 100 100" className="transform -rotate-90">
             {categoryData.categories.map((category, i) => {
-              const currentStart = startPercentage;
-              startPercentage += category.percentage;
+              const dash = (category.percentage / 100) * circumference;
+              const offset = (accumulatedPercentage / 100) * circumference;
+              accumulatedPercentage += category.percentage;
+
               return (
-                <PieSlice
-                  key={category.id}
-                  percentage={category.percentage}
-                  startPercentage={currentStart}
-                  color={COLORS[i % COLORS.length]}
-                />
+                <g key={category.id}>
+                  <title>{`${category.name}: ${formatCurrency(category.amount)} (${category.percentage.toFixed(1)}%)`}</title>
+                  <circle
+                    cx="50" cy="50" r="40"
+                    stroke={COLORS[i % COLORS.length]}
+                    strokeWidth="12"
+                    fill="transparent"
+                    strokeDasharray={`${dash} ${circumference}`}
+                    strokeDashoffset={-offset}
+                    className="transition-all duration-300 ease-out"
+                  />
+                </g>
               );
             })}
           </svg>
+           <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                <span className="text-xs text-secondary">Total</span>
+                <span className="font-bold text-lg text-primary">{isVisible ? formatCurrency(categoryData.totalAmount) : '••••'}</span>
+            </div>
         </div>
         <div className="flex-grow w-full space-y-2 overflow-y-auto max-h-40 pr-2">
           {categoryData.categories.map((category, i) => (
@@ -146,9 +133,6 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
             </div>
           ))}
         </div>
-      </div>
-      <div className="text-right text-primary font-bold mt-4 border-t border-divider pt-2">
-        Total: {isVisible ? formatCurrency(categoryData.totalAmount) : '••••'}
       </div>
     </div>
   );

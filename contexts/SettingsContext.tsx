@@ -25,9 +25,9 @@ const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
     { id: 'aiCoach', name: "AI Financial Coach", visible: true },
     { id: 'summary', name: 'Monthly Summary', visible: true },
     { id: 'upcoming', name: 'Upcoming/Due Bills', visible: true },
-    { id: 'budgets', name: 'Budgets Summary', visible: true },
-    { id: 'goals', name: 'Goals Summary', visible: true },
-    { id: 'charts', name: 'Spending Charts', visible: true },
+    { id: 'budgets', name: 'Budgets Summary', visible: false },
+    { id: 'goals', name: 'Goals Summary', visible: false },
+    { id: 'charts', name: 'Spending Charts', visible: false },
     { id: 'netWorth', name: 'Net Worth', visible: false },
     { id: 'portfolio', name: 'Investment Portfolio', visible: false },
     { id: 'debts', name: 'Debts (Owed to You)', visible: false },
@@ -42,7 +42,7 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
     investments: { enabled: true },
 };
 
-export const DEFAULT_SETTINGS: Settings = {
+export const DEFAULT_SETTINGS: Omit<Settings, 'fabActions' | 'headerActions'> & {footerActions: ActiveScreen[]} = {
     currency: 'INR',
     theme: 'dark',
     dashboardWidgets: DEFAULT_DASHBOARD_WIDGETS,
@@ -68,12 +68,6 @@ export const DEFAULT_SETTINGS: Settings = {
         notes: true,
     },
     footerActions: ['dashboard', 'reports', 'budgets', 'more'],
-    fabActions: {
-        top: 'addTransaction',
-        left: 'openCalendar',
-        right: 'openNotes',
-        bottom: 'openTrip',
-    },
 };
 
 const DEFAULT_FINANCIAL_PROFILE: FinancialProfile = {
@@ -84,7 +78,7 @@ const DEFAULT_FINANCIAL_PROFILE: FinancialProfile = {
 };
 
 export const SettingsContext = createContext<SettingsContextType>({
-  settings: DEFAULT_SETTINGS,
+  settings: DEFAULT_SETTINGS as Settings,
   setSettings: async () => {},
   payees: [],
   setPayees: async () => {},
@@ -116,7 +110,7 @@ const DEFAULT_CONTACTS: Contact[] = [
 
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useLocalStorage<Settings>('finance-tracker-settings', DEFAULT_SETTINGS);
+  const [settings, setSettings] = useLocalStorage<Settings>('finance-tracker-settings', DEFAULT_SETTINGS as Settings);
   const [payees, setPayees] = useLocalStorage<Payee[]>('finance-tracker-payees', []);
   const [categories, setCategories] = useLocalStorage<Category[]>('finance-tracker-categories', []);
   const [senders, setSenders] = useLocalStorage<Sender[]>('finance-tracker-senders', []);
@@ -125,35 +119,24 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [financialProfile, setFinancialProfile] = useLocalStorage<FinancialProfile>('finance-tracker-financial-profile', DEFAULT_FINANCIAL_PROFILE);
 
   const migratedSettings = useMemo(() => {
-    // This memo ensures that the settings object passed to consumers is always complete,
-    // preventing crashes from accessing properties on undefined. It merges loaded settings
-    // with defaults to fill in any missing properties from older versions.
-    if (!settings) return DEFAULT_SETTINGS;
+    if (!settings) return DEFAULT_SETTINGS as Settings;
 
-    const newSettings = { ...DEFAULT_SETTINGS, ...settings };
+    const newSettings: any = { ...DEFAULT_SETTINGS, ...settings };
     
-    // Deep merge nested objects
-    newSettings.enabledTools = {
-      ...DEFAULT_SETTINGS.enabledTools,
-      ...(settings.enabledTools || {}),
-    };
-     newSettings.fabActions = {
-      ...DEFAULT_SETTINGS.fabActions,
-      ...(settings.fabActions || {}),
-    };
+    newSettings.enabledTools = { ...DEFAULT_SETTINGS.enabledTools, ...(settings.enabledTools || {}) };
     
-    // Safeguard: ensure Shop Hub is enabled if it was missing from saved settings
+    // Clean up deprecated settings
+    delete newSettings.fabActions;
+    delete newSettings.headerActions;
+
     if (newSettings.enabledTools.shop === undefined) {
       newSettings.enabledTools.shop = true;
     }
 
-
-    return newSettings;
+    return newSettings as Settings;
   }, [settings]);
 
   useEffect(() => {
-    // This effect runs after render to persist the migrated settings back to storage if they differ
-    // from what was originally loaded. This avoids render-loop issues.
     if (JSON.stringify(settings) !== JSON.stringify(migratedSettings)) {
       setSettings(migratedSettings);
     }
@@ -188,7 +171,7 @@ interface AppDataContextType {
   trips: Trip[];
   setTrips: (value: Trip[] | ((val: Trip[]) => Trip[])) => Promise<void>;
   tripExpenses: TripExpense[];
-  setTripExpenses: (value: TripExpense[] | ((val: TripExpense[]) => TripExpense[])) => Promise<void>;
+  setTripExpenses: (value: TripExpense[] | ((val: Trip[]) => TripExpense[])) => Promise<void>;
   shops: Shop[];
   setShops: (value: Shop[] | ((val: Shop[]) => Shop[])) => Promise<void>;
   shopProducts: ShopProduct[];
@@ -211,6 +194,13 @@ interface AppDataContextType {
   setRefunds: (value: Refund[] | ((val: Refund[]) => Refund[])) => Promise<void>;
   notes: Note[];
   setNotes: (value: Note[] | ((val: Note[]) => Note[])) => Promise<void>;
+  // Fix: Add state for selected accounts to be globally available
+  selectedAccountIds: string[];
+  setSelectedAccountIds: (value: string[] | ((val: string[]) => string[])) => Promise<void>;
+  // Fix: Add state for UI communication to open edit modal from context
+  accountToEdit: Account | null;
+  setAccountToEdit: React.Dispatch<React.SetStateAction<Account | null>>;
+
 
   // Functions
   findOrCreateCategory: (fullName: string, type: TransactionType) => string;
@@ -222,6 +212,10 @@ interface AppDataContextType {
   archiveNote: (noteId: string, isArchived: boolean) => void;
   pinNote: (noteId: string, isPinned: boolean) => void;
   changeNoteColor: (noteId: string, color: string) => void;
+  // Fix: Add account management functions to the context
+  onAddAccount: (name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => void;
+  onEditAccount: (account: Account) => void;
+  onDeleteAccount: (id: string) => void;
 }
 
 export const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
@@ -248,6 +242,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [challenges, setChallenges] = useLocalStorage<Challenge[]>('finance-tracker-challenges', []);
     const [refunds, setRefunds] = useLocalStorage<Refund[]>('finance-tracker-refunds', []);
     const [notes, setNotes] = useLocalStorage<Note[]>('finance-tracker-notes', []);
+    // Fix: Moved selectedAccountIds from StoryGenerator to context
+    const [selectedAccountIds, setSelectedAccountIds] = useLocalStorage<string[]>('finance-tracker-selected-account-ids', ['all']);
+    // Fix: Add state for cross-component communication for editing accounts
+    const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
 
     const findOrCreateCategory = useCallback((fullName: string, type: TransactionType): string => {
         const parts = fullName.split('/').map(p => p.trim());
@@ -376,6 +374,32 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setNotes(prev => prev.map(n => n.id === noteId ? { ...n, color, updatedAt: new Date().toISOString() } : n));
     }, [setNotes]);
 
+    // Fix: Implement onAddAccount in the context provider
+    const onAddAccount = useCallback((name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => {
+        const newAccount: Account = { id: self.crypto.randomUUID(), name, accountType, currency, creditLimit };
+        setAccounts(prev => {
+            if (prev.length === 0) {
+                setSelectedAccountIds([newAccount.id]);
+            }
+            return [...prev, newAccount]
+        });
+        if (openingBalance && openingBalance > 0) {
+            const openingBalanceCategory = findOrCreateCategory('Opening Balance', TransactionType.INCOME);
+            const openingTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: newAccount.id, description: 'Opening Balance', amount: openingBalance, type: TransactionType.INCOME, categoryId: openingBalanceCategory, date: new Date().toISOString() };
+            setTransactions(prev => [openingTransaction, ...prev]);
+        }
+    }, [findOrCreateCategory, setAccounts, setTransactions, setSelectedAccountIds]);
+
+    // Fix: Implement onEditAccount to trigger UI effect
+    const onEditAccount = useCallback((account: Account) => {
+        setAccountToEdit(account);
+    }, []);
+    
+    // Fix: Implement onDeleteAccount using the existing deleteItem function.
+    const onDeleteAccount = useCallback((id: string) => {
+        deleteItem(id, 'account');
+    }, [deleteItem]);
+
 
     const value = useMemo(() => ({
         transactions, setTransactions, accounts, setAccounts, budgets, setBudgets,
@@ -384,8 +408,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
         challenges, setChallenges, refunds, setRefunds, notes, setNotes, 
+        selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit,
         findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
         moveTempNoteToTrustBin, updateNoteContent, archiveNote, pinNote, changeNoteColor,
+        onAddAccount, onEditAccount, onDeleteAccount,
     }), [
         transactions, setTransactions, accounts, setAccounts, budgets, setBudgets,
         recurringTransactions, setRecurringTransactions, goals, setGoals, investmentHoldings, setInvestmentHoldings,
@@ -393,8 +419,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
         challenges, setChallenges, refunds, setRefunds, notes, setNotes,
+        selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit,
         findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
         moveTempNoteToTrustBin, updateNoteContent, archiveNote, pinNote, changeNoteColor,
+        onAddAccount, onEditAccount, onDeleteAccount,
     ]);
 
     return <AppDataContext.Provider value={value as any}>{children}</AppDataContext.Provider>;

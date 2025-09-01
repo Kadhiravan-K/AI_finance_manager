@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { ActiveModal, ActiveScreen, AppState } from '../types';
@@ -29,7 +30,7 @@ const ALL_NAVIGABLE_ITEMS: { name: string; screen: ActiveScreen; modal?: ActiveM
     { name: 'Calendar', screen: 'calendar', icon: '🗓️', keywords: 'schedule events bills' },
     { name: 'Notes', screen: 'notes', icon: '📝', keywords: 'shopping list tasks ideas' },
     { name: 'Customize Dashboard', screen: 'more', modal: 'dashboardSettings', icon: '🎨', keywords: 'widgets layout' },
-    { name: 'Customize FAB', screen: 'more', modal: 'fabSettings', icon: '✨', keywords: 'buttons shortcuts' },
+    // Fix: Removed deprecated 'fabSettings' modal which is no longer a valid ActiveModal type.
     { name: 'Notification Settings', screen: 'more', modal: 'notificationSettings', icon: '🔔', keywords: 'alerts reminders' },
     { name: 'Manage Categories', screen: 'more', modal: 'categories', icon: '🏷️' },
     { name: 'Manage Accounts', screen: 'more', modal: 'accountsManager', icon: '🏦' },
@@ -62,7 +63,7 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
 
   const searchResults = useMemo(() => {
     if (!query.trim() || !appState) {
-      return { screens: ALL_NAVIGABLE_ITEMS, transactions: [], trips: [], goals: [] };
+      return { screens: ALL_NAVIGABLE_ITEMS, transactions: [], trips: [], goals: [], notes: [] };
     }
     const q = query.toLowerCase();
     
@@ -72,7 +73,7 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
     
     const transactions = (appState.transactions || [])
       .filter(t => t.description.toLowerCase().includes(q))
-      .slice(0, 5); // Limit results for performance
+      .slice(0, 5);
 
     const trips = (appState.trips || [])
       .filter(t => t.name.toLowerCase().includes(q))
@@ -82,7 +83,11 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       .filter(g => g.name.toLowerCase().includes(q))
       .slice(0, 5);
 
-    return { screens, transactions, trips, goals };
+    const notes = (appState.notes || [])
+      .filter(n => (n.title && n.title.toLowerCase().includes(q)) || n.content.toLowerCase().includes(q))
+      .slice(0, 5);
+
+    return { screens, transactions, trips, goals, notes };
   }, [query, appState]);
 
   const SearchResultSection: React.FC<{title: string, children: React.ReactNode}> = ({ title, children }) => (
@@ -160,7 +165,20 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
                     ))}
                 </SearchResultSection>
             )}
-            {query.trim() && searchResults.screens.length === 0 && searchResults.transactions.length === 0 && searchResults.trips.length === 0 && searchResults.goals.length === 0 && (
+            {searchResults.notes.length > 0 && (
+              <SearchResultSection title="Notes">
+                {searchResults.notes.map(n => (
+                  <button key={n.id} onClick={() => handleNavigate('notes', 'editNote', { note: n })} className="w-full flex items-center gap-4 p-3 text-left rounded-lg hover-bg-stronger transition-colors">
+                    <span className="text-xl">📝</span>
+                    <div>
+                      <p className="font-medium text-primary truncate">{n.title || n.content.split('\n')[0]}</p>
+                      <p className="text-xs text-secondary truncate">{n.content.split('\n')[1] || '...'}</p>
+                    </div>
+                  </button>
+                ))}
+              </SearchResultSection>
+            )}
+            {query.trim() && searchResults.screens.length === 0 && searchResults.transactions.length === 0 && searchResults.trips.length === 0 && searchResults.goals.length === 0 && searchResults.notes.length === 0 && (
               <p className="text-center text-secondary p-4 text-sm">No results found for "{query}".</p>
             )}
           </div>

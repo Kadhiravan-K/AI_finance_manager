@@ -1,6 +1,4 @@
-import React, { useState, useContext, useMemo } from 'react';
-import { SettingsContext } from '../contexts/SettingsContext';
-import { ALL_FAB_ACTIONS } from '../utils/fabActions';
+import React, { useState } from 'react';
 import { ActiveScreen, ActiveModal } from '../types';
 
 interface InteractiveFabProps {
@@ -9,23 +7,32 @@ interface InteractiveFabProps {
 
 const InteractiveFab: React.FC<InteractiveFabProps> = ({ onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { settings } = useContext(SettingsContext);
 
-  const actions = useMemo(() => {
-    const actionMap = new Map(ALL_FAB_ACTIONS.map(action => [action.key, action]));
-    const fabSettings = settings.fabActions;
-    return {
-      top: actionMap.get(fabSettings.top),
-      left: actionMap.get(fabSettings.left),
-      right: actionMap.get(fabSettings.right),
-      bottom: actionMap.get(fabSettings.bottom),
-    };
-  }, [settings.fabActions]);
+  const actions = {
+    top: { 
+      label: 'Add Transaction', 
+      icon: '➕', 
+      onClick: () => onNavigate('dashboard', 'addTransactionMode') 
+    },
+    left: { 
+      label: 'Add Note', 
+      icon: '📝', 
+      onClick: () => onNavigate('notes', 'editNote') 
+    },
+    right: { 
+      label: 'Add Goal', 
+      icon: '🏆', 
+      onClick: () => onNavigate('goals', 'editGoal') 
+    },
+    bottom: { 
+      label: 'Search', 
+      icon: '🔍', 
+      onClick: () => onNavigate('dashboard', 'globalSearch') 
+    },
+  };
 
-  const handleActionClick = (action: typeof actions.top) => {
-    if (action) {
-      onNavigate(action.target.screen!, action.target.modal, {});
-    }
+  const handleActionClick = (action: { onClick: () => void }) => {
+    action.onClick();
     setIsOpen(false);
   };
 
@@ -33,7 +40,6 @@ const InteractiveFab: React.FC<InteractiveFabProps> = ({ onNavigate }) => {
     action: typeof actions.top;
     position: 'top' | 'left' | 'right' | 'bottom';
   }> = ({ action, position }) => {
-    if (!action) return null;
     return (
       <button
         onClick={() => handleActionClick(action)}
@@ -58,7 +64,7 @@ const InteractiveFab: React.FC<InteractiveFabProps> = ({ onNavigate }) => {
         <FabActionButton action={actions.right} position="right" />
         <FabActionButton action={actions.bottom} position="bottom" />
         <div className="interactive-fab" onClick={() => setIsOpen(!isOpen)} aria-haspopup="true" aria-expanded={isOpen}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
         </div>

@@ -4,13 +4,13 @@ import { ProcessingStatus, Transaction, Account, Category, TransactionType, Date
 import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
-import AccountSelector from './AccountSelector';
+import AccountSelectorModal from './AccountSelector';
 import EditTransactionModal from './EditTransactionModal';
 import TransferModal from './TransferModal';
-import ReportsScreen from './ReportsModal';
+import ReportsScreen from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
 import MoreScreen from './More';
-import ScheduledPaymentsScreen from './ScheduledPaymentsModal';
+import ScheduledPaymentsModal from './ScheduledPaymentsModal';
 import { SettingsContext, AppDataContext } from '../contexts/SettingsContext';
 import { calculateNextDueDate } from '../utils/date';
 import AppSettingsModal from './AppSettingsModal';
@@ -23,7 +23,7 @@ import SpamWarningCard from './SpamWarningCard';
 import GoalsScreen from './GoalsModal';
 import ContactsManagerModal from './ContactsManagerModal';
 import FeedbackModal from './FeedbackModal';
-import InvestmentsScreen from './InvestmentsModal';
+import InvestmentsScreen from './InvestmentsScreen';
 import CalculatorScreen from './CalculatorModal';
 import AchievementsScreen from './AchievementsScreen';
 import AchievementToast from './AchievementToast';
@@ -65,12 +65,16 @@ import NotesScreen from './NotesScreen';
 import EditNoteModal from './EditNoteModal';
 import UndoToast from './UndoToast';
 import { DEFAULT_CATEGORIES } from '../utils/categories';
-import FabSettingsModal from './FabSettingsModal';
+import EditRecurringModal from './EditRecurringModal';
+import BuyInvestmentModal from './BuyInvestmentModal';
+import AddTransactionModeModal from './AddTransactionModeModal';
+import AIChatModal from './AIChatModal';
+import ShareGuideModal from './ShareGuideModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
-const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string | null, onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void }> = ({ 
-  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, showOnboardingGuide, setShowOnboardingGuide, onNavigate
+const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string | null }> = ({ 
+  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, showOnboardingGuide, setShowOnboardingGuide, onNavigate, isLoading
 }) => {
   const { settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile } = useContext(SettingsContext);
   const dataContext = useContext(AppDataContext);
@@ -86,11 +90,12 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     shopEmployees, setShopEmployees, shopShifts, setShopShifts, unlockedAchievements, setUnlockedAchievements,
     streaks, challenges, setChallenges, refunds, setRefunds, notes, setNotes,
     findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
-    updateNoteContent, archiveNote, pinNote, changeNoteColor, moveTempNoteToTrustBin
+    updateNoteContent, archiveNote, pinNote, changeNoteColor, moveTempNoteToTrustBin,
+    // Fix: Get state and handlers from context
+    selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit, onAddAccount
   } = dataContext;
   
   const [text, setText] = useState<string>('');
-  const [selectedAccountIds, setSelectedAccountIds] = useLocalStorage<string[]>('finance-tracker-selected-account-ids', ['all']);
   const [feedbackQueue, setFeedbackQueue] = useLocalStorage<FeedbackItem[]>('finance-tracker-feedback-queue', []);
   const isInitialLoad = useRef(true);
   
@@ -120,8 +125,16 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
 
   const activeModal = modalStack[modalStack.length - 1] || null;
   const closeActiveModal = () => setModalStack(prev => prev.slice(0, -1));
-  const openModal = (name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]);
+  const openModal = useCallback((name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]), [setModalStack]);
   const formatCurrency = useCurrencyFormatter();
+  
+  // Fix: Add useEffect to handle edit account requests from the context
+  useEffect(() => {
+      if (accountToEdit) {
+          openModal('editAccount', { account: accountToEdit });
+          setAccountToEdit(null); // Reset after opening
+      }
+  }, [accountToEdit, openModal, setAccountToEdit]);
 
   const handleOpenCalculator = (onResult: (result: number) => void) => {
     openModal('miniCalculator', { onResult });
@@ -336,18 +349,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     saveTransaction(spamWarning.parsedData, selectedAccountIds[0], senderId);
   };
 
-  const handleAddAccount = useCallback((name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => {
-    const newAccount: Account = { id: self.crypto.randomUUID(), name, accountType, currency, creditLimit };
-    setAccounts(prev => [...prev, newAccount]);
-    if (openingBalance && openingBalance > 0) {
-        const openingBalanceCategory = findOrCreateCategory('Opening Balance', TransactionType.INCOME);
-        const openingTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: newAccount.id, description: 'Opening Balance', amount: openingBalance, type: TransactionType.INCOME, categoryId: openingBalanceCategory, date: new Date().toISOString() };
-        setTransactions(prev => [openingTransaction, ...prev]);
-    }
-    if(accounts.length === 0) setSelectedAccountIds([newAccount.id]);
-  }, [accounts.length, findOrCreateCategory, setAccounts, setSelectedAccountIds, setTransactions]);
-  
-  const handleAccountTransfer = (fromAccountId: string, toAccountId: string, amount: number, notes?: string) => {
+  const handleAccountTransfer = (fromAccountId: string, toAccountId: string, fromAmount: number, toAmount: number, notes?: string) => {
     const fromAccount = accounts.find(a => a.id === fromAccountId);
     const toAccount = accounts.find(a => a.id === toAccountId);
     if (!fromAccount || !toAccount) { setError("Invalid accounts for transfer."); return; }
@@ -355,8 +357,8 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     let expenseTransferCategory = findOrCreateCategory('Transfers', TransactionType.EXPENSE);
     let incomeTransferCategory = findOrCreateCategory('Transfers', TransactionType.INCOME);
     const now = new Date().toISOString();
-    const expenseTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: fromAccountId, description: `Transfer to ${toAccount.name}`, amount, type: TransactionType.EXPENSE, categoryId: expenseTransferCategory, date: now, notes, transferId };
-    const incomeTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: toAccountId, description: `Transfer from ${fromAccount.name}`, amount, type: TransactionType.INCOME, categoryId: incomeTransferCategory, date: now, notes, transferId };
+    const expenseTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: fromAccountId, description: `Transfer to ${toAccount.name}`, amount: fromAmount, type: TransactionType.EXPENSE, categoryId: expenseTransferCategory, date: now, notes, transferId };
+    const incomeTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: toAccountId, description: `Transfer from ${fromAccount.name}`, amount: toAmount, type: TransactionType.INCOME, categoryId: incomeTransferCategory, date: now, notes, transferId };
     setTransactions(prev => [incomeTransaction, expenseTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     closeActiveModal();
   };
@@ -423,15 +425,51 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     checkAndCompleteChallenge('review_goals');
   };
 
-  const handleSettleDebt = (transactionId: string, splitDetailId: string, settlementAccountId: string) => {
+  const handleSettleDebt = (transactionId: string, splitDetailId: string, settlementAccountId: string, amount: number) => {
     const originalTransaction = transactions.find(t => t.id === transactionId);
     const splitDetail = originalTransaction?.splitDetails?.find(s => s.id === splitDetailId);
     if (!originalTransaction || !splitDetail) return;
     const repaymentCategoryId = findOrCreateCategory('Debt Repayment', TransactionType.INCOME);
-    const incomeTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: settlementAccountId, description: `Repayment from ${splitDetail.personName} for "${originalTransaction.description}"`, amount: splitDetail.amount, type: TransactionType.INCOME, categoryId: repaymentCategoryId!, date: new Date().toISOString() };
+    const incomeTransaction: Transaction = { id: self.crypto.randomUUID(), accountId: settlementAccountId, description: `Repayment from ${splitDetail.personName} for "${originalTransaction.description}"`, amount: amount, type: TransactionType.INCOME, categoryId: repaymentCategoryId!, date: new Date().toISOString() };
     setTransactions(prev => {
       const updatedOriginal = { ...originalTransaction, splitDetails: originalTransaction.splitDetails?.map(s => s.id === splitDetailId ? { ...s, isSettled: true, settledDate: new Date().toISOString() } : s), };
       return [incomeTransaction, ...prev.map(t => t.id === transactionId ? updatedOriginal : t)].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+  };
+
+  const handleSettleGlobalDebt = (fromName: string, toName: string, currency: string, amount: number) => {
+    const isPayingUser = toName.toLowerCase() === 'you';
+    const accountForTx = accounts.find(a => a.currency === currency) || accounts[0];
+    if (!accountForTx) {
+      setError("No suitable account found for this settlement's currency.");
+      return;
+    }
+    
+    let transaction;
+    if (isPayingUser) {
+        const repaymentCategoryId = findOrCreateCategory('Debt Repayment', TransactionType.INCOME);
+        transaction = {
+            accountId: accountForTx.id,
+            description: `Settlement from ${fromName}`,
+            amount,
+            type: TransactionType.INCOME,
+            categoryId: repaymentCategoryId,
+        };
+    } else {
+        const lentCategoryId = findOrCreateCategory('Money Lent', TransactionType.EXPENSE);
+         transaction = {
+            accountId: accountForTx.id,
+            description: `Settlement to ${toName}`,
+            amount,
+            type: TransactionType.EXPENSE,
+            categoryId: lentCategoryId,
+        };
+    }
+    
+    handleSaveTransaction({
+      ...transaction,
+      id: '',
+      date: new Date().toISOString(),
     });
   };
 
@@ -459,6 +497,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     } else {
       setInvestmentHoldings(prev => [...prev, { id: self.crypto.randomUUID(), accountId: investmentAccountId, name, quantity, averageCost: price, currentValue: cost }]);
     }
+    closeActiveModal();
   };
 
   const handleSellInvestment = (holdingId: string, quantity: number, price: number, toAccountId: string) => {
@@ -487,6 +526,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     } else {
         setRecurringTransactions(prev => [...prev, { ...item, id: self.crypto.randomUUID(), nextDueDate: nextDueDate.toISOString() } as RecurringTransaction]);
     }
+    closeActiveModal();
   };
 
   const handleSaveTrip = (tripData: Omit<Trip, 'id' | 'date'>, id?: string) => {
@@ -536,7 +576,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
       }
       closeActiveModal();
       return savedContact;
-  }, [setContacts])
+  }, [setContacts, closeActiveModal])
   
   const handleSaveContactGroup = (groupData: Omit<ContactGroup, 'id'>, id?: string) => {
       if (id) {
@@ -703,6 +743,9 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
           switch (`${parsed.action}-${parsed.itemType}`) {
               case 'create-expense':
               case 'create-income': {
+                  if (accounts.length === 0) {
+                      return "I can't add a transaction because you haven't created any accounts yet. Please create an account first.";
+                  }
                   if (!parsed.amount || !parsed.name) {
                       return "I need a description and amount to create a transaction.";
                   }
@@ -731,7 +774,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
               
               case 'create-account': {
                   if (!parsed.name) return "I need a name to create an account.";
-                  handleAddAccount(parsed.name, AccountType.DEPOSITORY, settings.currency, undefined, parsed.amount);
+                  onAddAccount(parsed.name, AccountType.DEPOSITORY, settings.currency, undefined, parsed.amount);
                   return `Done. I've created the "${parsed.name}" account for you.`;
               }
 
@@ -825,19 +868,19 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
 
     const renderActiveScreen = () => {
         switch (activeScreen) {
-            case 'dashboard': return <FinanceDisplay status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => handleItemDeletion(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={handleAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} baseCurrency={settings.currency} />;
+            case 'dashboard': return <FinanceDisplay isLoading={isLoading} status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => handleItemDeletion(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={onAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} baseCurrency={settings.currency} onAddTransaction={() => onNavigate('dashboard', 'addTransactionMode')} />;
             case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency} />;
-            case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} />;
+            case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} onAddBudget={() => {}} />;
             case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g=>g.id===id)?.name || 'goal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} />;
-            case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={handleBuyInvestment} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}}/>;
-            case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions} categories={categories} accounts={accounts} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(r=>r.id===id)?.description || 'item')} />;
-            case 'calculator': return <CalculatorScreen />;
+            case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}}/>;
+            case 'scheduled': return <ScheduledPaymentsModal onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(r=>r.id===id)?.description || 'item')} />;
+            case 'calculator': return <CalculatorScreen appState={appState} />;
             case 'calendar': return <CalendarScreen />;
             case 'notes': return <NotesScreen onEditNote={(note) => openModal('editNote', { note })} onDeleteNote={(id) => handleItemDeletion(id, 'note', notes.find(n => n.id === id)?.title || notes.find(n => n.id === id)?.content.slice(0, 20) || 'note')} onUpdateContent={updateNoteContent} onArchiveNote={archiveNote} onPinNote={pinNote} onChangeNoteColor={changeNoteColor} onMoveTempNoteToTrustBin={moveTempNoteToTrustBin} onCreateTransactionFromNote={handleCreateTransactionFromNote} />;
             case 'more': return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={(m) => openModal(m)} onResetApp={confirmResetApp} />;
             case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
             case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
-            case 'learn': return <LearnScreen />;
+            case 'learn': return <LearnScreen onOpenChat={() => openModal('aiChat')} />;
             case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setActiveScreen('tripDetails'); setTripDetailsId(id); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(t) => openModal('editTrip', {trip: t})} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
             case 'tripDetails': {
                 const trip = trips.find(t => t.id === tripDetailsId);
@@ -930,6 +973,17 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
                 const modalProps = activeModal.props || {};
 
                 switch (activeModal.name) {
+                    case 'addTransactionMode':
+                        return ReactDOM.createPortal(
+                            <AddTransactionModeModal
+                                onClose={closeActiveModal}
+                                onSelectMode={(mode) => {
+                                    closeActiveModal();
+                                    openModal('addTransaction', { initialTab: mode });
+                                }}
+                            />,
+                            modalRoot
+                        );
                     case 'addTransaction':
                         return ReactDOM.createPortal(
                             <AddTransactionModal
@@ -1024,7 +1078,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
                     case 'editContactGroup':
                         return ReactDOM.createPortal(<EditContactGroupModal onClose={closeActiveModal} onSave={handleSaveContactGroup} {...modalProps} />, modalRoot);
                     case 'globalTripSummary':
-                        return ReactDOM.createPortal(<GlobalTripSummaryModal trips={trips} allExpenses={tripExpenses} onClose={closeActiveModal} />, modalRoot);
+                        return ReactDOM.createPortal(<GlobalTripSummaryModal trips={trips} allExpenses={tripExpenses} onClose={closeActiveModal} onSettle={handleSettleGlobalDebt} />, modalRoot);
                     case 'miniCalculator':
                         return ReactDOM.createPortal(<MiniCalculatorModal onClose={closeActiveModal} onResult={modalProps.onResult} />, modalRoot);
                     case 'notifications':
@@ -1039,21 +1093,23 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
                         return ReactDOM.createPortal(<FinancialHealthModal onClose={closeActiveModal} appState={appState} onSaveProfile={setFinancialProfile} onSaveBudget={handleSaveBudget} />, modalRoot);
                     case 'footerSettings':
                         return ReactDOM.createPortal(<FooterSettingsModal onClose={closeActiveModal} />, modalRoot);
-                    case 'fabSettings':
-                        return ReactDOM.createPortal(<FabSettingsModal onClose={closeActiveModal} />, modalRoot);
                     case 'aiCommandCenter':
                         return ReactDOM.createPortal(<AICommandModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} />, modalRoot);
+                    case 'aiChat':
+                        return ReactDOM.createPortal(<AIChatModal onClose={closeActiveModal} appState={appState} />, modalRoot);
                     case 'accountsManager':
                         return ReactDOM.createPortal(
                             <AccountsManagerModal
                                 onClose={closeActiveModal}
                                 accounts={accounts}
-                                onAddAccount={handleAddAccount}
+                                onAddAccount={onAddAccount}
                                 onEditAccount={(a) => openModal('editAccount', { account: a })}
                                 onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')}
                             />,
                             modalRoot
                         );
+                    case 'accountSelector':
+                        return ReactDOM.createPortal(<AccountSelectorModal onClose={closeActiveModal} />, modalRoot);
                     case 'globalSearch':
                         return ReactDOM.createPortal(
                             <GlobalSearchModal
@@ -1062,6 +1118,29 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
                             />,
                             modalRoot
                         );
+                    case 'editRecurring':
+                         return ReactDOM.createPortal(
+                            <EditRecurringModal 
+                                onClose={closeActiveModal}
+                                onSave={handleSaveRecurring}
+                                categories={categories}
+                                accounts={accounts}
+                                {...modalProps}
+                            />,
+                            modalRoot
+                         );
+                     case 'buyInvestment':
+                        return ReactDOM.createPortal(
+                            <BuyInvestmentModal
+                                onClose={closeActiveModal}
+                                onSave={handleBuyInvestment}
+                                accounts={accounts}
+                                {...modalProps}
+                            />,
+                            modalRoot
+                        )
+                    case 'shareGuide':
+                        return ReactDOM.createPortal(<ShareGuideModal onClose={closeActiveModal} />, modalRoot);
                     default:
                         return null;
                 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -11,30 +11,30 @@ const STEPS = [
   {
     target: '.themed-header',
     title: 'The Header',
-    content: 'Here you can access the main menu, search, notifications, and other quick actions.',
+    content: 'Access the main menu, search, notifications, and other quick actions from here.',
     position: 'bottom',
     padding: 4,
   },
   {
     target: 'header button[aria-label="Open navigation menu"]',
-    title: 'The "All Tools" Menu',
-    content: 'Tap here to find every tool and screen available in the app, like Trip Management, Investments, and more!',
+    title: 'All Your Tools',
+    content: 'Tap here to find every tool and screen available, like Trip Management, Investments, and more!',
     position: 'bottom',
     padding: 8,
     isCircle: true,
   },
   {
-    target: '.fab',
-    title: 'Quick Add Button',
-    content: 'This is your main button for quickly adding new transactions using AI or manual entry.',
+    target: '.interactive-fab-container',
+    title: 'The "Magic" Button',
+    content: 'Start here to quickly add transactions and see the AI work its magic!',
     position: 'top',
     padding: 8,
     isCircle: true,
   },
   {
     target: '.footer-nav',
-    title: 'Navigation Bar',
-    content: 'Quickly switch between your main screens from here. You can customize these shortcuts in the settings.',
+    title: 'Quick Navigation',
+    content: 'Instantly switch between your main screens. You can customize these shortcuts in the settings.',
     position: 'top',
     padding: 4,
   },
@@ -44,12 +44,24 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const currentStep = useMemo(() => STEPS[stepIndex], [stepIndex]);
+  const guideRef = useRef<HTMLDivElement>(null);
+  const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (guideRef.current && !guideRect) {
+      setGuideRect(guideRef.current.getBoundingClientRect());
+    }
+  }, [guideRect, currentStep]);
+
 
   useEffect(() => {
     const updateRect = () => {
       const element = document.querySelector(currentStep.target);
       if (element) {
         setTargetRect(element.getBoundingClientRect());
+        if (guideRef.current && !guideRect) {
+          setGuideRect(guideRef.current.getBoundingClientRect());
+        }
       } else {
         // If element not found, skip to next step or finish
         if (stepIndex < STEPS.length - 1) {
@@ -68,10 +80,11 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
       clearTimeout(timerId);
       window.removeEventListener('resize', updateRect);
     };
-  }, [currentStep, stepIndex, onFinish]);
+  }, [currentStep, stepIndex, onFinish, guideRect]);
 
   const handleNext = () => {
     if (stepIndex < STEPS.length - 1) {
+      setGuideRect(null); // Reset guide rect to recalculate for next step
       setStepIndex(stepIndex + 1);
     } else {
       onFinish();
@@ -83,32 +96,25 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
       width: 'calc(100% - 32px)',
       maxWidth: '320px',
       zIndex: 101,
-      transition: 'top 0.3s ease, bottom 0.3s ease, left 0.3s ease, transform 0.3s ease',
+      transition: 'top 0.3s ease, bottom 0.3s ease, left 0.3s ease, opacity 0.3s ease',
+      transform: 'none',
   };
 
-  if (targetRect) {
+  if (targetRect && guideRect) {
     if (currentStep.position === 'bottom') {
       guideStyle.top = `${targetRect.bottom + 12}px`;
     } else {
       guideStyle.bottom = `${window.innerHeight - targetRect.top + 12}px`;
     }
     
-    const cardWidth = 320;
-    let leftPos = targetRect.left + targetRect.width / 2;
+    let left = targetRect.left + (targetRect.width / 2) - (guideRect.width / 2);
+    // Clamp left position to be within viewport with a 16px padding
+    left = Math.max(16, left);
+    left = Math.min(left, window.innerWidth - guideRect.width - 16);
     
-    if (leftPos - (cardWidth / 2) < 16) { 
-        leftPos = (cardWidth / 2) + 16;
-    }
-    if (leftPos + (cardWidth / 2) > window.innerWidth - 16) { 
-        leftPos = window.innerWidth - (cardWidth / 2) - 16;
-    }
-    
-    guideStyle.left = `${leftPos}px`;
-    guideStyle.transform = 'translateX(-50%)';
+    guideStyle.left = `${left}px`;
   } else {
-      guideStyle.top = '50%';
-      guideStyle.left = '50%';
-      guideStyle.transform = 'translate(-50%, -50%)';
+      guideStyle.opacity = 0; // Hide if target is not found
   }
 
   const clipPathStyle = useMemo(() => {
@@ -142,6 +148,7 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
       style={targetRect ? clipPathStyle : { opacity: 0 }}
     >
       <div
+        ref={guideRef}
         className="glass-card rounded-lg shadow-lg text-primary animate-fadeInUp"
         style={guideStyle}
       >

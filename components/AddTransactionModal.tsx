@@ -18,6 +18,7 @@ interface AddTransactionModalProps {
     }) => void;
     isDisabled: boolean;
     initialText?: string | null;
+    initialTab?: 'auto' | 'manual';
     accounts: Account[];
     contacts: Contact[];
     openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
@@ -31,13 +32,14 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     onSaveManual,
     isDisabled,
     initialText,
+    initialTab,
     accounts,
     contacts,
     openModal,
     onOpenCalculator,
     selectedAccountId,
 }) => {
-    const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialText ? 'auto' : 'manual');
+    const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialTab || (initialText ? 'auto' : 'manual'));
     const [text, setText] = useState(initialText || '');
     const [isLoading, setIsLoading] = useState(false);
     const [autoSelectedAccountId, setAutoSelectedAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
@@ -168,7 +170,8 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     <div>
                         <h4 className="font-semibold text-primary">Pro Tip</h4>
                         <p className="text-xs text-secondary">
-                          Go to your messages, long-press a transaction SMS, tap 'Share', and select this app to paste it automatically!
+                          Use the 'Share' feature in your SMS or payment app to send transaction details directly here.
+                          <button type="button" onClick={() => openModal('shareGuide')} className="text-xs text-sky-400 hover:text-sky-300 font-semibold ml-1">See How</button>
                         </p>
                     </div>
                   </div>

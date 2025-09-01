@@ -20,7 +20,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
   return (
     <div className="h-full flex flex-col">
        <div className="p-4 border-b border-divider flex-shrink-0">
-         <h2 className="text-xl font-bold text-primary text-center">More Options</h2>
+         <h2 className="text-xl font-bold text-primary text-center">More</h2>
        </div>
         <div className="flex-grow overflow-y-auto p-6 pr-4 pb-20 space-y-6">
             <div>
@@ -54,7 +54,6 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
                      <button onClick={() => handleNav('categories')} className="settings-management-button"><span>Manage Categories</span><span>🏷️</span></button>
                      <button onClick={() => handleNav('contacts')} className="settings-management-button"><span>Manage Contacts</span><span>👥</span></button>
                      <button onClick={() => handleNav('dashboardSettings')} className="settings-management-button"><span>Customize Dashboard</span><span>🎨</span></button>
-                     <button onClick={() => handleNav('fabSettings')} className="settings-management-button"><span>Customize FAB</span><span>✨</span></button>
                      <button onClick={() => handleNav('footerSettings')} className="settings-management-button"><span>Customize Footer Nav</span><span>⚓</span></button>
                      <button onClick={() => handleNav('notificationSettings')} className="settings-management-button"><span>Notification Settings</span><span>🔔</span></button>
                 </div>

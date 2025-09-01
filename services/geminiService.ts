@@ -1,3 +1,4 @@
+// Fix: Import GoogleGenAI to initialize the client.
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, Note } from "../types";
 
@@ -58,6 +59,35 @@ Text: "${text}"`,
   } catch (error) {
     console.error("Error parsing transaction from Gemini API:", error);
     throw new Error(error instanceof Error ? `Failed to parse transaction: ${error.message}` : "An unknown error occurred during parsing.");
+  }
+}
+
+const currencyConversionSchema = {
+    type: Type.OBJECT,
+    properties: {
+        rate: { type: Type.NUMBER, description: "The numeric exchange rate. e.g., if 1 USD = 83.5 INR, the value should be 83.5." }
+    },
+    required: ["rate"]
+};
+
+export async function getCurrencyConversionRate(fromCurrency: string, toCurrency: string): Promise<number> {
+  if (!fromCurrency || !toCurrency) throw new Error("Both 'from' and 'to' currencies must be provided.");
+  if (fromCurrency === toCurrency) return 1;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Provide the current exchange rate for converting 1 ${fromCurrency} into ${toCurrency}. Return only the numeric value.`,
+      config: { responseMimeType: "application/json", responseSchema: currencyConversionSchema },
+    });
+    const result = JSON.parse(response.text);
+    if (result && typeof result.rate === 'number' && result.rate > 0) {
+      return result.rate;
+    }
+    throw new Error("Could not determine a valid conversion rate from the AI response.");
+  } catch (error) {
+    console.error("Error getting currency conversion rate from Gemini API:", error);
+    throw new Error(error instanceof Error ? `Failed to get conversion rate: ${error.message}` : "An unknown error occurred during conversion rate lookup.");
   }
 }
 
@@ -477,5 +507,80 @@ export async function summarizeNote(noteContent: string): Promise<string[]> {
     } catch (error) {
         console.error("Error getting note summary:", error);
         throw new Error("Could not generate an AI summary for the note.");
+    }
+}
+
+const nlpCalcSchema = {
+    type: Type.OBJECT,
+    properties: {
+        answer: { type: Type.NUMBER, description: "The final numerical answer to the user's query." },
+        explanation: { type: Type.STRING, description: "A brief, one-sentence explanation of how the answer was derived." }
+    },
+    required: ["answer", "explanation"]
+};
+
+export async function parseNaturalLanguageCalculation(appState: AppState, query: string): Promise<{ answer: number; explanation: string }> {
+    const { transactions, financialProfile } = appState;
+    // Create a simplified summary to send to the AI to save tokens
+    const context = {
+        monthlySalary: financialProfile.monthlySalary,
+        transactionCount: transactions.length,
+        firstTransactionDate: transactions[transactions.length - 1]?.date,
+        lastTransactionDate: transactions[0]?.date
+    };
+
+    const prompt = `You are a financial calculation expert. Analyze the user's query based on their financial data and provide a numerical answer and a brief explanation.
+    Here is a summary of the user's data: ${JSON.stringify(context)}.
+    
+    To answer the query, I will provide you with the full list of transactions. Analyze them to calculate the answer.
+    User's query: "${query}"
+    
+    Full transaction list: ${JSON.stringify(transactions.map(t => ({ desc: t.description, amt: t.amount, type: t.type, date: t.date, cat: t.categoryId })))}
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: nlpCalcSchema }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error with natural language calculation:", error);
+        throw new Error("I couldn't calculate that. Please try rephrasing your question.");
+    }
+}
+
+const imageAnalysisSchema = {
+    type: Type.OBJECT,
+    properties: {
+        description: { type: Type.STRING, description: "A brief, one-sentence description of the image content." },
+        extractedText: { type: Type.STRING, description: "Any text extracted from the image. If none, this can be null." }
+    },
+    required: ["description"]
+};
+
+export async function analyzeImageForNote(imageData: { mimeType: string, data: string }, promptText: string): Promise<string> {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { 
+                parts: [
+                    { inlineData: { mimeType: imageData.mimeType, data: imageData.data }},
+                    { text: promptText || "Describe this image and extract any text you see." }
+                ]
+            },
+            config: { responseMimeType: "application/json", responseSchema: imageAnalysisSchema },
+        });
+
+        const result = JSON.parse(response.text);
+        let analysis = result.description;
+        if (result.extractedText) {
+            analysis += `\n\n**Extracted Text:**\n${result.extractedText}`;
+        }
+        return analysis;
+    } catch (error) {
+        console.error("Error analyzing image for note:", error);
+        throw new Error("Could not analyze the image.");
     }
 }
