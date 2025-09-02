@@ -1,4 +1,4 @@
-import { TripExpense, TripPayer, Trip } from '../types';
+import { TripExpense, Trip, Settlement } from '../types';
 import { USER_SELF_ID } from '../constants';
 
 interface Balance {
@@ -7,59 +7,78 @@ interface Balance {
     balance: number;
 }
 
-interface Settlement {
-    from: string; // Name of person who pays
-    to: string;   // Name of person who receives
+export interface SettlementSuggestion {
+    fromId: string;
+    toId: string;
+    fromName: string;
+    toName: string;
     amount: number;
 }
 
-export function calculateTripSummary(expenses: TripExpense[], trips?: Trip[]): Record<string, Settlement[]> {
+export function calculateTripSummary(
+    expenses: TripExpense[],
+    trips?: Trip[],
+    settlements?: Settlement[]
+): Record<string, SettlementSuggestion[]> {
     const expensesByCurrency: Record<string, TripExpense[]> = {};
+    const settlementsByCurrency: Record<string, Settlement[]> = {};
 
     // Group expenses by currency
     expenses.forEach(expense => {
         const trip = trips?.find(t => t.id === expense.tripId);
-        // Default to a base currency if trip not found (should not happen in normal flow)
         const currency = trip?.currency || 'default';
-        if (!expensesByCurrency[currency]) {
-            expensesByCurrency[currency] = [];
-        }
+        if (!expensesByCurrency[currency]) expensesByCurrency[currency] = [];
         expensesByCurrency[currency].push(expense);
     });
 
-    const settlementsByCurrency: Record<string, Settlement[]> = {};
+    // Group settlements by currency
+    (settlements || []).forEach(settlement => {
+        const currency = settlement.currency;
+        if (!settlementsByCurrency[currency]) settlementsByCurrency[currency] = [];
+        settlementsByCurrency[currency].push(settlement);
+    });
+    
+    const allCurrencies = new Set([...Object.keys(expensesByCurrency), ...Object.keys(settlementsByCurrency)]);
+    const finalSettlements: Record<string, SettlementSuggestion[]> = {};
 
-    for (const currency in expensesByCurrency) {
-        const currencyExpenses = expensesByCurrency[currency];
+    for (const currency of allCurrencies) {
+        const currencyExpenses = expensesByCurrency[currency] || [];
+        const currencySettlements = settlementsByCurrency[currency] || [];
         const balances: Record<string, Balance> = {};
 
-        const getParticipantName = (contactId: string) => {
-            if (contactId === USER_SELF_ID) return 'You';
-            // This is a simplification. In a real app, you'd look up the name from a contacts list
-            // based on the trip's participants. For now, we rely on names in splitDetails.
-            for (const expense of currencyExpenses) {
-                const participant = expense.splitDetails.find(p => p.id === contactId);
-                if (participant) return participant.personName;
+        const allParticipants = new Map<string, string>();
+        allParticipants.set(USER_SELF_ID, 'You');
+        (trips || []).forEach(trip => {
+            if (trip.currency === currency) {
+                trip.participants.forEach(p => allParticipants.set(p.contactId, p.name));
             }
-            return 'Unknown';
-        };
+        });
 
-        const ensureBalance = (contactId: string, name: string) => {
+        const getParticipantName = (contactId: string) => allParticipants.get(contactId) || 'Unknown Contact';
+        
+        const ensureBalance = (contactId: string) => {
             if (!balances[contactId]) {
-                balances[contactId] = { contactId, name, balance: 0 };
+                balances[contactId] = { contactId, name: getParticipantName(contactId), balance: 0 };
             }
         };
 
         currencyExpenses.forEach(expense => {
             expense.payers.forEach(payer => {
-                const payerName = getParticipantName(payer.contactId);
-                ensureBalance(payer.contactId, payerName);
+                ensureBalance(payer.contactId);
                 balances[payer.contactId].balance += payer.amount;
             });
             expense.splitDetails.forEach(split => {
-                ensureBalance(split.id, split.personName);
+                ensureBalance(split.id);
                 balances[split.id].balance -= split.amount;
             });
+        });
+
+        // Adjust balances based on recorded settlements
+        currencySettlements.forEach(settlement => {
+            ensureBalance(settlement.fromContactId);
+            ensureBalance(settlement.toContactId);
+            balances[settlement.fromContactId].balance += settlement.amount;
+            balances[settlement.toContactId].balance -= settlement.amount;
         });
 
         const creditors: Balance[] = [];
@@ -70,18 +89,23 @@ export function calculateTripSummary(expenses: TripExpense[], trips?: Trip[]): R
             else if (b.balance < -0.01) debtors.push({ ...b, balance: -b.balance });
         });
         
-        // Sort for deterministic results
         creditors.sort((a,b) => b.balance - a.balance);
         debtors.sort((a,b) => b.balance - a.balance);
 
-        const settlements: Settlement[] = [];
+        const settlementSuggestions: SettlementSuggestion[] = [];
         while (debtors.length > 0 && creditors.length > 0) {
             const debtor = debtors[0];
             const creditor = creditors[0];
             const amount = Math.min(debtor.balance, creditor.balance);
 
             if (amount > 0.01) {
-                settlements.push({ from: debtor.name, to: creditor.name, amount });
+                settlementSuggestions.push({
+                    fromId: debtor.contactId,
+                    fromName: debtor.name,
+                    toId: creditor.contactId,
+                    toName: creditor.name,
+                    amount
+                });
             }
 
             debtor.balance -= amount;
@@ -90,8 +114,8 @@ export function calculateTripSummary(expenses: TripExpense[], trips?: Trip[]): R
             if (debtor.balance < 0.01) debtors.shift();
             if (creditor.balance < 0.01) creditors.shift();
         }
-        settlementsByCurrency[currency] = settlements;
+        finalSettlements[currency] = settlementSuggestions;
     }
 
-    return settlementsByCurrency;
+    return finalSettlements;
 }

@@ -44,6 +44,8 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ onClose, onSave
         delete finalFormState.reminder;
     }
     
+    // This is the fix. The bug was that the call was something like `onSave(data, id)`,
+    // but the handler function expects a single object argument.
     onSave(finalFormState);
   };
   

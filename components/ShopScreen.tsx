@@ -122,6 +122,103 @@ const ProductForm: React.FC<{
     );
 };
 
+const BillingView: React.FC<{
+  shop: Shop,
+  products: ShopProduct[],
+  onRecordSale: (sale: Omit<ShopSale, 'id' | 'shopId'>) => void
+}> = ({ shop, products, onRecordSale }) => {
+    const [cart, setCart] = useState<Map<string, ShopSaleItem>>(new Map());
+    const formatCurrency = getCurrencyFormatter(shop.currency).format;
+
+    const handleAddToCart = (product: ShopProduct) => {
+        setCart(prev => {
+            const newCart = new Map(prev);
+            if (newCart.has(product.id)) {
+                const item = newCart.get(product.id)!;
+                newCart.set(product.id, { ...item, quantity: item.quantity + 1 });
+            } else {
+                newCart.set(product.id, {
+                    productId: product.id,
+                    productName: product.name,
+                    quantity: 1,
+                    pricePerUnit: product.sellingPrice,
+                    purchasePricePerUnit: product.purchasePrice,
+                });
+            }
+            return newCart;
+        });
+    };
+
+    const handleQuantityChange = (productId: string, newQuantity: number) => {
+        setCart(prev => {
+            const newCart = new Map(prev);
+            if (newQuantity <= 0) {
+                newCart.delete(productId);
+            } else {
+                const item = newCart.get(productId)!;
+                newCart.set(productId, { ...item, quantity: newQuantity });
+            }
+            return newCart;
+        });
+    };
+    
+    const cartItems = Array.from(cart.values());
+    const subtotal = cartItems.reduce((sum, item) => sum + (item.quantity * item.pricePerUnit), 0);
+    const profit = cartItems.reduce((sum, item) => sum + (item.quantity * (item.pricePerUnit - item.purchasePricePerUnit)), 0);
+
+    const handleFinalizeSale = () => {
+        if (cartItems.length === 0) return;
+        const sale: Omit<ShopSale, 'id' | 'shopId'> = {
+            timestamp: new Date().toISOString(),
+            items: cartItems,
+            subtotal: subtotal,
+            taxAmount: 0, // Simplified for now
+            totalAmount: subtotal, // Simplified for now
+            profit: profit,
+        };
+        onRecordSale(sale);
+        setCart(new Map()); // Clear cart
+    };
+    
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex-grow overflow-y-auto pr-2 space-y-4">
+                <h3 className="font-semibold text-lg text-primary">Point of Sale</h3>
+                <div className="grid grid-cols-3 gap-2">
+                    {products.map(p => (
+                        <button key={p.id} onClick={() => handleAddToCart(p)} className="p-2 bg-subtle rounded-lg text-center aspect-square flex flex-col justify-center items-center hover-bg-stronger">
+                            <p className="text-xs font-semibold text-primary truncate">{p.name}</p>
+                            <p className="text-xs text-secondary">{formatCurrency(p.sellingPrice)}</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="flex-shrink-0 border-t border-divider p-4 bg-subtle space-y-3">
+                <h4 className="font-semibold text-primary">Current Bill</h4>
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                    {cartItems.map(item => (
+                        <div key={item.productId} className="flex items-center gap-2 text-sm">
+                            <p className="flex-grow text-primary truncate">{item.productName}</p>
+                            <div className="flex items-center gap-1">
+                                <button onClick={() => handleQuantityChange(item.productId, item.quantity - 1)} className="control-button">-</button>
+                                <span className="w-8 text-center">{item.quantity}</span>
+                                <button onClick={() => handleQuantityChange(item.productId, item.quantity + 1)} className="control-button">+</button>
+                            </div>
+                            <p className="w-20 text-right font-mono">{formatCurrency(item.quantity * item.pricePerUnit)}</p>
+                        </div>
+                    ))}
+                     {cartItems.length === 0 && <p className="text-center text-secondary text-sm py-4">Cart is empty</p>}
+                </div>
+                <div className="flex justify-between font-bold text-lg pt-2 border-t border-divider">
+                    <span>Total</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                </div>
+                <button onClick={handleFinalizeSale} disabled={cartItems.length === 0} className="button-primary w-full py-2">Record Sale</button>
+            </div>
+        </div>
+    );
+};
+
 
 // Main Screen Props
 interface ShopScreenProps {
@@ -153,8 +250,9 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = ({
   onBack,
   onSaveProduct,
   onDeleteProduct,
+  onRecordSale
 }) => {
-    const [view, setView] = useState<ShopView>('analytics');
+    const [view, setView] = useState<ShopView>('billing');
     const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null);
     const [showProductForm, setShowProductForm] = useState(false);
     const [insights, setInsights] = useState<string[]>([]);
@@ -225,7 +323,7 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = ({
                     </div>
                 );
             case 'billing':
-                return <div className="p-4 text-secondary text-center">Billing/POS view coming soon!</div>
+                return <BillingView shop={shop} products={products} onRecordSale={(sale) => onRecordSale(shop.id, sale)} />
             case 'employees':
                 return <div className="p-4 text-secondary text-center">Employee management coming soon!</div>
             case 'shifts':

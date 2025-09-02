@@ -1,9 +1,18 @@
+
 import React, { useState, useMemo, useContext } from 'react';
-import { CalendarEvent } from '../types';
+// Fix: Import ActiveScreen and ActiveModal to define component props
+import { CalendarEvent, ActiveScreen, ActiveModal } from '../types';
 import { AppDataContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
-const CalendarScreen: React.FC = () => {
+// Fix: Add props interface for the component
+interface CalendarScreenProps {
+  onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;
+  setActiveScreen: (screen: ActiveScreen) => void;
+  setTripDetailsId: (id: string) => void;
+}
+
+const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveScreen, setTripDetailsId }) => {
     const dataContext = useContext(AppDataContext);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -91,8 +100,24 @@ const CalendarScreen: React.FC = () => {
             violet: 'border-violet-500',
         };
 
+        const handleClick = () => {
+            switch (event.type) {
+                case 'bill':
+                    onNavigate('scheduled', 'editRecurring', { recurringTransaction: event.data });
+                    break;
+                case 'refund':
+                    onNavigate('refunds', 'refund', { refund: event.data });
+                    break;
+                case 'trip':
+                    setTripDetailsId(event.data.id);
+                    setActiveScreen('tripDetails');
+                    break;
+                // 'goal' type exists but is not implemented for calendar events.
+            }
+        };
+
         return (
-            <div className={`p-3 bg-subtle rounded-lg border-l-4 ${colorClasses[event.color]}`}>
+            <div onClick={handleClick} className={`p-3 bg-subtle rounded-lg border-l-4 ${colorClasses[event.color]} cursor-pointer hover-bg-stronger transition-colors`}>
                 <div className="flex justify-between items-center">
                     <p className="font-semibold text-primary">{event.title}</p>
                     <p className="text-sm font-mono text-secondary">{details}</p>

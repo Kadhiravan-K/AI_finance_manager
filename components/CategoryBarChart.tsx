@@ -7,6 +7,7 @@ interface CategoryBarChartProps {
   transactions: Transaction[];
   categories: Category[];
   type: TransactionType;
+  currency?: string;
 }
 
 const COLORS = [
@@ -24,8 +25,8 @@ const getTopLevelCategory = (categoryId: string, categories: Category[]): Catego
     return current;
 };
 
-const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions, categories, type }) => {
-  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0 });
+const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions, categories, type, currency }) => {
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
 
   const categoryData = useMemo(() => {
     const topLevelTotals: Record<string, { total: number; icon: string, name: string }> = {};

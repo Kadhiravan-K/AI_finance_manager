@@ -198,6 +198,17 @@ const filterTransactions = (
     return filtered;
 };
 
+const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
+    let current = categories.find(c => c.id === categoryId);
+    if (!current) return undefined;
+    while (current.parentId) {
+        const parent = categories.find(c => c.id === current.parentId);
+        if (!parent) break;
+        current = parent;
+    }
+    return current;
+};
+
 const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories, accounts, selectedAccountIds, baseCurrency }) => {
   const [transactionType, setTransactionType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [reportType, setReportType] = useState<ReportType>('breakdown');
@@ -304,28 +315,61 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   
   const ChartContainer: React.FC<{children: React.ReactNode}> = ({children}) => <div className={isCompareMode ? 'md:col-span-1' : 'md:col-span-2'}>{children}</div>;
   
-  const ReportDataView: React.FC<{txs: Transaction[], title: string}> = ({ txs, title }) => (
-    <div className="animate-fadeInUp">
-        {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
-        {reportType === 'breakdown' ? (
-        <>
-            <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
-            <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} />
-        </>
-        ) : (
+  const ReportDataView: React.FC<{txs: Transaction[], title: string}> = ({ txs, title }) => {
+    const tableData = useMemo(() => {
+        const topLevelTotals: Record<string, { total: number; name: string, transactionCount: number }> = {};
+        
+        txs.forEach(t => {
+            const topLevelCat = getTopLevelCategory(t.categoryId, categories);
+            if (topLevelCat) {
+                if (!topLevelTotals[topLevelCat.id]) {
+                    topLevelTotals[topLevelCat.id] = { total: 0, name: topLevelCat.name, transactionCount: 0 };
+                }
+                topLevelTotals[topLevelCat.id].total += t.amount;
+                topLevelTotals[topLevelCat.id].transactionCount += 1;
+            }
+        });
+        
+        return Object.values(topLevelTotals).sort((a,b) => b.total - a.total);
+    }, [txs]);
+
+    return (
+        <div className="animate-fadeInUp">
+            {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
+            {reportType === 'breakdown' ? (
             <>
-              {chartType === 'bar' ?
-                <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
-                :
-                (txs.length > 1 ? 
-                  <TimeSeriesLineChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
-                  : <div className="text-center text-secondary p-8">Not enough data for a line chart.</div>
-                )
-              }
+                <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
+                <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} currency={reportCurrency} />
+                {tableData.length > 0 && (
+                    <div className="mt-4 p-4 bg-subtle rounded-xl shadow-lg border border-divider">
+                        <h4 className="font-semibold text-primary mb-2">Data Summary</h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                            {tableData.map(item => (
+                                <div key={item.name} className="flex justify-between text-sm">
+                                    <span className="text-primary truncate">{item.name} ({item.transactionCount})</span>
+                                    <span className="font-mono ml-2 flex-shrink-0">{formatCurrency(item.total)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </>
-        )}
-    </div>
-  );
+            ) : (
+                <>
+                  {chartType === 'bar' ?
+                    <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} currency={reportCurrency} />
+                    :
+                    (txs.length > 1 ? 
+                      <TimeSeriesLineChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} currency={reportCurrency} />
+                      : <div className="text-center text-secondary p-8">Not enough data for a line chart.</div>
+                    )
+                  }
+                </>
+            )}
+        </div>
+    );
+  };
+
 
   return (
     <div className="p-4 flex-grow overflow-y-auto pr-2">

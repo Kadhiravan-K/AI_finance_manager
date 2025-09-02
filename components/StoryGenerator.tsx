@@ -1,6 +1,7 @@
+
 import React, { useState, useCallback, useEffect, useMemo, useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, TrustBinDeletionPeriodUnit, TripPayer, AllDataScreenProps, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund, Note } from '../types';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, TrustBinDeletionPeriodUnit, TripPayer, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund, Note } from '../types';
 import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
@@ -50,10 +51,8 @@ import EditGoalModal from './EditGoalModal';
 import ManageToolsModal from './ManageToolsModal';
 import AddTransactionModal from './AddTransactionModal';
 import FinancialHealthModal from './FinancialHealthModal';
-import FooterSettingsModal from './FooterSettingsModal';
 import { ShopScreen } from './ShopScreen';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import OnboardingGuide from './OnboardingGuide';
 import { getDailyChallenge } from '../utils/challenges';
 import ChallengesScreen from './ChallengesScreen';
 import LearnScreen from './LearnScreen';
@@ -70,11 +69,12 @@ import BuyInvestmentModal from './BuyInvestmentModal';
 import AddTransactionModeModal from './AddTransactionModeModal';
 import AIChatModal from './AIChatModal';
 import ShareGuideModal from './ShareGuideModal';
+import IntegrationsModal from './IntegrationsModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
-const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string | null }> = ({ 
-  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, showOnboardingGuide, setShowOnboardingGuide, onNavigate, isLoading
+const MainContentMemoized: React.FC<FinanceTrackerProps> = ({ 
+  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, onNavigate, isLoading, onSharedTextConsumed
 }) => {
   const { settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile } = useContext(SettingsContext);
   const dataContext = useContext(AppDataContext);
@@ -88,11 +88,11 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     goals, setGoals, investmentHoldings, setInvestmentHoldings, trips, setTrips, tripExpenses, setTripExpenses,
     trustBin, setTrustBin, shops, setShops, shopProducts, setShopProducts, shopSales, setShopSales,
     shopEmployees, setShopEmployees, shopShifts, setShopShifts, unlockedAchievements, setUnlockedAchievements,
-    streaks, challenges, setChallenges, refunds, setRefunds, notes, setNotes,
+    streaks, challenges, setChallenges, refunds, setRefunds, notes, setNotes, settlements,
     findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
     updateNoteContent, archiveNote, pinNote, changeNoteColor, moveTempNoteToTrustBin,
-    // Fix: Get state and handlers from context
-    selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit, onAddAccount
+    selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit, onAddAccount, onEditAccount, onDeleteAccount,
+    handleRecordSettlement
   } = dataContext;
   
   const [text, setText] = useState<string>('');
@@ -128,7 +128,6 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
   const openModal = useCallback((name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]), [setModalStack]);
   const formatCurrency = useCurrencyFormatter();
   
-  // Fix: Add useEffect to handle edit account requests from the context
   useEffect(() => {
       if (accountToEdit) {
           openModal('editAccount', { account: accountToEdit });
@@ -151,7 +150,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     'finance-tracker-shop-products', 'finance-tracker-shop-sales', 'finance-tracker-shop-employees', 'finance-tracker-shop-shifts', 'finance-tracker-consent',
     'finance-tracker-onboarding-complete', 'finance-tracker-crypto-key', 'finance-tracker-show-guide',
     'finance-tracker-streaks', 'finance-tracker-challenges', 'finance-tracker-refunds',
-    'finance-tracker-notes', 'finance-tracker-temp-note',
+    'finance-tracker-notes', 'finance-tracker-temp-note', 'finance-tracker-settlements',
   ];
 
   const handleResetApp = () => {
@@ -165,8 +164,8 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
 
 
   const appState: AppState = useMemo(() => ({
-    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, notes
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, notes]);
+    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, notes, settlements
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, notes, settlements]);
 
   useEffect(() => {
     onSelectionChange?.(selectedAccountIds);
@@ -437,42 +436,6 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     });
   };
 
-  const handleSettleGlobalDebt = (fromName: string, toName: string, currency: string, amount: number) => {
-    const isPayingUser = toName.toLowerCase() === 'you';
-    const accountForTx = accounts.find(a => a.currency === currency) || accounts[0];
-    if (!accountForTx) {
-      setError("No suitable account found for this settlement's currency.");
-      return;
-    }
-    
-    let transaction;
-    if (isPayingUser) {
-        const repaymentCategoryId = findOrCreateCategory('Debt Repayment', TransactionType.INCOME);
-        transaction = {
-            accountId: accountForTx.id,
-            description: `Settlement from ${fromName}`,
-            amount,
-            type: TransactionType.INCOME,
-            categoryId: repaymentCategoryId,
-        };
-    } else {
-        const lentCategoryId = findOrCreateCategory('Money Lent', TransactionType.EXPENSE);
-         transaction = {
-            accountId: accountForTx.id,
-            description: `Settlement to ${toName}`,
-            amount,
-            type: TransactionType.EXPENSE,
-            categoryId: lentCategoryId,
-        };
-    }
-    
-    handleSaveTransaction({
-      ...transaction,
-      id: '',
-      date: new Date().toISOString(),
-    });
-  };
-
    const handleSendFeedback = async (message: string): Promise<{ queued: boolean }> => {
     setIsSendingFeedback(true);
     const feedbackItem: FeedbackItem = { id: self.crypto.randomUUID(), message, timestamp: new Date().toISOString() };
@@ -661,12 +624,13 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
     if (restoredItemsByType.recurringTransaction) setRecurringTransactions(prev => [...prev, ...restoredItemsByType.recurringTransaction!]);
     if (restoredItemsByType.account) setAccounts(prev => [...prev, ...restoredItemsByType.account!]);
     if (restoredItemsByType.trip) setTrips(prev => [...prev, ...restoredItemsByType.trip!]);
-    if (restoredItemsByType.tripExpense) setTripExpenses(prev => [...prev, ...restoredItemsByType.tripExpense!]);
+    if (restoredItemsByType.tripExpense) setTripExpenses((prev: TripExpense[]) => [...prev, ...restoredItemsByType.tripExpense!]);
     if (restoredItemsByType.shop) setShops(prev => [...prev, ...restoredItemsByType.shop!]);
     if (restoredItemsByType.shopProduct) setShopProducts(prev => [...prev, ...restoredItemsByType.shopProduct!]);
     if (restoredItemsByType.shopEmployee) setShopEmployees(prev => [...prev, ...restoredItemsByType.shopEmployee!]);
-    if (restoredItemsByType.shopShift) setShopShifts(prev => [...prev, ...restoredItemsByType.shopShift!]);
+    if (restoredItemsByType.shopShift) setShopShifts((prev: ShopShift[]) => [...prev, ...restoredItemsByType.shopShift!]);
     if (restoredItemsByType.note) setNotes(prev => [...prev, ...restoredItemsByType.note!]);
+    if (restoredItemsByType.settlement) dataContext.setSettlements(prev => [...(prev || []), ...restoredItemsByType.settlement!]);
 
     setTrustBin(prev => prev.filter(item => !itemIds.includes(item.id)));
   };
@@ -729,6 +693,9 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
 
   const handleSendCommand = async (command: string, file?: {name: string, type: string, data: string}): Promise<string> => {
       try {
+          if (accounts.length === 0 && command.toLowerCase().includes('add')) {
+              return "I can't add a transaction because you haven't created any accounts yet. Please create an account first.";
+          }
           const geminiFile = file ? { mimeType: file.type, data: file.data } : undefined;
           const parsed = await parseAICommand(command, categories, accounts, geminiFile);
           
@@ -743,9 +710,6 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
           switch (`${parsed.action}-${parsed.itemType}`) {
               case 'create-expense':
               case 'create-income': {
-                  if (accounts.length === 0) {
-                      return "I can't add a transaction because you haven't created any accounts yet. Please create an account first.";
-                  }
                   if (!parsed.amount || !parsed.name) {
                       return "I need a description and amount to create a transaction.";
                   }
@@ -812,340 +776,226 @@ const MainContentMemoized: React.FC<FinanceTrackerProps & { initialText?: string
   };
 
   const handleClaimRefund = (refundId: string) => {
-      const refundToClaim = refunds.find(r => r.id === refundId);
-      if (!refundToClaim) return;
-      
-      const incomeCategory = findOrCreateCategory('Refunds & Rebates', TransactionType.INCOME);
+      const refund = refunds.find(r => r.id === refundId);
+      if(!refund) return;
+
+      const refundCategory = findOrCreateCategory('Refunds & Rebates', TransactionType.INCOME);
       const incomeTx: Transaction = {
           id: self.crypto.randomUUID(),
-          accountId: refundToClaim.accountId,
-          description: refundToClaim.description,
-          amount: refundToClaim.amount,
+          accountId: refund.accountId,
+          description: `Claimed: ${refund.description}`,
+          amount: refund.amount,
           type: TransactionType.INCOME,
-          categoryId: incomeCategory,
+          categoryId: refundCategory,
           date: new Date().toISOString(),
-          notes: `Claimed refund for transaction ID: ${refundToClaim.originalTransactionId || 'N/A'}`
+          notes: `Original refund issued on ${new Date(refund.date).toLocaleDateString()}`
       };
       setTransactions(prev => [incomeTx, ...prev]);
-      
-      setRefunds(prev => prev.map(r => r.id === refundId ? {...r, isClaimed: true, claimedDate: new Date().toISOString() } : r));
+      setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, isClaimed: true, claimedDate: new Date().toISOString() } : r));
   };
   
-  const filteredTransactions = useMemo(() => {
-        let filtered;
+   const handleEditRecurring = (recurringTransaction: RecurringTransaction) => {
+    openModal('editRecurring', { recurringTransaction });
+  };
 
-        // If no accounts are selected, show no transactions.
-        if (selectedAccountIds.length === 0) {
-            filtered = [];
-        } else {
-            filtered = transactions.filter(t => selectedAccountIds.includes(t.accountId));
+
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
+    if (selectedAccountIds.length > 0 && !selectedAccountIds.includes('all')) {
+      result = result.filter(t => selectedAccountIds.includes(t.accountId));
+    }
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter(t => t.description.toLowerCase().includes(lowerQuery));
+    }
+    const now = new Date();
+    switch (dateFilter) {
+      case 'today':
+        result = result.filter(t => new Date(t.date).toDateString() === now.toDateString());
+        break;
+      case 'week':
+        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        result = result.filter(t => new Date(t.date) >= startOfWeek);
+        break;
+      case 'month':
+        result = result.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
+        break;
+      case 'custom':
+        if (customDateRange.start && customDateRange.end) {
+            const start = customDateRange.start;
+            start.setHours(0,0,0,0);
+            const end = customDateRange.end;
+            end.setHours(23,59,59,999);
+            result = result.filter(t => new Date(t.date) >= start && new Date(t.date) <= end);
         }
-        
-        if (searchQuery) {
-            const lowerCaseQuery = searchQuery.toLowerCase();
-            filtered = filtered.filter(t => t.description.toLowerCase().includes(lowerCaseQuery));
-        }
-        const now = new Date();
-        switch (dateFilter) {
-            case 'today':
-                filtered = filtered.filter(t => new Date(t.date).toDateString() === now.toDateString());
-                break;
-            case 'week':
-                const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-                filtered = filtered.filter(t => new Date(t.date) >= startOfWeek);
-                break;
-            case 'month':
-                filtered = filtered.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
-                break;
-            case 'custom':
-                 if (customDateRange.start && customDateRange.end) {
-                    filtered = filtered.filter(t => new Date(t.date) >= customDateRange.start! && new Date(t.date) <= customDateRange.end!);
-                }
-                break;
-        }
-        return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        break;
+    }
+    return result.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, selectedAccountIds, searchQuery, dateFilter, customDateRange]);
 
-    const renderActiveScreen = () => {
-        switch (activeScreen) {
-            case 'dashboard': return <FinanceDisplay isLoading={isLoading} status={status} transactions={filteredTransactions} allTransactions={transactions} accounts={accounts} categories={categories} budgets={budgets} recurringTransactions={recurringTransactions} goals={goals} investmentHoldings={investmentHoldings} onPayRecurring={handlePayRecurring} error={error} onEdit={(t) => openModal('editTransaction', { transaction: t })} onDelete={(id) => handleItemDeletion(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'transaction')} onSettleDebt={handleSettleDebt} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNaturalLanguageSearch={handleNaturalLanguageSearch} dateFilter={dateFilter} setDateFilter={setDateFilter} customDateRange={customDateRange} setCustomDateRange={setCustomDateRange} isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible} dashboardWidgets={settings.dashboardWidgets} mainContentRef={mainContentRef} financialProfile={financialProfile} onOpenFinancialHealth={() => openModal('financialHealth')} selectedAccountIds={selectedAccountIds} onAccountChange={setSelectedAccountIds} onAddAccount={onAddAccount} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} baseCurrency={settings.currency} onAddTransaction={() => onNavigate('dashboard', 'addTransactionMode')} />;
-            case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency} />;
-            case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} onAddBudget={() => {}} />;
-            case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g=>g.id===id)?.name || 'goal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} />;
-            case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}}/>;
-            case 'scheduled': return <ScheduledPaymentsModal onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(r=>r.id===id)?.description || 'item')} />;
-            case 'calculator': return <CalculatorScreen appState={appState} />;
-            case 'calendar': return <CalendarScreen />;
-            case 'notes': return <NotesScreen onEditNote={(note) => openModal('editNote', { note })} onDeleteNote={(id) => handleItemDeletion(id, 'note', notes.find(n => n.id === id)?.title || notes.find(n => n.id === id)?.content.slice(0, 20) || 'note')} onUpdateContent={updateNoteContent} onArchiveNote={archiveNote} onPinNote={pinNote} onChangeNoteColor={changeNoteColor} onMoveTempNoteToTrustBin={moveTempNoteToTrustBin} onCreateTransactionFromNote={handleCreateTransactionFromNote} />;
-            case 'more': return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={(m) => openModal(m)} onResetApp={confirmResetApp} />;
-            case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
-            case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
-            case 'learn': return <LearnScreen onOpenChat={() => openModal('aiChat')} />;
-            case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setActiveScreen('tripDetails'); setTripDetailsId(id); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(t) => openModal('editTrip', {trip: t})} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
-            case 'tripDetails': {
-                const trip = trips.find(t => t.id === tripDetailsId);
-                if (!trip) return <p>Trip not found</p>;
-                return <TripDetailsScreen trip={trip} expenses={tripExpenses.filter(e => e.tripId === trip.id)} onBack={() => setActiveScreen('tripManagement')} onAddExpense={() => openModal('addTripExpense', { trip: trip })} onEditExpense={(exp) => openModal('editTripExpense', { trip, expenseToEdit: exp })} onDeleteExpense={handleDeleteTripExpense} categories={categories} />;
-            }
-            case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => handleItemDeletion(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} />;
-            case 'dataHub': return <DataHubScreen 
-                transactions={transactions} 
-                accounts={accounts} 
-                categories={categories} 
-                goals={goals} 
-                shops={shops}
-                trips={trips}
-                contacts={contacts}
-                onAddTransaction={() => openModal('addTransaction')}
-                onEditTransaction={(t) => openModal('editTransaction', { transaction: t })}
-                onDeleteTransaction={(id) => handleItemDeletion(id, 'transaction', transactions.find(t=>t.id===id)?.description || 'item')}
-                onAddAccount={() => openModal('editAccount')}
-                onEditAccount={(a) => openModal('editAccount', { account: a })}
-                onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'item')}
-                onAddCategory={() => openModal('editCategory')}
-                onEditCategory={(c) => openModal('editCategory', { category: c })}
-                onDeleteCategory={(id) => handleItemDeletion(id, 'category', categories.find(c=>c.id===id)?.name || 'item')}
-                onAddGoal={() => openModal('editGoal')}
-                onEditGoal={(g) => openModal('editGoal', { goal: g })}
-                onDeleteGoal={(id) => handleItemDeletion(id, 'goal', goals.find(g=>g.id===id)?.name || 'item')}
-                onAddShop={() => openModal('editShop')}
-                onEditShop={(s) => openModal('editShop', { shop: s })}
-                onDeleteShop={(id) => handleItemDeletion(id, 'shop', shops.find(s=>s.id===id)?.name || 'item')}
-                onAddTrip={() => openModal('editTrip')}
-                onEditTrip={(t) => openModal('editTrip', {trip: t})}
-                onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'item')}
-                onAddContact={() => openModal('editContact')}
-                onEditContact={(c) => openModal('editContact', {contact: c})}
-                onDeleteContact={(id) => handleItemDeletion(id, 'contact', contacts.find(c=>c.id===id)?.name || 'item')}
-            />;
-            case 'shop': return <ShopScreen shops={shops} products={shopProducts} sales={shopSales} employees={shopEmployees} shifts={shopShifts} onSaveShop={handleSaveShop} onDeleteShop={(id) => handleItemDeletion(id, 'shop', shops.find(s=>s.id===id)?.name || 'shop')} onSaveProduct={handleSaveProduct} onDeleteProduct={(id) => handleItemDeletion(id, 'shopProduct', shopProducts.find(p=>p.id===id)?.name || 'product')} onRecordSale={handleRecordSale} onSaveEmployee={handleSaveEmployee} onDeleteEmployee={(id) => handleItemDeletion(id, 'shopEmployee', shopEmployees.find(e=>e.id===id)?.name || 'employee')} onSaveShift={handleSaveShift} onDeleteShift={(id) => handleItemDeletion(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')} />;
-        }
+  const CurrentScreen = () => {
+    switch(activeScreen) {
+      case 'dashboard': return <FinanceDisplay
+          status={status}
+          transactions={filteredTransactions}
+          allTransactions={transactions}
+          accounts={accounts}
+          categories={categories}
+          budgets={budgets}
+          recurringTransactions={recurringTransactions}
+          goals={goals}
+          investmentHoldings={investmentHoldings}
+          onPayRecurring={handlePayRecurring}
+          error={error}
+          onEdit={(transaction) => openModal('editTransaction', { transaction })}
+          onDelete={(id) => handleItemDeletion(id, 'transaction', transactions.find(t => t.id === id)?.description || 'transaction')}
+          onSettleDebt={handleSettleDebt}
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+          onNaturalLanguageSearch={handleNaturalLanguageSearch}
+          dateFilter={dateFilter} setDateFilter={setDateFilter}
+          customDateRange={customDateRange}
+          setCustomDateRange={setCustomDateRange}
+          isBalanceVisible={isBalanceVisible} setIsBalanceVisible={setIsBalanceVisible}
+          dashboardWidgets={settings.dashboardWidgets}
+          mainContentRef={mainContentRef}
+          financialProfile={financialProfile}
+          onOpenFinancialHealth={() => openModal('financialHealth')}
+          selectedAccountIds={selectedAccountIds}
+          onAccountChange={setSelectedAccountIds}
+          onAddAccount={onAddAccount}
+          onEditAccount={onEditAccount}
+          onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a => a.id === id)?.name || 'account')}
+          baseCurrency={settings.currency}
+          isLoading={isLoading}
+          onAddTransaction={() => openModal('addTransactionMode')}
+        />;
+      case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency}/>;
+      case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} onAddBudget={() => {}} />;
+      case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}} />;
+      case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g => g.id === id)?.name || 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} />;
+      case 'scheduled': return <ScheduledPaymentsModal recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onAdd={() => openModal('editRecurring')} onEdit={handleEditRecurring} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(rt => rt.id === id)?.description || 'payment')} />;
+      case 'calculator': return <CalculatorScreen appState={appState} />;
+      case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
+      case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setTripDetailsId(id); setActiveScreen('tripDetails'); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
+      case 'tripDetails':
+        const selectedTrip = trips.find(t => t.id === tripDetailsId);
+        if (selectedTrip) return <TripDetailsScreen trip={selectedTrip} expenses={tripExpenses.filter(e => e.tripId === tripDetailsId)} categories={categories} onAddExpense={() => openModal('addTripExpense', { trip: selectedTrip })} onEditExpense={(expense) => openModal('addTripExpense', { trip: selectedTrip, expenseToEdit: expense })} onDeleteExpense={handleDeleteTripExpense} onBack={() => { setTripDetailsId(null); setActiveScreen('tripManagement'); }} />;
+        return null;
+      case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => handleItemDeletion(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} />;
+      case 'dataHub': return <DataHubScreen
+          transactions={transactions} accounts={accounts} categories={categories} goals={goals} shops={shops} trips={trips} contacts={contacts}
+          onAddTransaction={() => openModal('addTransaction')} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} onDeleteTransaction={(id) => handleItemDeletion(id, 'transaction', transactions.find(i=>i.id===id)?.description || 'item')}
+          onAddAccount={() => openModal('editAccount')} onEditAccount={(a) => openModal('editAccount', { account: a })} onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(i=>i.id===id)?.name || 'item')}
+          onAddCategory={() => openModal('editCategory')} onEditCategory={(c) => openModal('editCategory', { category: c })} onDeleteCategory={(id) => handleItemDeletion(id, 'category', categories.find(i=>i.id===id)?.name || 'item')}
+          onAddGoal={() => openModal('editGoal')} onEditGoal={(g) => openModal('editGoal', { goal: g })} onDeleteGoal={(id) => handleItemDeletion(id, 'goal', goals.find(i=>i.id===id)?.name || 'item')}
+          onAddShop={() => openModal('editShop')} onEditShop={(s) => openModal('editShop', { shop: s })} onDeleteShop={(id) => handleItemDeletion(id, 'shop', shops.find(i=>i.id===id)?.name || 'item')}
+          onAddTrip={() => openModal('editTrip')} onEditTrip={(t) => openModal('editTrip', { trip: t })} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(i=>i.id===id)?.name || 'item')}
+          onAddContact={() => openModal('editContact')} onEditContact={(c) => openModal('editContact', { contact: c })} onDeleteContact={(id) => handleItemDeletion(id, 'contact', contacts.find(i=>i.id===id)?.name || 'item')}
+      />;
+      case 'shop': return <ShopScreen 
+          shops={shops} products={shopProducts} sales={shopSales} employees={shopEmployees} shifts={shopShifts}
+          onSaveShop={handleSaveShop} onDeleteShop={(id) => handleItemDeletion(id, 'shop', shops.find(s=>s.id===id)?.name || 'shop')}
+          onSaveProduct={handleSaveProduct} onDeleteProduct={(id) => handleItemDeletion(id, 'shopProduct', shopProducts.find(p=>p.id===id)?.name || 'product')}
+          onRecordSale={handleRecordSale} 
+          onSaveEmployee={handleSaveEmployee} onDeleteEmployee={(id) => handleItemDeletion(id, 'shopEmployee', shopEmployees.find(e=>e.id===id)?.name || 'employee')}
+          onSaveShift={handleSaveShift} onDeleteShift={(id) => handleItemDeletion(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')}
+      />;
+      case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
+      case 'learn': return <LearnScreen onOpenChat={() => openModal('aiChat')} />;
+      case 'calendar': return <CalendarScreen onNavigate={onNavigate} setActiveScreen={setActiveScreen} setTripDetailsId={setTripDetailsId} />;
+      case 'notes': return <NotesScreen onEditNote={(note) => openModal('editNote', { note })} onDeleteNote={(id) => handleItemDeletion(id, 'note', notes.find(n=>n.id===id)?.title || 'note')} onUpdateContent={updateNoteContent} onArchiveNote={archiveNote} onPinNote={pinNote} onChangeNoteColor={changeNoteColor} onMoveTempNoteToTrustBin={moveTempNoteToTrustBin} onCreateTransactionFromNote={handleCreateTransactionFromNote} />;
+      case 'more': return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={openModal} onResetApp={confirmResetApp} />;
+      default: return <div>Screen not found</div>;
     }
-    
-    return (
-        <>
-            {renderActiveScreen()}
+  }
 
-            {resetConfirmation && ReactDOM.createPortal(
-                <ConfirmationDialog
-                    isOpen={resetConfirmation}
-                    title="Reset Application?"
-                    message="This will permanently delete all your data, including accounts, transactions, and settings. This action cannot be undone."
-                    onConfirm={() => { handleResetApp(); setResetConfirmation(false); }}
-                    onCancel={() => setResetConfirmation(false)}
-                    confirmLabel="Reset"
-                />,
-                modalRoot
-            )}
-            
-            {undoAction && ReactDOM.createPortal(
-                <UndoToast
-                    message={undoAction.message}
-                    onUndo={() => {
-                        undoAction.onUndo();
-                        setUndoAction(null);
-                    }}
-                    onDismiss={() => setUndoAction(null)}
-                />,
-                document.body
-            )}
+  const ModalPortal = ({ children }: { children: React.ReactNode }) => ReactDOM.createPortal(children, modalRoot);
 
-            {toastQueue.length > 0 && ReactDOM.createPortal(
-                <AchievementToast 
-                    achievement={ALL_ACHIEVEMENTS.find(a => a.id === toastQueue[0])!}
-                    onDismiss={() => setToastQueue(q => q.slice(1))}
-                />,
-                document.body
-            )}
+  return (
+    <>
+      <CurrentScreen />
+      
+      {undoAction && (
+          <UndoToast 
+            message={undoAction.message}
+            onUndo={undoAction.onUndo}
+            onDismiss={() => setUndoAction(null)}
+          />
+      )}
+      
+      <ConfirmationDialog 
+        isOpen={resetConfirmation}
+        title="Reset Application"
+        message="Are you sure you want to delete ALL of your data? This action cannot be undone."
+        onConfirm={handleResetApp}
+        onCancel={() => setResetConfirmation(false)}
+        confirmLabel="Delete All Data"
+      />
 
-            {showOnboardingGuide && ReactDOM.createPortal(
-                <OnboardingGuide onFinish={() => setShowOnboardingGuide(false)} />,
-                modalRoot
-            )}
-            
-            {spamWarning && (
-                <SpamWarningCard warning={spamWarning} onApprove={handleSpamApproval} onDiscard={() => setSpamWarning(null)} />
-            )}
+      {toastQueue.map((achievementId, index) => {
+        const achievement = ALL_ACHIEVEMENTS.find(a => a.id === achievementId);
+        if (!achievement) return null;
+        return (
+          <AchievementToast
+            key={`${achievementId}-${index}`}
+            achievement={achievement}
+            onDismiss={() => setToastQueue(q => q.filter(id => id !== achievementId))}
+          />
+        )
+      })}
 
-            {(() => {
-                if (!activeModal) return null;
+      {activeModal && (
+        <ModalPortal>
+          {(() => {
+            switch(activeModal.name) {
+              case 'transfer': return <TransferModal onClose={closeActiveModal} accounts={accounts} onTransfer={handleAccountTransfer} />;
+              case 'addTransaction': return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={handleAddTransaction} onSaveManual={handleSaveTransaction} isDisabled={selectedAccountIds.length === 0} initialText={initialText} onInitialTextConsumed={onSharedTextConsumed} {...activeModal.props} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={handleOpenCalculator} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} />;
+              case 'editTransaction': return <EditTransactionModal transaction={activeModal.props?.transaction} initialData={activeModal.props?.initialData} onSave={handleSaveTransaction} onCancel={closeActiveModal} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={handleOpenCalculator} />;
+              case 'accountSelector': return <AccountSelectorModal onClose={closeActiveModal} />;
+              case 'appSettings': return <AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={(state) => { console.log("Restoring", state); }} />;
+              case 'categories': return <CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddTopLevelCategory={() => openModal('editCategory')} onAddSubcategory={(parent) => openModal('editCategory', { initialParentId: parent.id, initialType: parent.type })} onEditCategory={(category) => openModal('editCategory', { category })} onDeleteCategory={(id) => handleItemDeletion(id, 'category', categories.find(c=>c.id===id)?.name || 'category')} />;
+              case 'editCategory': return <EditCategoryModal onCancel={closeActiveModal} onSave={handleSaveCategory} {...activeModal.props} categories={categories} />;
+              case 'payees': return <PayeesModal onClose={closeActiveModal} payees={payees} setPayees={setPayees} categories={categories} onDelete={(id) => handleItemDeletion(id, 'payee', payees.find(p=>p.id===id)?.name || 'payee')} />;
+              case 'importExport': return <ImportExportModal onClose={closeActiveModal} appState={appState} />;
+              case 'senderManager': return <SenderManagerModal onClose={closeActiveModal} onDelete={(id) => handleItemDeletion(id, 'sender', senders.find(s=>s.id===id)?.name || 'sender')} />;
+              case 'contacts': return <ContactsManagerModal onClose={closeActiveModal} onAddGroup={() => openModal('editContactGroup')} onEditGroup={(group) => openModal('editContactGroup', { group })} onDeleteGroup={(id) => handleItemDeletion(id, 'contactGroup', contactGroups.find(g=>g.id===id)?.name || 'group')} onAddContact={(group) => openModal('editContact', { initialGroupId: group.id })} onEditContact={(contact) => openModal('editContact', { contact })} onDeleteContact={(id) => handleItemDeletion(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} />;
+              case 'feedback': return <FeedbackModal onClose={closeActiveModal} onSend={handleSendFeedback} isSending={isSendingFeedback} />;
+              case 'dashboardSettings': return <DashboardSettingsModal onClose={closeActiveModal} />;
+              case 'notificationSettings': return <NotificationSettingsModal onClose={closeActiveModal} budgets={budgets} categories={categories} />;
+              case 'addTripExpense': return <AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={items => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(expense) => handleUpdateTripExpense(activeModal.props?.trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} findOrCreateCategory={findOrCreateCategory} onSaveContact={handleSaveContact} />;
+              case 'refund': return <RefundModal onClose={closeActiveModal} onSave={handleSaveRefund} {...activeModal.props} refunds={refunds} allTransactions={transactions} accounts={accounts} contacts={contacts} />;
+              case 'trustBin': return <TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />;
+              case 'editAccount': return <EditAccountModal account={activeModal.props?.account} onClose={closeActiveModal} onSave={(account) => {
+                  setAccounts(prev => prev.map(a => a.id === account.id ? account : a));
+              }} />;
+              case 'miniCalculator': return <MiniCalculatorModal onClose={closeActiveModal} onResult={activeModal.props?.onResult} />;
+              case 'editTrip': return <EditTripModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
+              case 'editContact': return <EditContactModal contact={activeModal.props?.contact} initialGroupId={activeModal.props?.initialGroupId} onClose={closeActiveModal} onSave={handleSaveContact} />;
+              case 'editContactGroup': return <EditContactGroupModal group={activeModal.props?.group} onClose={closeActiveModal} onSave={handleSaveContactGroup} />;
+              case 'globalTripSummary': return <GlobalTripSummaryModal allExpenses={tripExpenses} trips={trips} settlements={settlements} onClose={closeActiveModal} onSettle={handleRecordSettlement} />;
+              case 'notifications': return <NotificationsModal onClose={closeActiveModal} notifications={[]} />;
+              case 'editGoal': return <EditGoalModal goal={activeModal.props?.goal} onClose={closeActiveModal} onSave={handleSaveGoal} />;
+              case 'manageTools': return <ManageToolsModal onClose={closeActiveModal} />;
+              case 'financialHealth': return <FinancialHealthModal onClose={closeActiveModal} appState={appState} onSaveProfile={setFinancialProfile} onSaveBudget={handleSaveBudget} />;
+              case 'aiCommandCenter': return <AICommandModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} />;
+              case 'accountsManager': return <AccountsManagerModal onClose={closeActiveModal} accounts={accounts} onAddAccount={onAddAccount} onEditAccount={onEditAccount} onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')} />;
+              case 'globalSearch': return <GlobalSearchModal onClose={closeActiveModal} onNavigate={onNavigate} />;
+              case 'editNote': return <EditNoteModal note={activeModal.props?.note} onCancel={closeActiveModal} onSave={handleSaveNote} />;
+              case 'editRecurring': return <EditRecurringModal recurringTransaction={activeModal.props?.recurringTransaction} onClose={closeActiveModal} onSave={handleSaveRecurring} categories={categories} accounts={accounts} />;
+              case 'buyInvestment': return <BuyInvestmentModal onClose={closeActiveModal} accounts={accounts} onSave={handleBuyInvestment} />;
+              case 'addTransactionMode': return <AddTransactionModeModal onClose={closeActiveModal} onSelectMode={(mode) => openModal('addTransaction', { initialTab: mode })} />;
+              case 'aiChat': return <AIChatModal onClose={closeActiveModal} appState={appState} />;
+              case 'shareGuide': return <ShareGuideModal onClose={closeActiveModal} />;
+              case 'integrations': return <IntegrationsModal onClose={closeActiveModal} />;
+              default: return null;
+            }
+          })()}
+        </ModalPortal>
+      )}
 
-                const modalProps = activeModal.props || {};
+      {spamWarning && <SpamWarningCard warning={spamWarning} onApprove={handleSpamApproval} onDiscard={() => setSpamWarning(null)} />}
+    </>
+  )
+};
 
-                switch (activeModal.name) {
-                    case 'addTransactionMode':
-                        return ReactDOM.createPortal(
-                            <AddTransactionModeModal
-                                onClose={closeActiveModal}
-                                onSelectMode={(mode) => {
-                                    closeActiveModal();
-                                    openModal('addTransaction', { initialTab: mode });
-                                }}
-                            />,
-                            modalRoot
-                        );
-                    case 'addTransaction':
-                        return ReactDOM.createPortal(
-                            <AddTransactionModal
-                                onCancel={closeActiveModal}
-                                onSaveAuto={handleAddTransaction}
-                                onSaveManual={handleSaveTransaction}
-                                isDisabled={selectedAccountIds.length === 0 && accounts.length > 0}
-                                initialText={text}
-                                accounts={accounts}
-                                contacts={contacts}
-                                openModal={openModal}
-                                onOpenCalculator={handleOpenCalculator}
-                                selectedAccountId={selectedAccountIds[0]}
-                                {...modalProps}
-                            />,
-                            modalRoot
-                        );
-                    case 'editTransaction':
-                        return ReactDOM.createPortal(
-                            <EditTransactionModal
-                                onSave={handleSaveTransaction}
-                                onCancel={closeActiveModal}
-                                accounts={accounts}
-                                contacts={contacts}
-                                openModal={openModal}
-                                onOpenCalculator={handleOpenCalculator}
-                                {...modalProps}
-                            />,
-                            modalRoot
-                        );
-                    case 'transfer':
-                        return ReactDOM.createPortal(<TransferModal accounts={accounts} onTransfer={handleAccountTransfer} onClose={closeActiveModal} />, modalRoot);
-                    case 'appSettings':
-                        return ReactDOM.createPortal(<AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={(state) => { console.log("Restore not fully implemented in UI", state); }} />, modalRoot);
-                    case 'categories':
-                        return ReactDOM.createPortal(
-                            <CategoryManagerModal 
-                                onClose={closeActiveModal} 
-                                categories={categories} 
-                                onAddTopLevelCategory={() => openModal('editCategory')}
-                                onAddSubcategory={(parent) => openModal('editCategory', { initialParentId: parent.id, initialType: parent.type })}
-                                onEditCategory={(cat) => openModal('editCategory', { category: cat })} 
-                                onDeleteCategory={(id) => handleItemDeletion(id, 'category', categories.find(c => c.id === id)?.name || 'category')} 
-                            />, 
-                            modalRoot
-                        );
-                    case 'editCategory':
-                        return ReactDOM.createPortal(<EditCategoryModal onSave={handleSaveCategory} onCancel={closeActiveModal} categories={categories} {...modalProps} />, modalRoot);
-                    case 'payees':
-                        return ReactDOM.createPortal(<PayeesModal onClose={closeActiveModal} payees={payees} setPayees={setPayees} categories={categories} onDelete={(id) => handleItemDeletion(id, 'payee', payees.find(p=>p.id===id)?.name || 'payee')} />, modalRoot);
-                    case 'importExport':
-                        return ReactDOM.createPortal(<ImportExportModal onClose={closeActiveModal} appState={appState} />, modalRoot);
-                    case 'senderManager':
-                        return ReactDOM.createPortal(<SenderManagerModal onClose={closeActiveModal} onDelete={(id) => handleItemDeletion(id, 'sender', senders.find(s=>s.id===id)?.name || 'sender')} />, modalRoot);
-                    case 'contacts':
-                        return ReactDOM.createPortal(
-                            <ContactsManagerModal 
-                                onClose={closeActiveModal} 
-                                onAddGroup={() => openModal('editContactGroup')}
-                                onEditGroup={(group) => openModal('editContactGroup', { group })}
-                                onDeleteGroup={(id) => handleItemDeletion(id, 'contactGroup', contactGroups.find(g=>g.id===id)?.name || 'group')}
-                                onAddContact={(group) => openModal('editContact', { initialGroupId: group.id })}
-                                onEditContact={(contact) => openModal('editContact', { contact })}
-                                onDeleteContact={(id) => handleItemDeletion(id, 'contact', contacts.find(c=>c.id===id)?.name || 'contact')} 
-                            />, 
-                            modalRoot
-                        );
-                    case 'feedback':
-                        return ReactDOM.createPortal(<FeedbackModal onClose={closeActiveModal} onSend={handleSendFeedback} isSending={isSendingFeedback} />, modalRoot);
-                    case 'dashboardSettings':
-                        return ReactDOM.createPortal(<DashboardSettingsModal onClose={closeActiveModal} />, modalRoot);
-                    case 'notificationSettings':
-                        return ReactDOM.createPortal(<NotificationSettingsModal onClose={closeActiveModal} budgets={budgets} categories={categories} />, modalRoot);
-                    case 'addTripExpense': {
-                        const { trip } = modalProps;
-                        return ReactDOM.createPortal(<AddTripExpenseModal onClose={closeActiveModal} onSave={items => handleAddTripExpense(trip.id, items)} onUpdate={expense => handleUpdateTripExpense(trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} onSaveContact={handleSaveContact} findOrCreateCategory={findOrCreateCategory} trip={trip} />, modalRoot);
-                    }
-                    case 'editTripExpense': {
-                         const { trip, expenseToEdit } = modalProps;
-                         return ReactDOM.createPortal(<AddTripExpenseModal onClose={closeActiveModal} onSave={() => {}} onUpdate={expense => handleUpdateTripExpense(trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} onSaveContact={handleSaveContact} findOrCreateCategory={findOrCreateCategory} trip={trip} expenseToEdit={expenseToEdit} />, modalRoot);
-                    }
-                    case 'refund':
-                        return ReactDOM.createPortal(<RefundModal allTransactions={transactions} accounts={accounts} contacts={contacts} refunds={refunds} onClose={closeActiveModal} onSave={handleSaveRefund} {...modalProps} />, modalRoot);
-                    case 'trustBin':
-                        return ReactDOM.createPortal(<TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />, modalRoot);
-                    case 'editAccount':
-                         return ReactDOM.createPortal(<EditAccountModal account={modalProps.account} onClose={closeActiveModal} onSave={(acc) => setAccounts(prev => prev.map(a => a.id === acc.id ? acc : a))} />, modalRoot);
-                    case 'editTrip':
-                        return ReactDOM.createPortal(<EditTripModal onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onOpenContactsManager={() => openModal('contacts')} {...modalProps} />, modalRoot);
-                    case 'editContact':
-                        return ReactDOM.createPortal(<EditContactModal onClose={closeActiveModal} onSave={handleSaveContact} {...modalProps} />, modalRoot);
-                    case 'editContactGroup':
-                        return ReactDOM.createPortal(<EditContactGroupModal onClose={closeActiveModal} onSave={handleSaveContactGroup} {...modalProps} />, modalRoot);
-                    case 'globalTripSummary':
-                        return ReactDOM.createPortal(<GlobalTripSummaryModal trips={trips} allExpenses={tripExpenses} onClose={closeActiveModal} onSettle={handleSettleGlobalDebt} />, modalRoot);
-                    case 'miniCalculator':
-                        return ReactDOM.createPortal(<MiniCalculatorModal onClose={closeActiveModal} onResult={modalProps.onResult} />, modalRoot);
-                    case 'notifications':
-                        return ReactDOM.createPortal(<NotificationsModal onClose={closeActiveModal} notifications={[]} />, modalRoot); // Dummy data for now
-                    case 'editGoal':
-                        return ReactDOM.createPortal(<EditGoalModal onClose={closeActiveModal} onSave={handleSaveGoal} {...modalProps} />, modalRoot);
-                    case 'editNote':
-                        return ReactDOM.createPortal(<EditNoteModal onSave={handleSaveNote} onCancel={closeActiveModal} {...modalProps} />, modalRoot);
-                    case 'manageTools':
-                        return ReactDOM.createPortal(<ManageToolsModal onClose={closeActiveModal} />, modalRoot);
-                    case 'financialHealth':
-                        return ReactDOM.createPortal(<FinancialHealthModal onClose={closeActiveModal} appState={appState} onSaveProfile={setFinancialProfile} onSaveBudget={handleSaveBudget} />, modalRoot);
-                    case 'footerSettings':
-                        return ReactDOM.createPortal(<FooterSettingsModal onClose={closeActiveModal} />, modalRoot);
-                    case 'aiCommandCenter':
-                        return ReactDOM.createPortal(<AICommandModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} />, modalRoot);
-                    case 'aiChat':
-                        return ReactDOM.createPortal(<AIChatModal onClose={closeActiveModal} appState={appState} />, modalRoot);
-                    case 'accountsManager':
-                        return ReactDOM.createPortal(
-                            <AccountsManagerModal
-                                onClose={closeActiveModal}
-                                accounts={accounts}
-                                onAddAccount={onAddAccount}
-                                onEditAccount={(a) => openModal('editAccount', { account: a })}
-                                onDeleteAccount={(id) => handleItemDeletion(id, 'account', accounts.find(a=>a.id===id)?.name || 'account')}
-                            />,
-                            modalRoot
-                        );
-                    case 'accountSelector':
-                        return ReactDOM.createPortal(<AccountSelectorModal onClose={closeActiveModal} />, modalRoot);
-                    case 'globalSearch':
-                        return ReactDOM.createPortal(
-                            <GlobalSearchModal
-                                onClose={closeActiveModal}
-                                onNavigate={onNavigate}
-                            />,
-                            modalRoot
-                        );
-                    case 'editRecurring':
-                         return ReactDOM.createPortal(
-                            <EditRecurringModal 
-                                onClose={closeActiveModal}
-                                onSave={handleSaveRecurring}
-                                categories={categories}
-                                accounts={accounts}
-                                {...modalProps}
-                            />,
-                            modalRoot
-                         );
-                     case 'buyInvestment':
-                        return ReactDOM.createPortal(
-                            <BuyInvestmentModal
-                                onClose={closeActiveModal}
-                                onSave={handleBuyInvestment}
-                                accounts={accounts}
-                                {...modalProps}
-                            />,
-                            modalRoot
-                        )
-                    case 'shareGuide':
-                        return ReactDOM.createPortal(<ShareGuideModal onClose={closeActiveModal} />, modalRoot);
-                    default:
-                        return null;
-                }
-            })()}
-        </>
-    );
-}
 export const MainContent = React.memo(MainContentMemoized);

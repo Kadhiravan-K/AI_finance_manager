@@ -97,8 +97,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
               accumulatedPercentage += category.percentage;
 
               return (
-                <g key={category.id}>
-                  <title>{`${category.name}: ${formatCurrency(category.amount)} (${category.percentage.toFixed(1)}%)`}</title>
+                <g key={category.id} className="chart-tooltip-wrapper">
                   <circle
                     cx="50" cy="50" r="40"
                     stroke={COLORS[i % COLORS.length]}
@@ -108,6 +107,11 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
                     strokeDashoffset={-offset}
                     className="transition-all duration-300 ease-out"
                   />
+                   <foreignObject x="0" y="0" width="100" height="100">
+                     <div className="chart-tooltip" style={{ transform: `translateX(-50%) translateY(-100%) rotate(90deg) translate(50px, 50px)` }}>
+                       {`${category.name}: ${formatCurrency(category.amount)} (${category.percentage.toFixed(1)}%)`}
+                     </div>
+                   </foreignObject>
                 </g>
               );
             })}

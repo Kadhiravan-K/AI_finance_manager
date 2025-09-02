@@ -26,12 +26,17 @@ const NOTE_COLORS: Record<string, { bg: string, border: string }> = {
   grey: { bg: 'rgba(100, 116, 139, 0.2)', border: 'rgba(100, 116, 139, 0.4)'},
 };
 
-const MarkdownToolbar: React.FC<{ onAction: (action: 'bold' | 'italic' | 'strikethrough' | 'ul' | 'ol' | 'checklist' | 'image') => void }> = ({ onAction }) => {
+const MarkdownToolbar: React.FC<{ onAction: (action: 'bold' | 'italic' | 'strikethrough' | 'ul' | 'ol' | 'checklist' | 'image' | 'h1' | 'h2' | 'h3' | 'blockquote' | 'code') => void }> = ({ onAction }) => {
     return (
         <div className="markdown-toolbar">
             <button type="button" onClick={() => onAction('bold')} title="Bold"><b>B</b></button>
             <button type="button" onClick={() => onAction('italic')} title="Italic"><i>I</i></button>
             <button type="button" onClick={() => onAction('strikethrough')} title="Strikethrough"><del>S</del></button>
+            <button type="button" onClick={() => onAction('h1')} title="Heading 1">H1</button>
+            <button type="button" onClick={() => onAction('h2')} title="Heading 2">H2</button>
+            <button type="button" onClick={() => onAction('h3')} title="Heading 3">H3</button>
+            <button type="button" onClick={() => onAction('blockquote')} title="Blockquote">”</button>
+            <button type="button" onClick={() => onAction('code')} title="Code">{"<>"}</button>
             <button type="button" onClick={() => onAction('ul')} title="Unordered List">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
             </button>
@@ -128,7 +133,7 @@ const EditNoteModal: React.FC<EditNoteModalProps> = ({ note, onSave, onCancel })
       setIsAnalyzing(false);
   };
 
-  const handleToolbarAction = (action: 'bold' | 'italic' | 'strikethrough' | 'ul' | 'ol' | 'checklist' | 'image') => {
+  const handleToolbarAction = (action: 'bold' | 'italic' | 'strikethrough' | 'ul' | 'ol' | 'checklist' | 'image' | 'h1' | 'h2' | 'h3' | 'blockquote' | 'code') => {
     if (action === 'image') {
         fileInputRef.current?.click();
         return;
@@ -140,34 +145,26 @@ const EditNoteModal: React.FC<EditNoteModalProps> = ({ note, onSave, onCancel })
     const end = textarea.selectionEnd;
     const selectedText = content.substring(start, end);
     let newText = '';
+    let prefix = '';
+    let suffix = '';
     let cursorPosition = start;
 
     switch (action) {
-      case 'bold':
-        newText = `**${selectedText}**`;
-        cursorPosition = start + 2;
-        break;
-      case 'italic':
-        newText = `*${selectedText}*`;
-        cursorPosition = start + 1;
-        break;
-      case 'strikethrough':
-        newText = `~~${selectedText}~~`;
-        cursorPosition = start + 2;
-        break;
-      case 'ul':
-        newText = `\n- ${selectedText}`;
-        cursorPosition = start + 3;
-        break;
-      case 'ol':
-        newText = `\n1. ${selectedText}`;
-        cursorPosition = start + 4;
-        break;
-      case 'checklist':
-        newText = `\n[ ] ${selectedText}`;
-        cursorPosition = start + 5;
-        break;
+      case 'bold': prefix = '**'; suffix = '**'; break;
+      case 'italic': prefix = '*'; suffix = '*'; break;
+      case 'strikethrough': prefix = '~~'; suffix = '~~'; break;
+      case 'h1': prefix = '\n# '; break;
+      case 'h2': prefix = '\n## '; break;
+      case 'h3': prefix = '\n### '; break;
+      case 'blockquote': prefix = '\n> '; break;
+      case 'code': prefix = '`'; suffix = '`'; break;
+      case 'ul': prefix = '\n- '; break;
+      case 'ol': prefix = '\n1. '; break;
+      case 'checklist': prefix = '\n[ ] '; break;
     }
+
+    newText = prefix + selectedText + suffix;
+    cursorPosition = start + prefix.length;
 
     const updatedContent = content.substring(0, start) + newText + content.substring(end);
     setContent(updatedContent);
@@ -235,8 +232,8 @@ const EditNoteModal: React.FC<EditNoteModalProps> = ({ note, onSave, onCancel })
 
           <div className="flex-shrink-0 p-3 border-t border-divider bg-subtle/50 space-y-3">
              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                    <button type="button" onClick={handleSummarize} disabled={isSummarizing} title="Summarize with AI" className="button-secondary p-2 rounded-full h-10 w-10 flex items-center justify-center">
+                <div className="flex items-center gap-2">
+                    <button type="button" onClick={handleSummarize} disabled={isSummarizing || !content.trim()} title="Summarize with AI" className="button-secondary p-2 rounded-full h-10 w-10 flex items-center justify-center">
                         {isSummarizing ? <LoadingSpinner /> : '✨'}
                     </button>
                     {image && (

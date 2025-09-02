@@ -1,3 +1,4 @@
+
 export enum ProcessingStatus {
   IDLE,
   LOADING,
@@ -249,8 +250,6 @@ export type ToggleableTool =
   'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 
   'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'notes';
 
-export type HeaderAction = 'transfer' | 'search' | 'aiCommandCenter' | 'notifications';
-
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
     theme: Theme;
@@ -259,6 +258,10 @@ export interface Settings {
     trustBinDeletionPeriod: TrustBinDeletionPeriod;
     enabledTools: Record<ToggleableTool, boolean>;
     footerActions: ActiveScreen[];
+    googleCalendar?: {
+        connected: boolean;
+        calendarId?: string;
+    };
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -281,7 +284,7 @@ export interface UnlockedAchievement {
     date: string; // ISO string
 }
 
-export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'refund' | 'note';
+export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'refund' | 'note' | 'settlement';
 
 export interface TrustBinItem {
   id: string; // unique id for the bin entry
@@ -356,10 +359,21 @@ export interface ShopShift {
     endTime: string; // "HH:MM"
 }
 
+// New: For tracking settlements between people
+export interface Settlement {
+  id: string;
+  timestamp: string;
+  fromContactId: string; // The person who paid
+  toContactId: string;   // The person who received
+  amount: number;
+  currency: string;
+  notes?: string;
+}
+
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'notes';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'footerSettings' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | 'editNote' | 'editRecurring' | 'buyInvestment' | 'addTransactionMode' | 'aiChat' | 'accountSelector' | 'shareGuide' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | 'editNote' | 'editRecurring' | 'buyInvestment' | 'addTransactionMode' | 'aiChat' | 'accountSelector' | 'shareGuide' | 'integrations' | null;
 
 export interface ModalState {
     name: ActiveModal;
@@ -374,25 +388,10 @@ export interface FinanceTrackerProps {
   isOnline: boolean;
   mainContentRef?: React.RefObject<HTMLElement>;
   onSelectionChange?: (selectedIds: string[]) => void;
-  showOnboardingGuide: boolean;
-  setShowOnboardingGuide: (show: boolean) => void;
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;
   isLoading: boolean;
-}
-
-export interface AllDataScreenProps {
-  transactions: Transaction[];
-  accounts: Account[];
-  categories: Category[];
-  goals: Goal[];
-  onEditTransaction: (transaction: Transaction) => void;
-  onDeleteTransaction: (id: string) => void;
-  onEditAccount: (account: Account) => void;
-  onDeleteAccount: (id: string) => void;
-  onEditCategory: (category: Category) => void;
-  onDeleteCategory: (id: string) => void;
-  onEditGoal: (goal: Goal) => void;
-  onDeleteGoal: (id: string) => void;
+  initialText?: string | null;
+  onSharedTextConsumed: () => void;
 }
 
 export interface FinancialProfile {
@@ -455,6 +454,7 @@ export interface AppState {
     financialProfile: FinancialProfile;
     refunds?: Refund[];
     notes?: Note[];
+    settlements?: Settlement[];
     // Shop Data
     shops?: Shop[];
     shopProducts?: ShopProduct[];

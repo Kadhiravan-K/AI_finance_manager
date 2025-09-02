@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { ActiveModal, ActiveScreen, AppState } from '../types';
@@ -30,7 +31,7 @@ const ALL_NAVIGABLE_ITEMS: { name: string; screen: ActiveScreen; modal?: ActiveM
     { name: 'Calendar', screen: 'calendar', icon: '🗓️', keywords: 'schedule events bills' },
     { name: 'Notes', screen: 'notes', icon: '📝', keywords: 'shopping list tasks ideas' },
     { name: 'Customize Dashboard', screen: 'more', modal: 'dashboardSettings', icon: '🎨', keywords: 'widgets layout' },
-    // Fix: Removed deprecated 'fabSettings' modal which is no longer a valid ActiveModal type.
+    // Fix: Removed item for deprecated 'footerSettings' modal.
     { name: 'Notification Settings', screen: 'more', modal: 'notificationSettings', icon: '🔔', keywords: 'alerts reminders' },
     { name: 'Manage Categories', screen: 'more', modal: 'categories', icon: '🏷️' },
     { name: 'Manage Accounts', screen: 'more', modal: 'accountsManager', icon: '🏦' },

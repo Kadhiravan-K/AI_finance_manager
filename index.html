@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
       :root {
-        /* --- DARK THEME (VIBRANT TEAL) --- */
+        /* --- DARK THEME (VIBRANT GREEN) --- */
         /* Base Colors */
         --color-bg-primary: #0f172a; /* Slate 900 */
         --color-bg-app: #1e293b; /* Slate 800 */
@@ -22,7 +22,7 @@
         --color-text-tertiary: #64748b; /* Slate 500 */
         
         /* Accents */
-        --color-accent-emerald: #14b8a6; /* Teal 500 - More vibrant */
+        --color-accent-emerald: #10b981; /* Emerald 500 */
         --color-accent-rose: #f43f5e; /* Rose 500 */
         --color-accent-yellow: #eab308; /* Yellow 500 */
         --color-accent-sky: #38bdf8; /* Sky 400 */
@@ -45,17 +45,17 @@
         /* Shadows */
         --shadow-color-main: rgba(0, 0, 0, 0.35);
         --shadow-color-main-light: rgba(0, 0, 0, 0.25);
-        --shadow-color-accent: rgba(20, 184, 166, 0.4); /* Adjusted for new emerald/teal */
+        --shadow-color-accent: rgba(16, 185, 129, 0.4); /* Adjusted for new emerald */
         --shadow-color-rose: rgba(244, 63, 94, 0.2);
         
         /* Aurora Colors */
-        --aurora-1: #14b8a6;
+        --aurora-1: #10b981;
         --aurora-2: #8b5cf6;
         --aurora-3: #38bdf8;
       }
       
       html.light {
-        /* --- LIGHT THEME (VIBRANT TEAL) --- */
+        /* --- LIGHT THEME (VIBRANT GREEN) --- */
         /* Base Colors */
         --color-bg-primary: #e2e8f0; /* Slate 200 */
         --color-bg-app: #f8fafc; /* Slate 50 */
@@ -64,7 +64,7 @@
         --color-text-tertiary: #94a3b8; /* Slate 400 */
         
         /* Accents */
-        --color-accent-emerald: #0d9488; /* Teal 600 */
+        --color-accent-emerald: #059669; /* Emerald 600 */
         --color-accent-rose: #e11d48; /* Rose 600 */
         --color-accent-yellow: #f59e0b; /* Amber 500 */
         --color-accent-sky: #0ea5e9; /* Sky 500 */
@@ -87,7 +87,7 @@
         /* Shadows */
         --shadow-color-main: rgba(45, 55, 72, 0.1);
         --shadow-color-main-light: rgba(45, 55, 72, 0.05);
-        --shadow-color-accent: rgba(13, 148, 136, 0.35); /* Adjusted for new emerald/teal */
+        --shadow-color-accent: rgba(5, 150, 105, 0.35); /* Adjusted for new emerald */
         --shadow-color-rose: rgba(225, 29, 72, 0.2);
       }
       
@@ -291,33 +291,29 @@
         box-shadow: 0 0 0 2px var(--shadow-color-accent);
       }
 
-      /* Global 3D Button Styles */
+      /* Simplified Button Styles */
       .button-primary,
       .button-secondary {
         border-radius: 9999px;
-        transition: all 0.15s ease-out;
-        transform: translateY(0);
-        box-shadow: 0 3px 0 var(--shadow-color-main-light), 0 5px 10px var(--shadow-color-main);
+        transition: all 0.2s ease-out;
+        box-shadow: 0 4px 14px var(--shadow-color-main-light);
         border: 1px solid var(--color-border-divider);
-        position: relative;
-        top: 0;
       }
       .button-primary:hover:not(:disabled),
       .button-secondary:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 5px 0 var(--shadow-color-main-light), 0 7px 14px var(--shadow-color-main);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px var(--shadow-color-main);
       }
       .button-primary:active:not(:disabled),
       .button-secondary:active:not(:disabled) {
-        transform: translateY(1px);
-        box-shadow: 0 1px 0 var(--shadow-color-main-light), 0 2px 4px var(--shadow-color-main);
-        top: 1px;
+        transform: translateY(0px);
+        box-shadow: 0 2px 8px var(--shadow-color-main-light);
+        filter: brightness(0.95);
       }
        .button-primary:disabled,
        .button-secondary:disabled {
           cursor: not-allowed;
           box-shadow: none;
-          top: 1px;
           opacity: 0.6;
        }
 
@@ -326,17 +322,14 @@
         color: var(--color-bg-primary);
         font-weight: 600;
         border-color: transparent;
-        box-shadow: 0 6px 25px var(--shadow-color-accent);
+        box-shadow: 0 6px 20px -5px var(--shadow-color-accent);
       }
       .button-primary:hover:not(:disabled) {
         filter: brightness(1.1);
-        box-shadow: 0 8px 30px var(--shadow-color-accent);
-        transform: translateY(-2px);
+        box-shadow: 0 8px 25px -5px var(--shadow-color-accent);
       }
        .button-primary:active:not(:disabled) {
-        transform: translateY(1px);
         box-shadow: 0 2px 8px var(--shadow-color-accent);
-        top: 1px;
       }
       .button-primary:disabled {
         background-color: var(--color-bg-button-secondary);
@@ -344,7 +337,6 @@
         filter: none;
         border-color: var(--color-border-input);
         box-shadow: none;
-        top: 1px;
       }
 
       .button-secondary {
@@ -400,94 +392,6 @@
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
       }
-
-      @keyframes fab-pulse {
-        0% { box-shadow: 0 8px 25px var(--shadow-color-accent); transform: scale(1); }
-        50% { box-shadow: 0 12px 40px var(--shadow-color-accent); transform: scale(1.08); }
-        100% { box-shadow: 0 8px 25px var(--shadow-color-accent); transform: scale(1); }
-      }
-      /* Interactive FAB */
-      .interactive-fab-container {
-        position: absolute;
-        bottom: 38px; /* Perfectly centered overlap */
-        left: 50%;
-        transform: translateX(-50%);
-        width: 64px;
-        height: 64px;
-        z-index: 50;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      .interactive-fab {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        background: var(--color-accent-emerald);
-        color: white;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        box-shadow: 0 8px 25px var(--shadow-color-accent);
-        cursor: pointer;
-        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-        position: relative;
-        animation: fab-pulse 2.5s infinite ease-in-out;
-      }
-      .interactive-fab:hover {
-        transform: scale(1.1);
-        box-shadow: 0 10px 30px var(--shadow-color-accent);
-        animation-play-state: paused;
-      }
-      .interactive-fab-container.open .interactive-fab {
-        transform: rotate(45deg);
-        animation: none;
-      }
-      .fab-action {
-        position: absolute;
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: var(--color-bg-button-secondary);
-        color: var(--color-text-primary);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        box-shadow: 0 4px 12px var(--shadow-color-main);
-        cursor: pointer;
-        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
-        transform: scale(0.5);
-        opacity: 0;
-        pointer-events: none;
-      }
-      .fab-action svg {
-        width: 24px;
-        height: 24px;
-      }
-      .interactive-fab-container.open .fab-action {
-        transform: scale(1);
-        opacity: 1;
-        pointer-events: auto;
-      }
-      .interactive-fab-container.open .fab-action-top { transform: translateY(-72px) scale(1); }
-      .interactive-fab-container.open .fab-action-left { transform: translateX(-72px) scale(1); }
-      .interactive-fab-container.open .fab-action-right { transform: translateX(72px) scale(1); }
-      .interactive-fab-container.open .fab-action-bottom { transform: translateY(72px) scale(1); }
-
-      .fab-backdrop {
-        position: fixed;
-        inset: 0;
-        background-color: rgba(0,0,0,0.4);
-        backdrop-filter: blur(2px);
-        z-index: 49;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s ease;
-      }
-      .fab-backdrop.open {
-        opacity: 1;
-        pointer-events: auto;
-      }
       
       /* Footer Nav */
       .footer-nav {
@@ -497,7 +401,7 @@
         right: 0;
         height: 68px;
         display: grid;
-        grid-template-columns: 1fr 1fr 100px 1fr 1fr;
+        grid-template-columns: 1fr 1fr auto 1fr 1fr;
         align-items: center;
         background-color: var(--color-bg-header);
         border-top: 1px solid var(--color-border-divider);
@@ -530,6 +434,27 @@
       .footer-button:active {
         transform: scale(0.95);
       }
+
+      /* New Central Add Button in Footer */
+      .footer-add-button {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: var(--color-accent-emerald);
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 8px 25px var(--shadow-color-accent);
+        cursor: pointer;
+        transform: translateY(-20px);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+      }
+      .footer-add-button:hover {
+        transform: translateY(-20px) scale(1.1);
+        box-shadow: 0 10px 30px var(--shadow-color-accent);
+      }
+
 
       /* Base input styles */
       .input-base {
@@ -792,6 +717,24 @@
         width: 1.125rem;
         height: 1.125rem;
       }
+      
+      .note-content-wrapper {
+        position: relative;
+        max-height: 250px; /* or any height */
+        overflow: hidden;
+      }
+
+      .note-content-wrapper.truncated::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50px;
+        background: linear-gradient(to bottom, transparent, var(--color-bg-card));
+        pointer-events: none;
+      }
+
 
       /* Itemization toggle fix for light mode */
       html.light .itemization-toggle-switch:not(.bg-emerald-500) {

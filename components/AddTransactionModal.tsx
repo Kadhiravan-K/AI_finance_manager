@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import EditTransactionModal from './EditTransactionModal';
@@ -18,6 +19,7 @@ interface AddTransactionModalProps {
     }) => void;
     isDisabled: boolean;
     initialText?: string | null;
+    onInitialTextConsumed?: () => void;
     initialTab?: 'auto' | 'manual';
     accounts: Account[];
     contacts: Contact[];
@@ -32,6 +34,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     onSaveManual,
     isDisabled,
     initialText,
+    onInitialTextConsumed,
     initialTab,
     accounts,
     contacts,
@@ -39,7 +42,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     onOpenCalculator,
     selectedAccountId,
 }) => {
-    const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialTab || (initialText ? 'auto' : 'manual'));
+    const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialTab || 'auto');
     const [text, setText] = useState(initialText || '');
     const [isLoading, setIsLoading] = useState(false);
     const [autoSelectedAccountId, setAutoSelectedAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
@@ -50,8 +53,11 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         if (initialText) {
             setText(initialText);
             setActiveTab('auto');
+            if (onInitialTextConsumed) {
+                onInitialTextConsumed();
+            }
         }
-    }, [initialText]);
+    }, [initialText, onInitialTextConsumed]);
     
     useEffect(() => {
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

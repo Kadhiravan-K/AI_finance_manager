@@ -7,10 +7,11 @@ interface TimeSeriesBarChartProps {
   transactions: Transaction[];
   period: ReportPeriod;
   type: TransactionType;
+  currency?: string;
 }
 
-const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transactions, period, type }) => {
-  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0 });
+const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transactions, period, type, currency }) => {
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
 
   const chartData = useMemo(() => {
     const dataMap: Record<string, number> = {};

@@ -213,7 +213,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             percentage: '0'
         }));
         setPayers([youParticipant]);
-        setSplitters(allParticipants);
+        setSplitters([youParticipant, ...allParticipants.filter(p => p.id !== USER_SELF_ID)]);
     }
     // Explicitly set payer mode to manual as per user request
     setPayerMode('manual');

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { InvestmentHolding, Account, AccountType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import EmptyState from './EmptyState';
+import ModalHeader from './ModalHeader';
+import CustomSelect from './CustomSelect';
 
 interface InvestmentsScreenProps {
   accounts: Account[];
@@ -40,6 +42,8 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
       onUpdateValue(selectedHolding.id, parseFloat(formData.currentValue));
       resetForm();
   }
+  
+  const accountOptions = depositoryAccounts.map(a => ({ value: a.id, label: a.name }));
 
   const renderList = () => (
     <div className="h-full flex flex-col">
@@ -82,7 +86,7 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
               </div>
               <div className="flex justify-end gap-2 mt-2">
                 <button onClick={() => { setSelectedHolding(h); setView('update'); setFormData(f => ({...f, currentValue: h.currentValue.toString()}))}} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Update Value</button>
-                <button onClick={() => { setSelectedHolding(h); setView('sell'); setFormData(f => ({...f, quantity: h.quantity, linkedAccountId: depositoryAccounts[0]?.id}))}} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Sell</button>
+                <button onClick={() => { setSelectedHolding(h); setView('sell'); setFormData(f => ({...f, quantity: h.quantity, linkedAccountId: depositoryAccounts[0]?.id || ''}))}} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Sell</button>
               </div>
             </div>
           )
@@ -94,6 +98,32 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
     </div>
   );
   
+  if (view === 'sell' && selectedHolding) {
+    return (
+        <div className="h-full flex flex-col">
+            <ModalHeader title={`Sell ${selectedHolding.name}`} onBack={resetForm} onClose={resetForm} />
+            <form onSubmit={handleSellSubmit} className="p-6 space-y-4">
+                <input type="number" step="any" value={formData.quantity} onChange={e => setFormData(f => ({...f, quantity: parseFloat(e.target.value) || 0}))} className="input-base w-full p-2" max={selectedHolding.quantity}/>
+                <input type="number" step="0.01" value={formData.price} onChange={e => setFormData(f => ({...f, price: e.target.value}))} placeholder="Price per unit" className="input-base w-full p-2" required />
+                <CustomSelect value={formData.linkedAccountId} onChange={v => setFormData(f => ({...f, linkedAccountId: v}))} options={accountOptions} />
+                <div className="flex justify-end gap-3"><button type="submit" className="button-primary">Confirm Sale</button></div>
+            </form>
+        </div>
+    );
+  }
+  
+  if (view === 'update' && selectedHolding) {
+      return (
+          <div className="h-full flex flex-col">
+              <ModalHeader title={`Update ${selectedHolding.name}`} onBack={resetForm} onClose={resetForm} />
+              <form onSubmit={handleUpdateSubmit} className="p-6 space-y-4">
+                  <input type="number" step="0.01" value={formData.currentValue} onChange={e => setFormData(f => ({...f, currentValue: e.target.value}))} placeholder="New Total Value" className="input-base w-full p-2" required />
+                  <div className="flex justify-end gap-3"><button type="submit" className="button-primary">Update Value</button></div>
+              </form>
+          </div>
+      );
+  }
+
   return renderList();
 };
 

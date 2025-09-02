@@ -26,6 +26,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
             <div>
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Views & Tools</h3>
                  <div className="management-grid">
+                    <button onClick={() => handleNav('transfer')} className="management-tool-button"><span className="icon text-3xl">↔️</span><span className="text-xs">Transfer Funds</span></button>
                     <button onClick={() => handleScreenNav('investments')} className="management-tool-button"><span className="icon text-3xl">💹</span><span className="text-xs">Investments</span></button>
                     <button onClick={() => handleScreenNav('goals')} className="management-tool-button"><span className="icon text-3xl">🏆</span><span className="text-xs">Goals</span></button>
                     <button onClick={() => handleScreenNav('scheduled')} className="management-tool-button"><span className="icon text-3xl">📅</span><span className="text-xs">Scheduled</span></button>
@@ -49,12 +50,13 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
             <div>
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Settings & Management</h3>
                 <div className="space-y-3">
+                     <button onClick={() => handleNav('integrations')} className="settings-management-button"><span>Integrations</span><span>🔗</span></button>
                      <button onClick={() => handleNav('accountsManager')} className="settings-management-button"><span>Manage Accounts</span><span>🏦</span></button>
                      <button onClick={() => handleNav('manageTools')} className="settings-management-button"><span>Manage Tools</span><span>🛠️</span></button>
                      <button onClick={() => handleNav('categories')} className="settings-management-button"><span>Manage Categories</span><span>🏷️</span></button>
                      <button onClick={() => handleNav('contacts')} className="settings-management-button"><span>Manage Contacts</span><span>👥</span></button>
                      <button onClick={() => handleNav('dashboardSettings')} className="settings-management-button"><span>Customize Dashboard</span><span>🎨</span></button>
-                     <button onClick={() => handleNav('footerSettings')} className="settings-management-button"><span>Customize Footer Nav</span><span>⚓</span></button>
+                     {/* Fix: Removed button for deprecated 'footerSettings' modal. */}
                      <button onClick={() => handleNav('notificationSettings')} className="settings-management-button"><span>Notification Settings</span><span>🔔</span></button>
                 </div>
             </div>

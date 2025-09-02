@@ -91,9 +91,11 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
                   <div className="space-y-2 p-3 bg-subtle rounded-lg">
                     {settlementSummary.length > 0 ? settlementSummary.map((s, i) => (
                       <div key={i} className="flex items-center justify-center text-center text-sm">
-                        <span className="font-semibold text-primary">{s.from}</span>
+                        {/* Fix: Use fromName and toName properties from SettlementSuggestion type. */}
+                        <span className="font-semibold text-primary">{s.fromName}</span>
                         <span className="mx-2 text-secondary">&rarr;</span>
-                        <span className="font-semibold text-primary">{s.to}</span>
+                        {/* Fix: Use fromName and toName properties from SettlementSuggestion type. */}
+                        <span className="font-semibold text-primary">{s.toName}</span>
                         <span className="ml-2 font-mono text-emerald-400">{formatCurrency(s.amount)}</span>
                       </div>
                     )) : <p className="text-center text-sm text-secondary">All settled up!</p>}

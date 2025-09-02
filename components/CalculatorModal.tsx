@@ -1,5 +1,3 @@
-
-
 import React, { useState, useContext } from 'react';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { AppState } from '../types';
@@ -18,7 +16,6 @@ const inputBaseClasses = "w-full input-base p-2 rounded-lg no-spinner text-right
 const labelBaseClasses = "block text-sm font-medium text-secondary mb-1";
 const resultCardBaseClasses = "p-4 bg-subtle rounded-lg space-y-2 text-center";
 
-// Fix: Add appState prop to BasicCalculator
 interface BasicCalculatorProps {
   appState: AppState;
 }
@@ -71,7 +68,6 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
         }
     };
     
-    // Fix: Use appState from props
     const handleAiCalculate = async () => {
         if (!aiQuery.trim()) return;
         setIsAiLoading(true);
@@ -107,7 +103,6 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
             <div className="p-3 bg-subtle rounded-lg space-y-2">
                 <div className="relative">
                     <input type="text" value={aiQuery} onChange={e => setAiQuery(e.target.value)} placeholder="Ask AI: 'food spending last month'" className="w-full input-base p-2 rounded-full pr-10" />
-                    {/* Fix: Call handleAiCalculate without arguments */}
                     <button onClick={handleAiCalculate} disabled={isAiLoading} className="absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-full bg-violet-500 text-white">
                         {isAiLoading ? <LoadingSpinner/> : '✨'}
                     </button>
@@ -139,21 +134,19 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
                 <CalcButton onClick={() => handleButtonClick('2')}>2</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('3')}>3</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('+')} className="calc-btn-operator">+</CalcButton>
-                <CalcButton onClick={() => handleButtonClick('0')} className="col-span-2">0</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('0')}>0</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('.')}>.</CalcButton>
-                <CalcButton onClick={() => handleButtonClick('=')} className="calc-btn-operator">=</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('=')} className="calc-btn-operator col-span-2">=</CalcButton>
             </div>
         </div>
     );
   };
   
-// Fix: Add appState prop to CurrencyCalculator
 interface CurrencyCalculatorProps {
   appState: AppState;
 }
 
 const CurrencyCalculator: React.FC<CurrencyCalculatorProps> = ({ appState }) => {
-    // Fix: Destructure settings from appState prop
     const { settings } = appState;
     const [fromAmount, setFromAmount] = useState('1');
     const [fromCurrency, setFromCurrency] = useState(settings.currency);

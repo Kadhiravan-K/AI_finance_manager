@@ -5,6 +5,7 @@ import { SettingsContext } from '../contexts/SettingsContext';
 interface FooterProps {
   activeScreen: ActiveScreen;
   setActiveScreen: (screen: ActiveScreen) => void;
+  onAddClick: () => void;
 }
 
 const NAV_ITEM_DEFINITIONS: Record<ActiveScreen, { label: string, icon: React.ReactNode }> = {
@@ -83,7 +84,7 @@ const NAV_ITEM_DEFINITIONS: Record<ActiveScreen, { label: string, icon: React.Re
 };
 
 
-const Footer: React.FC<FooterProps> = ({ activeScreen, setActiveScreen }) => {
+const Footer: React.FC<FooterProps> = ({ activeScreen, setActiveScreen, onAddClick }) => {
   const { settings } = useContext(SettingsContext);
   const footerActions = settings.footerActions || ['dashboard', 'reports', 'budgets', 'more'];
 
@@ -94,14 +95,20 @@ const Footer: React.FC<FooterProps> = ({ activeScreen, setActiveScreen }) => {
   }));
 
   return (
-    <footer className="footer-nav">
+    <footer className="footer-nav z-20">
       {navItems.slice(0, 2).map(item => (
         <button key={item.screen} onClick={() => setActiveScreen(item.screen)} className={`footer-button ${activeScreen === item.screen ? 'active' : ''}`}>
           {item.icon}
           <span className="label">{item.label}</span>
         </button>
       ))}
-      <div className="footer-nav-placeholder"></div>
+      <div className="flex justify-center">
+        <button onClick={onAddClick} className="footer-add-button" aria-label="Add Transaction">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
       {navItems.slice(2).map(item => (
         <button key={item.screen} onClick={() => setActiveScreen(item.screen)} className={`footer-button ${activeScreen === item.screen ? 'active' : ''}`}>
           {item.icon}

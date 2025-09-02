@@ -7,10 +7,11 @@ interface TimeSeriesLineChartProps {
   transactions: Transaction[];
   period: ReportPeriod;
   type: TransactionType;
+  currency?: string;
 }
 
-const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transactions, period, type }) => {
-  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transactions, period, type, currency }) => {
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
 
   const chartData = useMemo(() => {
     const dataMap: Record<string, number> = {};
@@ -95,19 +96,14 @@ const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transa
                     <g key={index} className="chart-tooltip-wrapper">
                         <circle cx={coord.x} cy={coord.y} r="8" fill="transparent" />
                         <circle cx={coord.x} cy={coord.y} r="4" fill={color} />
-                        <text className="chart-tooltip" x={coord.x} y={coord.y - 10} textAnchor="middle">{formatCurrency(points[index])}</text>
+                        <foreignObject x={coord.x - 50} y={coord.y - 40} width="100" height="30">
+                          <div className="chart-tooltip" style={{left: '50%', bottom: '100%', transform: 'translateX(-50%)'}}>
+                            {formatCurrency(points[index])}
+                          </div>
+                        </foreignObject>
                     </g>
                 ))}
-                <style>{`
-                  @keyframes dash { to { stroke-dashoffset: 0; } }
-                  .chart-tooltip-wrapper text {
-                    opacity: 0;
-                    transition: opacity 0.2s ease;
-                  }
-                   .chart-tooltip-wrapper:hover text {
-                    opacity: 1;
-                  }
-                `}</style>
+                <style>{`@keyframes dash { to { stroke-dashoffset: 0; } }`}</style>
             </svg>
         ) : (
             <p className="w-full h-full flex items-center justify-center text-center text-secondary">No trend data for this period.</p>

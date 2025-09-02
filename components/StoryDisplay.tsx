@@ -184,6 +184,47 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
 
 const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, ...rest }) => {
     
+    const DashboardCard = React.memo(({ title, amount, isVisible, color, currency }: {title: string, amount: number, isVisible: boolean, color: 'emerald' | 'rose' | 'primary', currency: string}) => {
+        const formatCurrency = useCurrencyFormatter({ notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 }, currency);
+        const colorClass = {
+            emerald: 'text-emerald-400',
+            rose: 'text-rose-400',
+            primary: 'text-primary'
+        }[color];
+        return (
+            <div className="glass-card p-4 rounded-2xl flex-grow transition-all flex flex-col justify-between h-28">
+                <div>
+                    <div className="flex items-center text-base text-secondary">
+                        <span>{title}</span>
+                    </div>
+                </div>
+                <p className={`text-3xl lg:text-4xl font-bold mt-1 self-end ${colorClass}`}>{isVisible ? formatCurrency(amount) : '••••'}</p>
+            </div>
+        );
+    });
+
+    const CashFlowBar = ({ currency, summary }: { currency: string, summary: { income: number, expense: number } }) => {
+        const formatCompact = useCurrencyFormatter({ notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 }, currency);
+        const total = summary.income + summary.expense;
+        const incomePercent = total > 0 ? (summary.income / total) * 100 : 0;
+        const expensePercent = total > 0 ? (summary.expense / total) * 100 : 0;
+        const formattedIncome = formatCompact(summary.income);
+        const formattedExpense = formatCompact(summary.expense);
+        return (
+            <div className="mt-4 px-1">
+                <h4 className="text-sm font-semibold text-secondary mb-2">Cash Flow</h4>
+                <div className="w-full flex h-3 rounded-full overflow-hidden bg-subtle border border-divider">
+                    <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${incomePercent}%` }} title={`Income: ${formattedIncome}`}></div>
+                    <div className="bg-rose-500 transition-all duration-500" style={{ width: `${expensePercent}%` }} title={`Expense: ${formattedExpense}`}></div>
+                </div>
+                <div className="flex justify-between text-xs mt-1">
+                    <span className="text-emerald-400">Income: {formattedIncome}</span>
+                    <span className="text-rose-400">Expense: {formattedExpense}</span>
+                </div>
+            </div>
+        );
+    };
+
     const currencySummaries = useMemo(() => {
         // 1. Determine active currencies from selected accounts.
         const activeCurrencies = new Set<string>();
@@ -247,23 +288,6 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
         return Object.entries(summaries).sort(([currA], [currB]) => currA.localeCompare(currB));
     }, [allTransactions, accounts, rest.selectedAccountIds, rest.dateFilter, rest.customDateRange]);
 
-    const DashboardCard = React.memo(({ title, amount, isVisible, color, currency }: {title: string, amount: number, isVisible: boolean, color: 'emerald' | 'rose' | 'primary', currency: string}) => {
-        const formatCurrency = useCurrencyFormatter(undefined, currency);
-        const colorClass = {
-            emerald: 'text-emerald-400',
-            rose: 'text-rose-400',
-            primary: 'text-primary'
-        }[color];
-        return (
-            <div className="glass-card p-4 rounded-2xl flex-grow transition-all">
-                <div className="flex items-center text-base text-secondary">
-                    <span>{title}</span>
-                </div>
-                <p className={`text-4xl font-bold truncate mt-2 ${colorClass}`}>{isVisible ? formatCurrency(amount) : '••••'}</p>
-            </div>
-        );
-    });
-
     const Dashboard = ({ income, expense, isVisible, currency }: { income: number, expense: number, isVisible: boolean, currency: string }) => {
         const balance = income - expense;
 
@@ -304,6 +328,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
             <div key={currency} className="mb-4">
                 <h3 className="text-lg font-semibold text-secondary mb-2 px-1">{currency} Summary</h3>
                 <Dashboard currency={currency} income={summary.income} expense={summary.expense} isVisible={isBalanceVisible} />
+                <CashFlowBar currency={currency} summary={summary} />
             </div>
         ));
     }, [currencySummaries, isBalanceVisible, visibleWidgets]);

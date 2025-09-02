@@ -7,6 +7,7 @@ import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
 import CustomCheckbox from './CustomCheckbox';
+import NumberStepper from './NumberStepper';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -354,39 +355,19 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     } : i));
   };
   
-  const handleSplitDetailChange = (itemId: string, personId: string, field: 'percentage' | 'shares' | 'amount', value: string) => {
+  const handleSplitDetailChange = (itemId: string, personId: string, field: 'percentage' | 'shares' | 'amount', value: number | string) => {
      const item = items.find(i => i.id === itemId);
      if(!item) return;
 
      let newDetails = item.splitDetails.map(p => p.id === personId ? {...p, [field]: value} : p);
      
      if (item.splitMode === 'manual') {
-         newDetails = newDetails.map(p => p.id === personId ? {...p, amount: parseFloat(value) || 0} : p);
+         newDetails = newDetails.map(p => p.id === personId ? {...p, amount: Number(value) || 0} : p);
      }
      
      const totalAmount = parseFloat(item.amount) || 0;
      setItems(prev => prev.map(i => i.id === itemId ? {...i, splitDetails: calculateSplits(newDetails, totalAmount, i.splitMode) } : i));
   };
-
-  const handleShareChange = (itemId: string, personId: string, delta: number) => {
-     const item = items.find(i => i.id === itemId);
-     if(!item) return;
-     const person = item.splitDetails.find(p => p.id === personId);
-     if (!person) return;
-     const currentShares = parseFloat(person.shares || '1') || 1;
-     const newShares = Math.max(0.5, currentShares + delta); // Set a minimum share
-     handleSplitDetailChange(itemId, personId, 'shares', String(newShares));
-  };
-   const handlePercentageChange = (itemId: string, personId: string, delta: number) => {
-     const item = items.find(i => i.id === itemId);
-     if(!item) return;
-     const person = item.splitDetails.find(p => p.id === personId);
-     if (!person) return;
-     const currentPercentage = parseFloat(person.percentage || '0') || 0;
-     const newPercentage = Math.max(0, currentPercentage + delta);
-     handleSplitDetailChange(itemId, personId, 'percentage', String(newPercentage));
-  };
-
 
   const isPayeeSaved = useMemo(() => {
     if (!formData.payeeIdentifier) return true;
@@ -425,23 +406,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                     <div key={p.id} className="flex items-center gap-2 p-1.5 bg-subtle rounded-lg">
                         <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span>
                         
-                        {item.splitMode === 'percentage' && (
-                            <div className="flex items-center gap-1">
-                                <button type="button" onClick={() => handlePercentageChange(item.id, p.id, -5)} className="control-button control-button-minus">-</button>
-                                <div className="relative w-16">
-                                    <input type="text" inputMode="decimal" value={p.percentage || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'percentage', e.target.value)} className="w-full text-center bg-transparent no-spinner px-1 text-primary" />
-                                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-tertiary text-xs">%</span>
-                                </div>
-                                <button type="button" onClick={() => handlePercentageChange(item.id, p.id, 5)} className="control-button control-button-plus">+</button>
-                            </div>
-                        )}
-                        {item.splitMode === 'shares' && (
-                             <div className="flex items-center gap-1">
-                                <button type="button" onClick={() => handleShareChange(item.id, p.id, -0.5)} className="control-button control-button-minus">-</button>
-                                <input type="text" inputMode="decimal" value={p.shares || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'shares', e.target.value)} className="w-12 text-center bg-transparent no-spinner text-primary" />
-                                <button type="button" onClick={() => handleShareChange(item.id, p.id, 0.5)} className="control-button control-button-plus">+</button>
-                            </div>
-                        )}
+                        {item.splitMode === 'percentage' && <NumberStepper value={parseFloat(p.percentage || '0') || 0} onChange={val => handleSplitDetailChange(item.id, p.id, 'percentage', val)} step={5} min={0} />}
+                        {item.splitMode === 'shares' && <NumberStepper value={parseFloat(p.shares || '1') || 1} onChange={val => handleSplitDetailChange(item.id, p.id, 'shares', val)} step={0.5} min={0.5} />}
 
                         {item.splitMode === 'manual' ?
                             <input type="text" inputMode="decimal" value={p.amount || ''} onWheel={(e) => (e.target as HTMLElement).blur()} onChange={e => handleSplitDetailChange(item.id, p.id, 'amount', e.target.value)} placeholder={formatCurrency(0)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />

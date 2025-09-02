@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
 import { Note } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -37,6 +37,15 @@ const NoteCard: React.FC<{
     onCreateTransaction: () => void;
 }> = ({ note, onEdit, onDelete, onUpdateContent, onArchive, onPin, onChangeColor, onCreateTransaction }) => {
     
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [isTruncated, setIsTruncated] = useState(false);
+    
+    useEffect(() => {
+        if (contentRef.current) {
+            setIsTruncated(contentRef.current.scrollHeight > contentRef.current.clientHeight);
+        }
+    }, [note.content]);
+
     const handleCheckboxToggle = (lineIndex: number, checked: boolean) => {
         const lines = note.content.split('\n');
         const line = lines[lineIndex];
@@ -49,7 +58,7 @@ const NoteCard: React.FC<{
     const hasBillableItems = useMemo(() => /\[x\]/.test(note.content), [note.content]);
 
     const renderContent = () => {
-        return note.content.split('\n').slice(0, 15).map((line, index) => { // show max 15 lines on card
+        return note.content.split('\n').map((line, index) => {
             const isChecked = line.trim().startsWith('[x]');
             const isCheckbox = line.trim().startsWith('[ ]') || isChecked;
 
@@ -82,7 +91,9 @@ const NoteCard: React.FC<{
         >
             {note.image && <img src={`data:${note.image.mimeType};base64,${note.image.data}`} alt="note attachment" className="note-image-thumbnail" />}
             {note.title && <h3 className="font-bold text-primary mb-2">{note.title}</h3>}
-            <div className="text-sm space-y-2">{renderContent()}</div>
+            <div ref={contentRef} className={`text-sm space-y-2 note-content-wrapper ${isTruncated ? 'truncated' : ''}`}>
+                {renderContent()}
+            </div>
             <div className="flex items-end justify-between mt-3 pt-2 border-t" style={{ borderColor: 'rgba(127,127,127,0.2)'}}>
                 <div className="flex gap-1 flex-wrap">
                     {note.tags.map((tag, i) => <span key={i} className="text-xs bg-subtle px-2 py-0.5 rounded-full">{tag}</span>)}
@@ -187,8 +198,12 @@ const NotesScreen: React.FC<NotesScreenProps> = ({ onEditNote, onDeleteNote, onU
 
     return (
         <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-divider flex-shrink-0">
+            <div className="p-4 border-b border-divider flex-shrink-0 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-primary text-center">Notes 📝</h2>
+                 <button onClick={() => onEditNote()} className="button-primary px-3 py-1.5 text-sm rounded-full flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    New Note
+                </button>
             </div>
             <div className="flex border-b border-divider flex-shrink-0">
                 <TabButton active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>Notes</TabButton>

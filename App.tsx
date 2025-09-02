@@ -1,6 +1,5 @@
 
-
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useState, useContext, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
 import { MainContent } from './components/StoryGenerator';
@@ -12,7 +11,6 @@ import PrivacyConsentModal from './components/PrivacyConsentModal';
 import OnboardingModal from './components/OnboardingModal';
 import Footer from './components/Footer';
 import SideDrawerMenu from './components/HeaderMenuModal';
-import InteractiveFab from './components/InteractiveFab';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -22,7 +20,6 @@ const AppContent: React.FC = () => {
   const isOnline = useOnlineStatus();
   const [hasConsented, setHasConsented] = useLocalStorage('finance-tracker-consent', false);
   const [onboardingComplete, setOnboardingComplete] = useLocalStorage('finance-tracker-onboarding-complete', false);
-  const [showOnboardingGuide, setShowOnboardingGuide] = useLocalStorage('finance-tracker-show-guide', true);
   const [sharedText, setSharedText] = useState<string | null>(null);
   const { settings } = useContext(SettingsContext);
   const dataContext = useContext(AppDataContext);
@@ -40,8 +37,12 @@ const AppContent: React.FC = () => {
   }
 
   const activeModal = modalStack[modalStack.length - 1] || null;
-  const openModal = (name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]);
-  const closeActiveModal = () => setModalStack(prev => prev.slice(0, -1));
+  const openModal = useCallback((name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]), []);
+  const closeActiveModal = useCallback(() => setModalStack(prev => prev.slice(0, -1)), []);
+
+  const onSharedTextConsumed = useCallback(() => {
+    setSharedText(null);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -62,7 +63,7 @@ const AppContent: React.FC = () => {
     };
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, []);
+  }, [openModal]);
   
   const handleConsent = () => {
     setHasConsented(true);
@@ -80,18 +81,6 @@ const AppContent: React.FC = () => {
       return <OnboardingModal onFinish={handleOnboardingFinish} />;
   }
   
-  const handleNavigation = (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => {
-      if (modal === 'addTransaction') {
-        openModal('addTransactionMode');
-        return;
-      }
-      if (screen) setActiveScreen(screen);
-      if (modal) openModal(modal, modalProps);
-      if(activeModal?.name === 'aiCommandCenter') {
-        closeActiveModal();
-      }
-  }
-
   return (
     <>
       <div className="aurora-container">
@@ -112,6 +101,7 @@ const AppContent: React.FC = () => {
               onOpenMenu={() => openModal('headerMenu')}
               onOpenAccounts={() => openModal('accountSelector')}
               onOpenSearch={() => openModal('globalSearch')}
+              onOpenAI={() => openModal('aiChat')}
             />
           </div>
           <main ref={mainContentRef} className="flex-grow overflow-y-auto pb-20 animate-fadeInUp" style={{animationDelay: '200ms'}}>
@@ -123,15 +113,20 @@ const AppContent: React.FC = () => {
               isOnline={isOnline}
               mainContentRef={mainContentRef}
               initialText={sharedText}
-              showOnboardingGuide={showOnboardingGuide}
-              setShowOnboardingGuide={setShowOnboardingGuide}
-              onNavigate={handleNavigation}
+              onSharedTextConsumed={onSharedTextConsumed}
+              onNavigate={(screen, modal, modalProps) => {
+                  if (screen) setActiveScreen(screen);
+                  if (modal) openModal(modal, modalProps);
+              }}
               isLoading={isLoading}
             />
           </main>
-          <Footer activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
+          <Footer 
+            activeScreen={activeScreen} 
+            setActiveScreen={setActiveScreen} 
+            onAddClick={() => openModal('addTransactionMode')}
+          />
           {ReactDOM.createPortal(<SideDrawerMenu isOpen={activeModal?.name === 'headerMenu'} onClose={closeActiveModal} setActiveScreen={setActiveScreen} setActiveModal={openModal} />, modalRoot)}
-          <InteractiveFab onNavigate={handleNavigation} />
         </div>
       </div>
     </>
