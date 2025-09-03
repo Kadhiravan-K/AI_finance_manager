@@ -50,48 +50,58 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
       const finalResult = parseFloat(result || expression);
       if (!isNaN(finalResult)) {
           onResult(finalResult);
+          onClose();
       }
+  };
+  
+  const handleButtonClick = (btn: string) => {
+    switch (btn) {
+        case 'C': handleClear(); break;
+        case 'DEL': handleDelete(); break;
+        case '=': handleCalculate(); break;
+        case '%': handleInput('/100*'); break;
+        default: handleInput(btn);
+    }
   };
 
   const CalcButton = ({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) => (
-    <button onClick={onClick} className={`calc-btn ${className}`} style={{ padding: '0.75rem' }}>{children}</button>
+    <button onClick={onClick} className={`calc-btn ${className}`}>{children}</button>
   );
-
-  const buttons = ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','+'];
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[55] p-4" onClick={onClose}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-[280px] p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-[280px] p-0 border border-divider animate-scaleIn flex flex-col" onClick={e => e.stopPropagation()}>
         <ModalHeader title="Calculator" onClose={onClose} />
         <div className="p-4 space-y-3">
             <div className="calculator-result text-right p-2 space-y-1">
-            <div className="text-secondary text-sm h-5 truncate" aria-live="polite">{expression || '0'}</div>
-            <div className="text-primary text-2xl font-bold h-8 truncate" aria-live="polite">{result}</div>
+                <div className="text-secondary text-sm h-5 truncate" aria-live="polite">{expression || '0'}</div>
+                <div className="text-primary text-2xl font-bold h-8 truncate" aria-live="polite">{result}</div>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-                <CalcButton onClick={handleClear} className="calc-btn-special col-span-2">C</CalcButton>
-                <CalcButton onClick={handleDelete} className="calc-btn-special">DEL</CalcButton>
-                <CalcButton onClick={() => handleInput('/')} className="calc-btn-operator">/</CalcButton>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-                <CalcButton onClick={() => handleInput('7')}>7</CalcButton>
-                <CalcButton onClick={() => handleInput('8')}>8</CalcButton>
-                <CalcButton onClick={() => handleInput('9')}>9</CalcButton>
-                <CalcButton onClick={() => handleInput('*')} className="calc-btn-operator">*</CalcButton>
+            <div className="grid grid-cols-4 gap-1.5">
+                <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('DEL')} className="calc-btn-special">DEL</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('%')} className="calc-btn-operator">%</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('/')} className="calc-btn-operator">÷</CalcButton>
 
-                <CalcButton onClick={() => handleInput('4')}>4</CalcButton>
-                <CalcButton onClick={() => handleInput('5')}>5</CalcButton>
-                <CalcButton onClick={() => handleInput('6')}>6</CalcButton>
-                <CalcButton onClick={() => handleInput('-')} className="calc-btn-operator">-</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('7')}>7</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('8')}>8</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('9')}>9</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('*')} className="calc-btn-operator">×</CalcButton>
 
-                <CalcButton onClick={() => handleInput('1')}>1</CalcButton>
-                <CalcButton onClick={() => handleInput('2')}>2</CalcButton>
-                <CalcButton onClick={() => handleInput('3')}>3</CalcButton>
-                <CalcButton onClick={() => handleInput('+')} className="calc-btn-operator">+</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('4')}>4</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('5')}>5</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('6')}>6</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('-')} className="calc-btn-operator">-</CalcButton>
+
+                <CalcButton onClick={() => handleButtonClick('1')}>1</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('2')}>2</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('3')}>3</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('+')} className="calc-btn-operator">+</CalcButton>
                 
-                <CalcButton onClick={() => handleInput('0')} className="col-span-2">0</CalcButton>
-                <CalcButton onClick={() => handleInput('.')}>.</CalcButton>
-                <CalcButton onClick={handleCalculate} className="calc-btn-operator">=</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('00')}>00</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('0')}>0</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('.')}>.</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('=')} className="calc-btn-operator">=</CalcButton>
             </div>
             <button onClick={handleInsert} className="button-primary w-full py-2 text-sm">Insert Result</button>
         </div>

@@ -1,5 +1,8 @@
-import React from 'react';
+
+
+import React, { useContext, useState } from 'react';
 import { ActiveModal, ActiveScreen } from '../types';
+import { SettingsContext } from '../contexts/SettingsContext';
 
 interface MoreScreenProps {
   setActiveScreen: (screen: ActiveScreen) => void;
@@ -8,78 +11,111 @@ interface MoreScreenProps {
 }
 
 const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen, onResetApp }) => {
+  const { settings } = useContext(SettingsContext);
+  const [layout, setLayout] = useState<'grid' | 'list'>('grid');
 
-  const handleNav = (modal: ActiveModal) => {
-    setActiveModal(modal);
+  const handleNav = (screen: ActiveScreen, modal?: ActiveModal) => {
+    if (modal) {
+        setActiveModal(modal);
+    } else {
+        setActiveScreen(screen);
+    }
   }
+
+  const ToolButton: React.FC<{ screen: ActiveScreen, modal?: ActiveModal, icon: string, label: string }> = ({ screen, modal, icon, label }) => (
+    <button onClick={() => handleNav(screen, modal)} className={layout === 'grid' ? "management-tool-button" : "management-list-item"}>
+      <span className={layout === 'grid' ? "text-3xl" : "text-2xl"}>{icon}</span>
+      <span className={layout === 'grid' ? "text-xs font-semibold" : "font-semibold"}>{label}</span>
+    </button>
+  );
   
-  const handleScreenNav = (screen: ActiveScreen) => {
-    setActiveScreen(screen);
-  }
+  const financialTools = [
+    { key: 'achievements', screen: 'achievements', icon: '🏅', label: 'Achievements' },
+    { key: 'aiHub', screen: 'more', modal: 'aiHub', icon: '🧠', label: 'AI Hub' },
+    { key: 'budgets', screen: 'budgets', icon: '🎯', label: 'Budgets' },
+    { key: 'calculator', screen: 'calculator', icon: '🧮', label: 'Calculator' },
+    { key: 'calendar', screen: 'calendar', icon: '🗓️', label: 'Calendar' },
+    { key: 'challenges', screen: 'challenges', icon: '🔥', label: 'Challenges' },
+    { key: 'goals', screen: 'goals', icon: '🏆', label: 'Goals' },
+    { key: 'investments', screen: 'investments', icon: '💹', label: 'Investments' },
+    { key: 'learn', screen: 'learn', icon: '📚', label: 'Learn' },
+    { key: 'refunds', screen: 'refunds', icon: '↩️', label: 'Refunds' },
+    { key: 'scheduledPayments', screen: 'scheduled', icon: '📅', label: 'Scheduled' },
+    { key: 'shop', screen: 'shop', icon: '🏪', label: 'Shop Hub' },
+    { key: 'shoppingLists', screen: 'shoppingLists', icon: '🛒', label: 'Shopping Lists' },
+    { key: 'tripManagement', screen: 'tripManagement', icon: '✈️', label: 'Trips' },
+    { key: 'accountTransfer', screen: 'more', modal: 'transfer', icon: '↔️', label: 'Transfer' },
+  ].filter(tool => settings.enabledTools[tool.key as keyof typeof settings.enabledTools])
+   .sort((a, b) => a.label.localeCompare(b.label));
+
+  const managementTools = [
+     { key: 'accountsManager', screen: 'more', modal: 'accountsManager', icon: '🏦', label: 'Accounts' },
+     { key: 'categories', screen: 'more', modal: 'categories', icon: '🏷️', label: 'Categories' },
+     { key: 'contacts', screen: 'more', modal: 'contacts', icon: '👥', label: 'Contacts' },
+     { key: 'dashboardSettings', screen: 'more', modal: 'dashboardSettings', icon: '🎨', label: 'Dashboard' },
+     { key: 'footerCustomization', screen: 'more', modal: 'footerCustomization', icon: '🐾', label: 'Footer' },
+     { key: 'notificationSettings', screen: 'more', modal: 'notificationSettings', icon: '🔔', label: 'Notifications' },
+     { key: 'payees', screen: 'more', modal: 'payees', icon: '🏢', label: 'Payees' },
+     { key: 'senders', screen: 'more', modal: 'senderManager', icon: '🛡️', label: 'Senders' },
+     { key: 'manageTools', screen: 'more', modal: 'manageTools', icon: '🛠️', label: 'Tools' },
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
 
   return (
     <div className="h-full flex flex-col">
-       <div className="p-4 border-b border-divider flex-shrink-0">
-         <h2 className="text-xl font-bold text-primary text-center">More</h2>
+       <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
+         <h2 className="text-xl font-bold text-primary flex-grow text-center">Hub</h2>
+         <button onClick={() => setLayout(l => l === 'grid' ? 'list' : 'grid')} className="button-secondary p-2 rounded-full h-9 w-9 flex items-center justify-center -mr-2">
+            {layout === 'grid' ? 
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12" />
+                <circle cx="4.5" cy="6.75" r="0.75" fill="currentColor" stroke="none" />
+                <circle cx="4.5" cy="12" r="0.75" fill="currentColor" stroke="none" />
+                <circle cx="4.5" cy="17.25" r="0.75" fill="currentColor" stroke="none" />
+              </svg> :
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+            }
+          </button>
        </div>
         <div className="flex-grow overflow-y-auto p-6 pr-4 pb-20 space-y-6">
             <div>
-                <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Views & Tools</h3>
-                 <div className="management-grid">
-                    <button onClick={() => handleNav('transfer')} className="management-tool-button"><span className="icon text-3xl">↔️</span><span className="text-xs">Transfer Funds</span></button>
-                    <button onClick={() => handleScreenNav('investments')} className="management-tool-button"><span className="icon text-3xl">💹</span><span className="text-xs">Investments</span></button>
-                    <button onClick={() => handleScreenNav('goals')} className="management-tool-button"><span className="icon text-3xl">🏆</span><span className="text-xs">Goals</span></button>
-                    <button onClick={() => handleScreenNav('scheduled')} className="management-tool-button"><span className="icon text-3xl">📅</span><span className="text-xs">Scheduled</span></button>
-                    <button onClick={() => handleScreenNav('calculator')} className="management-tool-button"><span className="icon text-3xl">🧮</span><span className="text-xs">Calculator</span></button>
-                    <button onClick={() => handleScreenNav('calendar')} className="management-tool-button"><span className="icon text-3xl">🗓️</span><span className="text-xs">Calendar</span></button>
-                    <button onClick={() => handleScreenNav('notes')} className="management-tool-button"><span className="icon text-3xl">📝</span><span className="text-xs">Notes</span></button>
-                    <button onClick={() => handleScreenNav('tripManagement')} className="management-tool-button"><span className="icon text-3xl">✈️</span><span className="text-xs">Trip Management</span></button>
-                    <button onClick={() => handleScreenNav('shop')} className="management-tool-button"><span className="icon text-3xl">🏪</span><span className="text-xs">Shop Hub</span></button>
-                    <button onClick={() => handleScreenNav('refunds')} className="management-tool-button"><span className="icon text-3xl">↩️</span><span className="text-xs">Refunds</span></button>
-                    <button onClick={() => handleScreenNav('dataHub')} className="management-tool-button"><span className="icon text-3xl">🗄️</span><span className="text-xs">Data Hub</span></button>
-                 </div>
-            </div>
-             <div>
-                <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Growth</h3>
-                <div className="space-y-3">
-                    <button onClick={() => handleScreenNav('challenges')} className="settings-management-button"><span>Streaks & Challenges</span><span>🔥</span></button>
-                    <button onClick={() => handleScreenNav('learn')} className="settings-management-button"><span>Learn Finance</span><span>📚</span></button>
-                    <button onClick={() => handleScreenNav('achievements')} className="settings-management-button"><span>Achievements</span><span>🏅</span></button>
+                <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Financial Tools</h3>
+                <div className={layout === 'grid' ? "management-grid" : "management-list"}>
+                    {financialTools.map(tool => (
+                        <ToolButton key={tool.key} screen={tool.screen as ActiveScreen} modal={tool.modal as ActiveModal} icon={tool.icon} label={tool.label} />
+                    ))}
                 </div>
             </div>
             <div>
-                <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Settings & Management</h3>
-                <div className="space-y-3">
-                     <button onClick={() => handleNav('integrations')} className="settings-management-button"><span>Integrations</span><span>🔗</span></button>
-                     <button onClick={() => handleNav('accountsManager')} className="settings-management-button"><span>Manage Accounts</span><span>🏦</span></button>
-                     <button onClick={() => handleNav('manageTools')} className="settings-management-button"><span>Manage Tools</span><span>🛠️</span></button>
-                     <button onClick={() => handleNav('categories')} className="settings-management-button"><span>Manage Categories</span><span>🏷️</span></button>
-                     <button onClick={() => handleNav('contacts')} className="settings-management-button"><span>Manage Contacts</span><span>👥</span></button>
-                     <button onClick={() => handleNav('dashboardSettings')} className="settings-management-button"><span>Customize Dashboard</span><span>🎨</span></button>
-                     {/* Fix: Removed button for deprecated 'footerSettings' modal. */}
-                     <button onClick={() => handleNav('notificationSettings')} className="settings-management-button"><span>Notification Settings</span><span>🔔</span></button>
+                <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Management & Customization</h3>
+                <div className={layout === 'grid' ? "management-grid" : "management-list"}>
+                     {managementTools.map(tool => {
+                         const isEnabled = !('key' in tool) || !tool.key.endsWith('payees') && !tool.key.endsWith('senders') || settings.enabledTools[tool.key as 'payees' | 'senders'];
+                         if (!isEnabled) return null;
+                         return <ToolButton key={tool.key} screen={tool.screen as ActiveScreen} modal={tool.modal as ActiveModal} icon={tool.icon} label={tool.label} />
+                     })}
                 </div>
             </div>
             <div>
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">App & Data</h3>
-                <div className="space-y-3">
-                    <button onClick={() => handleNav('appSettings')} className="settings-management-button">
-                        <span>App Settings & Backup</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-secondary" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </button>
-                    <button onClick={() => handleNav('trustBin')} className="settings-management-button"><span>Trust Bin</span><span>🗑️</span></button>
-                    <button onClick={() => handleNav('importExport')} className="settings-management-button"><span>Import/Export Data</span><span>📄</span></button>
-                    <button onClick={() => handleNav('feedback')} className="settings-management-button"><span>Send Feedback</span><span>📨</span></button>
-                    <button onClick={onResetApp} className="settings-management-button text-rose-400">
-                      <span>Reset App</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+                <div className={layout === 'grid' ? "management-grid" : "management-list"}>
+                     {settings.enabledTools.dataHub && <ToolButton screen="dataHub" icon="🗄️" label="Data Hub" />}
+                     <ToolButton screen="manual" icon="📖" label="Manual" />
+                     <ToolButton screen="more" modal="integrations" icon="🔗" label="Integrations" />
+                     <ToolButton screen="more" modal="appSettings" icon="⚙️" label="Settings" />
+                     <ToolButton screen="more" modal="trustBin" icon="🗑️" label="Trust Bin" />
+                     <ToolButton screen="more" modal="importExport" icon="📄" label="Import/Export" />
+                     <ToolButton screen="more" modal="feedback" icon="📨" label="Feedback" />
+                     <button onClick={onResetApp} className={`${layout === 'grid' ? "management-tool-button" : "management-list-item"} text-rose-400`}>
+                        <span className={layout === 'grid' ? "text-3xl" : "text-2xl"}>⚠️</span>
+                        <span className={layout === 'grid' ? "text-xs font-semibold" : "font-semibold"}>Reset App</span>
                     </button>
                 </div>
+            </div>
+            <div className="mt-12 space-y-4">
+              <div className="border-t border-divider" />
+              <p className="text-center text-xs" style={{ color: 'var(--color-accent-sky)' }}>Developed by kadhiravan</p>
+              <div className="border-t border-divider" />
             </div>
         </div>
     </div>

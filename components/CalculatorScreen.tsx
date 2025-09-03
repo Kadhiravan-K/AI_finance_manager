@@ -6,7 +6,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { currencies, getCurrencyFormatter }from '../utils/currency';
 import CustomSelect from './CustomSelect';
 
-type CalculatorType = 'basic' | 'currency' | 'emi' | 'sip' | 'goal' | 'swp';
+type CalculatorType = 'basic' | 'currency' | 'emi' | 'sip' | 'goal';
 
 interface CalculatorScreenProps {
   appState: AppState;
@@ -115,12 +115,12 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
                 <div className="text-secondary text-lg h-6 truncate" aria-live="polite">{expression || '0'}</div>
                 <div className="text-primary text-4xl font-bold h-12 truncate" aria-live="polite">{result}</div>
             </div>
-             <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-2">
                 <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('DEL')} className="calc-btn-special">DEL</CalcButton>
-                <CalcButton onClick={() => handleButtonClick('%')} className="calc-btn-operator">%</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('%')} className="calc-btn-special">%</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('/')} className="calc-btn-operator">÷</CalcButton>
-
+                
                 <CalcButton onClick={() => handleButtonClick('7')}>7</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('8')}>8</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('9')}>9</CalcButton>
@@ -246,54 +246,6 @@ const SIPCalculator = () => {
     );
 };
 
-// Fix: Add SWPCalculator component
-const SWPCalculator = () => {
-    const [principal, setPrincipal] = useState('');
-    const [withdrawal, setWithdrawal] = useState('');
-    const [rate, setRate] = useState('');
-    const [result, setResult] = useState<{ years: number, months: number, totalWithdrawal: number } | null>(null);
-    const formatCurrency = useCurrencyFormatter();
-
-    const calculate = () => {
-        const P = parseFloat(principal);
-        const W = parseFloat(withdrawal);
-        const annualRate = parseFloat(rate);
-        
-        if (P > 0 && W > 0 && annualRate > 0) {
-            const r = annualRate / 100 / 12; // monthly interest rate
-            
-            if (W <= P * r) {
-                setResult(null);
-                alert("Your withdrawal amount is less than or equal to the interest earned per month. Your money will never run out!");
-                return;
-            }
-            
-            const n_months = Math.log(W / (W - P * r)) / Math.log(1 + r);
-            
-            if (isFinite(n_months) && n_months > 0) {
-                const years = Math.floor(n_months / 12);
-                const months = Math.round(n_months % 12);
-                const totalWithdrawal = W * n_months;
-                setResult({ years, months, totalWithdrawal });
-            } else {
-                setResult(null);
-            }
-        } else {
-            setResult(null);
-        }
-    };
-
-    return (
-        <div className="space-y-4">
-            <div><label className={labelBaseClasses}>Total Investment</label><input type="text" inputMode="decimal" value={principal} onChange={e => setPrincipal(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Monthly Withdrawal</label><input type="text" inputMode="decimal" value={withdrawal} onChange={e => setWithdrawal(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Expected Annual Return (%)</label><input type="text" inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
-            <button onClick={calculate} className="button-primary w-full py-2">Calculate SWP Duration</button>
-            {result && <div className={resultCardBaseClasses}><p className="text-sm text-secondary">Your funds will last for</p><p className="text-2xl font-bold text-primary">{result.years} years and {result.months} months</p><div className="flex justify-around text-xs pt-2 border-t border-divider"><p>Total Withdrawn:<br/>{formatCurrency(result.totalWithdrawal)}</p></div></div>}
-        </div>
-    );
-};
-
 const GoalCalculator = () => {
     const [target, setTarget] = useState('');
     const [rate, setRate] = useState('');
@@ -342,7 +294,6 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
            <TabButton active={activeTab === 'currency'} onClick={() => setActiveTab('currency')}>Currency</TabButton>
            <TabButton active={activeTab === 'emi'} onClick={() => setActiveTab('emi')}>EMI</TabButton>
            <TabButton active={activeTab === 'sip'} onClick={() => setActiveTab('sip')}>SIP</TabButton>
-           <TabButton active={activeTab === 'swp'} onClick={() => setActiveTab('swp')}>SWP</TabButton>
            <TabButton active={activeTab === 'goal'} onClick={() => setActiveTab('goal')}>Goal</TabButton>
          </div>
        </div>
@@ -351,7 +302,6 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
          {activeTab === 'currency' && <CurrencyCalculator appState={appState} />}
          {activeTab === 'emi' && <EMICalculator />}
          {activeTab === 'sip' && <SIPCalculator />}
-         {activeTab === 'swp' && <SWPCalculator />}
          {activeTab === 'goal' && <GoalCalculator />}
        </div>
     </div>

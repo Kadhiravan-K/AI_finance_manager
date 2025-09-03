@@ -23,7 +23,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ setActiveModal, setActi
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Customization</h3>
                 <div className="space-y-3">
                      <button onClick={() => handleNav('dashboardSettings')} className="settings-management-button"><span>Customize Dashboard</span><span>🎨</span></button>
-                     {/* Fix: Removed button for deprecated 'footerSettings' modal. */}
                 </div>
             </div>
             <div>

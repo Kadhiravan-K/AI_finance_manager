@@ -1,4 +1,5 @@
 
+
 import React, { useState, useContext, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
@@ -10,7 +11,7 @@ import useLocalStorage from './hooks/useLocalStorage';
 import PrivacyConsentModal from './components/PrivacyConsentModal';
 import OnboardingModal from './components/OnboardingModal';
 import Footer from './components/Footer';
-import SideDrawerMenu from './components/HeaderMenuModal';
+import Confetti from './components/Confetti';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -25,6 +26,12 @@ const AppContent: React.FC = () => {
   const dataContext = useContext(AppDataContext);
   const mainContentRef = useRef<HTMLElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  const triggerConfetti = useCallback(() => {
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 6000); // Let it animate for 6 seconds
+  }, []);
 
   useEffect(() => {
     // Simulate initial data loading to show skeletons and improve perceived performance
@@ -83,6 +90,7 @@ const AppContent: React.FC = () => {
   
   return (
     <>
+      {showConfetti && <Confetti />}
       <div className="aurora-container">
         <div className="aurora aurora-1"></div>
         <div className="aurora aurora-2"></div>
@@ -92,53 +100,52 @@ const AppContent: React.FC = () => {
         <div className="h-full w-full max-w-md mx-auto flex flex-col font-sans glass-card rounded-none sm:rounded-3xl shadow-2xl relative app-container z-10 no-hover">
           {!isOnline && (
             <div className="offline-indicator">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m-12.728 0a9 9 0 010-12.728m12.728 0L5.636 18.364m12.728 0L5.636 5.636" /></svg>
-              Offline Mode
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m-12.728 0a9 9 0 010-12.728m5.09 5.09a1.5 1.5 0 11-2.122 2.122m-5.09-5.09a9 9 0 000 12.728m12.728 0a9 9 0 000-12.728" /></svg>
+              <span>Offline Mode</span>
             </div>
           )}
-          <div className="flex-shrink-0 animate-fadeInUp" style={{animationDelay: '100ms'}}>
-            <Header 
-              onOpenMenu={() => openModal('headerMenu')}
-              onOpenAccounts={() => openModal('accountSelector')}
-              onOpenSearch={() => openModal('globalSearch')}
-              onOpenAI={() => openModal('aiChat')}
-            />
-          </div>
-          <main ref={mainContentRef} className="flex-grow overflow-y-auto pb-20 animate-fadeInUp" style={{animationDelay: '200ms'}}>
-            <MainContent 
-              activeScreen={activeScreen}
-              setActiveScreen={setActiveScreen}
-              modalStack={modalStack}
-              setModalStack={setModalStack}
-              isOnline={isOnline}
-              mainContentRef={mainContentRef}
-              initialText={sharedText}
-              onSharedTextConsumed={onSharedTextConsumed}
-              onNavigate={(screen, modal, modalProps) => {
-                  if (screen) setActiveScreen(screen);
-                  if (modal) openModal(modal, modalProps);
-              }}
-              isLoading={isLoading}
-            />
+          <Header 
+            onOpenAccounts={() => openModal('accountsManager')}
+            onOpenSearch={() => openModal('globalSearch')}
+          />
+          <main ref={mainContentRef} className="flex-grow overflow-y-auto relative pb-[68px]">
+             <MainContent 
+                activeScreen={activeScreen}
+                setActiveScreen={setActiveScreen}
+                modalStack={modalStack}
+                setModalStack={setModalStack}
+                isOnline={isOnline}
+                mainContentRef={mainContentRef}
+                onNavigate={(screen, modal, props) => {
+                  setActiveScreen(screen);
+                  if (modal) openModal(modal, props);
+                }}
+                isLoading={isLoading}
+                initialText={sharedText}
+                onSharedTextConsumed={onSharedTextConsumed}
+                onGoalComplete={triggerConfetti}
+             />
           </main>
           <Footer 
             activeScreen={activeScreen} 
             setActiveScreen={setActiveScreen} 
-            onAddClick={() => openModal('addTransactionMode')}
+            onAddClick={() => openModal('addTransaction', { initialTab: 'auto' })}
           />
-          {ReactDOM.createPortal(<SideDrawerMenu isOpen={activeModal?.name === 'headerMenu'} onClose={closeActiveModal} setActiveScreen={setActiveScreen} setActiveModal={openModal} />, modalRoot)}
         </div>
       </div>
     </>
   );
 };
 
-const App: React.FC = () => (
-  <SettingsProvider>
-    <AppDataProvider>
-      <AppContent />
-    </AppDataProvider>
-  </SettingsProvider>
-);
+
+const App: React.FC = () => {
+  return (
+    <SettingsProvider>
+      <AppDataProvider>
+        <AppContent />
+      </AppDataProvider>
+    </SettingsProvider>
+  );
+};
 
 export default App;

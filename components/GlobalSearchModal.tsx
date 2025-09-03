@@ -3,8 +3,9 @@
 import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { ActiveModal, ActiveScreen, AppState } from '../types';
-import { AppDataContext } from '../contexts/SettingsContext';
+import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import LoadingSpinner from './LoadingSpinner';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -29,9 +30,8 @@ const ALL_NAVIGABLE_ITEMS: { name: string; screen: ActiveScreen; modal?: ActiveM
     { name: 'Streaks & Challenges', screen: 'challenges', icon: '🔥' },
     { name: 'Learn Finance', screen: 'learn', icon: '📚', keywords: 'education tips' },
     { name: 'Calendar', screen: 'calendar', icon: '🗓️', keywords: 'schedule events bills' },
-    { name: 'Notes', screen: 'notes', icon: '📝', keywords: 'shopping list tasks ideas' },
+    { name: 'Shopping Lists', screen: 'shoppingLists', icon: '🛒', keywords: 'writing documents groceries' },
     { name: 'Customize Dashboard', screen: 'more', modal: 'dashboardSettings', icon: '🎨', keywords: 'widgets layout' },
-    // Fix: Removed item for deprecated 'footerSettings' modal.
     { name: 'Notification Settings', screen: 'more', modal: 'notificationSettings', icon: '🔔', keywords: 'alerts reminders' },
     { name: 'Manage Categories', screen: 'more', modal: 'categories', icon: '🏷️' },
     { name: 'Manage Accounts', screen: 'more', modal: 'accountsManager', icon: '🏦' },
@@ -42,6 +42,9 @@ const ALL_NAVIGABLE_ITEMS: { name: string; screen: ActiveScreen; modal?: ActiveM
     { name: 'Trust Bin', screen: 'more', modal: 'trustBin', icon: '🗑️', keywords: 'deleted trash restore' },
     { name: 'Export Data', screen: 'more', modal: 'importExport', icon: '📄', keywords: 'csv json' },
     { name: 'Send Feedback', screen: 'more', modal: 'feedback', icon: '📨' },
+    { name: 'AI Hub', screen: 'more', modal: 'aiHub', icon: '🧠', keywords: 'chat command assistant' },
+    { name: 'Customize Footer', screen: 'more', modal: 'footerCustomization', icon: '🐾', keywords: 'navigation shortcuts tabs' },
+    { name: 'Transfer Funds', screen: 'more', modal: 'transfer', icon: '↔️', keywords: 'send move money' },
 ];
 
 
@@ -49,9 +52,40 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const dataContext = useContext(AppDataContext);
+  const settingsContext = useContext(SettingsContext);
   const formatCurrency = useCurrencyFormatter();
   
-  const appState = dataContext; // Assuming AppDataContext provides the full AppState
+  const appState = useMemo((): AppState | undefined => {
+    if (!dataContext || !settingsContext) return undefined;
+
+    return {
+      transactions: dataContext.transactions,
+      accounts: dataContext.accounts,
+      categories: settingsContext.categories,
+      budgets: dataContext.budgets,
+      recurringTransactions: dataContext.recurringTransactions,
+      goals: dataContext.goals,
+      investmentHoldings: dataContext.investmentHoldings,
+      payees: settingsContext.payees,
+      senders: settingsContext.senders,
+      contactGroups: settingsContext.contactGroups,
+      contacts: settingsContext.contacts,
+      settings: settingsContext.settings,
+      achievements: dataContext.unlockedAchievements,
+      streaks: dataContext.streaks,
+      trips: dataContext.trips,
+      tripExpenses: dataContext.tripExpenses,
+      financialProfile: settingsContext.financialProfile,
+      refunds: dataContext.refunds,
+      settlements: dataContext.settlements,
+      shops: dataContext.shops,
+      shopProducts: dataContext.shopProducts,
+      shopSales: dataContext.shopSales,
+      shopEmployees: dataContext.shopEmployees,
+      shopShifts: dataContext.shopShifts,
+      shoppingLists: dataContext.shoppingLists,
+    };
+  }, [dataContext, settingsContext]);
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 150);
@@ -64,7 +98,7 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
 
   const searchResults = useMemo(() => {
     if (!query.trim() || !appState) {
-      return { screens: ALL_NAVIGABLE_ITEMS, transactions: [], trips: [], goals: [], notes: [] };
+      return { screens: [], transactions: [], trips: [], goals: [], shoppingLists: [] };
     }
     const q = query.toLowerCase();
     
@@ -84,11 +118,11 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       .filter(g => g.name.toLowerCase().includes(q))
       .slice(0, 5);
 
-    const notes = (appState.notes || [])
-      .filter(n => (n.title && n.title.toLowerCase().includes(q)) || n.content.toLowerCase().includes(q))
+    const shoppingLists = (appState.shoppingLists || [])
+      .filter(p => p.title?.toLowerCase().includes(q) || p.items.some(i => i.name.toLowerCase().includes(q)))
       .slice(0, 5);
 
-    return { screens, transactions, trips, goals, notes };
+    return { screens, transactions, trips, goals, shoppingLists };
   }, [query, appState]);
 
   const SearchResultSection: React.FC<{title: string, children: React.ReactNode}> = ({ title, children }) => (
@@ -97,6 +131,8 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       <div className="space-y-1">{children}</div>
     </div>
   );
+
+  const hasResults = searchResults.screens.length > 0 || searchResults.transactions.length > 0 || searchResults.trips.length > 0 || searchResults.goals.length > 0;
 
   return ReactDOM.createPortal(
     <>
@@ -110,7 +146,7 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Search anything..."
+                placeholder="Search transactions, goals, trips..."
                 className="input-base w-full rounded-full py-2 px-3 pl-10"
               />
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-tertiary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -166,21 +202,21 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
                     ))}
                 </SearchResultSection>
             )}
-            {searchResults.notes.length > 0 && (
-              <SearchResultSection title="Notes">
-                {searchResults.notes.map(n => (
-                  <button key={n.id} onClick={() => handleNavigate('notes', 'editNote', { note: n })} className="w-full flex items-center gap-4 p-3 text-left rounded-lg hover-bg-stronger transition-colors">
-                    <span className="text-xl">📝</span>
-                    <div>
-                      <p className="font-medium text-primary truncate">{n.title || n.content.split('\n')[0]}</p>
-                      <p className="text-xs text-secondary truncate">{n.content.split('\n')[1] || '...'}</p>
-                    </div>
-                  </button>
-                ))}
-              </SearchResultSection>
+             {searchResults.shoppingLists.length > 0 && (
+                <SearchResultSection title="Shopping Lists">
+                    {searchResults.shoppingLists.map(p => (
+                        <button key={p.id} onClick={() => handleNavigate('shoppingLists', undefined, { shoppingListId: p.id })} className="w-full flex items-center gap-4 p-3 text-left rounded-lg hover-bg-stronger transition-colors">
+                           <span className="text-xl">🛒</span>
+                           <p className="font-medium text-primary truncate">{p.title || 'Untitled List'}</p>
+                        </button>
+                    ))}
+                </SearchResultSection>
             )}
-            {query.trim() && searchResults.screens.length === 0 && searchResults.transactions.length === 0 && searchResults.trips.length === 0 && searchResults.goals.length === 0 && searchResults.notes.length === 0 && (
+            {query.trim() && !hasResults && (
               <p className="text-center text-secondary p-4 text-sm">No results found for "{query}".</p>
+            )}
+             {!query.trim() && (
+              <p className="text-center text-secondary p-4 text-sm">Start typing to search your financial data.</p>
             )}
           </div>
         </div>

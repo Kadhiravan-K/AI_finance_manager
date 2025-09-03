@@ -1,4 +1,5 @@
 
+
 export enum ProcessingStatus {
   IDLE,
   LOADING,
@@ -246,9 +247,10 @@ export interface TrustBinDeletionPeriod {
 }
 
 export type ToggleableTool = 
-  'achievements' | 'aiCommandCenter' | 'dataHub' | 
+  'achievements' | 'aiHub' | 'dataHub' | 
   'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 
-  'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'notes';
+  'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 
+  'calendar' | 'budgets' | 'goals' | 'learn' | 'challenges' | 'shoppingLists';
 
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
@@ -284,7 +286,7 @@ export interface UnlockedAchievement {
     date: string; // ISO string
 }
 
-export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'refund' | 'note' | 'settlement';
+export type ItemType = 'transaction' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'goal' | 'recurringTransaction' | 'account' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'refund' | 'settlement' | 'shoppingList' | 'glossaryEntry';
 
 export interface TrustBinItem {
   id: string; // unique id for the bin entry
@@ -370,10 +372,9 @@ export interface Settlement {
   notes?: string;
 }
 
+export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'shoppingLists' | 'manual';
 
-export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'notes';
-
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'aiCommandCenter' | 'accountsManager' | 'globalSearch' | 'editNote' | 'editRecurring' | 'buyInvestment' | 'addTransactionMode' | 'aiChat' | 'accountSelector' | 'shareGuide' | 'integrations' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'accountsManager' | 'globalSearch' | 'editRecurring' | 'buyInvestment' | 'aiHub' | 'shareGuide' | 'integrations' | 'footerCustomization' | null;
 
 export interface ModalState {
     name: ActiveModal;
@@ -392,6 +393,7 @@ export interface FinanceTrackerProps {
   isLoading: boolean;
   initialText?: string | null;
   onSharedTextConsumed: () => void;
+  onGoalComplete: () => void;
 }
 
 export interface FinancialProfile {
@@ -415,22 +417,30 @@ export interface Refund {
     expectedDate?: string; // ISO String
 }
 
-export interface Note {
-    id: string; // UUID
-    title?: string;
-    content: string; // Markdown content
-    tags: string[]; // e.g., ['💰', 'trip']
-    category: 'general' | 'glossary';
-    amount?: number; // For glossary items
-    isArchived: boolean;
-    isPinned: boolean;
-    color: string; // e.g., 'red', 'orange', 'default'
-    createdAt: string; // ISO string
-    updatedAt: string; // ISO string
-    image?: { // New field for image attachments
-        data: string; // base64 encoded image
-        mimeType: string;
-    };
+export interface ShoppingListItem {
+  id: string;
+  name: string;
+  rate: number;
+  isPurchased: boolean;
+}
+
+export interface ShoppingList {
+  id: string;
+  title: string;
+  items: ShoppingListItem[];
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
+}
+
+
+export interface GlossaryEntry {
+  id: string;
+  term: string;
+  emoji: string;
+  definition: string;
+  usageLogic: string;
+  example: string;
+  tags: string[];
 }
 
 // For Backup
@@ -453,8 +463,8 @@ export interface AppState {
     tripExpenses?: TripExpense[];
     financialProfile: FinancialProfile;
     refunds?: Refund[];
-    notes?: Note[];
     settlements?: Settlement[];
+    shoppingLists?: ShoppingList[];
     // Shop Data
     shops?: Shop[];
     shopProducts?: ShopProduct[];

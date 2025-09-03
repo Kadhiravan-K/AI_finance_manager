@@ -1,8 +1,10 @@
 import React, { createContext, useState, ReactNode, useEffect, useMemo, useContext, useCallback } from 'react';
-import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData, Refund, Note, Settlement } from '../types';
+import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData, Refund, Settlement, ShoppingList, GlossaryEntry } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { calculateNextDueDate } from '../utils/date';
 import { USER_SELF_ID } from '../constants';
+// Fix: Import default glossary entries to initialize the state.
+import { DEFAULT_GLOSSARY_ENTRIES } from '../utils/glossary';
 
 interface SettingsContextType {
   settings: Settings;
@@ -54,7 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
     },
     enabledTools: {
         achievements: true,
-        aiCommandCenter: true,
+        aiHub: true,
         dataHub: false,
         investments: true,
         payees: false,
@@ -66,7 +68,11 @@ export const DEFAULT_SETTINGS: Settings = {
         tripManagement: true,
         accountTransfer: true,
         calendar: true,
-        notes: true,
+        budgets: true,
+        goals: true,
+        learn: true,
+        challenges: true,
+        shoppingLists: true,
     },
     footerActions: ['dashboard', 'reports', 'budgets', 'more'],
     googleCalendar: {
@@ -99,17 +105,32 @@ export const SettingsContext = createContext<SettingsContextType>({
 });
 
 const DEFAULT_CONTACT_GROUPS: ContactGroup[] = [
-    { id: 'group-school', name: 'School Friends', icon: '🎓' },
-    { id: 'group-college', name: 'College Friends', icon: '🏛️' },
-    { id: 'group-work', name: 'Work Colleagues', icon: '💼' },
-    { id: 'group-business', name: 'Business', icon: '🤝' },
-    { id: 'group-relatives', name: 'Relatives', icon: '👨‍👩‍👧‍👦' },
+  { id: 'group-family', name: 'Family', icon: '👨‍👩‍👧‍👦' },
+  { id: 'group-friends', name: 'Friends', icon: '🧑‍🤝‍🧑' },
+  { id: 'group-work', name: 'Work & Professional', icon: '🧑‍💼' },
+  { id: 'group-education', name: 'Education', icon: '🏫' },
+  { id: 'group-services', name: 'Services & Utilities', icon: '🛠️' },
+  { id: 'group-medical', name: 'Medical & Emergency', icon: '🏥' },
+  { id: 'group-finance', name: 'Business & Finance', icon: '💼' },
+  { id: 'group-tech', name: 'Tech & Support', icon: '📱' },
+  { id: 'group-personal', name: 'Personal & Lifestyle', icon: '🧘' },
+  { id: 'group-shopping', name: 'Shopping & Vendors', icon: '🛍️' },
+  { id: 'group-misc', name: 'Miscellaneous', icon: '📦' },
 ];
 
 const DEFAULT_CONTACTS: Contact[] = [
-    { id: self.crypto.randomUUID(), name: 'Alex Smith', groupId: 'group-work' },
-    { id: self.crypto.randomUUID(), name: 'Ben Carter', groupId: 'group-work' },
-    { id: self.crypto.randomUUID(), name: 'Chloe Davis', groupId: 'group-work' },
+    // Family
+    { id: self.crypto.randomUUID(), name: 'Mom', groupId: 'group-family' },
+    { id: self.crypto.randomUUID(), name: 'Dad', groupId: 'group-family' },
+    // Friends
+    { id: self.crypto.randomUUID(), name: 'Alex Smith', groupId: 'group-friends' },
+    { id: self.crypto.randomUUID(), name: 'Ben Carter', groupId: 'group-friends' },
+    // Work
+    { id: self.crypto.randomUUID(), name: 'Chloe Davis (Manager)', groupId: 'group-work' },
+    // Services
+    { id: self.crypto.randomUUID(), name: 'Local Electrician', groupId: 'group-services' },
+    // Medical
+    { id: self.crypto.randomUUID(), name: 'Dr. Evelyn Reed', groupId: 'group-medical' },
 ];
 
 
@@ -128,15 +149,29 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const newSettings: any = { ...DEFAULT_SETTINGS, ...settings };
     
     newSettings.enabledTools = { ...DEFAULT_SETTINGS.enabledTools, ...(settings.enabledTools || {}) };
+    
+    // Migration: rename aiCommandCenter to aiHub
+    if (newSettings.enabledTools.aiCommandCenter) {
+      newSettings.enabledTools.aiHub = true;
+      delete newSettings.enabledTools.aiCommandCenter;
+    }
+    
     newSettings.googleCalendar = { ...DEFAULT_SETTINGS.googleCalendar, ...(settings.googleCalendar || {}) };
+    newSettings.footerActions = settings.footerActions || DEFAULT_SETTINGS.footerActions;
     
     // Clean up deprecated settings
     delete newSettings.fabActions;
     delete newSettings.headerActions;
+    delete newSettings.enabledTools.glossary;
 
     if (newSettings.enabledTools.shop === undefined) {
       newSettings.enabledTools.shop = true;
     }
+    if (newSettings.enabledTools.shoppingLists === undefined) {
+      newSettings.enabledTools.shoppingLists = true;
+    }
+    delete newSettings.enabledTools.notes;
+
 
     return newSettings as Settings;
   }, [settings]);
@@ -197,10 +232,13 @@ interface AppDataContextType {
   setChallenges: (value: Challenge[] | ((val: Challenge[]) => Challenge[])) => Promise<void>;
   refunds: Refund[];
   setRefunds: (value: Refund[] | ((val: Refund[]) => Refund[])) => Promise<void>;
-  notes: Note[];
-  setNotes: (value: Note[] | ((val: Note[]) => Note[])) => Promise<void>;
   settlements: Settlement[];
   setSettlements: (value: Settlement[] | ((val: Settlement[]) => Settlement[])) => Promise<void>;
+  shoppingLists: ShoppingList[];
+  setShoppingLists: (value: ShoppingList[] | ((val: ShoppingList[]) => ShoppingList[])) => Promise<void>;
+  // Fix: Add glossary entries to the context type.
+  glossaryEntries: GlossaryEntry[];
+  setGlossaryEntries: (value: GlossaryEntry[] | ((val: GlossaryEntry[]) => GlossaryEntry[])) => Promise<void>;
   selectedAccountIds: string[];
   setSelectedAccountIds: (value: string[] | ((val: string[]) => string[])) => Promise<void>;
   accountToEdit: Account | null;
@@ -212,11 +250,6 @@ interface AppDataContextType {
   updateStreak: () => void;
   checkAndCompleteChallenge: (type: ChallengeType) => void;
   deleteItem: (itemId: string, itemType: ItemType) => void;
-  moveTempNoteToTrustBin: (tempNote: { content: string, timestamp: number }) => void;
-  updateNoteContent: (noteId: string, newContent: string) => void;
-  archiveNote: (noteId: string, isArchived: boolean) => void;
-  pinNote: (noteId: string, isPinned: boolean) => void;
-  changeNoteColor: (noteId: string, color: string) => void;
   onAddAccount: (name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => void;
   onEditAccount: (account: Account) => void;
   onDeleteAccount: (id: string) => void;
@@ -246,8 +279,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [streaks, setStreaks] = useLocalStorage<UserStreak>('finance-tracker-streaks', { currentStreak: 0, longestStreak: 0, lastLogDate: null, streakFreezes: 3 });
     const [challenges, setChallenges] = useLocalStorage<Challenge[]>('finance-tracker-challenges', []);
     const [refunds, setRefunds] = useLocalStorage<Refund[]>('finance-tracker-refunds', []);
-    const [notes, setNotes] = useLocalStorage<Note[]>('finance-tracker-notes', []);
     const [settlements, setSettlements] = useLocalStorage<Settlement[]>('finance-tracker-settlements', []);
+    const [shoppingLists, setShoppingLists] = useLocalStorage<ShoppingList[]>('finance-tracker-shopping-lists', []);
+    // Fix: Properly initialize and manage glossary state.
+    const [glossaryEntries, setGlossaryEntries] = useLocalStorage<GlossaryEntry[]>('finance-tracker-glossary', DEFAULT_GLOSSARY_ENTRIES);
     const [selectedAccountIds, setSelectedAccountIds] = useLocalStorage<string[]>('finance-tracker-selected-account-ids', ['all']);
     const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
 
@@ -310,7 +345,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'goal': setGoals, 'recurringTransaction': setRecurringTransactions, 'account': setAccounts,
           'trip': setTrips, 'tripExpense': setTripExpenses, 'shop': setShops,
           'shopProduct': setShopProducts, 'shopEmployee': setShopEmployees, 'shopShift': setShopShifts,
-          'refund': setRefunds, 'note': setNotes, 'settlement': setSettlements,
+          'refund': setRefunds, 'settlement': setSettlements, 'shoppingList': setShoppingLists as any,
+          // Fix: Wire up the glossary entry setter for deletion.
+          'glossaryEntry': setGlossaryEntries as any,
         };
 
         const itemMap: Record<string, any[]> = {
@@ -319,7 +356,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'goal': goals, 'recurringTransaction': recurringTransactions, 'account': accounts,
           'trip': trips, 'tripExpense': tripExpenses, 'shop': shops,
           'shopProduct': shopProducts, 'shopEmployee': shopEmployees, 'shopShift': shopShifts,
-          'refund': refunds, 'note': notes, 'settlement': settlements,
+          'refund': refunds, 'settlement': settlements, 'shoppingList': shoppingLists,
+          // Fix: Provide the glossary entries array for deletion logic.
+          'glossaryEntry': glossaryEntries,
         };
       
       const items = itemMap[itemType];
@@ -334,49 +373,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setter(items.filter(item => item.id !== itemId));
       }
     }, [
-        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts, refunds, notes, settlements, setTrustBin,
-        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts, setRefunds, setNotes, setSettlements
+        transactions, categories, payees, senders, contacts, contactGroups, goals, recurringTransactions, accounts, trips, tripExpenses, shops, shopProducts, shopEmployees, shopShifts, refunds, settlements, shoppingLists, glossaryEntries, setTrustBin,
+        setTransactions, setCategories, setPayees, setSenders, setContacts, setContactGroups, setGoals, setRecurringTransactions, setAccounts, setTrips, setTripExpenses, setShops, setShopProducts, setShopEmployees, setShopShifts, setRefunds, setSettlements, setShoppingLists, setGlossaryEntries,
     ]);
-
-    const moveTempNoteToTrustBin = useCallback((tempNote: { content: string; timestamp: number }) => {
-        if (!tempNote.content.trim()) return;
-
-        const now = new Date().toISOString();
-        const newNote: Note = {
-            id: self.crypto.randomUUID(),
-            content: `[Archived Scratchpad]\n${tempNote.content}`,
-            tags: ['scratchpad'],
-            category: 'general',
-            isArchived: false,
-            isPinned: false,
-            color: 'grey',
-            createdAt: now,
-            updatedAt: now,
-        };
-        const newTrustBinItem: TrustBinItem = {
-            id: self.crypto.randomUUID(),
-            item: newNote,
-            itemType: 'note',
-            deletedAt: now
-        };
-        setTrustBin(prev => [...prev, newTrustBinItem]);
-    }, [setTrustBin]);
-    
-    const updateNoteContent = useCallback((noteId: string, newContent: string) => {
-        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, updatedAt: new Date().toISOString() } : n));
-    }, [setNotes]);
-
-    const archiveNote = useCallback((noteId: string, isArchived: boolean) => {
-        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isArchived, updatedAt: new Date().toISOString() } : n));
-    }, [setNotes]);
-    
-    const pinNote = useCallback((noteId: string, isPinned: boolean) => {
-        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isPinned, updatedAt: new Date().toISOString() } : n));
-    }, [setNotes]);
-
-    const changeNoteColor = useCallback((noteId: string, color: string) => {
-        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, color, updatedAt: new Date().toISOString() } : n));
-    }, [setNotes]);
 
     const onAddAccount = useCallback((name: string, accountType: AccountType, currency: string, creditLimit?: number, openingBalance?: number) => {
         const newAccount: Account = { id: self.crypto.randomUUID(), name, accountType, currency, creditLimit };
@@ -411,7 +410,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
             amount,
             currency
         };
-        setSettlements(prev => [...prev, newSettlement]);
+        setSettlements(prev => [...(prev || []), newSettlement]);
 
         // 2. Create corresponding financial transactions
         const fromAccount = accounts.find(a => a.currency === currency);
@@ -459,11 +458,13 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
-        challenges, setChallenges, refunds, setRefunds, notes, setNotes, 
+        challenges, setChallenges, refunds, setRefunds, 
         settlements, setSettlements,
+        shoppingLists, setShoppingLists,
+        // Fix: Expose glossary entries and setter on the context.
+        glossaryEntries, setGlossaryEntries,
         selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit,
         findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
-        moveTempNoteToTrustBin, updateNoteContent, archiveNote, pinNote, changeNoteColor,
         onAddAccount, onEditAccount, onDeleteAccount, handleRecordSettlement,
     }), [
         transactions, setTransactions, accounts, setAccounts, budgets, setBudgets,
@@ -471,11 +472,13 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         trips, setTrips, tripExpenses, setTripExpenses, shops, setShops, shopProducts, setShopProducts,
         shopSales, setShopSales, shopEmployees, setShopEmployees, shopShifts, setShopShifts,
         trustBin, setTrustBin, unlockedAchievements, setUnlockedAchievements, streaks, setStreaks,
-        challenges, setChallenges, refunds, setRefunds, notes, setNotes,
+        challenges, setChallenges, refunds, setRefunds,
         settlements, setSettlements,
+        shoppingLists, setShoppingLists,
+        // Fix: Include glossary state in the dependency array.
+        glossaryEntries, setGlossaryEntries,
         selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit,
         findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
-        moveTempNoteToTrustBin, updateNoteContent, archiveNote, pinNote, changeNoteColor,
         onAddAccount, onEditAccount, onDeleteAccount, handleRecordSettlement
     ]);
 

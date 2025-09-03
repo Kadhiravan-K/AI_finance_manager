@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType } from '../types';
+import React, { useMemo, useState, useEffect, useContext } from 'react';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType, ActiveScreen, ActiveModal } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
@@ -12,6 +12,7 @@ import PortfolioSummary from './PortfolioSummary';
 import FinancialHealthScore from './FinancialHealthScore';
 import DynamicAIInsights from './DynamicAIInsights';
 import EmptyState from './EmptyState';
+import { AppDataContext } from '../contexts/SettingsContext';
 
 interface FinanceDisplayProps {
   status: ProcessingStatus;
@@ -183,6 +184,8 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
 };
 
 const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, ...rest }) => {
+    
+    const dataContext = useContext(AppDataContext);
     
     const DashboardCard = React.memo(({ title, amount, isVisible, color, currency }: {title: string, amount: number, isVisible: boolean, color: 'emerald' | 'rose' | 'primary', currency: string}) => {
         const formatCurrency = useCurrencyFormatter({ notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 }, currency);

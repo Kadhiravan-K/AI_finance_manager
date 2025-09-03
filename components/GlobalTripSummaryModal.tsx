@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Trip, TripExpense, Settlement } from '../types';
@@ -12,7 +13,6 @@ interface GlobalTripSummaryModalProps {
   trips: Trip[];
   settlements: Settlement[];
   onClose: () => void;
-  // Fix: Changed parameter order to match the handler function signature.
   onSettle: (fromId: string, toId: string, amount: number, currency: string) => void;
 }
 
@@ -30,7 +30,6 @@ const GlobalTripSummaryModal: React.FC<GlobalTripSummaryModalProps> = ({ allExpe
     if (settling) {
       const amount = isFullAmount ? settling.amount : parseFloat(settleAmount);
       if (!isNaN(amount) && amount > 0) {
-        // Fix: Changed parameter order to match the handler function signature.
         onSettle(settling.fromId, settling.toId, amount, settling.currency);
         setSettling(null);
         setSettleAmount('');

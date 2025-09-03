@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Trip, TripExpense, TransactionType, Transaction, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -44,7 +45,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
   }, [expenses]);
 
   const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
-    <button onClick={onClick} className={`w-full py-2 text-sm font-semibold transition-colors ${active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary'}`}>
+    <button onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
         {children}
     </button>
   );
@@ -91,10 +92,8 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
                   <div className="space-y-2 p-3 bg-subtle rounded-lg">
                     {settlementSummary.length > 0 ? settlementSummary.map((s, i) => (
                       <div key={i} className="flex items-center justify-center text-center text-sm">
-                        {/* Fix: Use fromName and toName properties from SettlementSuggestion type. */}
                         <span className="font-semibold text-primary">{s.fromName}</span>
                         <span className="mx-2 text-secondary">&rarr;</span>
-                        {/* Fix: Use fromName and toName properties from SettlementSuggestion type. */}
                         <span className="font-semibold text-primary">{s.toName}</span>
                         <span className="ml-2 font-mono text-emerald-400">{formatCurrency(s.amount)}</span>
                       </div>

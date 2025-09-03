@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { ActiveScreen, ActiveModal } from '../types';
 
@@ -12,12 +14,14 @@ const InteractiveFab: React.FC<InteractiveFabProps> = ({ onNavigate }) => {
     top: { 
       label: 'Add Transaction', 
       icon: '➕', 
-      onClick: () => onNavigate('dashboard', 'addTransactionMode') 
+      // Fix: 'addTransactionMode' is not a valid ActiveModal type. Corrected to 'addTransaction' which opens the modal with mode selection tabs.
+      onClick: () => onNavigate('dashboard', 'addTransaction') 
     },
     left: { 
       label: 'Add Note', 
       icon: '📝', 
-      onClick: () => onNavigate('notes', 'editNote') 
+      // Fix: 'notes' is not a valid screen. Replaced with 'shoppingLists' which can serve a similar purpose.
+      onClick: () => onNavigate('shoppingLists') 
     },
     right: { 
       label: 'Add Goal', 

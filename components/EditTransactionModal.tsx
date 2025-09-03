@@ -473,17 +473,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const itemSubCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
     
     return (
-        <div key={item.id} className="p-4 bg-subtle rounded-lg space-y-3 border border-divider relative">
-            {items.length > 1 && (
-                <button 
-                  type="button" 
-                  onClick={() => handleRemoveItem(item.id)} 
-                  className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 bg-card/70 hover:bg-rose-500/20 rounded-full z-10 transition-colors"
-                  aria-label="Remove item"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            )}
+        <div key={item.id} className="p-4 bg-subtle rounded-lg space-y-3 border border-divider">
             <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                 <div className="flex-grow space-y-3">
                     <input type="text" placeholder="Item Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={inputBaseClasses} />
@@ -506,6 +496,16 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
                 </div>
                  <div className="flex items-center gap-2 flex-shrink-0 self-center sm:self-start sm:pt-2">
                     <button type="button" onClick={() => setSplittingItemId(splittingItemId === item.id ? null : item.id)} className={`px-3 py-1.5 text-xs rounded-full font-semibold transition-colors ${splittingItemId === item.id ? 'bg-sky-500 text-white' : 'button-secondary'}`}>Split</button>
+                    {items.length > 1 && (
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveItem(item.id)} 
+                          className="w-7 h-7 flex items-center justify-center text-secondary hover:text-rose-400 bg-subtle hover:bg-rose-500/20 rounded-full transition-colors"
+                          aria-label="Remove item"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    )}
                  </div>
             </div>
             {splittingItemId === item.id && renderSplitManager(item)}

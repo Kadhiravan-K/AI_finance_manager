@@ -40,9 +40,6 @@ const UpcomingBills: React.FC<UpcomingBillsProps> = ({ recurringTransactions, on
             </div>
             <div className="flex items-center gap-3">
                 <span className="font-bold" style={{color: 'var(--color-accent-rose)'}}>{formatCurrency(bill.amount)}</span>
-                <button onClick={() => onPay(bill)} className="button-primary px-3 py-1 text-sm font-semibold">
-                    Pay
-                </button>
             </div>
           </div>
         ))}

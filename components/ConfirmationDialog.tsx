@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -14,6 +14,18 @@ interface ConfirmationDialogProps {
 }
 
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', cancelLabel = 'Cancel' }) => {
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCountdown(5); // Reset on open
+      const timer = setInterval(() => {
+        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const modalContent = (
@@ -25,8 +37,8 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, 
           <button onClick={onCancel} className="button-secondary px-4 py-2">
             {cancelLabel}
           </button>
-          <button onClick={onConfirm} className="button-primary px-4 py-2 bg-rose-600 hover:bg-rose-500">
-            {confirmLabel}
+          <button onClick={onConfirm} disabled={countdown > 0} className="button-primary px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-500 disabled:cursor-wait">
+            {countdown > 0 ? `${confirmLabel} (${countdown})` : confirmLabel}
           </button>
         </div>
       </div>

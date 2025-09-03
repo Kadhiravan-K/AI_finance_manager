@@ -4,8 +4,9 @@ import { SettingsContext } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
-import { AppState, Theme, TrustBinDeletionPeriodUnit } from '../types';
+import { AppState, Theme, TrustBinDeletionPeriodUnit, ActiveScreen } from '../types';
 import { createBackup, restoreBackup } from '../utils/backup';
+import { NAV_ITEM_DEFINITIONS } from './Footer';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -87,7 +88,7 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
       {value: 'months', label: 'Months'},
       {value: 'years', label: 'Years'},
   ];
-  
+
   const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
     <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
@@ -157,6 +158,7 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
         </div>
         <div className="p-4 text-center text-xs text-tertiary border-t border-divider">
             <p>Version 1.6.0 (Final Confirm)</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-accent-sky)' }}>Developed by kadhiravan</p>
         </div>
         <div className="flex justify-end p-6 pt-4 border-t border-divider">
             <button onClick={onClose} className="button-secondary px-4 py-2">

@@ -1,6 +1,10 @@
+
+
+
+
 // Fix: Import GoogleGenAI to initialize the client.
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, Note } from "../types";
+import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -488,28 +492,6 @@ export async function getAIGoalSuggestion(transactions: AppState['transactions']
     }
 }
 
-const summarySchema = {
-    type: Type.ARRAY,
-    items: { type: Type.STRING },
-    description: "A list of 3-5 bullet points summarizing the key information in the note."
-};
-
-export async function summarizeNote(noteContent: string): Promise<string[]> {
-    if (!noteContent.trim()) return ["Note is empty."];
-    const prompt = `You are an expert at summarizing text. Read the following note and provide a concise summary as a list of bullet points. Note:\n\n"${noteContent}"`;
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: summarySchema },
-        });
-        return JSON.parse(response.text);
-    } catch (error) {
-        console.error("Error getting note summary:", error);
-        throw new Error("Could not generate an AI summary for the note.");
-    }
-}
-
 const nlpCalcSchema = {
     type: Type.OBJECT,
     properties: {
@@ -548,39 +530,5 @@ export async function parseNaturalLanguageCalculation(appState: AppState, query:
     } catch (error) {
         console.error("Error with natural language calculation:", error);
         throw new Error("I couldn't calculate that. Please try rephrasing your question.");
-    }
-}
-
-const imageAnalysisSchema = {
-    type: Type.OBJECT,
-    properties: {
-        description: { type: Type.STRING, description: "A brief, one-sentence description of the image content." },
-        extractedText: { type: Type.STRING, description: "Any text extracted from the image. If none, this can be null." }
-    },
-    required: ["description"]
-};
-
-export async function analyzeImageForNote(imageData: { mimeType: string, data: string }, promptText: string): Promise<string> {
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { 
-                parts: [
-                    { inlineData: { mimeType: imageData.mimeType, data: imageData.data }},
-                    { text: promptText || "Describe this image and extract any text you see." }
-                ]
-            },
-            config: { responseMimeType: "application/json", responseSchema: imageAnalysisSchema },
-        });
-
-        const result = JSON.parse(response.text);
-        let analysis = result.description;
-        if (result.extractedText) {
-            analysis += `\n\n**Extracted Text:**\n${result.extractedText}`;
-        }
-        return analysis;
-    } catch (error) {
-        console.error("Error analyzing image for note:", error);
-        throw new Error("Could not analyze the image.");
     }
 }
