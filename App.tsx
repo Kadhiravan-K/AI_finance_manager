@@ -1,17 +1,18 @@
 
 
-import React, { useState, useContext, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
 import { MainContent } from './components/StoryGenerator';
 import { SettingsProvider, SettingsContext, AppDataProvider, AppDataContext } from './contexts/SettingsContext';
-import { ActiveScreen, ActiveModal, ModalState } from './types';
+import { ActiveScreen, ActiveModal, ModalState, AppState } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import useLocalStorage from './hooks/useLocalStorage';
 import PrivacyConsentModal from './components/PrivacyConsentModal';
 import OnboardingModal from './components/OnboardingModal';
 import Footer from './components/Footer';
 import Confetti from './components/Confetti';
+import { calculateFinancialHealthScore } from './utils/financialHealth';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -24,6 +25,7 @@ const AppContent: React.FC = () => {
   const [sharedText, setSharedText] = useState<string | null>(null);
   const { settings } = useContext(SettingsContext);
   const dataContext = useContext(AppDataContext);
+  const settingsContext = useContext(SettingsContext);
   const mainContentRef = useRef<HTMLElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -39,9 +41,51 @@ const AppContent: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  if (!dataContext) {
+  if (!dataContext || !settingsContext) {
     return null; 
   }
+
+  // Destructure all the state here for score calculation and to pass down
+  const {
+      transactions, accounts, budgets, recurringTransactions,
+      goals, investmentHoldings, trips, tripExpenses,
+      shops, shopProducts, shopSales,
+      shopEmployees, shopShifts, unlockedAchievements,
+      streaks, challenges, refunds, settlements, shoppingLists, glossaryEntries
+  } = dataContext;
+  const { categories, payees, senders, contactGroups, contacts, financialProfile } = settingsContext;
+
+  const appState: AppState = useMemo(() => ({
+      transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists, glossaryEntries
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists, glossaryEntries]);
+
+  const { totalScore } = useMemo(() => calculateFinancialHealthScore(appState), [appState]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (totalScore >= 80) { // High Score: Energetic & Positive
+        root.style.setProperty('--aurora-1', 'var(--color-accent-emerald)');
+        root.style.setProperty('--aurora-2', '#eab308'); // Gold/Yellow
+        root.style.setProperty('--aurora-3', 'var(--color-accent-sky)');
+        root.style.setProperty('--aurora-speed-1', '20s');
+        root.style.setProperty('--aurora-speed-2', '25s');
+        root.style.setProperty('--aurora-speed-3', '22s');
+    } else if (totalScore >= 50) { // Medium Score: Balanced & Calm
+        root.style.setProperty('--aurora-1', 'var(--color-accent-violet)');
+        root.style.setProperty('--aurora-2', 'var(--color-accent-sky)');
+        root.style.setProperty('--aurora-3', '#ec4899'); // Pink
+        root.style.setProperty('--aurora-speed-1', '30s');
+        root.style.setProperty('--aurora-speed-2', '35s');
+        root.style.setProperty('--aurora-speed-3', '28s');
+    } else { // Low Score: Cool & Muted
+        root.style.setProperty('--aurora-1', '#1e3a8a'); // Dark Blue
+        root.style.setProperty('--aurora-2', 'var(--color-accent-rose)');
+        root.style.setProperty('--aurora-3', '#4c1d95'); // Deeper Violet
+        root.style.setProperty('--aurora-speed-1', '45s');
+        root.style.setProperty('--aurora-speed-2', '50s');
+        root.style.setProperty('--aurora-speed-3', '40s');
+    }
+  }, [totalScore]);
 
   const activeModal = modalStack[modalStack.length - 1] || null;
   const openModal = useCallback((name: ActiveModal, props?: Record<string, any>) => setModalStack(prev => [...prev, { name, props }]), []);
@@ -100,7 +144,7 @@ const AppContent: React.FC = () => {
         <div className="h-full w-full max-w-md mx-auto flex flex-col font-sans glass-card rounded-none sm:rounded-3xl shadow-2xl relative app-container z-10 no-hover">
           {!isOnline && (
             <div className="offline-indicator">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m-12.728 0a9 9 0 010-12.728m5.09 5.09a1.5 1.5 0 11-2.122 2.122m-5.09-5.09a9 9 0 000 12.728m12.728 0a9 9 0 000-12.728" /></svg>
+              <svg xmlns="http://www.w.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m-12.728 0a9 9 0 010-12.728m5.09 5.09a1.5 1.5 0 11-2.122 2.122m-5.09-5.09a9 9 0 000 12.728m12.728 0a9 9 0 000-12.728" /></svg>
               <span>Offline Mode</span>
             </div>
           )}
@@ -124,6 +168,7 @@ const AppContent: React.FC = () => {
                 initialText={sharedText}
                 onSharedTextConsumed={onSharedTextConsumed}
                 onGoalComplete={triggerConfetti}
+                appState={appState}
              />
           </main>
           <Footer 

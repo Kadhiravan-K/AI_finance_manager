@@ -48,10 +48,13 @@
         --shadow-color-accent: rgba(16, 185, 129, 0.4); /* Adjusted for new emerald */
         --shadow-color-rose: rgba(244, 63, 94, 0.2);
         
-        /* Aurora Colors */
-        --aurora-1: #10b981;
-        --aurora-2: #8b5cf6;
-        --aurora-3: #38bdf8;
+        /* Aurora Colors (default to medium health) */
+        --aurora-1: var(--color-accent-violet);
+        --aurora-2: var(--color-accent-sky);
+        --aurora-3: #ec4899; /* Pink */
+        --aurora-speed-1: 30s;
+        --aurora-speed-2: 35s;
+        --aurora-speed-3: 25s;
       }
       
       html.light {
@@ -142,34 +145,35 @@
         opacity: 0.3;
         filter: blur(120px);
         mix-blend-mode: screen;
-        transition: background 0.5s ease;
+        will-change: transform, background;
+        transition: background 1.5s ease-out;
       }
 
       .aurora-1 {
         width: 50vw;
         height: 50vw;
-        background: radial-gradient(circle, var(--aurora-1), transparent 60%);
+        background: radial-gradient(circle, var(--aurora-1, #10b981), transparent 60%);
         top: 10%;
         left: 10%;
-        animation: rotate 25s linear infinite;
+        animation: rotate var(--aurora-speed-1, 25s) linear infinite;
       }
 
       .aurora-2 {
         width: 40vw;
         height: 40vw;
-        background: radial-gradient(circle, var(--aurora-2), transparent 60%);
+        background: radial-gradient(circle, var(--aurora-2, #8b5cf6), transparent 60%);
         bottom: 15%;
         right: 5%;
-        animation: rotate 30s linear infinite reverse;
+        animation: rotate var(--aurora-speed-2, 30s) linear infinite reverse;
       }
 
       .aurora-3 {
         width: 30vw;
         height: 30vw;
-        background: radial-gradient(circle, var(--aurora-3), transparent 60%);
+        background: radial-gradient(circle, var(--aurora-3, #38bdf8), transparent 60%);
         top: 20%;
         right: 20%;
-        animation: rotate 20s linear infinite;
+        animation: rotate var(--aurora-speed-3, 20s) linear infinite;
       }
 
 
@@ -566,10 +570,11 @@
         justify-content: center;
         align-items: center;
         transition: background-color 0.2s;
-        aspect-ratio: 1/1;
+        height: 15vw;
+        max-height: 64px;
       }
       .calc-btn.col-span-2 {
-        aspect-ratio: auto;
+        /* aspect-ratio is not needed as height is fixed */
       }
       .calc-btn:hover { background-color: var(--color-bg-card-hover); }
       .calc-btn-operator { background-color: var(--color-accent-emerald); color: white; }
@@ -592,7 +597,7 @@
        .calculator-history {
         font-size: 0.875rem;
         color: var(--color-text-secondary);
-        max-height: 80px;
+        max-height: 60px;
         overflow-y: auto;
       }
       /* Achievement Toast */
@@ -702,7 +707,7 @@
       /* --- NEW SHOPPING LIST UI --- */
       .shopping-list-item-grid {
         display: grid;
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: auto 1fr 35px 40px 50px; /* Checkbox, Name, Qty, Priority, Rate */
         align-items: center;
         gap: 0.75rem; /* 12px */
       }
@@ -725,7 +730,7 @@
       }
       .shopping-list-item-input.rate {
         text-align: right;
-        max-width: 80px;
+        max-width: 50px;
       }
 
     </style>

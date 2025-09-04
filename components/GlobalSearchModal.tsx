@@ -84,6 +84,8 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       shopEmployees: dataContext.shopEmployees,
       shopShifts: dataContext.shopShifts,
       shoppingLists: dataContext.shoppingLists,
+      // Fix: Add missing 'glossaryEntries' property to satisfy AppState type.
+      glossaryEntries: dataContext.glossaryEntries,
     };
   }, [dataContext, settingsContext]);
 

@@ -1,10 +1,6 @@
-
-
-
-
 // Fix: Import GoogleGenAI to initialize the client.
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct } from "../types";
+import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -65,6 +61,61 @@ Text: "${text}"`,
     throw new Error(error instanceof Error ? `Failed to parse transaction: ${error.message}` : "An unknown error occurred during parsing.");
   }
 }
+
+const receiptSchema = {
+  type: Type.OBJECT,
+  properties: {
+    merchantName: { type: Type.STRING, description: "The name of the merchant or store." },
+    transactionDate: { type: Type.STRING, description: `The date of the transaction in YYYY-MM-DD format. If no date is found, use the current date: ${new Date().toISOString().split('T')[0]}.` },
+    totalAmount: { type: Type.NUMBER, description: "The final total amount of the transaction." },
+    lineItems: {
+      type: Type.ARRAY,
+      description: "A list of all individual items purchased.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          description: { type: Type.STRING, description: "The name or description of the line item." },
+          amount: { type: Type.NUMBER, description: "The price of the line item." }
+        },
+        required: ["description", "amount"]
+      }
+    }
+  },
+  required: ["merchantName", "transactionDate", "totalAmount", "lineItems"]
+};
+
+export async function parseReceiptImage(base64Image: string, mimeType: string): Promise<ParsedReceiptData | null> {
+    if (!base64Image) throw new Error("Image data cannot be empty.");
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: {
+                parts: [
+                    { text: "Analyze this receipt image. Extract the merchant name, date, total amount, and all individual line items with their prices. Adhere strictly to the provided JSON schema." },
+                    { inlineData: { mimeType, data: base64Image } }
+                ]
+            },
+            config: { responseMimeType: "application/json", responseSchema: receiptSchema },
+        });
+
+        const result = JSON.parse(response.text);
+        if (result && result.totalAmount > 0) {
+            const date = result.transactionDate && !isNaN(new Date(result.transactionDate).getTime()) ? new Date(result.transactionDate).toISOString() : new Date().toISOString();
+            return {
+                merchantName: result.merchantName,
+                transactionDate: date,
+                totalAmount: result.totalAmount,
+                lineItems: result.lineItems || []
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error parsing receipt from Gemini API:", error);
+        throw new Error(error instanceof Error ? `Failed to parse receipt: ${error.message}` : "An unknown error occurred during receipt parsing.");
+    }
+}
+
 
 const currencyConversionSchema = {
     type: Type.OBJECT,
@@ -531,4 +582,147 @@ export async function parseNaturalLanguageCalculation(appState: AppState, query:
         console.error("Error with natural language calculation:", error);
         throw new Error("I couldn't calculate that. Please try rephrasing your question.");
     }
+}
+
+const scenarioSchema = {
+    type: Type.OBJECT,
+    properties: {
+        summary: { type: Type.STRING, description: "A one-sentence summary of the scenario being simulated." },
+        keyMetrics: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    metric: { type: Type.STRING, description: "The name of the financial metric being impacted, e.g., 'Monthly Savings'." },
+                    oldValue: { type: Type.STRING, description: "The value of the metric before the change, formatted with currency." },
+                    newValue: { type: Type.STRING, description: "The simulated new value of the metric, formatted with currency." },
+                    changeDescription: { type: Type.STRING, description: "A brief text description of the change, e.g., 'a decrease of ₹2,000'." }
+                },
+                required: ["metric", "oldValue", "newValue", "changeDescription"]
+            }
+        },
+        goalImpacts: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    goalName: { type: Type.STRING, description: "The name of the savings goal being impacted." },
+                    impact: { type: Type.STRING, description: "The summary of the impact on the goal's timeline, e.g., 'Delayed by approx. 2 months'." }
+                },
+                required: ["goalName", "impact"]
+            }
+        },
+        conclusion: { type: Type.STRING, description: "A concluding remark or piece of advice based on the simulation." }
+    },
+    required: ["summary", "keyMetrics", "conclusion"]
+};
+
+
+export async function runFinancialScenario(appState: AppState, query: string): Promise<FinancialScenarioResult> {
+    const { transactions, budgets, goals, financialProfile, settings, categories } = appState;
+
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    const lastMonthStr = lastMonth.toISOString().slice(0, 7);
+
+    const lastMonthTx = transactions.filter(t => t.date.startsWith(lastMonthStr));
+    const lastMonthIncome = lastMonthTx.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const lastMonthExpense = lastMonthTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const lastMonthSavings = lastMonthIncome - lastMonthExpense;
+
+    const context = `
+      User's Financial Context (Currency: ${settings.currency}):
+      - Stated Monthly Salary: ${financialProfile.monthlySalary || 'Not set'}
+      - Last full month's calculated income: ${lastMonthIncome.toFixed(2)}
+      - Last full month's calculated expenses: ${lastMonthExpense.toFixed(2)}
+      - Last full month's calculated savings: ${lastMonthSavings.toFixed(2)}
+      - Budgets: ${budgets.length > 0 ? budgets.map(b => `${categories.find(c => c.id === b.categoryId)?.name}: ${b.amount}`).join(', ') : 'None set'}
+      - Goals: ${goals.length > 0 ? goals.map(g => `${g.name} (Target: ${g.targetAmount}, Current: ${g.currentAmount})`).join(', ') : 'None set'}
+    `;
+
+    const prompt = `
+      You are an expert financial analyst. A user wants to explore a 'what-if' scenario.
+      Analyze their query based on their provided financial context.
+      Run a simulation and determine the impact.
+      Provide a structured JSON response detailing the outcome. Be quantitative and clear.
+      
+      FINANCIAL CONTEXT:
+      ${context}
+      
+      USER'S SCENARIO QUERY:
+      "${query}"
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: scenarioSchema }
+        });
+        
+        const result: FinancialScenarioResult = JSON.parse(response.text);
+
+        return result;
+
+    } catch (error) {
+        console.error("Error running financial scenario from Gemini API:", error);
+        throw new Error("I had trouble running that simulation. Please try rephrasing your question or check the data you've provided.");
+    }
+}
+
+const subscriptionSchema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      vendorName: { type: Type.STRING, description: "The normalized name of the vendor (e.g., 'Netflix', 'Starbucks')." },
+      averageAmount: { type: Type.NUMBER, description: "The average transaction amount for this vendor." },
+      frequency: { type: Type.STRING, description: "The estimated payment frequency. Must be one of: 'monthly', 'yearly', 'weekly', 'irregular'." },
+      transactionCount: { type: Type.NUMBER, description: "The total number of transactions identified for this vendor." },
+      category: { type: Type.STRING, description: "The most common category for this vendor's transactions." },
+    },
+    required: ["vendorName", "averageAmount", "frequency", "transactionCount", "category"]
+  }
+};
+
+export async function identifySubscriptions(transactions: Transaction[], categories: Category[]): Promise<IdentifiedSubscription[]> {
+  if (transactions.length < 5) {
+    throw new Error("Not enough transaction data to analyze for subscriptions.");
+  }
+  
+  // Create a simplified summary for the AI to process, saving tokens.
+  const transactionSummary = transactions.map(t => {
+    const category = categories.find(c => c.id === t.categoryId);
+    return {
+      d: t.description,
+      a: t.amount,
+      dt: t.date.split('T')[0], // Just the date part
+      c: category?.name || 'Uncategorized'
+    };
+  });
+
+  const prompt = `
+    You are an expert financial analyst. Your task is to identify recurring payments, subscriptions, and frequently paid vendors from the provided list of transactions.
+    Analyze the transaction descriptions, amounts, and dates to find patterns.
+    - Group transactions by the likely vendor (e.g., all "Zomato", "ZOMATO ONLINE" should be grouped under "Zomato").
+    - Calculate the average amount for each vendor.
+    - Determine the frequency of payments (weekly, monthly, yearly). If payments are frequent but not on a fixed schedule (like a coffee shop), label them as 'irregular'.
+    - Count the total number of transactions for each identified vendor.
+    - Identify the most common category for each vendor.
+    - Return the result as a JSON array matching the provided schema. Only include vendors with 2 or more transactions.
+    
+    Transaction data: ${JSON.stringify(transactionSummary)}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: "application/json", responseSchema: subscriptionSchema },
+    });
+    return JSON.parse(response.text);
+  } catch (error) {
+    console.error("Error identifying subscriptions from Gemini API:", error);
+    throw new Error(error instanceof Error ? `Failed to identify subscriptions: ${error.message}` : "An unknown error occurred during subscription analysis.");
+  }
 }

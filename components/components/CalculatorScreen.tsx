@@ -246,7 +246,6 @@ const SIPCalculator = () => {
     );
 };
 
-// Fix: Add SWPCalculator component
 const SWPCalculator = () => {
     const [principal, setPrincipal] = useState('');
     const [withdrawal, setWithdrawal] = useState('');

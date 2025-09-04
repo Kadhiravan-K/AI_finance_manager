@@ -3,16 +3,14 @@
 import React, { useState, useCallback, useEffect, useMemo, useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, TrustBinDeletionPeriodUnit, TripPayer, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund, Settlement, ShoppingList } from '../types';
-import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand } from '../services/geminiService';
+import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand, runFinancialScenario } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
-// Fix: Removed unused AccountSelectorModal import as it was causing a type error and is considered dead code.
 import EditTransactionModal from './EditTransactionModal';
 import TransferModal from './TransferModal';
 import ReportsScreen from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
 import MoreScreen from './More';
-import ScheduledPaymentsModal from './ScheduledPaymentsModal';
 import { SettingsContext, AppDataContext } from '../contexts/SettingsContext';
 import { calculateNextDueDate } from '../utils/date';
 import AppSettingsModal from './AppSettingsModal';
@@ -26,7 +24,7 @@ import GoalsScreen from './GoalsModal';
 import ContactsManagerModal from './ContactsManagerModal';
 import FeedbackModal from './FeedbackModal';
 import InvestmentsScreen from './InvestmentsScreen';
-import CalculatorScreen from './CalculatorModal';
+import CalculatorScreen from './CalculatorScreen';
 import AchievementsScreen from './AchievementsScreen';
 import AchievementToast from './AchievementToast';
 import { ALL_ACHIEVEMENTS, checkAchievements } from '../utils/achievements';
@@ -71,11 +69,16 @@ import { ShoppingListScreen } from './ShoppingListScreen';
 import ManualScreen from './ManualScreen';
 import FooterCustomizationModal from './FooterCustomizationModal';
 import EditShopModal from './EditShopModal';
+import SubscriptionsScreen from './SubscriptionsScreen';
+import GlossaryScreen from './GlossaryScreen';
+import EditGlossaryEntryModal from './EditGlossaryEntryModal';
+import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
+
 
 const modalRoot = document.getElementById('modal-root')!;
 
 const MainContentMemoized: React.FC<FinanceTrackerProps> = ({ 
-  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, onNavigate, isLoading, onSharedTextConsumed, onGoalComplete
+  activeScreen, setActiveScreen, modalStack, setModalStack, isOnline, mainContentRef, initialText, onSelectionChange, onNavigate, isLoading, onSharedTextConsumed, onGoalComplete, appState
 }) => {
   const { settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders, contactGroups, setContactGroups, contacts, setContacts, financialProfile, setFinancialProfile } = useContext(SettingsContext);
   const dataContext = useContext(AppDataContext);
@@ -92,6 +95,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
     streaks, challenges, setChallenges, refunds, setRefunds, 
     settlements,
     shoppingLists,
+    glossaryEntries, setGlossaryEntries,
     findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
     selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit, onAddAccount, onEditAccount, onDeleteAccount,
     handleRecordSettlement
@@ -165,11 +169,6 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
   const confirmResetApp = () => {
     setResetConfirmation(true);
   }
-
-
-  const appState: AppState = useMemo(() => ({
-    transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists]);
 
   useEffect(() => {
     onSelectionChange?.(selectedAccountIds);
@@ -610,6 +609,8 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
     if (restoredItemsByType.shopEmployee) setShopEmployees(prev => [...prev, ...restoredItemsByType.shopEmployee!]);
     if (restoredItemsByType.shopShift) setShopShifts((prev: ShopShift[]) => [...prev, ...restoredItemsByType.shopShift!]);
     if (restoredItemsByType.settlement) dataContext.setSettlements(prev => [...(prev || []), ...restoredItemsByType.settlement!]);
+    if (restoredItemsByType.shoppingList) dataContext.setShoppingLists(prev => [...(prev || []), ...restoredItemsByType.shoppingList!]);
+    if (restoredItemsByType.glossaryEntry) dataContext.setGlossaryEntries(prev => [...(prev || []), ...restoredItemsByType.glossaryEntry!]);
     
     setTrustBin(prev => prev.filter(item => !itemIds.includes(item.id)));
   };
@@ -676,6 +677,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
           if (accounts.length === 0 && command.toLowerCase().includes('add')) {
               return "I can't add a transaction because you haven't created any accounts yet. Please create an account first.";
           }
+
           const geminiFile = file ? { mimeType: file.type, data: file.data } : undefined;
           const parsed = await parseAICommand(command, categories, accounts, geminiFile);
           
@@ -832,10 +834,10 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
 
   const handleCreateExpenseFromShoppingList = (list: ShoppingList) => {
     const totalAmount = list.items.reduce((sum, item) => sum + item.rate, 0);
-    const itemizedNotes = list.items.map(item => `${item.isPurchased ? '[x]' : '[ ]'} ${item.name} (${formatCurrency(item.rate)})`).join('\n');
+    const itemizedNotes = list.items.map(item => `${item.isPurchased ? '[x]' : '[ ]'} ${item.name} (${item.quantity}) - (${formatCurrency(item.rate)})`).join('\n');
     
     const itemizedItemsForSplit = list.items.map(item => ({
-        description: item.name,
+        description: `${item.name} (${item.quantity})`,
         amount: String(item.rate),
     }));
 
@@ -890,7 +892,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
       case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} onAddBudget={() => {}} />;
       case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}} />;
       case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g => g.id === id)?.name || 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} />;
-      case 'scheduled': return <ScheduledPaymentsModal recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onAdd={() => openModal('editRecurring')} onEdit={handleEditRecurring} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(rt => rt.id === id)?.description || 'payment')} />;
+      case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onAdd={() => openModal('editRecurring')} onEdit={handleEditRecurring} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(rt => rt.id === id)?.description || 'payment')} />;
       case 'calculator': return <CalculatorScreen appState={appState} />;
       case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
       case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setTripDetailsId(id); setActiveScreen('tripDetails'); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
@@ -918,10 +920,12 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
           onSaveShift={handleSaveShift} onDeleteShift={(id) => handleItemDeletion(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')}
       />;
       case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
-      case 'learn': return <LearnScreen onOpenChat={() => openModal('aiHub')} />;
+      case 'learn': return <LearnScreen onOpenChat={() => openModal('aiHub')} onOpenGlossary={() => setActiveScreen('glossary')} />;
       case 'calendar': return <CalendarScreen onNavigate={onNavigate} setActiveScreen={setActiveScreen} setTripDetailsId={setTripDetailsId} />;
       case 'shoppingLists': return <ShoppingListScreen onCreateExpense={handleCreateExpenseFromShoppingList} />;
       case 'manual': return <ManualScreen setActiveScreen={setActiveScreen} />;
+      case 'subscriptions': return <SubscriptionsScreen />;
+      case 'glossary': return <GlossaryScreen onAdd={() => openModal('editGlossaryEntry')} onEdit={(entry) => openModal('editGlossaryEntry', { entry })} />;
       case 'more': return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={openModal} onResetApp={confirmResetApp} />;
       default: return <div>Screen not found</div>;
     }
@@ -969,7 +973,6 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
               case 'transfer': return <TransferModal onClose={closeActiveModal} accounts={accounts} onTransfer={handleAccountTransfer} />;
               case 'addTransaction': return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={handleAddTransaction} onSaveManual={handleSaveTransaction} isDisabled={selectedAccountIds.length === 0} initialText={initialText} onInitialTextConsumed={onSharedTextConsumed} {...activeModal.props} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={handleOpenCalculator} selectedAccountId={selectedAccountIds.length === 1 ? selectedAccountIds[0] : undefined} />;
               case 'editTransaction': return <EditTransactionModal transaction={activeModal.props?.transaction} initialData={activeModal.props?.initialData} onSave={handleSaveTransaction} onCancel={closeActiveModal} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={handleOpenCalculator} />;
-              // Fix: Removed unused 'accountSelector' case to resolve type error. This modal is not used in the application.
               case 'appSettings': return <AppSettingsModal onClose={closeActiveModal} appState={appState} onRestore={(state) => { console.log("Restoring", state); }} />;
               case 'categories': return <CategoryManagerModal onClose={closeActiveModal} categories={categories} onAddTopLevelCategory={() => openModal('editCategory')} onAddSubcategory={(parent) => openModal('editCategory', { initialParentId: parent.id, initialType: parent.type })} onEditCategory={(category) => openModal('editCategory', { category })} onDeleteCategory={(id) => handleItemDeletion(id, 'category', categories.find(c=>c.id===id)?.name || 'category')} />;
               case 'editCategory': return <EditCategoryModal onCancel={closeActiveModal} onSave={handleSaveCategory} {...activeModal.props} categories={categories} />;
@@ -983,9 +986,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
               case 'addTripExpense': return <AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={items => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(expense) => handleUpdateTripExpense(activeModal.props?.trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} findOrCreateCategory={findOrCreateCategory} onSaveContact={handleSaveContact} />;
               case 'refund': return <RefundModal onClose={closeActiveModal} onSave={handleSaveRefund} {...activeModal.props} refunds={refunds} allTransactions={transactions} accounts={accounts} contacts={contacts} />;
               case 'trustBin': return <TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />;
-              case 'editAccount': return <EditAccountModal account={activeModal.props?.account} onClose={closeActiveModal} onSave={(account) => {
-                  setAccounts(prev => prev.map(a => a.id === account.id ? account : a));
-              }} />;
+              case 'editAccount': return <EditAccountModal account={activeModal.props?.account} onClose={closeActiveModal} onSave={(account) => { onEditAccount(account); }} />;
               case 'miniCalculator': return <MiniCalculatorModal onClose={closeActiveModal} onResult={activeModal.props?.onResult} />;
               case 'editTrip': return <EditTripModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
               case 'editContact': return <EditContactModal contact={activeModal.props?.contact} initialGroupId={activeModal.props?.initialGroupId} onClose={closeActiveModal} onSave={handleSaveContact} />;
@@ -999,11 +1000,12 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
               case 'globalSearch': return <GlobalSearchModal onClose={closeActiveModal} onNavigate={handleSearchNavigation} />;
               case 'editRecurring': return <EditRecurringModal recurringTransaction={activeModal.props?.recurringTransaction} onClose={closeActiveModal} onSave={handleSaveRecurring} categories={categories} accounts={accounts} />;
               case 'buyInvestment': return <BuyInvestmentModal onClose={closeActiveModal} accounts={accounts} onSave={handleBuyInvestment} />;
-              case 'aiHub': return <AIHubModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} />;
+              case 'aiHub': return <AIHubModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} appState={appState} />;
               case 'shareGuide': return <ShareGuideModal onClose={closeActiveModal} />;
               case 'integrations': return <IntegrationsModal onClose={closeActiveModal} />;
               case 'footerCustomization': return <FooterCustomizationModal onClose={closeActiveModal} />;
               case 'editShop': return <EditShopModal shop={activeModal.props?.shop} onSave={handleSaveShop} onCancel={closeActiveModal} />;
+              case 'editGlossaryEntry': return <EditGlossaryEntryModal entry={activeModal.props?.entry} onClose={closeActiveModal} onSave={(entry, id) => { if (id) { setGlossaryEntries(p => p.map(e => e.id === id ? { ...entry, id } : e)); } else { setGlossaryEntries(p => [...p, { ...entry, id: self.crypto.randomUUID() }]); } closeActiveModal(); }} />;
               default: return null;
             }
           })()}

@@ -1,3 +1,5 @@
+
+
 import React, { createContext, useState, ReactNode, useEffect, useMemo, useContext, useCallback } from 'react';
 import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData, Refund, Settlement, ShoppingList, GlossaryEntry } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -73,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
         learn: true,
         challenges: true,
         shoppingLists: true,
+        subscriptions: true,
     },
     footerActions: ['dashboard', 'reports', 'budgets', 'more'],
     googleCalendar: {

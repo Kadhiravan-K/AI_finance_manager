@@ -1,5 +1,12 @@
 
 
+
+
+
+
+
+
+
 export enum ProcessingStatus {
   IDLE,
   LOADING,
@@ -129,6 +136,19 @@ export interface ParsedTransactionData {
     isForwarded: boolean;
 }
 
+export interface ParsedLineItem {
+  description: string;
+  amount: number;
+}
+
+export interface ParsedReceiptData {
+  merchantName: string;
+  transactionDate: string; // ISO string
+  totalAmount: number;
+  lineItems: ParsedLineItem[];
+}
+
+
 export interface SpamWarning {
     parsedData: ParsedTransactionData;
     rawText: string;
@@ -250,7 +270,7 @@ export type ToggleableTool =
   'achievements' | 'aiHub' | 'dataHub' | 
   'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 
   'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 
-  'calendar' | 'budgets' | 'goals' | 'learn' | 'challenges' | 'shoppingLists';
+  'calendar' | 'budgets' | 'goals' | 'learn' | 'challenges' | 'shoppingLists' | 'subscriptions';
 
 export interface Settings {
     currency: string; // e.g., 'USD', 'INR', 'EUR'
@@ -372,9 +392,9 @@ export interface Settlement {
   notes?: string;
 }
 
-export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'shoppingLists' | 'manual';
+export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'shoppingLists' | 'manual' | 'subscriptions' | 'glossary';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'accountsManager' | 'globalSearch' | 'editRecurring' | 'buyInvestment' | 'aiHub' | 'shareGuide' | 'integrations' | 'footerCustomization' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'accountsManager' | 'globalSearch' | 'editRecurring' | 'buyInvestment' | 'aiHub' | 'shareGuide' | 'integrations' | 'footerCustomization' | 'editGlossaryEntry' | null;
 
 export interface ModalState {
     name: ActiveModal;
@@ -394,6 +414,7 @@ export interface FinanceTrackerProps {
   initialText?: string | null;
   onSharedTextConsumed: () => void;
   onGoalComplete: () => void;
+  appState: AppState;
 }
 
 export interface FinancialProfile {
@@ -417,11 +438,15 @@ export interface Refund {
     expectedDate?: string; // ISO String
 }
 
+export type Priority = 'High' | 'Medium' | 'Low' | 'None';
+
 export interface ShoppingListItem {
   id: string;
   name: string;
+  quantity: string;
   rate: number;
   isPurchased: boolean;
+  priority: Priority;
 }
 
 export interface ShoppingList {
@@ -465,6 +490,7 @@ export interface AppState {
     refunds?: Refund[];
     settlements?: Settlement[];
     shoppingLists?: ShoppingList[];
+    glossaryEntries: GlossaryEntry[];
     // Shop Data
     shops?: Shop[];
     shopProducts?: ShopProduct[];
@@ -498,4 +524,27 @@ export interface CalendarEvent {
     type: 'bill' | 'goal' | 'refund' | 'trip';
     color: 'rose' | 'violet' | 'sky' | 'amber';
     data: any;
+}
+
+export interface FinancialScenarioResult {
+  summary: string;
+  keyMetrics: {
+    metric: string;
+    oldValue: string;
+    newValue: string;
+    changeDescription: string;
+  }[];
+  goalImpacts?: {
+    goalName: string;
+    impact: string;
+  }[];
+  conclusion: string;
+}
+
+export interface IdentifiedSubscription {
+  vendorName: string;
+  averageAmount: number;
+  frequency: 'monthly' | 'yearly' | 'weekly' | 'irregular';
+  transactionCount: number;
+  category: string;
 }

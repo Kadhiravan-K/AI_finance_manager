@@ -1,6 +1,6 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
-import { ShoppingList, ShoppingListItem, ItemType, Transaction } from '../types';
+import { ShoppingList, ShoppingListItem, ItemType, Priority } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomCheckbox from './CustomCheckbox';
 import EmptyState from './EmptyState';
@@ -101,8 +101,27 @@ interface ShoppingListDetailViewProps {
 const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, onSave, onBack, onCreateExpense }) => {
   const [currentList, setCurrentList] = useState<ShoppingList>(list);
   const formatCurrency = useCurrencyFormatter();
+  const [editingRateId, setEditingRateId] = useState<string | null>(null);
+
+  const formatCompactNumber = (num: number): string => {
+    if (num === 0) return '0.00';
+    if (num < 1000) return num.toFixed(2);
+    const formatter = new Intl.NumberFormat('en', {
+        notation: 'compact',
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+    });
+    return formatter.format(num);
+  };
   
-  // Sync local state with prop to prevent stale state on parent re-renders
+  const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+  const priorityStyles: Record<Priority, { icon: string; colorClass: string; borderColorClass: string }> = {
+    'High': { icon: '🔴', colorClass: 'text-rose-400', borderColorClass: 'border-rose-500/50' },
+    'Medium': { icon: '🟡', colorClass: 'text-yellow-400', borderColorClass: 'border-yellow-500/50' },
+    'Low': { icon: '🟢', colorClass: 'text-green-400', borderColorClass: 'border-green-500/50' },
+    'None': { icon: '⚪', colorClass: 'text-slate-500', borderColorClass: 'border-transparent' },
+  };
+
   useEffect(() => {
     setCurrentList(list);
   }, [list]);
@@ -110,14 +129,38 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
   const total = useMemo(() => currentList.items.reduce((sum, item) => sum + (item.rate || 0), 0), [currentList.items]);
   const purchasedTotal = useMemo(() => currentList.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0), [currentList.items]);
 
+  const sortedItems = useMemo(() => {
+    const priorityOrder: Record<Priority, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'None': 3 };
+    return [...currentList.items].sort((a, b) => {
+        if (a.isPurchased !== b.isPurchased) {
+            return a.isPurchased ? 1 : -1;
+        }
+        const priorityA = a.priority || 'None';
+        const priorityB = b.priority || 'None';
+        if (priorityOrder[priorityA] !== priorityOrder[priorityB]) {
+            return priorityOrder[priorityA] - priorityOrder[priorityB];
+        }
+        return 0; 
+    });
+  }, [currentList.items]);
 
   const handleItemChange = (itemId: string, field: keyof ShoppingListItem, value: string | number | boolean) => {
     const updatedItems = currentList.items.map(item => item.id === itemId ? { ...item, [field]: value } : item);
     setCurrentList(prev => ({ ...prev, items: updatedItems }));
   };
+  
+  const handlePriorityChange = (itemId: string) => {
+    const item = currentList.items.find(i => i.id === itemId);
+    if (!item) return;
+    const currentPriority = item.priority || 'None';
+    const currentIndex = priorities.indexOf(currentPriority);
+    const nextIndex = (currentIndex + 1) % priorities.length;
+    const nextPriority = priorities[nextIndex];
+    handleItemChange(itemId, 'priority', nextPriority);
+  };
 
   const handleAddItem = () => {
-    const newItem: ShoppingListItem = { id: self.crypto.randomUUID(), name: '', rate: 0, isPurchased: false };
+    const newItem: ShoppingListItem = { id: self.crypto.randomUUID(), name: '', rate: 0, isPurchased: false, priority: 'None', quantity: '1' };
     setCurrentList(prev => ({ ...prev, items: [...prev.items, newItem] }));
   };
 
@@ -142,48 +185,85 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-divider flex-shrink-0 flex items-center gap-2">
-        <button onClick={() => { onSave(currentList); onBack(); }} className="p-2 -ml-2 text-secondary hover:text-primary rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg></button>
-        <input 
-          type="text" 
-          value={currentList.title}
-          onChange={(e) => setCurrentList(p => ({ ...p, title: e.target.value }))}
-          className="bg-transparent text-xl font-bold text-primary focus:outline-none w-full"
-        />
-      </div>
-      <div className="flex-grow overflow-y-auto p-4 space-y-2">
-         <div className="shopping-list-item-grid px-3 pb-2 border-b border-divider">
-            <div className="text-sm font-semibold text-secondary">Done</div>
-            <div className="text-sm font-semibold text-secondary">Item Name</div>
-            <div className="text-sm font-semibold text-secondary">Rate</div>
-          </div>
-        {currentList.items.map(item => (
-          <div key={item.id} className="shopping-list-item-grid group p-2 rounded-lg hover-bg-stronger">
-            <CustomCheckbox id={item.id} label="" checked={item.isPurchased} onChange={checked => {
-                handleItemChange(item.id, 'isPurchased', checked);
-            }} />
+      <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 flex-grow min-w-0">
+            <button onClick={() => { onSave(currentList); onBack(); }} className="p-2 -ml-2 text-secondary hover:text-primary rounded-full flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
             <input 
               type="text" 
-              value={item.name} 
-              onChange={e => handleItemChange(item.id, 'name', e.target.value)}
-              className="shopping-list-item-input"
+              value={currentList.title}
+              onChange={(e) => setCurrentList(p => ({ ...p, title: e.target.value }))}
+              className="bg-transparent text-xl font-bold text-primary focus:outline-none w-full"
             />
-            <div className="flex items-center">
-              <input 
-                type="number" 
-                value={item.rate || ''}
-                onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                className="shopping-list-item-input rate no-spinner"
-                placeholder="0.00"
-              />
-              <button onClick={() => {
-                  const updatedItems = currentList.items.filter(i => i.id !== item.id);
-                  handleRemoveItem(item.id);
-                  onSave({...currentList, items: updatedItems});
-              }} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity ml-2">&times;</button>
-            </div>
+        </div>
+        <button onClick={() => { onSave(currentList); onBack(); }} className="button-primary px-4 py-2 flex-shrink-0">
+            Save
+        </button>
+      </div>
+      <div className="flex-grow overflow-y-auto p-4 space-y-2">
+         <div className="shopping-list-item-grid px-2 pb-2 border-b border-divider">
+            <div className="text-sm font-semibold text-secondary text-center px-1">Done</div>
+            <div className="text-sm font-semibold text-secondary">Item Name</div>
+            <div className="text-sm font-semibold text-secondary text-center px-1">Qty</div>
+            <div className="text-sm font-semibold text-secondary text-center" title="Priority">P</div>
+            <div className="text-sm font-semibold text-secondary text-right px-1">Rate</div>
           </div>
-        ))}
+        {sortedItems.map(item => {
+          const itemPriority = item.priority || 'None';
+          return (
+            <div key={item.id} className={`shopping-list-item-grid group p-2 rounded-lg hover-bg-stronger border-l-4 transition-colors ${priorityStyles[itemPriority].borderColorClass}`}>
+              <CustomCheckbox id={item.id} label="" checked={item.isPurchased} onChange={checked => {
+                  handleItemChange(item.id, 'isPurchased', checked);
+              }} />
+              <input 
+                type="text" 
+                value={item.name} 
+                onChange={e => handleItemChange(item.id, 'name', e.target.value)}
+                className={`shopping-list-item-input ${item.isPurchased ? 'line-through text-secondary' : ''}`}
+              />
+               <input 
+                type="text"
+                value={item.quantity}
+                onChange={e => handleItemChange(item.id, 'quantity', e.target.value)}
+                className={`shopping-list-item-input text-center no-spinner ${item.isPurchased ? 'line-through text-secondary' : ''}`}
+                placeholder="1"
+              />
+              <div className="flex justify-center">
+                <button
+                    type="button"
+                    onClick={() => handlePriorityChange(item.id)}
+                    className={`text-xl p-1 rounded-full hover:bg-slate-700/50 transition-colors ${priorityStyles[itemPriority].colorClass}`}
+                    title={`Priority: ${itemPriority}`}
+                >
+                    {priorityStyles[itemPriority].icon}
+                </button>
+              </div>
+              <div className="flex items-center justify-end">
+                {editingRateId === item.id ? (
+                  <input
+                    type="number"
+                    value={item.rate || ''}
+                    onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                    onBlur={() => setEditingRateId(null)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setEditingRateId(null); } }}
+                    className="shopping-list-item-input rate no-spinner"
+                    autoFocus
+                    onFocus={e => e.target.select()}
+                  />
+                ) : (
+                  <span 
+                    onClick={() => setEditingRateId(item.id)} 
+                    className={`p-1 cursor-pointer w-full text-right ${item.isPurchased ? 'line-through text-secondary' : 'text-primary'}`}
+                  >
+                    {formatCompactNumber(item.rate)}
+                  </span>
+                )}
+                <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity ml-2">&times;</button>
+              </div>
+            </div>
+          )
+        })}
          <button onClick={handleAddItem} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
             + Add a new item
         </button>
@@ -197,10 +277,7 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
           <span className="text-secondary">List Total:</span>
           <span className="text-primary">{formatCurrency(total)}</span>
         </div>
-         <button onClick={handleCreateExpenseClick} className="w-full button-secondary py-2">Create Expense from List</button>
-        <div className="flex justify-end gap-3">
-            <button onClick={() => { onSave(currentList); onBack(); }} className="button-primary px-4 py-2">Done</button>
-        </div>
+         <button onClick={handleCreateExpenseClick} className="w-full button-secondary py-2" disabled={purchasedTotal === 0}>Create Expense from List</button>
       </div>
     </div>
   );

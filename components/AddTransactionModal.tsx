@@ -1,11 +1,13 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import EditTransactionModal from './EditTransactionModal';
-import { Transaction, Account, ModalState, Contact } from '../types';
+import { Transaction, Account, ModalState, Contact, TransactionType, ParsedReceiptData } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import LoadingSpinner from './LoadingSpinner';
+import { parseReceiptImage } from '../services/geminiService';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -47,7 +49,10 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const [autoSelectedAccountId, setAutoSelectedAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
     const [isListening, setIsListening] = useState(false);
+    const [manualInitialData, setManualInitialData] = useState<Partial<Transaction> & { itemizedItems?: { description: string; amount: string }[] } | undefined>(undefined);
+
     const recognitionRef = useRef<any | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (initialText) {
@@ -77,7 +82,6 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         };
         recognition.onend = () => setIsListening(false);
         recognition.onerror = (event: any) => {
-            // The new permission check should prevent 'not-allowed', but this is a good fallback.
             if (event.error !== 'no-speech') {
               console.error('Speech recognition error:', event.error);
             }
@@ -93,7 +97,6 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             return;
         }
         
-        // Check for microphone permission
         try {
             const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
             if (permissionStatus.state === 'denied') {
@@ -101,7 +104,6 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 return;
             }
             
-            // permissionStatus.state is 'granted' or 'prompt'
             if (isListening) {
                 recognitionRef.current.stop();
             } else {
@@ -113,6 +115,47 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             alert("Could not access microphone. Please ensure you are on a secure (HTTPS) connection.");
         }
     };
+    
+    const handleScanClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Data = (e.target?.result as string).split(',')[1];
+                if (base64Data) {
+                    setIsLoading(true);
+                    try {
+                        const parsedData = await parseReceiptImage(base64Data, file.type);
+                        if (parsedData) {
+                            setManualInitialData({
+                                description: parsedData.merchantName,
+                                amount: parsedData.totalAmount,
+                                date: parsedData.transactionDate,
+                                type: TransactionType.EXPENSE,
+                                itemizedItems: parsedData.lineItems.map(item => ({
+                                    description: item.description,
+                                    amount: String(item.amount),
+                                })),
+                            });
+                            setActiveTab('manual');
+                        } else {
+                            alert("AI could not parse the receipt. Please try another image or enter manually.");
+                        }
+                    } catch (error) {
+                        alert(`Error scanning receipt: ${error instanceof Error ? error.message : "Unknown error"}`);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
 
     const handleAutoSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -140,12 +183,13 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <ModalHeader title="Add Transaction" onClose={onCancel} />
             <div className="flex border-b border-divider flex-shrink-0">
-              <TabButton active={activeTab === 'auto'} onClick={() => setActiveTab('auto')}>🤖 Automatic (AI Parse)</TabButton>
-              <TabButton active={activeTab === 'manual'} onClick={() => setActiveTab('manual')}>✍️ Manual Entry</TabButton>
+              <TabButton active={activeTab === 'auto'} onClick={() => setActiveTab('auto')}>🤖 Automatic</TabButton>
+              <TabButton active={activeTab === 'manual'} onClick={() => { setManualInitialData(undefined); setActiveTab('manual'); }}>✍️ Manual</TabButton>
             </div>
             
             {activeTab === 'auto' ? (
                 <form onSubmit={handleAutoSubmit} className="p-6 space-y-4">
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                   <div className="pt-2">
                     <label className="block text-sm font-medium text-secondary mb-1">Save to Account</label>
                     <CustomSelect
@@ -161,7 +205,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                         onChange={(e) => setText(e.target.value)}
                         placeholder='Paste message or Quick Add: "Lunch 500"'
                         className="w-full h-24 p-3 pr-12 transition-all duration-200 resize-none shadow-inner themed-textarea"
-                        disabled={!autoSelectedAccountId}
+                        disabled={!autoSelectedAccountId || isLoading}
                         aria-label="Transaction message input"
                         autoFocus
                     />
@@ -171,27 +215,31 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                         </svg>
                     </button>
                   </div>
-                  <div className="p-3 bg-subtle rounded-lg flex items-start gap-3">
-                    <div className="text-2xl pt-1">💡</div>
-                    <div>
-                        <h4 className="font-semibold text-primary">Pro Tip</h4>
-                        <p className="text-xs text-secondary">
-                          Use the 'Share' feature in your SMS or payment app to send transaction details directly here.
-                          <button type="button" onClick={() => openModal('shareGuide')} className="text-xs text-sky-400 hover:text-sky-300 font-semibold ml-1">See How</button>
-                        </p>
-                    </div>
-                  </div>
                   <button
                     type="submit"
-                    disabled={!autoSelectedAccountId || !text.trim()}
+                    disabled={!autoSelectedAccountId || !text.trim() || isLoading}
                     className="button-primary w-full flex items-center justify-center font-bold py-3 px-4"
                   >
-                    {isLoading ? <LoadingSpinner /> : 'Quick Add'}
+                    {isLoading ? <LoadingSpinner /> : 'Add via Text'}
+                  </button>
+                  <div className="flex items-center gap-2">
+                      <div className="flex-grow border-t border-divider"></div>
+                      <span className="text-xs text-secondary">OR</span>
+                      <div className="flex-grow border-t border-divider"></div>
+                  </div>
+                   <button
+                    type="button"
+                    onClick={handleScanClick}
+                    disabled={!autoSelectedAccountId || isLoading}
+                    className="button-secondary w-full flex items-center justify-center font-bold py-3 px-4"
+                  >
+                    {isLoading ? <LoadingSpinner /> : '📷 Scan or Upload Receipt'}
                   </button>
                 </form>
             ) : (
                 <EditTransactionModal
                    isEmbedded={true}
+                   initialData={manualInitialData}
                    onSave={onSaveManual}
                    onCancel={onCancel}
                    accounts={accounts}

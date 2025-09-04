@@ -1,5 +1,4 @@
 
-
 import React, { useContext, useState } from 'react';
 import { ActiveModal, ActiveScreen } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -43,6 +42,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
     { key: 'scheduledPayments', screen: 'scheduled', icon: '📅', label: 'Scheduled' },
     { key: 'shop', screen: 'shop', icon: '🏪', label: 'Shop Hub' },
     { key: 'shoppingLists', screen: 'shoppingLists', icon: '🛒', label: 'Shopping Lists' },
+    { key: 'subscriptions', screen: 'subscriptions', icon: '🔁', label: 'Subscriptions' },
     { key: 'tripManagement', screen: 'tripManagement', icon: '✈️', label: 'Trips' },
     { key: 'accountTransfer', screen: 'more', modal: 'transfer', icon: '↔️', label: 'Transfer' },
   ].filter(tool => settings.enabledTools[tool.key as keyof typeof settings.enabledTools])
@@ -67,7 +67,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
          <h2 className="text-xl font-bold text-primary flex-grow text-center">Hub</h2>
          <button onClick={() => setLayout(l => l === 'grid' ? 'list' : 'grid')} className="button-secondary p-2 rounded-full h-9 w-9 flex items-center justify-center -mr-2">
             {layout === 'grid' ? 
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12" />
                 <circle cx="4.5" cy="6.75" r="0.75" fill="currentColor" stroke="none" />
                 <circle cx="4.5" cy="12" r="0.75" fill="currentColor" stroke="none" />
