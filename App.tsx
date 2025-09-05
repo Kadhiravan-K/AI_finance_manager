@@ -1,5 +1,3 @@
-
-
 import React, { useState, useContext, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import Header from './components/Header';
@@ -56,8 +54,8 @@ const AppContent: React.FC = () => {
   const { categories, payees, senders, contactGroups, contacts, financialProfile } = settingsContext;
 
   const appState: AppState = useMemo(() => ({
-      transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists, glossaryEntries
-  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists, glossaryEntries]);
+      transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, achievements: unlockedAchievements, streaks, challenges, trips: trips || [], tripExpenses: tripExpenses || [], financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists, glossaryEntries
+  }), [transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, payees, senders, contactGroups, contacts, settings, unlockedAchievements, streaks, challenges, trips, tripExpenses, financialProfile, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, shoppingLists, glossaryEntries]);
 
   const { totalScore } = useMemo(() => calculateFinancialHealthScore(appState), [appState]);
 
@@ -151,6 +149,7 @@ const AppContent: React.FC = () => {
           <Header 
             onOpenAccounts={() => openModal('accountsManager')}
             onOpenSearch={() => openModal('globalSearch')}
+            onOpenAIHub={() => openModal('aiHub')}
           />
           <main ref={mainContentRef} className="flex-grow overflow-y-auto relative pb-[68px]">
              <MainContent 

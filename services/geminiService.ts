@@ -1,6 +1,5 @@
-// Fix: Import GoogleGenAI to initialize the client.
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category } from "../types";
+import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -725,4 +724,76 @@ export async function identifySubscriptions(transactions: Transaction[], categor
     console.error("Error identifying subscriptions from Gemini API:", error);
     throw new Error(error instanceof Error ? `Failed to identify subscriptions: ${error.message}` : "An unknown error occurred during subscription analysis.");
   }
+}
+
+const personalizedChallengeSchema = {
+    type: Type.OBJECT,
+    properties: {
+        description: { type: Type.STRING, description: "A short, actionable, and personalized savings challenge for the user. e.g., 'Try to reduce your 'Dining Out' spending by 10% this week.' or 'Skip buying coffee for 3 days and save the money.'" },
+        estimatedSavings: { type: Type.NUMBER, description: "A realistic estimate of how much the user could save by completing this challenge." }
+    },
+    required: ["description", "estimatedSavings"]
+};
+
+export async function generatePersonalizedChallenge(transactions: Transaction[]): Promise<PersonalizedChallenge> {
+    const transactionSummary = transactions.slice(0, 20).map(t => `${t.description}: ${t.amount}`).join(', ');
+    const prompt = `
+      You are a financial coach. Analyze the user's recent transaction summary to create a personalized, actionable savings challenge.
+      The challenge should be specific and achievable. Provide a brief description and an estimated savings amount.
+      Recent Transactions: ${transactionSummary}
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: personalizedChallengeSchema }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error generating personalized challenge:", error);
+        throw new Error("Could not generate a personalized challenge.");
+    }
+}
+
+const proactiveInsightSchema = {
+    type: Type.OBJECT,
+    properties: {
+        insightType: { type: Type.STRING, description: "The type of insight. One of: 'anomaly', 'forecast', 'subscription_suggestion', 'generic'." },
+        title: { type: Type.STRING, description: "A short, catchy title for the insight." },
+        message: { type: Type.STRING, description: "The main message of the insight. Should be actionable and encouraging." },
+    },
+    required: ["insightType", "title", "message"]
+};
+
+export async function getProactiveInsights(appState: AppState): Promise<ProactiveInsight> {
+    // Summarize app state to be concise for the prompt
+    const { transactions, budgets, goals, financialProfile } = appState;
+    const context = {
+        transactionCount: transactions.length,
+        budgetCount: budgets.length,
+        goalCount: goals.length,
+        monthlySalary: financialProfile?.monthlySalary || 0,
+        recentExpenses: transactions.filter(t => t.type === 'expense').slice(0, 10).map(t => t.description.substring(0, 50)),
+    };
+
+    const prompt = `
+      You are an expert financial analyst. Analyze the user's financial context to provide one proactive, insightful, and helpful tip.
+      The insight could be an anomaly detection (e.g., unusually high spending), a forecast, a suggestion to review a potential subscription, or a generic financial tip.
+      Keep it concise and actionable.
+      
+      User's financial context: ${JSON.stringify(context)}
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: proactiveInsightSchema }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error getting proactive insights:", error);
+        throw new Error("Could not generate AI insights at this time.");
+    }
 }

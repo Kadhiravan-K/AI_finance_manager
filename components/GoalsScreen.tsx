@@ -6,6 +6,7 @@ import { getAIGoalSuggestion } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import EmptyState from './EmptyState';
+import Confetti from './Confetti';
 
 interface GoalsScreenProps {
   goals: Goal[];
@@ -14,9 +15,29 @@ interface GoalsScreenProps {
   onContribute: (goalId: string, amount: number, accountId: string) => void;
   onDelete: (id: string) => void;
   onEditGoal: (goal: Goal) => void;
-  // Fix: Add missing onGoalComplete prop to satisfy type check in StoryGenerator.
   onGoalComplete: () => void;
 }
+
+const MilestoneTracker: React.FC<{ percentage: number }> = ({ percentage }) => {
+    const milestones = [25, 50, 75, 100];
+    return (
+        <div className="w-full h-4 bg-subtle rounded-full mt-2 border border-divider flex items-center px-1 relative">
+            <div
+                className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-500"
+                style={{ width: `${Math.min(percentage, 100)}%` }}
+            ></div>
+            {milestones.map(m => {
+                const isComplete = percentage >= m;
+                return (
+                    <div key={m} className="absolute" style={{ left: `${m}%` }}>
+                       <div className={`w-3 h-3 rounded-full border-2 border-subtle transition-all duration-300 ${isComplete ? 'bg-emerald-400' : 'bg-tertiary'}`} style={{ transform: 'translateX(-50%)' }}></div>
+                    </div>
+                )
+            })}
+        </div>
+    );
+};
+
 
 const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, onContribute, onDelete, onEditGoal, onGoalComplete }) => {
   const formatCurrency = useCurrencyFormatter();
@@ -131,12 +152,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
                   </button>
                 </div>
               </div>
-              <div className="w-full bg-subtle rounded-full h-4 mt-2 border border-divider">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-500"
-                  style={{ width: `${Math.min(percentage, 100)}%` }}
-                ></div>
-              </div>
+              <MilestoneTracker percentage={percentage} />
               {isContributing && (
                   <form onSubmit={handleContributeSubmit} className="mt-3 p-3 bg-subtle rounded-md animate-fadeInUp space-y-2 border border-divider">
                        <div className="grid grid-cols-2 gap-2">

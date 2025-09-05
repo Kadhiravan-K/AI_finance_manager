@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
@@ -151,7 +152,6 @@ const SimulatorView: React.FC<{ appState: AppState }> = ({ appState }) => {
   const [result, setResult] = useState<FinancialScenarioResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const formatCurrency = useCurrencyFormatter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,8 +170,8 @@ const SimulatorView: React.FC<{ appState: AppState }> = ({ appState }) => {
   };
 
   const getChangeColor = (changeDesc: string) => {
-      if (changeDesc.includes('increase') || changeDesc.includes('improved') || changeDesc.includes('sooner')) return 'text-emerald-400';
-      if (changeDesc.includes('decrease') || changeDesc.includes('worsened') || changeDesc.includes('delayed')) return 'text-rose-400';
+      if (changeDesc.toLowerCase().includes('increase') || changeDesc.toLowerCase().includes('improved') || changeDesc.toLowerCase().includes('sooner')) return 'text-emerald-400';
+      if (changeDesc.toLowerCase().includes('decrease') || changeDesc.toLowerCase().includes('worsened') || changeDesc.toLowerCase().includes('delayed')) return 'text-rose-400';
       return 'text-primary';
   }
 

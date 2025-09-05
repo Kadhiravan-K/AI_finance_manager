@@ -1,4 +1,4 @@
-import { Transaction, Account, AccountType, InvestmentHolding, FinancialProfile, Budget, Goal } from '../types';
+import { Transaction, Account, AccountType, InvestmentHolding, FinancialProfile, Budget, Goal, TransactionType } from '../types';
 
 interface ScoreData {
     transactions: Transaction[];
@@ -24,6 +24,33 @@ const getMonthlyTotals = (transactions: Transaction[], monthsAgo: number = 0): {
 
     return { ...totals, savings: totals.income - totals.expense };
 };
+
+const getAverageMonthlyIncome = (transactions: Transaction[], financialProfile: FinancialProfile): number => {
+    if (financialProfile.monthlySalary > 0) {
+        return financialProfile.monthlySalary;
+    }
+
+    const now = new Date();
+    let totalIncome = 0;
+    let monthsWithIncome = 0;
+
+    // Look at the last 3 full months for income data
+    for (let i = 1; i <= 3; i++) {
+        const targetMonth = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const targetMonthString = targetMonth.toISOString().slice(0, 7);
+        const monthlyIncome = transactions
+            .filter(t => t.date.startsWith(targetMonthString) && t.type === TransactionType.INCOME)
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        if (monthlyIncome > 0) {
+            totalIncome += monthlyIncome;
+            monthsWithIncome++;
+        }
+    }
+    
+    return monthsWithIncome > 0 ? totalIncome / monthsWithIncome : 0;
+};
+
 
 // Pillar 1: Savings Rate (40 points)
 const calculateSavingsRateScore = (monthlyIncome: number, monthlySavings: number): { score: number, rate: number } => {
@@ -103,8 +130,11 @@ const calculateEmergencyFundScore = (accounts: Account[], allTransactions: Trans
 export const calculateFinancialHealthScore = (scoreData: ScoreData) => {
     const { transactions, accounts, investmentHoldings, financialProfile, budgets } = scoreData;
 
-    const { income, savings } = getMonthlyTotals(transactions, 1); // Use last month's data for a complete picture
-    const monthlyIncome = financialProfile.monthlySalary > 0 ? financialProfile.monthlySalary : income;
+    // Use last complete month's savings for an accurate picture
+    const { savings } = getMonthlyTotals(transactions, 1);
+    
+    // Use a more robust monthly income calculation
+    const monthlyIncome = getAverageMonthlyIncome(transactions, financialProfile);
     
     const savingsPillar = calculateSavingsRateScore(monthlyIncome, savings);
     const dtiPillar = calculateDtiScore(monthlyIncome, financialProfile.monthlyEmi);

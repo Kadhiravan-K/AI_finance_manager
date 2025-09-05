@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-// Fix: Import GlossaryEntry type
 import { GlossaryEntry } from '../types';
 import ModalHeader from './ModalHeader';
 

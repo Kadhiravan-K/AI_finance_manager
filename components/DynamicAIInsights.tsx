@@ -1,45 +1,58 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Transaction, Category, DateRange } from '../types';
-import { getDashboardInsights } from '../services/geminiService';
-import { SettingsContext } from '../contexts/SettingsContext';
+import React, { useState, useEffect } from 'react';
+import { AppState, ProactiveInsight } from '../types';
+import { getProactiveInsights } from '../services/geminiService';
 
 interface DynamicAIInsightsProps {
-  transactions: Transaction[];
-  categories: Category[];
-  dateFilter: DateRange;
+  appState: AppState;
+  dateFilter: string; // Not directly used in new logic but kept for context
 }
 
-const DynamicAIInsights: React.FC<DynamicAIInsightsProps> = ({ transactions, categories, dateFilter }) => {
-  const [insight, setInsight] = useState('');
+const DynamicAIInsights: React.FC<DynamicAIInsightsProps> = ({ appState }) => {
+  const [insight, setInsight] = useState<ProactiveInsight | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchInsight = async () => {
-      if (transactions.length > 0) {
+      if (appState && appState.transactions.length > 2) {
         setIsLoading(true);
         try {
-          const dateFilterLabel = dateFilter.charAt(0).toUpperCase() + dateFilter.slice(1);
-          const newInsight = await getDashboardInsights(transactions, categories, dateFilterLabel);
+          // Use the full app state for a more holistic insight
+          const newInsight = await getProactiveInsights(appState);
           setInsight(newInsight);
         } catch (error) {
-          console.error("Failed to fetch AI dashboard insights:", error);
-          setInsight("Could not load financial tips at the moment.");
+          console.error("Failed to fetch AI proactive insights:", error);
+          setInsight({
+            insightType: 'generic',
+            title: 'Quick Tip',
+            message: "Review your budgets regularly to stay on track with your financial goals."
+          });
         } finally {
           setIsLoading(false);
         }
       } else {
-        setInsight("No transactions in this period to analyze.");
+        setInsight({
+            insightType: 'generic',
+            title: 'Getting Started',
+            message: "Log a few more transactions to unlock personalized AI insights and financial coaching."
+        });
         setIsLoading(false);
       }
     };
 
     const timeoutId = setTimeout(fetchInsight, 500); // Debounce to avoid rapid calls
     return () => clearTimeout(timeoutId);
-  }, [transactions, categories, dateFilter]);
+  }, [appState]); // Rerun when appState changes
+
+  const ICONS: Record<ProactiveInsight['insightType'], string> = {
+    anomaly: '⚠️',
+    forecast: '🔮',
+    subscription_suggestion: '🔁',
+    generic: '💡'
+  };
 
   return (
     <div className="mb-6 p-4 rounded-xl glass-card animate-fadeInUp">
-      <h3 className="font-bold text-lg mb-3" style={{color: 'var(--color-accent-violet)'}}>AI Insights ✨</h3>
+       <h3 className="font-bold text-lg mb-3" style={{color: 'var(--color-accent-violet)'}}>AI Financial Coach ✨</h3>
       {isLoading ? (
         <div className="flex items-center gap-3 text-secondary animate-pulse">
           <div className="w-8 h-8 rounded-full bg-subtle"></div>
@@ -48,9 +61,15 @@ const DynamicAIInsights: React.FC<DynamicAIInsightsProps> = ({ transactions, cat
             <div className="h-3 w-1/2 rounded bg-subtle"></div>
           </div>
         </div>
-      ) : (
-        <p className="text-sm text-secondary">{insight}</p>
-      )}
+      ) : insight ? (
+         <div className="flex items-start gap-3">
+            <div className="text-2xl mt-1">{ICONS[insight.insightType]}</div>
+            <div>
+                <h4 className="font-semibold text-primary">{insight.title}</h4>
+                <p className="text-sm text-secondary">{insight.message}</p>
+            </div>
+         </div>
+      ) : null}
     </div>
   );
 };

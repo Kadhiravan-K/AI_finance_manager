@@ -1,11 +1,8 @@
-
-
 import React, { createContext, useState, ReactNode, useEffect, useMemo, useContext, useCallback } from 'react';
 import { Settings, Payee, Category, Sender, Contact, ContactGroup, Theme, DashboardWidget, NotificationSettings, TrustBinDeletionPeriodUnit, ToggleableTool, FinancialProfile, ActiveScreen, Transaction, Account, Budget, RecurringTransaction, Goal, InvestmentHolding, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, TrustBinItem, UnlockedAchievement, UserStreak, Challenge, ChallengeType, TransactionType, AccountType, ItemType, ParsedTransactionData, Refund, Settlement, ShoppingList, GlossaryEntry } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { calculateNextDueDate } from '../utils/date';
 import { USER_SELF_ID } from '../constants';
-// Fix: Import default glossary entries to initialize the state.
 import { DEFAULT_GLOSSARY_ENTRIES } from '../utils/glossary';
 
 interface SettingsContextType {
@@ -239,7 +236,6 @@ interface AppDataContextType {
   setSettlements: (value: Settlement[] | ((val: Settlement[]) => Settlement[])) => Promise<void>;
   shoppingLists: ShoppingList[];
   setShoppingLists: (value: ShoppingList[] | ((val: ShoppingList[]) => ShoppingList[])) => Promise<void>;
-  // Fix: Add glossary entries to the context type.
   glossaryEntries: GlossaryEntry[];
   setGlossaryEntries: (value: GlossaryEntry[] | ((val: GlossaryEntry[]) => GlossaryEntry[])) => Promise<void>;
   selectedAccountIds: string[];
@@ -284,7 +280,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [refunds, setRefunds] = useLocalStorage<Refund[]>('finance-tracker-refunds', []);
     const [settlements, setSettlements] = useLocalStorage<Settlement[]>('finance-tracker-settlements', []);
     const [shoppingLists, setShoppingLists] = useLocalStorage<ShoppingList[]>('finance-tracker-shopping-lists', []);
-    // Fix: Properly initialize and manage glossary state.
     const [glossaryEntries, setGlossaryEntries] = useLocalStorage<GlossaryEntry[]>('finance-tracker-glossary', DEFAULT_GLOSSARY_ENTRIES);
     const [selectedAccountIds, setSelectedAccountIds] = useLocalStorage<string[]>('finance-tracker-selected-account-ids', ['all']);
     const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
@@ -349,7 +344,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'trip': setTrips, 'tripExpense': setTripExpenses, 'shop': setShops,
           'shopProduct': setShopProducts, 'shopEmployee': setShopEmployees, 'shopShift': setShopShifts,
           'refund': setRefunds, 'settlement': setSettlements, 'shoppingList': setShoppingLists as any,
-          // Fix: Wire up the glossary entry setter for deletion.
           'glossaryEntry': setGlossaryEntries as any,
         };
 
@@ -360,7 +354,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'trip': trips, 'tripExpense': tripExpenses, 'shop': shops,
           'shopProduct': shopProducts, 'shopEmployee': shopEmployees, 'shopShift': shopShifts,
           'refund': refunds, 'settlement': settlements, 'shoppingList': shoppingLists,
-          // Fix: Provide the glossary entries array for deletion logic.
           'glossaryEntry': glossaryEntries,
         };
       
@@ -464,7 +457,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         challenges, setChallenges, refunds, setRefunds, 
         settlements, setSettlements,
         shoppingLists, setShoppingLists,
-        // Fix: Expose glossary entries and setter on the context.
         glossaryEntries, setGlossaryEntries,
         selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit,
         findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,
@@ -478,7 +470,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         challenges, setChallenges, refunds, setRefunds,
         settlements, setSettlements,
         shoppingLists, setShoppingLists,
-        // Fix: Include glossary state in the dependency array.
         glossaryEntries, setGlossaryEntries,
         selectedAccountIds, setSelectedAccountIds, accountToEdit, setAccountToEdit,
         findOrCreateCategory, updateStreak, checkAndCompleteChallenge, deleteItem,

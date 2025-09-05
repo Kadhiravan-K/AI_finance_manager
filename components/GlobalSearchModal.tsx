@@ -73,6 +73,8 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       settings: settingsContext.settings,
       achievements: dataContext.unlockedAchievements,
       streaks: dataContext.streaks,
+      // Fix: Add missing 'challenges' property to satisfy AppState type.
+      challenges: dataContext.challenges,
       trips: dataContext.trips,
       tripExpenses: dataContext.tripExpenses,
       financialProfile: settingsContext.financialProfile,
@@ -84,7 +86,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       shopEmployees: dataContext.shopEmployees,
       shopShifts: dataContext.shopShifts,
       shoppingLists: dataContext.shoppingLists,
-      // Fix: Add missing 'glossaryEntries' property to satisfy AppState type.
       glossaryEntries: dataContext.glossaryEntries,
     };
   }, [dataContext, settingsContext]);

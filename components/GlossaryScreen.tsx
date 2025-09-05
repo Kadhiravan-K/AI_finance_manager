@@ -1,6 +1,5 @@
 import React, { useState, useContext } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
-// Fix: Import GlossaryEntry type
 import { GlossaryEntry } from '../types';
 
 interface GlossaryScreenProps {
@@ -15,7 +14,6 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onAdd, onEdit }) => {
 
   if (!dataContext) return null;
 
-  // Fix: Access glossaryEntries from the context
   const { glossaryEntries, deleteItem } = dataContext;
 
   const filteredEntries = glossaryEntries.filter(entry => 
@@ -72,7 +70,6 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onAdd, onEdit }) => {
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
                     <button onClick={() => onEdit(entry)} className="button-secondary text-xs px-3 py-1">Edit</button>
-                    {/* Fix: Use correct ItemType 'glossaryEntry' */}
                     <button onClick={() => deleteItem(entry.id, 'glossaryEntry')} className="button-secondary text-xs px-3 py-1 text-rose-400 hover:bg-rose-500/20">Delete</button>
                   </div>
                 </div>

@@ -1,4 +1,3 @@
-// Fix: Import GlossaryEntry type
 import { GlossaryEntry } from '../types';
 
 export const DEFAULT_GLOSSARY_ENTRIES: GlossaryEntry[] = [

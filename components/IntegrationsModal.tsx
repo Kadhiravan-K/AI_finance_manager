@@ -49,7 +49,7 @@ const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ onClose }) => {
                     </button>
                 </div>
                  <p className="text-xs text-tertiary mt-3 pt-3 border-t border-divider">
-                    Connect your Google Calendar to automatically add due dates for scheduled payments and expected refund dates as events.
+                    Connect your Google Calendar to automatically add due dates for scheduled payments and expected refund dates as events. This is a demo and does not connect to a real Google account.
                 </p>
             </div>
         </div>

@@ -2,11 +2,13 @@
 
 
 
+
 import React, { useState, useMemo, useContext } from 'react';
 // Fix: Import ActiveScreen and ActiveModal to define component props
 import { CalendarEvent, ActiveScreen, ActiveModal } from '../types';
-import { AppDataContext } from '../contexts/SettingsContext';
+import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import EmptyState from './EmptyState';
 
 // Fix: Add props interface for the component
 interface CalendarScreenProps {
@@ -17,6 +19,7 @@ interface CalendarScreenProps {
 
 const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveScreen, setTripDetailsId }) => {
     const dataContext = useContext(AppDataContext);
+    const { settings } = useContext(SettingsContext);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const formatCurrency = useCurrencyFormatter();
@@ -130,6 +133,20 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
     }
     
     const colorMap = { rose: 'bg-rose-500', sky: 'bg-sky-500', amber: 'bg-amber-400', violet: 'bg-violet-500' };
+
+    if (!settings.googleCalendar?.connected) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-4">
+                <EmptyState
+                    icon="🗓️"
+                    title="Connect Your Calendar"
+                    message="Enable the Google Calendar integration to see your financial events here."
+                    actionText="Go to Integrations"
+                    onAction={() => onNavigate('more', 'integrations')}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col">

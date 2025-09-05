@@ -1,5 +1,6 @@
+
 import React, { useMemo, useState, useEffect, useContext } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType, ActiveScreen, ActiveModal } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType, ActiveScreen, ActiveModal, AppState } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
@@ -50,6 +51,7 @@ interface FinanceDisplayProps {
   baseCurrency: string;
   isLoading: boolean;
   onAddTransaction: () => void;
+  appState: AppState;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
@@ -86,38 +88,42 @@ const DashboardSkeleton: React.FC = () => (
 );
 
 const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdit, onDelete, isVisible, accounts }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, isVisible: boolean, accounts: Account[] }) => {
-    const isIncome = transaction.type === TransactionType.INCOME, isTransfer = !!transaction.transferId, isSplit = !!transaction.splitDetails && transaction.splitDetails.length > 0;
+    const isIncome = transaction.type === TransactionType.INCOME;
+    const isTransfer = !!transaction.transferId;
+    const isSplit = !!transaction.splitDetails && transaction.splitDetails.length > 0;
     const account = accounts.find(a => a.id === transaction.accountId);
     const formatCurrency = useCurrencyFormatter(undefined, account?.currency);
-    const totalOwed = isSplit ? transaction.splitDetails?.filter(s => s.personName.toLowerCase() !== 'you' && !s.isSettled).reduce((acc, s) => acc + s.amount, 0) : 0;
+
     return (
-        <li className="flex flex-col glass-card p-3 rounded-xl group">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 overflow-hidden">
-                    <div className="transaction-item-icon">{isSplit ? '➗' : (isTransfer ? '↔️' : (category?.icon || (isIncome ? '💰' : '💸')))}</div>
-                    <div className="overflow-hidden">
-                        <p className="text-primary truncate font-medium">{transaction.description}</p>
-                        <p className="text-xs text-tertiary">{categoryPath}</p>
-                        {transaction.notes && <p className="text-xs text-secondary/70 truncate italic mt-1">Note: {transaction.notes}</p>}
-                    </div>
+        <div className="glass-card p-3 rounded-xl hover-bg-stronger group transition-colors duration-200 flex items-center gap-3 h-full">
+            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl ${isIncome ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {isSplit ? '➗' : (isTransfer ? '↔️' : (category?.icon || (isIncome ? '💰' : '💸')))}
+            </div>
+            <div className="flex-grow overflow-hidden">
+                <div className="flex justify-between items-center">
+                    <p className="text-primary truncate font-semibold">{transaction.description}</p>
+                    <span className={`font-semibold font-mono text-base flex-shrink-0 ml-2 ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}
+                    </span>
                 </div>
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                    <span className="font-semibold" style={{ color: isIncome ? 'var(--color-accent-emerald)' : 'var(--color-accent-rose)' }}>{isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}</span>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                        <button onClick={() => onEdit(transaction)} className="p-1 text-secondary hover:text-primary" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg></button>
-                        <button onClick={() => onDelete(transaction.id)} className="p-1 text-secondary" style={{ '--hover-color': 'var(--color-accent-rose)' } as React.CSSProperties} onMouseOver={e => e.currentTarget.style.color = 'var(--hover-color)'} onMouseOut={e => e.currentTarget.style.color = ''} aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                    </div>
+                <div className="flex justify-between items-center text-xs mt-0.5">
+                    <p className="text-secondary truncate">{categoryPath}</p>
+                    <p className="text-tertiary truncate">{account?.name}</p>
                 </div>
             </div>
-             {isSplit && totalOwed > 0 && <div className="mt-2 pl-16 text-xs" style={{ color: 'var(--color-accent-yellow)' }}>Owed to you: {isVisible ? formatCurrency(totalOwed) : '••••'}</div>}
-        </li>
+            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity -mr-2">
+                <button onClick={() => onEdit(transaction)} className="p-2 text-tertiary hover:text-sky-400 transition-colors" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                <button onClick={() => onDelete(transaction.id)} className="p-2 text-tertiary hover:text-rose-400 transition-colors" aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+        </div>
     );
 });
 
+
 // VIRTUALIZED LIST COMPONENT
 const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete, isBalanceVisible, mainContentRef, accounts }: Pick<FinanceDisplayProps, 'transactions' | 'categories' | 'onEdit' | 'onDelete' | 'isBalanceVisible' | 'mainContentRef' | 'accounts'>) => {
-    const ITEM_HEIGHT = 92; // Estimated height for a transaction item
-    const HEADER_HEIGHT = 40; // Estimated height for a date header
+    const ITEM_HEIGHT = 72; // Adjusted height for new design with p-3
+    const HEADER_HEIGHT = 32;
     const OVERSCAN = 5;
 
     const [scrollTop, setScrollTop] = useState(0);
@@ -159,31 +165,31 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     const visibleItems = flattenedList.slice(startIndex, endIndex + 1);
 
     return (
-        <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
+        <ul style={{ height: `${totalHeight}px`, position: 'relative' }}>
             {visibleItems.map(item => {
                 if (item.type === 'header') {
                     return (
-                        <div key={item.data} className="virtual-scroll-item" style={{ transform: `translateY(${item.offsetTop}px)` }}>
-                            <div className="sticky-header" style={{top: 0}}>
-                                <h3 className="font-semibold text-secondary text-sm">{formatDateGroup(item.data)}</h3>
+                        <li key={item.data} className="virtual-scroll-item" style={{ transform: `translateY(${item.offsetTop}px)`, height: `${HEADER_HEIGHT}px` }}>
+                            <div className="flex items-center h-full px-4" style={{backgroundColor: 'var(--color-bg-app)'}}>
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary">{formatDateGroup(item.data)}</h3>
                             </div>
-                        </div>
+                        </li>
                     );
                 }
                 const t: Transaction = item.data;
                 const category = getCategory(t.categoryId, categories);
                 const categoryPath = getCategoryPath(t.categoryId, categories);
                 return (
-                    <div key={t.id} className="virtual-scroll-item" style={{ transform: `translateY(${item.offsetTop}px)`, height: `${ITEM_HEIGHT}px`, paddingTop: '0.75rem'}}>
+                    <li key={t.id} className="virtual-scroll-item p-1" style={{ transform: `translateY(${item.offsetTop}px)`, height: `${ITEM_HEIGHT}px`}}>
                         <TransactionItem transaction={t} category={category} categoryPath={categoryPath} onEdit={onEdit} onDelete={onDelete} isVisible={isBalanceVisible} accounts={accounts} />
-                    </div>
+                    </li>
                 );
             })}
-        </div>
+        </ul>
     );
 };
 
-const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, ...rest }) => {
+const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, appState, ...rest }) => {
     
     const dataContext = useContext(AppDataContext);
     
@@ -195,13 +201,13 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
             primary: 'text-primary'
         }[color];
         return (
-            <div className="glass-card p-4 rounded-2xl flex-grow transition-all flex flex-col justify-between h-28">
+            <div className="glass-card p-3 rounded-2xl flex-grow transition-all flex flex-col justify-between h-20">
                 <div>
-                    <div className="flex items-center text-base text-secondary">
+                    <div className="flex items-center text-sm text-secondary">
                         <span>{title}</span>
                     </div>
                 </div>
-                <p className={`text-3xl lg:text-4xl font-bold mt-1 self-end ${colorClass}`}>{isVisible ? formatCurrency(amount) : '••••'}</p>
+                <p className={`text-xl sm:text-2xl font-bold mt-1 self-end ${colorClass}`}>{isVisible ? formatCurrency(amount) : '••••'}</p>
             </div>
         );
     });
@@ -214,7 +220,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
         const formattedIncome = formatCompact(summary.income);
         const formattedExpense = formatCompact(summary.expense);
         return (
-            <div className="mt-4 px-1">
+            <div className="mt-3 px-1">
                 <h4 className="text-sm font-semibold text-secondary mb-2">Cash Flow</h4>
                 <div className="w-full flex h-3 rounded-full overflow-hidden bg-subtle border border-divider">
                     <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${incomePercent}%` }} title={`Income: ${formattedIncome}`}></div>
@@ -295,14 +301,14 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
         const balance = income - expense;
 
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left stagger-delay">
-                 <div style={{ '--stagger-index': 1 } as React.CSSProperties}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-left stagger-delay">
+                <div className="sm:col-span-1" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                     <DashboardCard currency={currency} title="Income" amount={income} isVisible={isVisible} color="emerald" />
                 </div>
-                <div style={{ '--stagger-index': 2 } as React.CSSProperties}>
+                <div className="sm:col-span-1" style={{ '--stagger-index': 2 } as React.CSSProperties}>
                     <DashboardCard currency={currency} title="Expenses" amount={expense} isVisible={isVisible} color="rose" />
                 </div>
-                <div style={{ '--stagger-index': 3 } as React.CSSProperties}>
+                <div className="col-span-2 sm:col-span-1" style={{ '--stagger-index': 3 } as React.CSSProperties}>
                     <DashboardCard currency={currency} title="Balance" amount={balance} isVisible={isVisible} color="primary" />
                 </div>
             </div>
@@ -328,7 +334,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
         if (!visibleWidgets.some(w => w.id === 'summary')) return null;
 
         return currencySummaries.map(([currency, summary]) => (
-            <div key={currency} className="mb-4">
+            <div key={currency} className="mb-3">
                 <h3 className="text-lg font-semibold text-secondary mb-2 px-1">{currency} Summary</h3>
                 <Dashboard currency={currency} income={summary.income} expense={summary.expense} isVisible={isBalanceVisible} />
                 <CashFlowBar currency={currency} summary={summary} />
@@ -339,7 +345,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
 
     const widgetMap: Record<DashboardWidget['id'], React.ReactNode> = {
         financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
-        aiCoach: <DynamicAIInsights transactions={transactions} categories={categories} dateFilter={rest.dateFilter} />,
+        aiCoach: <DynamicAIInsights appState={appState} dateFilter={rest.dateFilter} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         summary: summaryWidget,
@@ -394,12 +400,12 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
                 customDateRange={rest.customDateRange} setCustomDateRange={rest.setCustomDateRange}
             />
 
-            <div className="mt-6">
+            <div className="mt-4">
                 {renderContent()}
                 {visibleWidgets.map(widget => <div key={widget.id}>{widgetMap[widget.id]}</div>)}
             </div>
 
-            <div className="mt-6">
+            <div className="mt-4">
                 {transactions.length > 0 ? (
                     <VirtualizedTransactionList accounts={accounts} transactions={transactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
                 ) : (

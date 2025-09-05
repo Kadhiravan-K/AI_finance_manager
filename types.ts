@@ -1,12 +1,3 @@
-
-
-
-
-
-
-
-
-
 export enum ProcessingStatus {
   IDLE,
   LOADING,
@@ -484,6 +475,7 @@ export interface AppState {
     settings: Settings;
     achievements: UnlockedAchievement[];
     streaks: UserStreak;
+    challenges: Challenge[];
     trips?: Trip[];
     tripExpenses?: TripExpense[];
     financialProfile: FinancialProfile;
@@ -507,7 +499,7 @@ export interface UserStreak {
     streakFreezes: number;
 }
 
-export type ChallengeType = 'log_transaction' | 'categorize_uncategorized' | 'set_budget' | 'review_goals';
+export type ChallengeType = 'log_transaction' | 'categorize_uncategorized' | 'set_budget' | 'review_goals' | 'custom_savings';
 
 export interface Challenge {
     id: string;
@@ -547,4 +539,16 @@ export interface IdentifiedSubscription {
   frequency: 'monthly' | 'yearly' | 'weekly' | 'irregular';
   transactionCount: number;
   category: string;
+}
+
+export interface ProactiveInsight {
+    insightType: 'anomaly' | 'forecast' | 'subscription_suggestion' | 'generic';
+    title: string;
+    message: string;
+    data?: any;
+}
+
+export interface PersonalizedChallenge {
+    description: string;
+    estimatedSavings: number;
 }

@@ -18,7 +18,6 @@ interface TopicContent {
     actionableTips: string[];
 }
 
-// Fix: Add onOpenGlossary to the props interface
 interface LearnScreenProps {
     onOpenChat: () => void;
     onOpenGlossary: () => void;
@@ -73,7 +72,6 @@ const LearnScreen: React.FC<LearnScreenProps> = ({ onOpenChat, onOpenGlossary })
                         <p className="text-sm text-secondary">Ask personalized questions about your financial situation.</p>
                     </div>
                 </button>
-                {/* Fix: Add a button to open the glossary screen */}
                 <button onClick={onOpenGlossary} className="w-full text-left p-4 bg-subtle rounded-lg flex items-center gap-4 hover-bg-stronger transition-colors border border-divider">
                     <span className="text-3xl">📖</span>
                     <div>

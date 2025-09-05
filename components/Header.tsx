@@ -4,11 +4,13 @@ import { AppDataContext } from '../contexts/SettingsContext';
 interface HeaderProps {
   onOpenAccounts: () => void;
   onOpenSearch: () => void;
+  onOpenAIHub: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
   onOpenAccounts,
   onOpenSearch,
+  onOpenAIHub,
 }) => {
   const dataContext = useContext(AppDataContext);
   const currentStreak = dataContext?.streaks.currentStreak || 0;
@@ -37,6 +39,9 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
         <div className={`flex items-center space-x-1`}>
+            <button onClick={onOpenAIHub} className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 text-secondary hover:text-primary" aria-label="Open AI Hub">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-6.857 2.143L12 21l-2.143-6.857L3 12l6.857-2.143L12 3z" /></svg>
+            </button>
             <button onClick={onOpenSearch} className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 text-secondary hover:text-primary" aria-label="Open search">
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </button>

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useEffect, useMemo, useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, TrustBinDeletionPeriodUnit, TripPayer, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund, Settlement, ShoppingList } from '../types';
@@ -52,7 +51,6 @@ import AddTransactionModal from './AddTransactionModal';
 import FinancialHealthModal from './FinancialHealthModal';
 import { ShopScreen } from './ShopScreen';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import { getDailyChallenge } from '../utils/challenges';
 import ChallengesScreen from './ChallengesScreen';
 import LearnScreen from './LearnScreen';
 import AccountsManagerModal from './AccountsManagerModal';
@@ -117,14 +115,6 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
   const [undoAction, setUndoAction] = useState<{ message: string; onUndo: () => void } | null>(null);
   const [resetConfirmation, setResetConfirmation] = useState<boolean>(false);
   
-  const dailyChallenge = useMemo(() => {
-    const challenge = getDailyChallenge(challenges);
-    if (!challenges.some(c => c.id === challenge.id)) {
-        setChallenges(prev => [...prev.slice(-10), challenge]); // Keep last 10 challenges
-    }
-    return challenge;
-  }, [challenges, setChallenges]);
-
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<DateRange>('all');
@@ -887,11 +877,12 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
           baseCurrency={settings.currency}
           isLoading={isLoading}
           onAddTransaction={() => openModal('addTransaction', { initialTab: 'auto' })}
+          appState={appState}
         />;
       case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency}/>;
       case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} onAddBudget={() => {}} />;
       case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}} />;
-      case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g => g.id === id)?.name || 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} />;
+      case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g => g.id === id)?.name || 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} />;
       case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onAdd={() => openModal('editRecurring')} onEdit={handleEditRecurring} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(rt => rt.id === id)?.description || 'payment')} />;
       case 'calculator': return <CalculatorScreen appState={appState} />;
       case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
@@ -919,7 +910,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
           onSaveEmployee={handleSaveEmployee} onDeleteEmployee={(id) => handleItemDeletion(id, 'shopEmployee', shopEmployees.find(e=>e.id===id)?.name || 'employee')}
           onSaveShift={handleSaveShift} onDeleteShift={(id) => handleItemDeletion(id, 'shopShift', shopShifts.find(s=>s.id===id)?.name || 'shift')}
       />;
-      case 'challenges': return <ChallengesScreen streak={streaks} challenge={dailyChallenge} />;
+      case 'challenges': return <ChallengesScreen appState={appState} setChallenges={setChallenges} />;
       case 'learn': return <LearnScreen onOpenChat={() => openModal('aiHub')} onOpenGlossary={() => setActiveScreen('glossary')} />;
       case 'calendar': return <CalendarScreen onNavigate={onNavigate} setActiveScreen={setActiveScreen} setTripDetailsId={setTripDetailsId} />;
       case 'shoppingLists': return <ShoppingListScreen onCreateExpense={handleCreateExpenseFromShoppingList} />;

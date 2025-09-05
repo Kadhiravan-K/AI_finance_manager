@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { IdentifiedSubscription } from '../types';
