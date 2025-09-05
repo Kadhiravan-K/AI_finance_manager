@@ -740,6 +740,53 @@
         max-width: 50px;
       }
 
+      /* --- NEW GOAL CARD UI --- */
+      .goal-actions-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        z-index: 10;
+        background-color: var(--color-bg-card-hover);
+        border: 1px solid var(--color-border-card);
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 12px var(--shadow-color-main);
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .goal-actions-menu.open {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+      }
+      .goal-actions-menu button {
+        display: block;
+        width: 100%;
+        padding: 0.5rem 1rem;
+        text-align: left;
+        color: var(--color-text-primary);
+        background: none;
+        border: none;
+        font-size: 0.875rem;
+      }
+      .goal-actions-menu button:hover {
+        background-color: var(--color-bg-button-secondary-hover);
+      }
+      .goal-card-completed {
+        border-color: var(--color-accent-emerald);
+        box-shadow: 0 0 20px 0 var(--shadow-color-accent);
+      }
+      @keyframes progress-circle-in {
+        from { stroke-dashoffset: var(--circumference); }
+        to { stroke-dashoffset: var(--offset); }
+      }
+      .progress-circle-bar {
+        animation: progress-circle-in 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      }
+
+
     </style>
   <script type="importmap">
 {
