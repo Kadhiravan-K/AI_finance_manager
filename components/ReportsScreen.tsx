@@ -8,7 +8,6 @@ import CustomSelect from './CustomSelect';
 import CustomCheckbox from './CustomCheckbox';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import TimeSeriesLineChart from './TimeSeriesLineChart';
 
 interface ReportsScreenProps {
   transactions: Transaction[];
@@ -20,7 +19,18 @@ interface ReportsScreenProps {
 
 type ReportType = 'breakdown' | 'trend';
 type ComparePeriodType = 'previous' | 'last_year' | 'last_month' | 'last_quarter' | 'custom';
-type ChartType = 'bar' | 'line';
+
+// Fix: Add missing getTopLevelCategory helper function.
+const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
+    let current = categories.find(c => c.id === categoryId);
+    if (!current) return undefined;
+    while (current.parentId) {
+        const parent = categories.find(c => c.id === current.parentId);
+        if (!parent) break;
+        current = parent;
+    }
+    return current;
+};
 
 // A functional AccountSelector for this screen's needs
 const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string[], onChange: (ids: string[]) => void }> = ({ accounts, selectedIds, onChange }) => {
@@ -198,17 +208,6 @@ const filterTransactions = (
     return filtered;
 };
 
-const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
-    let current = categories.find(c => c.id === categoryId);
-    if (!current) return undefined;
-    while (current.parentId) {
-        const parent = categories.find(c => c.id === current.parentId);
-        if (!parent) break;
-        current = parent;
-    }
-    return current;
-};
-
 const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories, accounts, selectedAccountIds, baseCurrency }) => {
   const [transactionType, setTransactionType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [reportType, setReportType] = useState<ReportType>('breakdown');
@@ -217,8 +216,6 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   const [reportAccountIds, setReportAccountIds] = useState(selectedAccountIds);
   const [categoryIds, setCategoryIds] = useState(['all']);
   const [reportCurrency, setReportCurrency] = useState(baseCurrency);
-  const [filtersOpen, setFiltersOpen] = useState(true);
-  const [chartType, setChartType] = useState<ChartType>('bar');
   const formatCurrency = useCurrencyFormatter(undefined, reportCurrency);
 
   // Comparison state
@@ -315,106 +312,53 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   
   const ChartContainer: React.FC<{children: React.ReactNode}> = ({children}) => <div className={isCompareMode ? 'md:col-span-1' : 'md:col-span-2'}>{children}</div>;
   
-  const ReportDataView: React.FC<{txs: Transaction[], title: string}> = ({ txs, title }) => {
-    const tableData = useMemo(() => {
-        const topLevelTotals: Record<string, { total: number; name: string, transactionCount: number }> = {};
-        
-        txs.forEach(t => {
-            const topLevelCat = getTopLevelCategory(t.categoryId, categories);
-            if (topLevelCat) {
-                if (!topLevelTotals[topLevelCat.id]) {
-                    topLevelTotals[topLevelCat.id] = { total: 0, name: topLevelCat.name, transactionCount: 0 };
-                }
-                topLevelTotals[topLevelCat.id].total += t.amount;
-                topLevelTotals[topLevelCat.id].transactionCount += 1;
-            }
-        });
-        
-        return Object.values(topLevelTotals).sort((a,b) => b.total - a.total);
-    }, [txs]);
-
-    return (
-        <div className="animate-fadeInUp">
-            {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
-            {reportType === 'breakdown' ? (
-            <>
-                <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
-                <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} currency={reportCurrency} />
-                {tableData.length > 0 && (
-                    <div className="mt-4 p-4 bg-subtle rounded-xl shadow-lg border border-divider">
-                        <h4 className="font-semibold text-primary mb-2">Data Summary</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                            {tableData.map(item => (
-                                <div key={item.name} className="flex justify-between text-sm">
-                                    <span className="text-primary truncate">{item.name} ({item.transactionCount})</span>
-                                    <span className="font-mono ml-2 flex-shrink-0">{formatCurrency(item.total)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </>
-            ) : (
-                <>
-                  {chartType === 'bar' ?
-                    <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} currency={reportCurrency} />
-                    :
-                    (txs.length > 1 ? 
-                      <TimeSeriesLineChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} currency={reportCurrency} />
-                      : <div className="text-center text-secondary p-8">Not enough data for a line chart.</div>
-                    )
-                  }
-                </>
-            )}
-        </div>
-    );
-  };
-
+  const ReportDataView: React.FC<{txs: Transaction[], title: string}> = ({ txs, title }) => (
+    <div className="animate-fadeInUp">
+        {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
+        {reportType === 'breakdown' ? (
+        <>
+            <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
+            <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} />
+        </>
+        ) : (
+            <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
+        )}
+    </div>
+  );
 
   return (
     <div className="p-4 flex-grow overflow-y-auto pr-2">
       <h2 className="text-2xl font-bold text-primary mb-4 text-center">Reports</h2>
       
-      <div className="rounded-xl glass-card mb-6 relative z-20 overflow-hidden no-hover">
-        <button type="button" onClick={() => setFiltersOpen(!filtersOpen)} className="w-full p-4 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-primary">Filters</h3>
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 text-secondary transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-        </button>
-
-        {filtersOpen && (
-          <div className="p-4 pt-0 space-y-4 animate-fadeInUp">
-            <div className="border-t border-divider pt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
-                  <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expense</TabButton>
-                  <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                  <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
-                  <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
-              </div>
-              <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
-              <CustomSelect 
-                  options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
-                  value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
-              />
-              {period === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-fadeInUp"><CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} /></div>)}
-              <div className="pt-2 border-t border-divider"><ToggleSwitch checked={isCompareMode} onChange={setIsCompareMode} label="Compare Periods" /></div>
-              {isCompareMode && (
-                <div className="space-y-2 animate-fadeInUp">
-                  <CustomSelect
-                    options={[
-                        {value: 'previous', label: 'Previous Period'},
-                        {value: 'last_month', label: 'Last Month'},
-                        {value: 'last_quarter', label: 'Last Quarter'},
-                        {value: 'last_year', label: 'Same Period Last Year'},
-                        {value: 'custom', label: 'Custom'}
-                    ]}
-                    value={comparePeriodType} onChange={(v) => setComparePeriodType(v as ComparePeriodType)}
-                  />
-                  {comparePeriodType === 'custom' && (<div className="grid grid-cols-2 gap-4"><CustomDatePicker value={compareCustomDateRange.start} onChange={d => setCompareCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={compareCustomDateRange.end} onChange={d => setCompareCustomDateRange(p => ({...p, end: d}))} /></div>)}
-                </div>
-              )}
-            </div>
+      <div className="p-4 rounded-xl glass-card space-y-4 mb-6 relative z-20">
+        <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
+            <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expense</TabButton>
+            <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
+        </div>
+         <div className="grid grid-cols-2 gap-4">
+            <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
+            <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
+        </div>
+        <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
+        <CustomSelect 
+            options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
+            value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
+        />
+        {period === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-fadeInUp"><CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} /></div>)}
+        <div className="pt-2 border-t border-divider"><ToggleSwitch checked={isCompareMode} onChange={setIsCompareMode} label="Compare Periods" /></div>
+        {isCompareMode && (
+          <div className="space-y-2 animate-fadeInUp">
+            <CustomSelect
+              options={[
+                  {value: 'previous', label: 'Previous Period'},
+                  {value: 'last_month', label: 'Last Month'},
+                  {value: 'last_quarter', label: 'Last Quarter'},
+                  {value: 'last_year', label: 'Same Period Last Year'},
+                  {value: 'custom', label: 'Custom'}
+              ]}
+              value={comparePeriodType} onChange={(v) => setComparePeriodType(v as ComparePeriodType)}
+            />
+            {comparePeriodType === 'custom' && (<div className="grid grid-cols-2 gap-4"><CustomDatePicker value={compareCustomDateRange.start} onChange={d => setCompareCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={compareCustomDateRange.end} onChange={d => setCompareCustomDateRange(p => ({...p, end: d}))} /></div>)}
           </div>
         )}
       </div>
@@ -435,14 +379,6 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
         <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
       </div>
       
-      {reportType === 'trend' && (
-        <div className="flex justify-center items-center gap-4 my-4">
-            <span className="text-sm text-secondary">Bar</span>
-            <ToggleSwitch checked={chartType === 'line'} onChange={(checked) => setChartType(checked ? 'line' : 'bar')} />
-            <span className="text-sm text-secondary">Line</span>
-        </div>
-      )}
-
       <div className={`grid grid-cols-1 ${isCompareMode ? 'md:grid-cols-2' : ''} gap-4`}>
           <ChartContainer>
             <ReportDataView txs={transactionType === 'expense' ? expenseTransactions : incomeTransactions} title={isCompareMode ? "Current Period" : ""} />

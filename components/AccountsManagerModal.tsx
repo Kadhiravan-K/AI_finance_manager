@@ -43,7 +43,7 @@ const AccountsManagerModal: React.FC<AccountsManagerModalProps> = ({ onClose, ac
               </div>
               <div className="space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => handleEdit(account)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                <button onClick={() => onDeleteAccount(account.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                <button onClick={() => onDeleteAccount(account.id)} className="text-xs px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors">Delete</button>
               </div>
             </div>
           ))}

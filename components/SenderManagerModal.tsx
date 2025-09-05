@@ -58,7 +58,7 @@ const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose, onDele
                 </div>
                 <div className="space-x-2">
                 <button onClick={() => handleEdit(sender)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                <button onClick={() => onDelete(sender.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                <button onClick={() => onDelete(sender.id)} className="text-xs px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors">Delete</button>
                 </div>
             </div>
             ))}

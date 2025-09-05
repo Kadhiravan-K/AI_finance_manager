@@ -9,6 +9,7 @@ interface CategoryPieChartProps {
   type: TransactionType;
   isVisible: boolean;
   currency?: string;
+  hoveredId?: string | null;
 }
 
 const COLORS = [
@@ -33,8 +34,8 @@ const getTopLevelCategory = (categoryId: string, categories: Category[]): Catego
     return current;
 };
 
-const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible, currency }) => {
-  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
+const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible, currency, hoveredId }) => {
+  const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0, notation: 'compact' }, currency);
 
   const categoryData = useMemo(() => {
     const topLevelTotals: Record<string, { total: number; icon: string, name: string }> = {};
@@ -74,7 +75,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
   if (categoryData.categories.length === 0) {
     return (
         <div className={cardBaseStyle}>
-             <h3 className="text-lg font-bold text-primary">{title}</h3>
+             {title && <h3 className="text-lg font-bold text-primary">{title}</h3>}
              <div className="flex-grow flex items-center justify-center">
                 <p className="text-sm text-secondary mt-2 text-center py-8">No data available for this period.</p>
              </div>
@@ -87,17 +88,19 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
 
   return (
     <div className={cardBaseStyle}>
-      <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
-      <div className="flex-grow flex flex-col sm:flex-row items-center gap-4">
+      {title && <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>}
+      <div className="flex-grow flex flex-col sm:flex-row items-center justify-center gap-4">
         <div className="w-40 h-40 flex-shrink-0 relative">
           <svg viewBox="0 0 100 100" className="transform -rotate-90">
+            <circle cx="50" cy="50" r="40" stroke="var(--color-border-divider)" strokeWidth="12" fill="transparent" />
             {categoryData.categories.map((category, i) => {
               const dash = (category.percentage / 100) * circumference;
               const offset = (accumulatedPercentage / 100) * circumference;
               accumulatedPercentage += category.percentage;
+              const isHovered = category.id === hoveredId;
 
               return (
-                <g key={category.id} className="chart-tooltip-wrapper">
+                <g key={category.id}>
                   <circle
                     cx="50" cy="50" r="40"
                     stroke={COLORS[i % COLORS.length]}
@@ -106,12 +109,8 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
                     strokeDasharray={`${dash} ${circumference}`}
                     strokeDashoffset={-offset}
                     className="transition-all duration-300 ease-out"
+                    style={{ transformOrigin: 'center center', transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
                   />
-                   <foreignObject x="0" y="0" width="100" height="100">
-                     <div className="chart-tooltip" style={{ transform: `translateX(-50%) translateY(-100%) rotate(90deg) translate(50px, 50px)` }}>
-                       {`${category.name}: ${formatCurrency(category.amount)} (${category.percentage.toFixed(1)}%)`}
-                     </div>
-                   </foreignObject>
                 </g>
               );
             })}
@@ -120,22 +119,6 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
                 <span className="text-xs text-secondary">Total</span>
                 <span className="font-bold text-lg text-primary">{isVisible ? formatCurrency(categoryData.totalAmount) : '••••'}</span>
             </div>
-        </div>
-        <div className="flex-grow w-full space-y-2 overflow-y-auto max-h-40 pr-2">
-          {categoryData.categories.map((category, i) => (
-            <div key={category.id} className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                ></div>
-                <span className="text-primary truncate">{category.name}</span>
-              </div>
-              <span className="font-semibold text-secondary">
-                {isVisible ? formatCurrency(category.amount) : '••••'}
-              </span>
-            </div>
-          ))}
         </div>
       </div>
     </div>

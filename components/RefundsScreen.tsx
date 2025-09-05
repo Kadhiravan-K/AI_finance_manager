@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { Refund, Contact } from '../types';
+import React, { useMemo, useState } from 'react';
+// Fix: Import ActiveModal to use in props.
+import { Refund, Contact, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface RefundsScreenProps {
@@ -9,14 +10,60 @@ interface RefundsScreenProps {
   onEditRefund: (refund: Refund) => void;
   onClaimRefund: (refundId: string) => void;
   onDeleteRefund: (refundId: string) => void;
+  // Fix: Add missing openModal prop to match usage in StoryGenerator.tsx.
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
-const RefundsScreen: React.FC<RefundsScreenProps> = ({ refunds, contacts, onAddRefund, onEditRefund, onClaimRefund, onDeleteRefund }) => {
+const RefundsScreen: React.FC<RefundsScreenProps> = ({ refunds, contacts, onAddRefund, onEditRefund, onClaimRefund, onDeleteRefund, openModal }) => {
   const formatCurrency = useCurrencyFormatter();
   const contactMap = useMemo(() => new Map(contacts.map(c => [c.id, c.name])), [contacts]);
   
-  const pendingRefunds = refunds.filter(r => !r.isClaimed);
-  const claimedRefunds = refunds.filter(r => r.isClaimed);
+  const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
+    sort: { key: 'expectedDate', direction: 'asc' },
+    filters: { pending: true, claimed: true }
+  });
+
+  const sortedAndFilteredRefunds = useMemo(() => {
+    let result = [...(refunds || [])];
+
+    if (!viewOptions.filters.pending) result = result.filter(r => r.isClaimed);
+    if (!viewOptions.filters.claimed) result = result.filter(r => !r.isClaimed);
+
+    const { key, direction } = viewOptions.sort;
+    result.sort((a, b) => {
+        let comparison = 0;
+        switch(key) {
+            case 'expectedDate':
+                const dateA = a.expectedDate ? new Date(a.expectedDate).getTime() : Infinity;
+                const dateB = b.expectedDate ? new Date(b.expectedDate).getTime() : Infinity;
+                comparison = dateA - dateB;
+                break;
+            case 'amount':
+                comparison = b.amount - a.amount;
+                break;
+        }
+        return direction === 'asc' ? comparison : -comparison;
+    });
+    return result;
+  }, [refunds, viewOptions]);
+  
+  const viewOptionsConfig: ViewOptions = {
+    sortOptions: [
+        { key: 'expectedDate', label: 'Expected Date' },
+        { key: 'amount', label: 'Amount' },
+    ],
+    filterOptions: [
+        { key: 'pending', label: 'Pending', type: 'toggle' },
+        { key: 'claimed', label: 'Claimed', type: 'toggle' },
+    ]
+  };
+  
+  const isViewOptionsApplied = useMemo(() => {
+    return viewOptions.sort.key !== 'expectedDate' || viewOptions.sort.direction !== 'asc' || !viewOptions.filters.pending || !viewOptions.filters.claimed;
+  }, [viewOptions]);
+
+  const pendingRefunds = sortedAndFilteredRefunds.filter(r => !r.isClaimed);
+  const claimedRefunds = sortedAndFilteredRefunds.filter(r => r.isClaimed);
 
   const RefundItem: React.FC<{refund: Refund}> = ({ refund }) => (
       <div key={refund.id} className="p-3 bg-subtle rounded-lg group">
@@ -57,12 +104,18 @@ const RefundsScreen: React.FC<RefundsScreenProps> = ({ refunds, contacts, onAddR
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-primary text-center flex-grow">Refunds ↩️</h2>
-        <button onClick={onAddRefund} className="button-secondary px-3 py-1.5 text-sm">
-          Create Refund
-        </button>
+        <div className="flex items-center gap-2">
+            <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="button-secondary text-sm p-2 flex items-center gap-2 relative rounded-full aspect-square">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /></svg>
+                {isViewOptionsApplied && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[var(--color-bg-app)]"></div>}
+            </button>
+            <button onClick={onAddRefund} className="button-secondary px-3 py-1.5 text-sm">
+            Create Refund
+            </button>
+        </div>
       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
-        {refunds.length === 0 ? (
+        {(refunds || []).length === 0 ? (
             <div className="text-center py-12">
                 <p className="text-lg font-medium text-secondary">Track your expected refunds.</p>
                 <p className="text-sm text-tertiary mb-4">Never forget about money that's owed back to you.</p>

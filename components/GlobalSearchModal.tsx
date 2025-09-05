@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { ActiveModal, ActiveScreen, AppState } from '../types';

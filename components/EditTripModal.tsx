@@ -342,7 +342,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
                         {participants.map(p => (
                             <span key={p.contactId} className="flex items-center gap-1 pl-2 pr-1 py-1 bg-violet-500/30 text-violet-200 text-sm rounded-full">
                                 {p.name}
-                                <button type="button" onClick={() => handleRemoveParticipant(p.contactId)} className="text-violet-200 hover:text-white bg-black/10 rounded-full w-4 h-4 flex items-center justify-center text-xs">&times;</button>
+                                <button type="button" onClick={() => handleRemoveParticipant(p.contactId)} className="text-rose-200 bg-rose-500/50 hover:bg-rose-500/70 rounded-full w-4 h-4 flex items-center justify-center text-xs transition-colors">&times;</button>
                             </span>
                         ))}
                     </div>

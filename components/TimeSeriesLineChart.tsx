@@ -8,44 +8,33 @@ interface TimeSeriesLineChartProps {
   period: ReportPeriod;
   type: TransactionType;
   currency?: string;
+  onPointClick: (dateKey: string) => void;
 }
 
-const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transactions, period, type, currency }) => {
+const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transactions, period, type, currency, onPointClick }) => {
   const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);
 
   const chartData = useMemo(() => {
-    const dataMap: Record<string, number> = {};
+    const dataMap: Record<string, { total: number, date: Date }> = {};
     
-    transactions.forEach(t => {
+    transactions.filter(t => t.type === type).forEach(t => {
       const date = new Date(t.date);
-      let key = '';
-      if (period === 'year') {
-        key = date.toLocaleString('default', { month: 'short' });
-      } else { // week or month or custom
-        key = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-      }
+      date.setHours(0,0,0,0);
+      const key = date.toISOString().split('T')[0];
       
-      if (!dataMap[key]) dataMap[key] = 0;
-      dataMap[key] += t.amount;
+      if (!dataMap[key]) dataMap[key] = { total: 0, date: date };
+      dataMap[key].total += t.amount;
     });
 
-    let sortedData = Object.entries(dataMap);
-
-    if (period === 'year') {
-      const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      sortedData.sort(([a], [b]) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
-    } else {
-        sortedData.sort(([a], [b]) => new Date(a + ', ' + new Date().getFullYear()).getTime() - new Date(b + ', ' + new Date().getFullYear()).getTime());
-    }
-
-    const maxAmount = Math.max(...sortedData.map(([, amount]) => amount), 0);
+    const sortedData = Object.entries(dataMap).sort(([,a],[,b]) => a.date.getTime() - b.date.getTime());
+    
+    const maxAmount = Math.max(...sortedData.map(([, {total}]) => total), 0);
     
     return {
-      labels: sortedData.map(([label]) => label),
-      points: sortedData.map(([, amount]) => amount),
+      points: sortedData.map(([key, {total}]) => ({ date: key, amount: total })),
       maxAmount,
     };
-  }, [transactions, period]);
+  }, [transactions, type]);
 
   const cardBaseStyle = "my-3 p-4 bg-subtle rounded-xl shadow-lg border border-divider";
   const color = type === TransactionType.INCOME ? 'var(--color-accent-emerald)' : 'var(--color-accent-rose)';
@@ -54,7 +43,7 @@ const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transa
   const height = 200;
   const padding = 20;
 
-  const points = chartData.points;
+  const { points } = chartData;
   const maxVal = chartData.maxAmount > 0 ? chartData.maxAmount : 1;
   const xStep = points.length > 1 ? (width - padding * 2) / (points.length - 1) : 0;
   const yRatio = (height - padding * 2) / maxVal;
@@ -62,7 +51,7 @@ const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transa
   const getPointCoordinates = () => {
       return points.map((p, i) => ({
           x: padding + i * xStep,
-          y: height - padding - p * yRatio
+          y: height - padding - p.amount * yRatio
       }));
   };
   const coordinates = getPointCoordinates();
@@ -80,10 +69,10 @@ const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transa
 
   return (
     <div className={cardBaseStyle}>
-      <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
+      {title && <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>}
       <div className="h-64 relative">
-        {chartData.points.length > 0 ? (
-            <svg viewBox="0 0 500 200" className="w-full h-full">
+        {chartData.points.length > 1 ? (
+            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
                 <defs>
                     <linearGradient id={`gradient-${type}`} x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" style={{stopColor: color, stopOpacity: 0.4}} />
@@ -93,12 +82,13 @@ const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transa
                 <path d={`${path} V ${height - padding} H ${padding} Z`} fill={`url(#gradient-${type})`} />
                 <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ strokeDasharray: 1000, strokeDashoffset: 1000, animation: 'dash 2s ease-out forwards' }}/>
                 {coordinates.map((coord, index) => (
-                    <g key={index} className="chart-tooltip-wrapper">
+                    <g key={index} className="chart-tooltip-wrapper cursor-pointer" onClick={() => onPointClick(points[index].date)}>
+                        <rect x={coord.x - xStep/2} y="0" width={xStep} height={height} fill="transparent" />
                         <circle cx={coord.x} cy={coord.y} r="8" fill="transparent" />
                         <circle cx={coord.x} cy={coord.y} r="4" fill={color} />
-                        <foreignObject x={coord.x - 50} y={coord.y - 40} width="100" height="30">
+                        <foreignObject x={coord.x - 50} y={coord.y - 40} width="100" height="30" style={{pointerEvents: 'none'}}>
                           <div className="chart-tooltip" style={{left: '50%', bottom: '100%', transform: 'translateX(-50%)'}}>
-                            {formatCurrency(points[index])}
+                            {formatCurrency(points[index].amount)}
                           </div>
                         </foreignObject>
                     </g>
@@ -106,12 +96,12 @@ const TimeSeriesLineChart: React.FC<TimeSeriesLineChartProps> = ({ title, transa
                 <style>{`@keyframes dash { to { stroke-dashoffset: 0; } }`}</style>
             </svg>
         ) : (
-            <p className="w-full h-full flex items-center justify-center text-center text-secondary">No trend data for this period.</p>
+            <p className="w-full h-full flex items-center justify-center text-center text-secondary">Not enough data for a trend line.</p>
         )}
       </div>
        <div className="flex justify-between text-xs text-secondary mt-2 px-5">
-            <span>{chartData.labels[0]}</span>
-            <span>{chartData.labels[chartData.labels.length - 1]}</span>
+            <span>{points.length > 0 ? new Date(points[0].date).toLocaleDateString() : ''}</span>
+            <span>{points.length > 0 ? new Date(points[points.length - 1].date).toLocaleDateString() : ''}</span>
         </div>
     </div>
   );

@@ -8,7 +8,14 @@ let keyPromise: Promise<CryptoKey> | null = null;
 
 // Helper to convert ArrayBuffer to Base64
 function bufferToBase64(buffer: ArrayBuffer): string {
-    return btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(buffer))));
+    // Switched to a more robust implementation that avoids "Maximum call stack size exceeded" with large data.
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
 }
 
 // Helper to convert Base64 to ArrayBuffer

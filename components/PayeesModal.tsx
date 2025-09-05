@@ -64,7 +64,7 @@ const PayeesModal: React.FC<PayeesModalProps> = ({ onClose, payees, setPayees, c
                 </div>
                 <div className="space-x-2">
                 <button onClick={() => handleEdit(payee)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                <button onClick={() => onDelete(payee.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                <button onClick={() => onDelete(payee.id)} className="text-xs px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors">Delete</button>
                 </div>
             </div>
             ))}

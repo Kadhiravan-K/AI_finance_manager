@@ -59,7 +59,7 @@ const TripManagementScreen: React.FC<TripManagementScreenProps> = ({ trips, trip
                   </div>
                   <div className="flex flex-col items-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => onEditTrip(trip)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                      <button onClick={() => onDeleteTrip(trip.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                      <button onClick={() => onDeleteTrip(trip.id)} className="text-xs px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors">Delete</button>
                   </div>
               </div>
             </div>

@@ -114,7 +114,7 @@ const DataHubScreen: React.FC<DataHubProps> = (props) => {
         <h2 className="text-xl font-bold text-primary text-center">Data Hub 🗄️</h2>
         <div className="relative">
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="input-base w-full rounded-full py-2 px-3 pl-10" />
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-tertiary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
         </div>
       </div>
       <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
@@ -132,7 +132,7 @@ const DataHubScreen: React.FC<DataHubProps> = (props) => {
         <div className="flex justify-between items-center mb-2">
             <h3 className="font-semibold text-lg text-primary capitalize">{activeTab}</h3>
             <button onClick={handleAdd} className="button-primary px-3 py-1.5 text-sm rounded-full flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                 Add New
             </button>
         </div>
@@ -158,7 +158,7 @@ const ListItem: React.FC<{
                         <div className="text-right">{renderDetails(item)}</div>
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => onEdit(item)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                            <button onClick={() => onDelete(item.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full ml-1">Delete</button>
+                            <button onClick={() => onDelete(item.id)} className="text-xs px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors ml-1">Delete</button>
                         </div>
                     </div>
                 </div>

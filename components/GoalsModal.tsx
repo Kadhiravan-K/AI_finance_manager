@@ -1,6 +1,7 @@
 import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Goal, Account } from '../types';
+// Fix: Import ActiveModal to use in props.
+import { Goal, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomSelect from './CustomSelect';
 import { getAIGoalSuggestion } from '../services/geminiService';
@@ -19,6 +20,9 @@ interface GoalsScreenProps {
   onDelete: (id: string) => void;
   onEditGoal: (goal: Goal) => void;
   onGoalComplete: () => void;
+  onUpdateGoal: (goal: Goal) => void;
+  // Fix: Add missing openModal prop to match usage in StoryGenerator.tsx.
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
 
@@ -88,7 +92,8 @@ const GoalCard: React.FC<{
     onAddFunds: (goal: Goal) => void;
     onEdit: (goal: Goal) => void;
     onDelete: (id: string) => void;
-}> = ({ goal, onAddFunds, onEdit, onDelete }) => {
+    onUpdateGoal: (goal: Goal) => void;
+}> = ({ goal, onAddFunds, onEdit, onDelete, onUpdateGoal }) => {
     const formatCurrency = useCurrencyFormatter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -100,6 +105,22 @@ const GoalCard: React.FC<{
     const radius = 36;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (percentage / 100) * circumference;
+
+    const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+    const priorityStyles: Record<Priority, { buttonClass: string; }> = {
+        'High': { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
+        'Medium': { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
+        'Low': { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
+        'None': { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
+    };
+
+    const handlePriorityChange = () => {
+        const currentPriority = goal.priority || 'None';
+        const currentIndex = priorities.indexOf(currentPriority);
+        const nextIndex = (currentIndex + 1) % priorities.length;
+        const nextPriority = priorities[nextIndex];
+        onUpdateGoal({ ...goal, priority: nextPriority });
+    };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -137,10 +158,13 @@ const GoalCard: React.FC<{
                     <p className="text-sm font-semibold text-emerald-400 font-mono">{formatCurrency(goal.currentAmount)} <span className="text-secondary">of {formatCurrency(goal.targetAmount)}</span></p>
                     <p className="text-xs text-secondary mt-1">{isCompleted ? 'Goal achieved!' : `${formatCurrency(amountRemaining)} left to save`}</p>
                 </div>
-
-                <div className="flex flex-col items-center gap-2">
-                    <button onClick={() => onAddFunds(goal)} disabled={isCompleted} className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-500/40 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                
+                <div className="flex flex-col items-center gap-1">
+                     <button
+                        onClick={handlePriorityChange}
+                        className={`text-xs font-semibold px-2 py-1 rounded-full transition-colors w-16 text-center ${priorityStyles[goal.priority || 'None'].buttonClass}`}
+                    >
+                        {goal.priority || 'None'}
                     </button>
                     <div className="relative" ref={menuRef}>
                         <button onClick={() => setIsMenuOpen(p => !p)} className="w-10 h-6 text-secondary flex items-center justify-center">
@@ -152,12 +176,18 @@ const GoalCard: React.FC<{
                         </div>
                     </div>
                 </div>
+
+                <div className="flex flex-col items-center gap-2">
+                    <button onClick={() => onAddFunds(goal)} disabled={isCompleted} className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-500/40 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
 
-const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, onContribute, onDelete, onEditGoal }) => {
+const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, onContribute, onDelete, onEditGoal, onGoalComplete, onUpdateGoal, openModal }) => {
   const formatCurrency = useCurrencyFormatter();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: '', icon: '🏆', targetAmount: '', productLink: '' });
@@ -167,22 +197,56 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
   const settingsContext = useContext(SettingsContext);
   
   const [contributionModalState, setContributionModalState] = useState<{ goal: Goal } | null>(null);
+  const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
+    sort: { key: 'priority', direction: 'asc' },
+    filters: { active: true, completed: true }
+  });
 
-  const handleAddGoal = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amount = parseFloat(newGoal.targetAmount);
-    if (newGoal.name.trim() && amount > 0) {
-      onSaveGoal({
-        name: newGoal.name.trim(),
-        icon: newGoal.icon.trim() || '🏆',
-        targetAmount: amount,
-        productLink: newGoal.productLink.trim() || undefined,
-      });
-      setNewGoal({ name: '', icon: '🏆', targetAmount: '', productLink: '' });
-      setShowAddForm(false);
-    }
+  const priorityOrder: Record<Priority, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'None': 3 };
+
+  const sortedAndFilteredGoals = useMemo(() => {
+    let result = [...goals];
+
+    if (!viewOptions.filters.active) result = result.filter(g => g.currentAmount >= g.targetAmount);
+    if (!viewOptions.filters.completed) result = result.filter(g => g.currentAmount < g.targetAmount);
+
+    const { key, direction } = viewOptions.sort;
+    result.sort((a, b) => {
+        let comparison = 0;
+        switch (key) {
+            case 'priority':
+                comparison = priorityOrder[a.priority || 'None'] - priorityOrder[b.priority || 'None'];
+                break;
+            case 'progress':
+                const progressA = (a.currentAmount / a.targetAmount) * 100;
+                const progressB = (b.currentAmount / b.targetAmount) * 100;
+                comparison = progressB - progressA;
+                break;
+            case 'targetAmount':
+                comparison = b.targetAmount - a.targetAmount;
+                break;
+        }
+        return direction === 'asc' ? comparison : -comparison;
+    });
+    return result;
+  }, [goals, viewOptions]);
+
+  const viewOptionsConfig: ViewOptions = {
+    sortOptions: [
+        { key: 'priority', label: 'Priority' },
+        { key: 'progress', label: 'Progress (%)' },
+        { key: 'targetAmount', label: 'Target Amount' },
+    ],
+    filterOptions: [
+        { key: 'active', label: 'Active Goals', type: 'toggle' },
+        { key: 'completed', label: 'Completed Goals', type: 'toggle' },
+    ]
   };
-  
+
+  const isViewOptionsApplied = useMemo(() => {
+    return viewOptions.sort.key !== 'priority' || viewOptions.sort.direction !== 'asc' || !viewOptions.filters.active || !viewOptions.filters.completed;
+  }, [viewOptions]);
+
   const handleGetAiSuggestion = async () => {
     if (!dataContext || !settingsContext) return;
     setIsAiLoading(true);
@@ -199,13 +263,14 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
 
   const handleAcceptSuggestion = () => {
       if (!aiSuggestion) return;
-      setNewGoal({
-          name: aiSuggestion.name,
-          icon: '🎯',
-          targetAmount: aiSuggestion.targetAmount.toString(),
-          productLink: '',
+      onEditGoal({
+        id: '',
+        name: aiSuggestion.name,
+        icon: '🎯',
+        targetAmount: aiSuggestion.targetAmount,
+        currentAmount: 0,
+        productLink: '',
       });
-      setShowAddForm(true);
       setAiSuggestion(null);
   };
 
@@ -220,7 +285,14 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
           />
        )}
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
-        <h2 className="text-2xl font-bold text-primary">Financial Goals 🏆</h2>
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-primary">Financial Goals 🏆</h2>
+            <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="button-secondary text-sm px-3 py-1.5 flex items-center gap-2 relative">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /></svg>
+                <span>Filter & Sort</span>
+                {isViewOptionsApplied && <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[var(--color-bg-app)]"></div>}
+            </button>
+        </div>
         
         {aiSuggestion && (
           <div className="p-4 bg-violet-900/50 border border-violet-700 rounded-lg animate-fadeInUp glass-card">
@@ -238,55 +310,35 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
           </div>
         )}
         
-        {goals.map(goal => (
+        {sortedAndFilteredGoals.map(goal => (
             <GoalCard 
                 key={goal.id} 
                 goal={goal} 
-                // Fix: The state setter `setContributionModalState` expects an object with a `goal` property,
-                // but the `onAddFunds` prop passes the `goal` object directly. This wraps the call
-                // to match the expected state shape.
                 onAddFunds={(goal) => setContributionModalState({ goal })}
                 onEdit={onEditGoal}
                 onDelete={onDelete}
+                onUpdateGoal={onUpdateGoal}
             />
         ))}
 
-        {goals.length === 0 && !showAddForm && (
+        {goals.length === 0 && (
             <EmptyState
                 icon="🏆"
                 title="Ready to Start Saving?"
                 message="Create your first goal to track your progress towards something great."
                 actionText="Create First Goal"
-                onAction={() => setShowAddForm(true)}
+                onAction={() => onEditGoal({} as Goal)}
             />
         )}
       </div>
 
-      <div className="flex-shrink-0 p-6 border-t border-divider bg-subtle">
-        <div className="mb-2">
-            <button onClick={handleGetAiSuggestion} disabled={isAiLoading} className="w-full text-center p-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-violet-400 flex items-center justify-center gap-2">
-                  {isAiLoading ? <LoadingSpinner /> : '✨ Get AI Suggestion'}
-            </button>
-        </div>
-        {showAddForm ? (
-          <form onSubmit={handleAddGoal} className="space-y-3 animate-fadeInUp">
-            <h3 className="font-semibold text-primary">Create New Goal</h3>
-            <div className="flex items-center gap-3">
-              <input type="text" placeholder="🏆" value={newGoal.icon} onChange={e => setNewGoal(p => ({...p, icon: e.target.value}))} className="w-16 input-base p-2 rounded-md text-center" maxLength={2} />
-              <input type="text" placeholder="Goal Name (e.g., New Laptop)" value={newGoal.name} onChange={e => setNewGoal(p => ({...p, name: e.target.value}))} className="flex-grow input-base p-2 rounded-md" required />
-            </div>
-             <input type="number" min="0.01" step="0.01" placeholder="Target Amount" value={newGoal.targetAmount} onChange={e => setNewGoal(p => ({...p, targetAmount: e.target.value}))} className="w-full input-base p-2 rounded-md no-spinner" required />
-             <input type="text" placeholder="Product Link (Optional)" value={newGoal.productLink} onChange={e => setNewGoal(p => ({...p, productLink: e.target.value}))} className="w-full input-base p-2 rounded-md" />
-            <div className="flex justify-end space-x-2">
-              <button type="button" onClick={() => setShowAddForm(false)} className="button-secondary px-4 py-2">Cancel</button>
-              <button type="submit" className="button-primary px-4 py-2">Create Goal</button>
-            </div>
-          </form>
-        ) : (
-          <button onClick={() => setShowAddForm(true)} className="button-primary w-full py-2 font-semibold">
+      <div className="flex-shrink-0 p-6 border-t border-divider bg-subtle space-y-2">
+        <button onClick={handleGetAiSuggestion} disabled={isAiLoading} className="w-full text-center p-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-violet-400 flex items-center justify-center gap-2">
+            {isAiLoading ? <LoadingSpinner /> : '✨ Get AI Suggestion'}
+        </button>
+        <button onClick={() => onEditGoal({} as Goal)} className="button-primary w-full py-2 font-semibold">
             Add New Goal
-          </button>
-        )}
+        </button>
       </div>
     </div>
   );

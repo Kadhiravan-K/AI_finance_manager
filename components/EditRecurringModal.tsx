@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { RecurringTransaction, Category, Account, TransactionType, FrequencyUnit, ReminderUnit } from '../types';
+import { RecurringTransaction, Category, Account, TransactionType, FrequencyUnit, ReminderUnit, Priority } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -17,7 +17,7 @@ interface EditRecurringModalProps {
 }
 
 const defaultFormState: Omit<RecurringTransaction, 'id' | 'nextDueDate'> = {
-  description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: '', startDate: new Date().toISOString(), interval: 1, frequencyUnit: 'months', startTime: '09:00',
+  description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: '', startDate: new Date().toISOString(), interval: 1, frequencyUnit: 'months', startTime: '09:00', priority: 'None'
 };
 
 const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ onClose, onSave, recurringTransaction, categories, accounts }) => {
@@ -33,6 +33,22 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ onClose, onSave
   const [formState, setFormState] = useState(getInitialState());
   const [isReminderOn, setIsReminderOn] = useState(!!recurringTransaction?.reminder);
 
+  const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+  const priorityStyles: Record<Priority, { buttonClass: string; }> = {
+    'High': { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
+    'Medium': { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
+    'Low': { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
+    'None': { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
+  };
+
+  const handlePriorityChange = () => {
+    const currentPriority = formState.priority || 'None';
+    const currentIndex = priorities.indexOf(currentPriority);
+    const nextIndex = (currentIndex + 1) % priorities.length;
+    const nextPriority = priorities[nextIndex];
+    setFormState(p => ({...p, priority: nextPriority}));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const startDate = new Date(formState.startDate);
@@ -44,8 +60,7 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ onClose, onSave
         delete finalFormState.reminder;
     }
     
-    // This is the fix. The bug was that the call was something like `onSave(data, id)`,
-    // but the handler function expects a single object argument.
+    // Fix: Pass only the single item object to the onSave handler as expected.
     onSave(finalFormState);
   };
   
@@ -90,6 +105,16 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ onClose, onSave
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div><label className="text-xs text-secondary mb-1 block">Type</label><CustomSelect options={typeOptions} value={formState.type} onChange={v => setFormState(p => ({...p, type: v as TransactionType, categoryId: ''}))} /></div>
                 <div><label className="text-xs text-secondary mb-1 block">Category</label><CustomSelect options={categoryOptions} value={formState.categoryId} onChange={v => setFormState(p => ({...p, categoryId: v}))} placeholder="Select Category" /></div>
+            </div>
+            <div className="pt-2 border-t border-divider">
+                <label className="block text-sm font-medium text-secondary mb-2">Priority</label>
+                <button
+                    type="button"
+                    onClick={handlePriorityChange}
+                    className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors w-full text-center ${priorityStyles[formState.priority || 'None'].buttonClass}`}
+                >
+                    {formState.priority || 'None'}
+                </button>
             </div>
             <div className="pt-2 border-t border-divider">
                 <ToggleSwitch checked={isReminderOn} onChange={setIsReminderOn} label="Set a Reminder" />

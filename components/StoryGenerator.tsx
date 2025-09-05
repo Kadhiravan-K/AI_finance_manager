@@ -1,8 +1,9 @@
 
+
 import React, { useState, useCallback, useEffect, useMemo, useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, TrustBinDeletionPeriodUnit, TripPayer, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund, Settlement, ShoppingList } from '../types';
-import { parseTransactionText, parseNaturalLanguageQuery, parseAICommand, runFinancialScenario } from '../services/geminiService';
+import { ProcessingStatus, Transaction, Account, Category, TransactionType, DateRange, CustomDateRange, Budget, Payee, RecurringTransaction, ActiveModal, SpamWarning, Sender, Goal, FeedbackItem, InvestmentHolding, AccountType, AppState, Contact, ContactGroup, Settings, ActiveScreen, UnlockedAchievement, FinanceTrackerProps, ModalState, Trip, TripExpense, TrustBinItem, TrustBinDeletionPeriodUnit, TripPayer, FinancialProfile, ItemType, Shop, ShopProduct, ShopSale, ShopSaleItem, ParsedTransactionData, UserStreak, Challenge, ChallengeType, ShopEmployee, ShopShift, Refund, Settlement, ShoppingList, Priority } from '../types';
+import { parseTransactionText, parseNaturalLanguageQuery, getAICoachAction, runFinancialScenario } from '../services/geminiService';
 import useLocalStorage from '../hooks/useLocalStorage';
 import FinanceDisplay from './StoryDisplay';
 import EditTransactionModal from './EditTransactionModal';
@@ -71,6 +72,7 @@ import SubscriptionsScreen from './SubscriptionsScreen';
 import GlossaryScreen from './GlossaryScreen';
 import EditGlossaryEntryModal from './EditGlossaryEntryModal';
 import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
+import ViewOptionsModal from './ViewOptionsModal';
 
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -407,6 +409,14 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
     closeActiveModal();
   };
 
+  const handleUpdateGoal = (updatedGoal: Goal) => {
+    setGoals(prev => prev.map(g => g.id === updatedGoal.id ? updatedGoal : g));
+  };
+
+  const handleUpdateRecurring = (updatedItem: RecurringTransaction) => {
+    setRecurringTransactions(prev => prev.map(r => r.id === updatedItem.id ? updatedItem : r));
+  };
+
   const handleContributeToGoal = useCallback((goalId: string, amount: number, accountId: string) => {
     const goal = goals.find(g => g.id === goalId);
     if (!goal) return;
@@ -662,74 +672,40 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
   }
 
 
-  const handleSendCommand = async (command: string, file?: {name: string, type: string, data: string}): Promise<string> => {
+  const handleExecuteAICommand = async (payload: any): Promise<string> => {
       try {
-          if (accounts.length === 0 && command.toLowerCase().includes('add')) {
+          if (accounts.length === 0) {
               return "I can't add a transaction because you haven't created any accounts yet. Please create an account first.";
           }
 
-          const geminiFile = file ? { mimeType: file.type, data: file.data } : undefined;
-          const parsed = await parseAICommand(command, categories, accounts, geminiFile);
+          const { description, amount, type, category, accountName } = payload;
+          if (!amount || !description) {
+              return "I need a description and amount to create a transaction.";
+          }
+          if (accounts.length > 1 && !accountName) {
+              return `Which account should I use? You have: ${accounts.map(a => a.name).join(', ')}.`;
+          }
+          const account = accounts.length === 1 ? accounts[0] : accounts.find(a => a.name.toLowerCase() === accountName?.toLowerCase());
+          if (!account) {
+              return `I couldn't find an account named "${accountName}".`;
+          }
+          const categoryName = category || (type === 'income' ? 'Other Income' : 'Miscellaneous');
+          const categoryId = findOrCreateCategory(categoryName, type === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE);
           
-          if (parsed.action === 'clarify' || parsed.itemType === 'clarification_needed') {
-              return parsed.name || "I need more information. Could you please clarify?";
-          }
-          
-          if (parsed.action === 'general_query' && parsed.itemType === 'file_content') {
-              return parsed.name || "I have processed the file but couldn't extract a specific answer. You can ask me more questions about it.";
-          }
-
-          switch (`${parsed.action}-${parsed.itemType}`) {
-              case 'create-expense':
-              case 'create-income': {
-                  if (!parsed.amount || !parsed.name) {
-                      return "I need a description and amount to create a transaction.";
-                  }
-                  if (accounts.length > 1 && !parsed.accountName) {
-                      return `Which account should I use? You have: ${accounts.map(a => a.name).join(', ')}.`;
-                  }
-                  const account = accounts.length === 1 ? accounts[0] : accounts.find(a => a.name.toLowerCase() === parsed.accountName?.toLowerCase());
-                  if (!account) {
-                      return `I couldn't find an account named "${parsed.accountName}".`;
-                  }
-                  const categoryName = parsed.category || (parsed.itemType === 'income' ? 'Other Income' : 'Miscellaneous');
-                  const categoryId = findOrCreateCategory(categoryName, parsed.itemType === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE);
-                  
-                  const newTransaction: Transaction = {
-                      id: self.crypto.randomUUID(),
-                      accountId: account.id,
-                      description: parsed.name,
-                      amount: parsed.amount,
-                      type: parsed.itemType === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE,
-                      categoryId: categoryId,
-                      date: new Date().toISOString(),
-                  };
-                  setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-                  return `OK. I've added a new ${parsed.itemType} of ${formatCurrency(newTransaction.amount)} for "${newTransaction.description}".`;
-              }
-              
-              case 'create-account': {
-                  if (!parsed.name) return "I need a name to create an account.";
-                  onAddAccount(parsed.name, AccountType.DEPOSITORY, settings.currency, undefined, parsed.amount);
-                  return `Done. I've created the "${parsed.name}" account for you.`;
-              }
-
-              case 'delete-transaction': // Assuming `name` is description and `targetName` is also description for transactions
-              case 'delete-expense':
-              case 'delete-income': {
-                  const targetName = parsed.targetName || parsed.name;
-                  if (!targetName) return "Which transaction should I delete?";
-                  const txToDelete = transactions.find(t => t.description.toLowerCase().includes(targetName.toLowerCase()));
-                  if (!txToDelete) return `I couldn't find a transaction matching "${targetName}".`;
-                  handleItemDeletion(txToDelete.id, 'transaction', txToDelete.description);
-                  return `OK. I've deleted "${txToDelete.description}". You can undo this for a few seconds.`;
-              }
-              
-              default:
-                  return "I'm sorry, I can't perform that action yet.";
-          }
+          const newTransaction: Transaction = {
+              id: self.crypto.randomUUID(),
+              accountId: account.id,
+              description: description,
+              amount: amount,
+              type: type === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE,
+              categoryId: categoryId,
+              date: new Date().toISOString(),
+          };
+          setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+          updateStreak();
+          return `OK. I've added a new ${type} of ${formatCurrency(newTransaction.amount)} for "${newTransaction.description}".`;
       } catch (err) {
-          return err instanceof Error ? err.message : "I had trouble understanding that command.";
+          return err instanceof Error ? err.message : "I had trouble executing that command.";
       }
   };
   
@@ -878,12 +854,13 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
           isLoading={isLoading}
           onAddTransaction={() => openModal('addTransaction', { initialTab: 'auto' })}
           appState={appState}
+          openModal={openModal}
         />;
       case 'reports': return <ReportsScreen transactions={transactions} categories={categories} accounts={accounts} selectedAccountIds={selectedAccountIds} baseCurrency={settings.currency}/>;
       case 'budgets': return <BudgetsScreen categories={categories} transactions={transactions} budgets={budgets} onSaveBudget={handleSaveBudget} onAddBudget={() => {}} />;
       case 'investments': return <InvestmentsScreen accounts={accounts} holdings={investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={handleSellInvestment} onUpdateValue={handleUpdateInvestmentValue} onRefresh={() => {}} />;
-      case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g => g.id === id)?.name || 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} />;
-      case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onAdd={() => openModal('editRecurring')} onEdit={handleEditRecurring} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(rt => rt.id === id)?.description || 'payment')} />;
+      case 'goals': return <GoalsScreen goals={goals} onSaveGoal={handleSaveGoal} accounts={accounts} onContribute={handleContributeToGoal} onDelete={(id) => handleItemDeletion(id, 'goal', goals.find(g => g.id === id)?.name || 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} onUpdateGoal={handleUpdateGoal} openModal={openModal} />;
+      case 'scheduled': return <ScheduledPaymentsScreen recurringTransactions={recurringTransactions} categories={categories} accounts={accounts} onAdd={() => openModal('editRecurring')} onEdit={handleEditRecurring} onDelete={(id) => handleItemDeletion(id, 'recurringTransaction', recurringTransactions.find(rt => rt.id === id)?.description || 'payment')} onUpdate={handleUpdateRecurring} openModal={openModal} />;
       case 'calculator': return <CalculatorScreen appState={appState} />;
       case 'achievements': return <AchievementsScreen unlockedAchievements={unlockedAchievements} />;
       case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setTripDetailsId(id); setActiveScreen('tripDetails'); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
@@ -891,7 +868,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
         const selectedTrip = trips.find(t => t.id === tripDetailsId);
         if (selectedTrip) return <TripDetailsScreen trip={selectedTrip} expenses={tripExpenses.filter(e => e.tripId === tripDetailsId)} categories={categories} onAddExpense={() => openModal('addTripExpense', { trip: selectedTrip })} onEditExpense={(expense) => openModal('addTripExpense', { trip: selectedTrip, expenseToEdit: expense })} onDeleteExpense={handleDeleteTripExpense} onBack={() => { setTripDetailsId(null); setActiveScreen('tripManagement'); }} />;
         return null;
-      case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => handleItemDeletion(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} />;
+      case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => handleItemDeletion(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} openModal={openModal} />;
       case 'dataHub': return <DataHubScreen
           transactions={transactions} accounts={accounts} categories={categories} goals={goals} shops={shops} trips={trips} contacts={contacts}
           onAddTransaction={() => openModal('addTransaction')} onEditTransaction={(t) => openModal('editTransaction', { transaction: t })} onDeleteTransaction={(id) => handleItemDeletion(id, 'transaction', transactions.find(i=>i.id===id)?.description || 'item')}
@@ -913,7 +890,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
       case 'challenges': return <ChallengesScreen appState={appState} setChallenges={setChallenges} />;
       case 'learn': return <LearnScreen onOpenChat={() => openModal('aiHub')} onOpenGlossary={() => setActiveScreen('glossary')} />;
       case 'calendar': return <CalendarScreen onNavigate={onNavigate} setActiveScreen={setActiveScreen} setTripDetailsId={setTripDetailsId} />;
-      case 'shoppingLists': return <ShoppingListScreen onCreateExpense={handleCreateExpenseFromShoppingList} />;
+      case 'shoppingLists': return <ShoppingListScreen onCreateExpense={handleCreateExpenseFromShoppingList} openModal={openModal} />;
       case 'manual': return <ManualScreen setActiveScreen={setActiveScreen} />;
       case 'subscriptions': return <SubscriptionsScreen />;
       case 'glossary': return <GlossaryScreen onAdd={() => openModal('editGlossaryEntry')} onEdit={(entry) => openModal('editGlossaryEntry', { entry })} />;
@@ -977,7 +954,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
               case 'addTripExpense': return <AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={items => handleAddTripExpense(activeModal.props?.trip.id, items)} onUpdate={(expense) => handleUpdateTripExpense(activeModal.props?.trip.id, expense)} categories={categories} onOpenCalculator={handleOpenCalculator} findOrCreateCategory={findOrCreateCategory} onSaveContact={handleSaveContact} />;
               case 'refund': return <RefundModal onClose={closeActiveModal} onSave={handleSaveRefund} {...activeModal.props} refunds={refunds} allTransactions={transactions} accounts={accounts} contacts={contacts} />;
               case 'trustBin': return <TrustBinModal onClose={closeActiveModal} trustBinItems={trustBin} onRestore={handleRestoreFromTrustBin} onPermanentDelete={handlePermanentDeleteFromTrustBin} />;
-              case 'editAccount': return <EditAccountModal account={activeModal.props?.account} onClose={closeActiveModal} onSave={(account) => { onEditAccount(account); }} />;
+              case 'editAccount': return <EditAccountModal account={activeModal.props?.account} onClose={closeActiveModal} onSave={(account) => { setAccounts(prev => prev.map(acc => acc.id === account.id ? account : acc)); }} />;
               case 'miniCalculator': return <MiniCalculatorModal onClose={closeActiveModal} onResult={activeModal.props?.onResult} />;
               case 'editTrip': return <EditTripModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={handleSaveTrip} onSaveContact={handleSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
               case 'editContact': return <EditContactModal contact={activeModal.props?.contact} initialGroupId={activeModal.props?.initialGroupId} onClose={closeActiveModal} onSave={handleSaveContact} />;
@@ -991,12 +968,20 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
               case 'globalSearch': return <GlobalSearchModal onClose={closeActiveModal} onNavigate={handleSearchNavigation} />;
               case 'editRecurring': return <EditRecurringModal recurringTransaction={activeModal.props?.recurringTransaction} onClose={closeActiveModal} onSave={handleSaveRecurring} categories={categories} accounts={accounts} />;
               case 'buyInvestment': return <BuyInvestmentModal onClose={closeActiveModal} accounts={accounts} onSave={handleBuyInvestment} />;
-              case 'aiHub': return <AIHubModal onClose={closeActiveModal} onSendCommand={handleSendCommand} onNavigate={onNavigate} appState={appState} />;
+              case 'aiHub': return <AIHubModal onClose={closeActiveModal} onExecuteCommand={handleExecuteAICommand} onNavigate={onNavigate} appState={appState} />;
               case 'shareGuide': return <ShareGuideModal onClose={closeActiveModal} />;
               case 'integrations': return <IntegrationsModal onClose={closeActiveModal} />;
               case 'footerCustomization': return <FooterCustomizationModal onClose={closeActiveModal} />;
               case 'editShop': return <EditShopModal shop={activeModal.props?.shop} onSave={handleSaveShop} onCancel={closeActiveModal} />;
               case 'editGlossaryEntry': return <EditGlossaryEntryModal entry={activeModal.props?.entry} onClose={closeActiveModal} onSave={(entry, id) => { if (id) { setGlossaryEntries(p => p.map(e => e.id === id ? { ...entry, id } : e)); } else { setGlossaryEntries(p => [...p, { ...entry, id: self.crypto.randomUUID() }]); } closeActiveModal(); }} />;
+              // Fix: Explicitly pass required props to ViewOptionsModal from the activeModal.props bag.
+              // The non-null assertion (!) is safe because all call sites for this modal are verified to provide these props.
+              case 'viewOptions': return <ViewOptionsModal 
+                  options={activeModal.props!.options}
+                  currentValues={activeModal.props!.currentValues}
+                  onApply={activeModal.props!.onApply}
+                  onClose={closeActiveModal}
+                />;
               default: return null;
             }
           })()}

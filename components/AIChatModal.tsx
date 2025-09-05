@@ -34,7 +34,8 @@ const AIChatModal: React.FC<AIChatModalProps> = ({ onClose, appState }) => {
     if (!message.trim() || isLoading) return;
 
     const userMessage = message;
-    const currentHistory = history.map(h => ({ role: h.role, parts: h.text }));
+    // Fix: Corrected property from 'parts' to 'text' for consistency.
+    const currentHistory = history.map(h => ({ role: h.role, text: h.text }));
     
     setHistory(prev => [...prev, { role: 'user', text: userMessage }]);
     setMessage('');

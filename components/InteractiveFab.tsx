@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { ActiveScreen, ActiveModal } from '../types';
 

@@ -111,11 +111,11 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
                     {history.map((item, i) => <div key={i}><p className="truncate">{item.query}</p><p className="font-semibold text-primary truncate">= {item.answer}</p></div>)}
                 </div>
             </div>
-            <div className="calculator-result text-right p-3">
-                <div className="text-secondary text-base h-5 truncate" aria-live="polite">{expression || '0'}</div>
-                <div className="text-primary text-3xl font-bold h-10 flex items-end justify-end truncate" aria-live="polite">{result}</div>
+            <div className="calculator-result text-right p-4 space-y-1">
+                <div className="text-secondary text-lg h-6 truncate" aria-live="polite">{expression || '0'}</div>
+                <div className="text-primary text-4xl font-bold h-12 truncate" aria-live="polite">{result}</div>
             </div>
-             <div className="grid grid-cols-4 gap-1.5">
+             <div className="grid grid-cols-4 gap-2">
                 <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('DEL')} className="calc-btn-special">DEL</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('%')} className="calc-btn-operator">%</CalcButton>

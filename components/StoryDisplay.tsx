@@ -1,6 +1,7 @@
 
+
 import React, { useMemo, useState, useEffect, useContext } from 'react';
-import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType, ActiveScreen, ActiveModal, AppState } from '../types';
+import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType, ActiveScreen, ActiveModal, AppState, AppliedViewOptions, ViewOptions } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
@@ -52,6 +53,7 @@ interface FinanceDisplayProps {
   isLoading: boolean;
   onAddTransaction: () => void;
   appState: AppState;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
@@ -99,21 +101,24 @@ const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdi
             <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl ${isIncome ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
                 {isSplit ? '➗' : (isTransfer ? '↔️' : (category?.icon || (isIncome ? '💰' : '💸')))}
             </div>
-            <div className="flex-grow overflow-hidden">
-                <div className="flex justify-between items-center">
+            
+            <div className="flex-grow overflow-hidden flex justify-between items-center gap-4">
+                <div className="overflow-hidden">
                     <p className="text-primary truncate font-semibold">{transaction.description}</p>
-                    <span className={`font-semibold font-mono text-base flex-shrink-0 ml-2 ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <p className="text-secondary truncate text-xs mt-0.5">{categoryPath}</p>
+                </div>
+
+                <div className="text-right flex-shrink-0">
+                    <span className={`font-semibold font-mono text-base ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
                         {isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}
                     </span>
-                </div>
-                <div className="flex justify-between items-center text-xs mt-0.5">
-                    <p className="text-secondary truncate">{categoryPath}</p>
-                    <p className="text-tertiary truncate">{account?.name}</p>
+                    <p className="text-tertiary truncate text-xs mt-0.5">{account?.name}</p>
                 </div>
             </div>
-            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity -mr-2">
+
+            <div className="flex flex-shrink-0 items-center opacity-0 group-hover:opacity-100 transition-opacity -mr-2">
                 <button onClick={() => onEdit(transaction)} className="p-2 text-tertiary hover:text-sky-400 transition-colors" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                <button onClick={() => onDelete(transaction.id)} className="p-2 text-tertiary hover:text-rose-400 transition-colors" aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <button onClick={() => onDelete(transaction.id)} className="p-2 text-rose-500 hover:text-rose-400 transition-colors" aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
         </div>
     );
@@ -189,9 +194,50 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, appState, ...rest }) => {
+const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, appState, openModal, ...rest }) => {
     
     const dataContext = useContext(AppDataContext);
+    const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
+        sort: { key: 'date', direction: 'desc' },
+        filters: { income: true, expense: true }
+    });
+    
+    const viewOptionsConfig: ViewOptions = {
+        sortOptions: [
+            { key: 'date', label: 'Date' },
+            { key: 'amount', label: 'Amount' },
+        ],
+        filterOptions: [
+            { key: 'income', label: 'Income', type: 'toggle' },
+            { key: 'expense', label: 'Expense', type: 'toggle' },
+        ]
+    };
+    
+    const isViewOptionsApplied = useMemo(() => {
+        return viewOptions.sort.key !== 'date' || viewOptions.sort.direction !== 'desc' || !viewOptions.filters.income || !viewOptions.filters.expense;
+    }, [viewOptions]);
+
+    const sortedAndFilteredTransactions = useMemo(() => {
+        let result = [...transactions];
+
+        // Apply filters
+        if (!viewOptions.filters.income) result = result.filter(t => t.type !== 'income');
+        if (!viewOptions.filters.expense) result = result.filter(t => t.type !== 'expense');
+
+        // Apply sorters
+        const { key, direction } = viewOptions.sort;
+        result.sort((a, b) => {
+            let comparison = 0;
+            if (key === 'date') {
+                comparison = new Date(b.date).getTime() - new Date(a.date).getTime();
+            } else if (key === 'amount') {
+                comparison = b.amount - a.amount;
+            }
+            return direction === 'desc' ? comparison : -comparison;
+        });
+
+        return result;
+    }, [transactions, viewOptions]);
     
     const DashboardCard = React.memo(({ title, amount, isVisible, color, currency }: {title: string, amount: number, isVisible: boolean, color: 'emerald' | 'rose' | 'primary', currency: string}) => {
         const formatCurrency = useCurrencyFormatter({ notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 }, currency);
@@ -388,9 +434,15 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
         <div className="px-4">
             <div className="flex justify-between items-center my-4">
                 <h2 className="text-xl font-bold text-primary">Dashboard</h2>
-                <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 rounded-full text-secondary hover:text-primary transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isBalanceVisible ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z" : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" } /></svg>
-                </button>
+                <div className="flex items-center gap-1">
+                    <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 rounded-full text-secondary hover:text-primary transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isBalanceVisible ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z" : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" } /></svg>
+                    </button>
+                    <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="p-2 rounded-full text-secondary hover:text-primary transition-colors relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}> <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /> </svg>
+                        {isViewOptionsApplied && <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full"></div>}
+                    </button>
+                </div>
             </div>
             
             <TransactionFilters
@@ -407,7 +459,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
 
             <div className="mt-4">
                 {transactions.length > 0 ? (
-                    <VirtualizedTransactionList accounts={accounts} transactions={transactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
+                    <VirtualizedTransactionList accounts={accounts} transactions={sortedAndFilteredTransactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
                 ) : (
                     <EmptyState
                         icon="💸"

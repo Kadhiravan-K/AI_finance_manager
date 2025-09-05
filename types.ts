@@ -1,3 +1,5 @@
+
+
 export enum ProcessingStatus {
   IDLE,
   LOADING,
@@ -46,6 +48,7 @@ export interface Goal {
     targetAmount: number;
     currentAmount: number;
     productLink?: string;
+    priority?: Priority;
 }
 
 export interface SplitDetail {
@@ -171,6 +174,7 @@ export interface RecurringTransaction {
         value: number;
         unit: ReminderUnit;
     }
+    priority?: Priority;
 }
 
 export interface TripParticipant {
@@ -385,7 +389,7 @@ export interface Settlement {
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'investments' | 'budgets' | 'goals' | 'scheduled' | 'calculator' | 'more' | 'achievements' | 'tripManagement' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'shoppingLists' | 'manual' | 'subscriptions' | 'glossary';
 
-export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'accountsManager' | 'globalSearch' | 'editRecurring' | 'buyInvestment' | 'aiHub' | 'shareGuide' | 'integrations' | 'footerCustomization' | 'editGlossaryEntry' | null;
+export type ActiveModal = 'transfer' | 'appSettings' | 'categories' | 'payees' | 'importExport' | 'senderManager' | 'contacts' | 'feedback' | 'privacyConsent' | 'onboarding' | 'addTransaction' | 'headerMenu' | 'dashboardSettings' | 'notificationSettings' | 'addTripExpense' | 'refund' | 'editTransaction' | 'trustBin' | 'editAccount' | 'selectRefund' | 'editTrip' | 'editContact' | 'editContactGroup' | 'globalTripSummary' | 'miniCalculator' | 'editCategory' | 'notifications' | 'editGoal' | 'manageTools' | 'financialHealth' | 'shopProducts' | 'shopBilling' | 'shopEmployees' | 'editTripExpense' | 'editShop' | 'accountsManager' | 'globalSearch' | 'editRecurring' | 'buyInvestment' | 'aiHub' | 'shareGuide' | 'integrations' | 'footerCustomization' | 'editGlossaryEntry' | 'viewOptions' | null;
 
 export interface ModalState {
     name: ActiveModal;
@@ -551,4 +555,29 @@ export interface ProactiveInsight {
 export interface PersonalizedChallenge {
     description: string;
     estimatedSavings: number;
+}
+
+// New types for sorting and filtering
+export interface SortOption {
+    key: string;
+    label: string;
+}
+
+export interface FilterOption {
+    key: string;
+    label: string;
+    type: 'toggle';
+}
+
+export interface ViewOptions {
+    sortOptions: SortOption[];
+    filterOptions: FilterOption[];
+}
+
+export interface AppliedViewOptions {
+    sort: {
+        key: string;
+        direction: 'asc' | 'desc';
+    };
+    filters: Record<string, boolean>;
 }

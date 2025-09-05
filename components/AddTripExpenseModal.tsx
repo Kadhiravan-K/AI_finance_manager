@@ -462,7 +462,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
                   <div key={item.id} className="p-3 bg-subtle rounded-lg space-y-3 border border-divider">
                       <div className="flex items-start gap-2">
                         <input type="text" placeholder={`Item ${index+1} Description`} value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className="input-base p-2 rounded-md flex-grow" required autoFocus={index > 0} />
-                        {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-secondary hover:text-rose-400 z-10 flex-shrink-0 mt-1"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
+                        {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-rose-500 hover:text-rose-400 z-10 flex-shrink-0 mt-1"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <DebouncedNumericInput type="text" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Price" value={item.price} onCommit={val => handleItemChange(item.id, 'price', val)} className="input-base w-full p-2 rounded-md no-spinner" required />

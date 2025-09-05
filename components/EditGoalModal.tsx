@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Goal } from '../types';
+import { Goal, Priority } from '../types';
 import ModalHeader from './ModalHeader';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -18,6 +18,21 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) 
   const [icon, setIcon] = useState(goal?.icon || '🏆');
   const [targetAmount, setTargetAmount] = useState(goal?.targetAmount.toString() || '');
   const [productLink, setProductLink] = useState(goal?.productLink || '');
+  const [priority, setPriority] = useState<Priority>(goal?.priority || 'None');
+
+  const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+  const priorityStyles: Record<Priority, { buttonClass: string; }> = {
+    'High': { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
+    'Medium': { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
+    'Low': { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
+    'None': { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
+  };
+
+  const handlePriorityChange = () => {
+    const currentIndex = priorities.indexOf(priority);
+    const nextIndex = (currentIndex + 1) % priorities.length;
+    setPriority(priorities[nextIndex]);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +43,8 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) 
           name: name.trim(), 
           icon: icon.trim() || '🏆', 
           targetAmount: amount, 
-          productLink: productLink.trim() || undefined 
+          productLink: productLink.trim() || undefined,
+          priority: priority,
         }, 
         goal?.id
       );
@@ -76,6 +92,16 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) 
             onChange={e => setProductLink(e.target.value)} 
             className="w-full input-base p-2 rounded-md" 
           />
+           <div>
+            <label className="text-sm text-secondary mb-1 block">Priority</label>
+            <button
+                type="button"
+                onClick={handlePriorityChange}
+                className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors w-full text-center ${priorityStyles[priority].buttonClass}`}
+            >
+                {priority}
+            </button>
+          </div>
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
             <button type="submit" className="button-primary px-4 py-2">Save Goal</button>

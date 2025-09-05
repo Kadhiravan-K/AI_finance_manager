@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useMemo, useContext } from 'react';
 // Fix: Import ActiveScreen and ActiveModal to define component props
 import { CalendarEvent, ActiveScreen, ActiveModal } from '../types';

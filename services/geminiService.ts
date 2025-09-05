@@ -250,84 +250,111 @@ export async function getDashboardInsights(transactions: Transaction[], categori
     }
 }
 
-export async function getAIChatResponse(appState: AppState, question: string, history: { role: string, parts: string }[]): Promise<string> {
-    const { financialProfile, transactions, budgets, goals } = appState;
-    const context = `
-      User's Financial Profile: ${JSON.stringify(financialProfile)}
-      Recent Transactions (summary): ${transactions.length} transactions logged.
-      Budgets: ${budgets.length} budgets set.
-      Goals: ${goals.length} goals set.
-    `;
-    const prompt = `You are a helpful and knowledgeable Chartered Accountant (CA) providing financial advice. Use the provided financial context to answer the user's question. Be encouraging and provide clear, actionable advice. Here is the context:\n${context}\n\nUser's question: "${question}"`;
-    try {
-        const chat = ai.chats.create({ 
-            model: 'gemini-2.5-flash', 
-            history: history.map(({ role, parts }) => ({ role, parts: [{ text: parts }] }))
-        });
-        const response = await chat.sendMessage({ message: prompt });
-        return response.text;
-    } catch (error) {
-        console.error("Error getting AI chat response:", error);
-        return "I'm sorry, I'm having trouble connecting to my knowledge base right now. Please try again in a moment.";
-    }
-}
-
-const commandSchema = {
+const aiCoachActionSchema = {
     type: Type.OBJECT,
     properties: {
-        action: { type: Type.STRING, description: "The action to perform. Must be one of: 'create', 'update', 'delete', 'clarify', 'general_query'." },
-        itemType: { type: Type.STRING, description: "The type of item to act upon. For 'general_query', this can be 'file_content'. Must be one of: 'account', 'category', 'expense', 'income', 'clarification_needed', 'file_content'." },
-        name: { type: Type.STRING, description: "The name of the item (e.g., account name, category name, transaction description). For clarifications or queries, this is the question to ask the user or the query itself." },
-        amount: { type: Type.NUMBER, description: "The numeric amount, for transactions or account opening balances." },
-        category: { type: Type.STRING, description: "The category for a transaction, in 'Parent / Child' format. If not specified, infer a likely one." },
-        accountName: { type: Type.STRING, description: "For transactions, the name of the account to use." },
-        targetName: { type: Type.STRING, description: "For 'delete' or 'update' actions, the name of the item to target." }
+        action: { 
+            type: Type.STRING, 
+            description: "The user's intent. Must be one of: 'chat', 'create_transaction', 'navigate', 'run_simulation'." 
+        },
+        payload: {
+            type: Type.OBJECT,
+            properties: {
+                // For 'chat'
+                response: { type: Type.STRING, description: "The conversational response to the user." },
+                // For 'create_transaction'
+                description: { type: Type.STRING },
+                amount: { type: Type.NUMBER },
+                type: { type: Type.STRING, description: "MUST be 'income' or 'expense'."},
+                category: { type: Type.STRING, description: "A suitable category in 'Parent / Child' format."},
+                accountName: { type: Type.STRING, description: "The name of the account to use."},
+                // For 'navigate'
+                screen: { type: Type.STRING, description: "The name of the screen to navigate to. e.g., 'reports', 'goals', 'investments'." },
+                // For 'run_simulation'
+                query: { type: Type.STRING, description: "The user's core simulation question." }
+            }
+        },
+        clarification: {
+            type: Type.STRING,
+            description: "If you need more information to fulfill the request, ask the user a clear question here. If not, this MUST be null."
+        }
     },
-    required: ["action", "itemType", "name"]
+    required: ["action", "payload"]
 };
 
-export async function parseAICommand(command: string, categories: AppState['categories'], accounts: AppState['accounts'], file?: { mimeType: string, data: string }): Promise<any> {
+export async function getAICoachAction(command: string, appState: AppState, chatHistory: { role: 'user' | 'model', text: string }[]): Promise<any> {
+    const { categories, accounts, financialProfile } = appState;
     const accountList = accounts.map(a => a.name).join(', ') || 'none';
     
-    let prompt = `
-        You are an intelligent financial assistant. Parse the user's command into a structured JSON object based on the provided schema.
-        The user wants to manage their finances. The command is: "${command}".
-        
-        Available top-level expense categories: ${categories.filter(c => c.type === 'expense' && !c.parentId).map(c => c.name).join(', ') || 'none'}
-        Available top-level income categories: ${categories.filter(c => c.type === 'income' && !c.parentId).map(c => c.name).join(', ') || 'none'}
-        Available accounts: ${accountList}.
-
-        If a file is provided with the command, analyze its content to answer the user's question or perform an action. For general questions about the file, use the 'general_query' action and put your text answer in the 'name' field.
-        For 'create expense' or 'create income', if an account is mentioned, use it. If not, and there are multiple accounts, you MUST ask for clarification by setting itemType to 'clarification_needed' and name to 'Which account should I use for that?'. If there is only one account, you can assume to use that one.
-        If the command is ambiguous, ask for clarification.
-        For amounts, extract only the number.
-        For 'delete' or 'update', the 'targetName' field is crucial for identifying the item.
+    // Condensed context
+    const context = `
+      User's Financial Profile: ${JSON.stringify(financialProfile)}
+      Available Accounts: ${accountList}
+      Top-level Expense Categories: ${categories.filter(c => c.type === 'expense' && !c.parentId).map(c => c.name).join(', ')}
+      Top-level Income Categories: ${categories.filter(c => c.type === 'income' && !c.parentId).map(c => c.name).join(', ')}
     `;
-    
-    let contents: any = { parts: [{ text: prompt }]};
 
-    if (file) {
-      // For multimodal input, send parts with inlineData
-      contents.parts.push({
-        inlineData: {
-          mimeType: file.mimeType,
-          data: file.data,
-        },
-      });
-    }
+    const prompt = `You are a powerful, friendly AI Financial Coach inside a personal finance app.
+    Your job is to understand the user's request and respond with a structured JSON object describing the action to take.
     
+    Analyze the user's LATEST request based on the chat history and financial context.
+
+    ACTIONS:
+    1. 'chat': If the user is asking a general question or just chatting. The 'response' in the payload should be your answer.
+    2. 'create_transaction': If the user asks to add an expense or income. You MUST extract description, amount, type, and infer a category. If the account isn't specified and there are multiple, you MUST ask for clarification.
+    3. 'navigate': If the user asks to go to a specific screen (e.g., "show me my reports", "open goals").
+    4. 'run_simulation': If the user asks a "what-if" question (e.g., "what if I save 500 more per month?").
+    
+    CLARIFICATION:
+    If you lack any crucial information (e.g., which account to use for a transaction when multiple exist), set the 'clarification' field with a question for the user. In this case, the action should be 'chat' and the payload.response should be your clarification question.
+
+    CONTEXT: ${context}
+    CHAT HISTORY: ${JSON.stringify(chatHistory.slice(-4))}
+    USER'S LATEST REQUEST: "${command}"
+    `;
+
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: contents,
-            config: { responseMimeType: "application/json", responseSchema: commandSchema }
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: aiCoachActionSchema }
         });
         return JSON.parse(response.text);
     } catch (error) {
-        console.error("Error parsing AI command:", error);
-        throw new Error("I had trouble understanding that command. Please try rephrasing.");
+        console.error("Error parsing AI Coach action:", error);
+        return { action: 'chat', payload: { response: "I had trouble understanding that. Please try rephrasing." } };
     }
 }
+
+// Fix: Added missing getAIChatResponse function to support the simple AI chat modal.
+export async function getAIChatResponse(appState: AppState, message: string, chatHistory: { role: 'user' | 'model', text: string }[]): Promise<string> {
+    const { financialProfile, accounts, categories } = appState;
+    const accountList = accounts.map(a => a.name).join(', ') || 'none';
+    
+    // Condensed context
+    const context = `
+      User's Financial Profile: ${JSON.stringify(financialProfile)}
+      Available Accounts: ${accountList}
+      Top-level Expense Categories: ${categories.filter(c => c.type === 'expense' && !c.parentId).map(c => c.name).join(', ')}
+      Top-level Income Categories: ${categories.filter(c => c.type === 'income' && !c.parentId).map(c => c.name).join(', ')}
+    `;
+
+    const prompt = `You are a friendly AI Financial Coach. Your role is to provide helpful insights and answer questions based on the user's financial data. Keep your responses conversational and easy to understand. Avoid suggesting actions like creating transactions or navigating, just answer the question.
+    CONTEXT: ${context}
+    CHAT HISTORY: ${JSON.stringify(chatHistory.slice(-4))}
+    USER'S LATEST REQUEST: "${message}"
+    
+    Your Response:`;
+    
+    try {
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        return response.text;
+    } catch (error) {
+        console.error("Error getting AI chat response:", error);
+        return "I'm having trouble connecting right now. Please try again in a moment.";
+    }
+}
+
 
 const tripExpenseSchema = {
     type: Type.OBJECT,

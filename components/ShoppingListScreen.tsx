@@ -1,21 +1,60 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
-import { ShoppingList, ShoppingListItem, ItemType, Priority } from '../types';
+// Fix: Import ActiveModal to use in props.
+import { ShoppingList, ShoppingListItem, ItemType, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomCheckbox from './CustomCheckbox';
 import EmptyState from './EmptyState';
 
 interface ShoppingListScreenProps {
   onCreateExpense: (list: ShoppingList) => void;
+  // Fix: Add missing openModal prop to match usage in StoryGenerator.tsx.
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
-export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreateExpense }) => {
+export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreateExpense, openModal }) => {
   const dataContext = useContext(AppDataContext);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  
+  const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
+    sort: { key: 'updatedAt', direction: 'desc' },
+    filters: {}
+  });
 
   if (!dataContext) return <div>Loading...</div>;
 
   const { shoppingLists, setShoppingLists, deleteItem } = dataContext;
+
+  const sortedLists = useMemo(() => {
+    let result = [...(shoppingLists || [])];
+    const { key, direction } = viewOptions.sort;
+    result.sort((a, b) => {
+        let comparison = 0;
+        switch(key) {
+            case 'title':
+                comparison = a.title.localeCompare(b.title);
+                break;
+            case 'updatedAt':
+                comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                break;
+        }
+        return direction === 'asc' ? comparison : -comparison;
+    });
+    return result;
+  }, [shoppingLists, viewOptions]);
+
+  const viewOptionsConfig: ViewOptions = {
+    sortOptions: [
+        { key: 'updatedAt', label: 'Last Updated' },
+        { key: 'title', label: 'Title (A-Z)' },
+    ],
+    filterOptions: []
+  };
+
+  const isViewOptionsApplied = useMemo(() => {
+    return viewOptions.sort.key !== 'updatedAt' || viewOptions.sort.direction !== 'desc';
+  }, [viewOptions]);
+
 
   const handleSelectList = (id: string) => {
     setSelectedListId(id);
@@ -57,12 +96,16 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-divider flex-shrink-0">
+      <div className="p-4 border-b border-divider flex-shrink-0 flex justify-between items-center">
         <h2 className="text-2xl font-bold text-primary text-center">Shopping Lists 🛒</h2>
+        <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="button-secondary text-sm p-2 flex items-center gap-2 relative rounded-full aspect-square">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /></svg>
+            {isViewOptionsApplied && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[var(--color-bg-app)]"></div>}
+        </button>
       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-3">
-        {shoppingLists && shoppingLists.length > 0 ? (
-          shoppingLists.map(list => (
+        {sortedLists && sortedLists.length > 0 ? (
+          sortedLists.map(list => (
             <div key={list.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center transition-colors hover-bg-stronger">
               <div onClick={() => handleSelectList(list.id)} className="flex-grow cursor-pointer">
                 <p className="font-semibold text-primary">{list.title}</p>
@@ -115,11 +158,11 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
   };
   
   const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
-  const priorityStyles: Record<Priority, { icon: string; colorClass: string; borderColorClass: string }> = {
-    'High': { icon: '🔴', colorClass: 'text-rose-400', borderColorClass: 'border-rose-500/50' },
-    'Medium': { icon: '🟡', colorClass: 'text-yellow-400', borderColorClass: 'border-yellow-500/50' },
-    'Low': { icon: '🟢', colorClass: 'text-green-400', borderColorClass: 'border-green-500/50' },
-    'None': { icon: '⚪', colorClass: 'text-slate-500', borderColorClass: 'border-transparent' },
+  const priorityStyles: Record<Priority, { icon: string; colorClass: string; borderColorClass: string; buttonClass: string; }> = {
+    'High': { icon: '🔴', colorClass: 'text-rose-400', borderColorClass: 'border-rose-500/50', buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
+    'Medium': { icon: '🟡', colorClass: 'text-yellow-400', borderColorClass: 'border-yellow-500/50', buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
+    'Low': { icon: '🟢', colorClass: 'text-green-400', borderColorClass: 'border-green-500/50', buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
+    'None': { icon: '⚪', colorClass: 'text-slate-500', borderColorClass: 'border-transparent', buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
   };
 
   useEffect(() => {
@@ -206,7 +249,7 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
             <div className="text-sm font-semibold text-secondary text-center px-1">Done</div>
             <div className="text-sm font-semibold text-secondary">Item Name</div>
             <div className="text-sm font-semibold text-secondary text-center px-1">Qty</div>
-            <div className="text-sm font-semibold text-secondary text-center" title="Priority">P</div>
+            <div className="text-sm font-semibold text-secondary text-center" title="Priority">Priority</div>
             <div className="text-sm font-semibold text-secondary text-right px-1">Rate</div>
           </div>
         {sortedItems.map(item => {
@@ -233,10 +276,10 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
                 <button
                     type="button"
                     onClick={() => handlePriorityChange(item.id)}
-                    className={`text-xl p-1 rounded-full hover:bg-slate-700/50 transition-colors ${priorityStyles[itemPriority].colorClass}`}
-                    title={`Priority: ${itemPriority}`}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${priorityStyles[itemPriority].buttonClass}`}
+                    title={`Set Priority: ${itemPriority}`}
                 >
-                    {priorityStyles[itemPriority].icon}
+                    <span className="text-lg">{priorityStyles[itemPriority].icon}</span>
                 </button>
               </div>
               <div className="flex items-center justify-end">
