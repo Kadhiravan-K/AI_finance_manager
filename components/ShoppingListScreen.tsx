@@ -15,6 +15,7 @@ interface ShoppingListScreenProps {
 export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreateExpense, openModal }) => {
   const dataContext = useContext(AppDataContext);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  const formatCurrency = useCurrencyFormatter();
   
   const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
     sort: { key: 'updatedAt', direction: 'desc' },
@@ -105,18 +106,37 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-3">
         {sortedLists && sortedLists.length > 0 ? (
-          sortedLists.map(list => (
-            <div key={list.id} className="p-3 bg-subtle rounded-lg group flex justify-between items-center transition-colors hover-bg-stronger">
-              <div onClick={() => handleSelectList(list.id)} className="flex-grow cursor-pointer">
-                <p className="font-semibold text-primary">{list.title}</p>
-                <p className="text-xs text-secondary">{list.items.length} items</p>
+          sortedLists.map(list => {
+            const listTotal = list.items.reduce((sum, item) => sum + (item.rate || 0), 0);
+            const purchasedTotal = list.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0);
+            
+            return (
+              <div key={list.id} className="p-3 bg-subtle rounded-lg group transition-colors hover-bg-stronger">
+                <div className="flex justify-between items-start">
+                  <div onClick={() => handleSelectList(list.id)} className="flex-grow cursor-pointer min-w-0">
+                    <p className="font-semibold text-primary truncate">{list.title}</p>
+                  </div>
+                  <div className="flex items-center gap-4 flex-shrink-0">
+                    <button onClick={() => handleSelectList(list.id)} className="text-sm font-semibold text-sky-400 hover:text-sky-300">Edit</button>
+                    <button onClick={() => handleDeleteList(list.id)} className="text-sm font-semibold text-rose-400 hover:text-rose-300">Delete</button>
+                  </div>
+                </div>
+                <div className="flex justify-between items-end mt-1">
+                  <div onClick={() => handleSelectList(list.id)} className="flex-grow cursor-pointer min-w-0">
+                    <div className="flex items-center gap-2 text-xs text-secondary">
+                      <span>{list.items.length === 1 ? '1 item' : `${list.items.length} items`}</span>
+                      <span className="text-tertiary">•</span>
+                      <span>{new Date(list.updatedAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-right flex-shrink-0">
+                    <p className="text-secondary leading-tight">Purchase Total: <span className="font-semibold text-emerald-400">{formatCurrency(purchasedTotal)}</span></p>
+                    <p className="text-secondary leading-tight">List Total: <span className="font-semibold text-primary">{formatCurrency(listTotal)}</span></p>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => handleSelectList(list.id)} className="text-sm font-semibold text-sky-400 hover:text-sky-300 px-3 py-1 rounded-full hover:bg-sky-500/10">Edit</button>
-                <button onClick={() => handleDeleteList(list.id)} className="text-sm font-semibold text-rose-400 hover:text-rose-300 px-3 py-1 rounded-full hover:bg-rose-500/10">Delete</button>
-              </div>
-            </div>
-          ))
+            )
+          })
         ) : (
           <EmptyState 
             icon="🛒"
