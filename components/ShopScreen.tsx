@@ -1,8 +1,6 @@
-
-
 import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift, ShopType } from '../types';
+import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift, ShopType, Category, PaymentMethod, HeldBill } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
@@ -21,8 +19,9 @@ type ShopView = 'analytics' | 'billing' | 'products' | 'employees' | 'shifts';
 const ProductForm: React.FC<{
     product: ShopProduct | null, 
     onSave: (productData: Omit<ShopProduct, 'id' | 'shopId'>, id?: string) => void, 
-    onCancel: () => void
-}> = ({ product, onSave, onCancel }) => {
+    onCancel: () => void,
+    categories: Category[]
+}> = ({ product, onSave, onCancel, categories }) => {
     const [formState, setFormState] = useState({
         name: product?.name || '',
         description: product?.description || '',
@@ -32,7 +31,7 @@ const ProductForm: React.FC<{
         lowStockThreshold: product?.lowStockThreshold?.toString() || '0',
         purchasePrice: product?.purchasePrice.toString() || '0',
         sellingPrice: product?.sellingPrice.toString() || '0',
-        categoryId: product?.categoryId || 'default-shop-category-id' // Placeholder to satisfy type
+        categoryId: product?.categoryId || ''
     });
 
     const handleChange = (field: keyof typeof formState, value: string) => {
@@ -41,7 +40,7 @@ const ProductForm: React.FC<{
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const { name, stockQuantity, purchasePrice, sellingPrice, lowStockThreshold, tags } = formState;
+        const { name, stockQuantity, purchasePrice, sellingPrice, lowStockThreshold, tags, categoryId } = formState;
         if (name.trim()) {
             onSave({
                 ...formState,
@@ -50,9 +49,14 @@ const ProductForm: React.FC<{
                 purchasePrice: parseFloat(purchasePrice) || 0,
                 sellingPrice: parseFloat(sellingPrice) || 0,
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+                categoryId: categoryId || undefined,
             }, product?.id);
         }
     };
+
+    const categoryOptions = useMemo(() => {
+        return [{value: '', label: 'No Category'}, ...categories.filter(c => c.type === 'income').map(c => ({value: c.id, label: c.name}))]
+    }, [categories]);
 
     return (
         <form onSubmit={handleSubmit} className="p-4 border-t border-divider bg-subtle space-y-3">
@@ -70,6 +74,10 @@ const ProductForm: React.FC<{
              <div className="grid grid-cols-2 gap-3">
                 <input type="text" inputMode="decimal" value={formState.purchasePrice} onChange={e => handleChange('purchasePrice', e.target.value)} placeholder="Purchase Price (e.g. 10.50)" className="w-full input-base p-2 rounded-md no-spinner" />
                 <input type="text" inputMode="decimal" value={formState.sellingPrice} onChange={e => handleChange('sellingPrice', e.target.value)} placeholder="Selling Price (e.g. 15.00)" className="w-full input-base p-2 rounded-md no-spinner" />
+            </div>
+            <div>
+                 <label className="text-sm font-medium text-secondary mb-1">Category</label>
+                 <CustomSelect value={formState.categoryId} onChange={val => handleChange('categoryId', val)} options={categoryOptions} />
             </div>
             <div className="flex justify-end gap-2">
                 <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
@@ -114,6 +122,12 @@ const SaleReceiptModal: React.FC<{
                          <div className="flex justify-between"><span className="text-secondary">Tax ({shop.taxRate}%)</span><span className="font-mono text-primary">{formatCurrency(sale.taxAmount)}</span></div>
                     )}
                      <div className="flex justify-between font-bold text-lg pt-2 border-t border-divider mt-2"><span className="text-primary">Total</span><span className="font-mono text-primary">{formatCurrency(sale.totalAmount)}</span></div>
+                     {sale.paymentMethod === 'cash' && sale.amountPaid && (
+                         <>
+                            <div className="flex justify-between"><span className="text-secondary">Cash Paid</span><span className="font-mono text-primary">{formatCurrency(sale.amountPaid)}</span></div>
+                            <div className="flex justify-between"><span className="text-secondary">Change Due</span><span className="font-mono text-primary">{formatCurrency(sale.changeGiven || 0)}</span></div>
+                         </>
+                     )}
                 </div>
                 <div className="p-4">
                     <button onClick={onClose} className="button-primary w-full py-2">New Sale</button>
@@ -129,8 +143,9 @@ const BillingView: React.FC<{
   shop: Shop,
   products: ShopProduct[],
   employees: ShopEmployee[],
-  onRecordSale: (sale: Omit<ShopSale, 'id' | 'shopId'>) => void
-}> = ({ shop, products, employees, onRecordSale }) => {
+  onRecordSale: (sale: Omit<ShopSale, 'id' | 'shopId'>) => void,
+  categories: Category[],
+}> = ({ shop, products, employees, onRecordSale, categories }) => {
     const [cart, setCart] = useState<Map<string, ShopSaleItem>>(new Map());
     const [customerName, setCustomerName] = useState('');
     const [discountType, setDiscountType] = useState<'percentage' | 'flat'>('flat');
@@ -138,14 +153,26 @@ const BillingView: React.FC<{
     const [productSearch, setProductSearch] = useState('');
     const [lastSale, setLastSale] = useState<ShopSale | null>(null);
     const [employeeId, setEmployeeId] = useState<string>('');
+    const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showHeldBills, setShowHeldBills] = useState(false);
+    const [heldBills, setHeldBills] = useState<HeldBill[]>([]);
 
     const formatCurrency = getCurrencyFormatter(shop.currency).format;
+    const shopCategories = useMemo(() => {
+        const categoryIds = new Set(products.map(p => p.categoryId).filter(Boolean));
+        return categories.filter(c => categoryIds.has(c.id));
+    }, [products, categories]);
 
     const filteredProducts = useMemo(() => {
-        if (!productSearch.trim()) return products;
+        let prods = products;
+        if (activeCategoryId !== 'all') {
+            prods = prods.filter(p => p.categoryId === activeCategoryId);
+        }
+        if (!productSearch.trim()) return prods;
         const query = productSearch.toLowerCase();
-        return products.filter(p => p.name.toLowerCase().includes(query) || p.qrCode?.toLowerCase().includes(query));
-    }, [products, productSearch]);
+        return prods.filter(p => p.name.toLowerCase().includes(query) || p.qrCode?.toLowerCase().includes(query));
+    }, [products, productSearch, activeCategoryId]);
 
     const handleAddToCart = (product: ShopProduct) => {
         setCart(prev => {
@@ -167,16 +194,27 @@ const BillingView: React.FC<{
     };
 
     const handleQuantityChange = (productId: string, newQuantity: number) => {
-        setCart(prev => {
-            const newCart = new Map(prev);
-            if (newQuantity <= 0) {
-                newCart.delete(productId);
-            } else {
+        const itemToRemove = cart.get(productId);
+        if(!itemToRemove) return;
+
+        if (newQuantity <= 0) {
+            const el = document.getElementById(`cart-item-${productId}`);
+            el?.classList.add('removing');
+            setTimeout(() => {
+                 setCart(prev => {
+                    const newCart = new Map(prev);
+                    newCart.delete(productId);
+                    return newCart;
+                });
+            }, 300);
+        } else {
+             setCart(prev => {
+                const newCart = new Map(prev);
                 const item = newCart.get(productId)!;
                 newCart.set(productId, { ...item, quantity: newQuantity });
-            }
-            return newCart;
-        });
+                return newCart;
+            });
+        }
     };
     
     const cartItems = Array.from(cart.values());
@@ -202,7 +240,15 @@ const BillingView: React.FC<{
         return { subtotal, discountAmount, taxAmount, totalAmount, profit };
     }, [cartItems, discountValue, discountType, shop.taxRate]);
 
-    const handleFinalizeSale = () => {
+    const resetCart = () => {
+        setCart(new Map());
+        setCustomerName('');
+        setDiscountValue('');
+        setProductSearch('');
+        setEmployeeId('');
+    }
+
+    const handleFinalizeSale = (paymentMethod: PaymentMethod, amountPaid?: number, changeGiven?: number) => {
         if (cartItems.length === 0) return;
         const dValue = parseFloat(discountValue) || 0;
 
@@ -211,40 +257,56 @@ const BillingView: React.FC<{
             items: cartItems,
             employeeId: employeeId || undefined,
             customerName: customerName.trim() || undefined,
-            subtotal: subtotal,
-            discount: dValue > 0 ? { type: discountType, value: dValue } : undefined,
-            taxAmount: taxAmount,
-            totalAmount: totalAmount,
-            profit: profit,
+            subtotal, discount: dValue > 0 ? { type: discountType, value: dValue } : undefined,
+            taxAmount, totalAmount, profit, paymentMethod, amountPaid, changeGiven,
         };
         onRecordSale(saleData);
-        setLastSale({ ...saleData, id: 'temp-id', shopId: shop.id }); // Use temp-id for modal
-        // Reset state
-        setCart(new Map());
-        setCustomerName('');
-        setDiscountValue('');
-        setProductSearch('');
-        setEmployeeId('');
+        setLastSale({ ...saleData, id: self.crypto.randomUUID(), shopId: shop.id });
+        resetCart();
+        setShowPaymentModal(false);
     };
 
-    const DiscountToggle = () => (
-        <div className="flex items-center gap-1 p-0.5 rounded-full bg-subtle border border-divider">
-            <button onClick={() => setDiscountType('flat')} className={`px-3 py-1 text-xs rounded-full ${discountType === 'flat' ? 'bg-emerald-500 text-white' : ''}`}>Flat</button>
-            <button onClick={() => setDiscountType('percentage')} className={`px-3 py-1 text-xs rounded-full ${discountType === 'percentage' ? 'bg-emerald-500 text-white' : ''}`}>%</button>
-        </div>
-    );
-    
+    const handleHoldBill = () => {
+        if (cartItems.length === 0) return;
+        const newHeldBill: HeldBill = {
+            id: self.crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+            customerName: customerName.trim() || `Bill ${heldBills.length + 1}`,
+            items: cartItems,
+        };
+        setHeldBills(prev => [...prev, newHeldBill]);
+        resetCart();
+    };
+
+    const handleRestoreBill = (bill: HeldBill) => {
+        setCart(new Map(bill.items.map(item => [item.productId, item])));
+        setCustomerName(bill.customerName || '');
+        setHeldBills(prev => prev.filter(b => b.id !== bill.id));
+        setShowHeldBills(false);
+    };
+
     return (
         <div className="flex flex-col md:flex-row h-full gap-4">
+             {showPaymentModal && <PaymentModal total={totalAmount} shop={shop} onFinalize={handleFinalizeSale} onClose={() => setShowPaymentModal(false)} />}
+             {showHeldBills && <HeldBillsModal bills={heldBills} onRestore={handleRestoreBill} onClose={() => setShowHeldBills(false)} />}
+
             {/* Left side: Product selection */}
-            <div className="w-full md:w-1/2 lg:w-3/5 flex flex-col">
-                <input type="search" value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products..." className="w-full input-base p-2 rounded-lg mb-3" />
-                <div className="flex-grow overflow-y-auto pr-2">
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="w-full md:w-1/2 lg:w-3/5 flex flex-col min-h-0">
+                <input type="search" value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products by name or barcode..." className="w-full input-base p-2 rounded-lg mb-3 flex-shrink-0" />
+                <div className="pos-category-tabs flex-shrink-0">
+                    <button onClick={() => setActiveCategoryId('all')} className={`pos-category-tab ${activeCategoryId === 'all' ? 'active' : ''}`}>All</button>
+                    {shopCategories.map(c => <button key={c.id} onClick={() => setActiveCategoryId(c.id)} className={`pos-category-tab ${activeCategoryId === c.id ? 'active' : ''}`}>{c.name}</button>)}
+                </div>
+                <div className="flex-grow overflow-y-auto pr-2 pt-3">
+                    <div className="pos-product-grid">
+                        <button className="pos-product-card bg-sky-500/20 border-sky-500/50 hover:border-sky-400">
+                            <span className="text-3xl">＋</span>
+                            <p className="text-xs font-semibold text-primary">Custom Item</p>
+                        </button>
                         {filteredProducts.map(p => (
-                            <button key={p.id} onClick={() => handleAddToCart(p)} disabled={p.stockQuantity <=0} className="p-2 bg-subtle rounded-lg text-center aspect-square flex flex-col justify-center items-center hover-bg-stronger disabled:opacity-50 disabled:cursor-not-allowed">
-                                <p className="text-xs font-semibold text-primary truncate">{p.name}</p>
-                                <p className="text-xs text-secondary">{formatCurrency(p.sellingPrice)}</p>
+                            <button key={p.id} onClick={() => handleAddToCart(p)} disabled={p.stockQuantity <=0} className="pos-product-card">
+                                <p className="text-xs font-semibold text-primary leading-tight">{p.name}</p>
+                                <p className="text-xs text-secondary mt-1">{formatCurrency(p.sellingPrice)}</p>
                                 <p className="text-[10px] text-tertiary">Qty: {p.stockQuantity}</p>
                             </button>
                         ))}
@@ -253,14 +315,20 @@ const BillingView: React.FC<{
             </div>
 
             {/* Right side: Bill/Cart */}
-            <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col bg-subtle p-3 rounded-lg border border-divider">
-                <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col bg-subtle p-3 rounded-lg border border-divider min-h-0">
+                <div className="grid grid-cols-2 gap-2 mb-2 flex-shrink-0">
                     <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Customer Name (Optional)" className="w-full input-base p-2 rounded-lg" />
                     <CustomSelect value={employeeId} onChange={setEmployeeId} options={[{value: '', label: 'No Employee'},...employees.map(e => ({ value: e.id, label: e.name }))]} />
                 </div>
-                <div className="flex-grow overflow-y-auto space-y-2 pr-1">
+                <div className="p-1 rounded-lg bg-slate-900/30 flex justify-around gap-1 mb-2 flex-shrink-0">
+                    <button onClick={handleHoldBill} className="text-xs p-2 rounded-md hover-bg-stronger w-full">Hold</button>
+                    <button onClick={() => setShowHeldBills(true)} className="text-xs p-2 rounded-md hover-bg-stronger w-full relative">Retrieve <span className="absolute -top-1 -right-1 text-[10px] bg-sky-500 text-white rounded-full h-4 w-4 flex items-center justify-center">{heldBills.length}</span></button>
+                    <button onClick={resetCart} className="text-xs p-2 rounded-md hover-bg-stronger w-full text-rose-400">Clear</button>
+                </div>
+
+                <div className="flex-grow overflow-y-auto space-y-1 pr-1 bg-slate-900/20 rounded-lg min-h-0">
                     {cartItems.map(item => (
-                        <div key={item.productId} className="flex items-center gap-2 text-sm p-2 rounded-md bg-subtle">
+                        <div key={item.productId} id={`cart-item-${item.productId}`} className="pos-cart-item flex items-center gap-2 text-sm p-2">
                             <p className="flex-grow text-primary truncate">{item.productName}</p>
                             <div className="flex items-center gap-1">
                                 <button onClick={() => handleQuantityChange(item.productId, item.quantity - 1)} className="control-button">-</button>
@@ -279,19 +347,24 @@ const BillingView: React.FC<{
                         <span className="text-secondary">Discount</span>
                         <div className="flex items-center gap-2">
                             <input type="text" inputMode="decimal" value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="w-20 input-base p-1 rounded-md text-right no-spinner" />
-                            <DiscountToggle />
+                            <div className="flex items-center gap-1 p-0.5 rounded-full bg-subtle border border-divider">
+                                <button onClick={() => setDiscountType('flat')} className={`px-3 py-1 text-xs rounded-full ${discountType === 'flat' ? 'bg-emerald-500 text-white' : ''}`}>Flat</button>
+                                <button onClick={() => setDiscountType('percentage')} className={`px-3 py-1 text-xs rounded-full ${discountType === 'percentage' ? 'bg-emerald-500 text-white' : ''}`}>%</button>
+                            </div>
                         </div>
                      </div>
                      {discountAmount > 0 && <div className="flex justify-end text-rose-400 font-mono">- {formatCurrency(discountAmount)}</div>}
                      {shop.taxRate && shop.taxRate > 0 && <div className="flex justify-between"><span className="text-secondary">Tax ({shop.taxRate}%)</span><span className="font-mono text-primary">{formatCurrency(taxAmount)}</span></div>}
                      <div className="flex justify-between font-bold text-2xl pt-2 border-t border-divider mt-2"><span className="text-primary">Total</span><span className="font-mono text-primary">{formatCurrency(totalAmount)}</span></div>
-                     <button onClick={handleFinalizeSale} disabled={cartItems.length === 0} className="button-primary w-full py-3 mt-2 text-lg">Charge {formatCurrency(totalAmount)}</button>
+                     <button onClick={() => setShowPaymentModal(true)} disabled={cartItems.length === 0} className="button-primary w-full py-3 mt-2 text-lg">Finalize Payment</button>
                 </div>
             </div>
             {lastSale && <SaleReceiptModal sale={lastSale} shop={shop} onClose={() => setLastSale(null)} />}
         </div>
     );
 };
+
+// ... other components from ShopScreen.tsx remain unchanged ...
 
 const AnalyticsView: React.FC<{
   shop: Shop;
@@ -515,13 +588,14 @@ interface ShopDetailViewProps extends ShopScreenProps {
 
 const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
     const { shop, products, sales, employees, shifts, onBack, onSaveProduct, onDeleteProduct, onRecordSale, onSaveEmployee, onDeleteEmployee, onSaveShift, onDeleteShift } = props;
-    const [view, setView] = useState<ShopView>('analytics');
+    const [view, setView] = useState<ShopView>('billing');
     const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null);
     const [showProductForm, setShowProductForm] = useState(false);
     const [editingShift, setEditingShift] = useState<ShopShift | null>(null);
     const [showShiftForm, setShowShiftForm] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<ShopEmployee | null>(null);
     const [showEmployeeForm, setShowEmployeeForm] = useState(false);
+    const { categories } = useContext(SettingsContext);
     
     const formatCurrency = getCurrencyFormatter(shop.currency).format;
 
@@ -542,6 +616,18 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
         setShowShiftForm(false);
         setEditingShift(null);
     };
+    
+    const handleAddDefaultShifts = () => {
+        const defaults = [
+            { name: 'Morning Shift', startTime: '09:00', endTime: '17:00' },
+            { name: 'Evening Shift', startTime: '17:00', endTime: '01:00' }
+        ];
+        defaults.forEach(d => {
+            if (!shifts.some(s => s.name === d.name)) {
+                onSaveShift(shop.id, d);
+            }
+        });
+    };
 
     const handleSaveEmp = (employeeData: Omit<ShopEmployee, 'id' | 'shopId'>, id?: string) => {
         onSaveEmployee(shop.id, employeeData, id);
@@ -552,7 +638,7 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
     const renderView = () => {
         switch(view) {
             case 'analytics': return <AnalyticsView shop={shop} products={products} sales={sales} />;
-            case 'billing': return <BillingView shop={shop} products={products} employees={employees} onRecordSale={(sale) => onRecordSale(shop.id, sale)} />
+            case 'billing': return <BillingView shop={shop} products={products} employees={employees} onRecordSale={(sale) => onRecordSale(shop.id, sale)} categories={categories} />
             case 'products': return (
                 <div className="space-y-2">
                     {products.map(p => (
@@ -564,7 +650,7 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
                         </div>
                     ))}
                     <button onClick={() => { setEditingProduct(null); setShowProductForm(true); }} className="w-full button-secondary py-2 mt-2">+ Add Product</button>
-                    {showProductForm && <ProductForm product={editingProduct} onSave={handleSaveProd} onCancel={() => { setShowProductForm(false); setEditingProduct(null); }} />}
+                    {showProductForm && <ProductForm product={editingProduct} onSave={handleSaveProd} onCancel={() => { setShowProductForm(false); setEditingProduct(null); }} categories={categories} />}
                 </div>
             );
             case 'employees': return (
@@ -585,6 +671,9 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
                          <div key={s.id} className="p-3 bg-subtle rounded-lg group"><div className="flex justify-between"><div><p className="font-semibold text-primary">{s.name}</p><p className="text-xs text-secondary">{s.startTime} - {s.endTime}</p></div><div className="opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingShift(s); setShowShiftForm(true); }} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button><button onClick={() => onDeleteShift(s.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full ml-1">Delete</button></div></div></div>
                     ))}
                     <button onClick={() => { setEditingShift(null); setShowShiftForm(true); }} className="w-full button-secondary py-2 mt-2">+ Add Shift</button>
+                     {shifts.length === 0 && (
+                        <button onClick={handleAddDefaultShifts} className="w-full button-secondary py-2 mt-2">Add Default Shifts</button>
+                    )}
                     {showShiftForm && <ShiftForm shift={editingShift} onSave={handleSaveSh} onCancel={() => { setShowShiftForm(false); setEditingShift(null); }} />}
                 </div>
             );
@@ -597,14 +686,14 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
             <ModalHeader title={shop.name} onBack={onBack} onClose={onBack} icon="🏪" />
              <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
                 <div className="flex items-center gap-2">
-                    <TabButton tab="analytics" label="Analytics" />
                     <TabButton tab="billing" label="Billing" />
+                    <TabButton tab="analytics" label="Analytics" />
                     <TabButton tab="products" label="Products" />
                     <TabButton tab="employees" label="Employees" />
                     <TabButton tab="shifts" label="Shifts" />
                 </div>
             </div>
-            <div className="flex-grow overflow-y-auto p-4">
+            <div className={`flex-grow ${view === 'billing' ? 'p-4 overflow-hidden' : 'overflow-y-auto p-4'}`}>
                 {renderView()}
             </div>
         </div>
@@ -630,7 +719,8 @@ export const ShopScreen: React.FC<ShopScreenProps> = (props) => {
     return <ShopDashboard {...props} onSelectShop={setSelectedShopId} />;
 };
 
-const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => void }> = ({ shops, sales, onSelectShop, onSaveShop, onDeleteShop }) => {
+const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => void }> = (props) => {
+    const { shops, sales, products, onSelectShop, onSaveShop, onDeleteShop } = props;
     const [isFormOpen, setIsFormOpen] = useState(shops.length === 0);
     const [editingShop, setEditingShop] = useState<Shop | null>(null);
 
@@ -657,22 +747,27 @@ const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => 
             <div className="flex-grow overflow-y-auto p-6 space-y-4">
                 {shops.map(shop => {
                     const formatCurrency = getCurrencyFormatter(shop.currency).format;
-                    const totalRevenue = sales.filter(s => s.shopId === shop.id).reduce((sum, s) => sum + s.totalAmount, 0);
+                    const shopProductsCount = products.filter(p => p.shopId === shop.id).length;
+                    const shopSalesData = sales.filter(s => s.shopId === shop.id);
+                    const shopSalesCount = shopSalesData.length;
+                    const totalProfit = shopSalesData.reduce((sum, s) => sum + s.profit, 0);
+
                     return (
-                        <div key={shop.id} className="p-4 bg-subtle rounded-lg group transition-all duration-200 hover-bg-stronger hover:scale-[1.02]">
-                            <div className="flex justify-between items-start">
-                                <div onClick={() => onSelectShop(shop.id)} className="flex-grow cursor-pointer">
+                        <div key={shop.id} onClick={() => onSelectShop(shop.id)} className="glass-card p-4 rounded-xl group cursor-pointer flex flex-col justify-between">
+                            <div>
+                                <div className="flex justify-between items-start">
                                     <h3 className="font-bold text-lg text-primary">{shop.name}</h3>
-                                    <p className="text-sm text-secondary capitalize">{shop.type.replace('_', ' ')}</p>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                        <button onClick={(e) => { e.stopPropagation(); handleEdit(shop); }} className="text-xs text-sky-400 hover:brightness-125 px-2 py-1 rounded-full transition-colors bg-subtle hover-bg-stronger">Edit</button>
+                                        <button onClick={(e) => { e.stopPropagation(); onDeleteShop(shop.id); }} className="text-xs text-rose-400 hover:brightness-125 px-2 py-1 rounded-full transition-colors bg-subtle hover-bg-stronger">Delete</button>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-semibold text-primary">{formatCurrency(totalRevenue)}</p>
-                                    <p className="text-xs text-secondary">Total Revenue</p>
-                                </div>
+                                <p className="text-xs text-secondary capitalize">{shop.type.replace('_', ' ')}</p>
                             </div>
-                             <div className="flex justify-end gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleEdit(shop)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                                <button onClick={() => onDeleteShop(shop.id)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Delete</button>
+                            <div className="mt-4 pt-2 border-t border-divider grid grid-cols-3 text-center">
+                                <div><p className="text-xs text-secondary">Products</p><p className="font-bold text-primary">{shopProductsCount}</p></div>
+                                <div><p className="text-xs text-secondary">Sales</p><p className="font-bold text-primary">{shopSalesCount}</p></div>
+                                <div><p className="text-xs text-secondary">Profit</p><p className="font-bold text-emerald-400">{formatCurrency(totalProfit)}</p></div>
                             </div>
                         </div>
                     );
@@ -693,3 +788,73 @@ const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => 
         </div>
     );
 };
+
+const PaymentModal: React.FC<{
+    total: number;
+    shop: Shop;
+    onClose: () => void;
+    onFinalize: (paymentMethod: PaymentMethod, amountPaid?: number, changeGiven?: number) => void;
+}> = ({ total, shop, onClose, onFinalize }) => {
+    const [method, setMethod] = useState<PaymentMethod>('cash');
+    const [cashPaid, setCashPaid] = useState('');
+    const formatCurrency = getCurrencyFormatter(shop.currency).format;
+    const change = (parseFloat(cashPaid) || 0) - total;
+
+    const quickCashOptions = [total, Math.ceil(total / 10) * 10, Math.ceil(total / 50) * 50, Math.ceil(total / 100) * 100].filter((v, i, a) => a.indexOf(v) === i && v > total);
+
+    return ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="glass-card rounded-xl shadow-2xl w-full max-w-sm p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
+                <ModalHeader title="Payment" onClose={onClose} />
+                <div className="p-6 space-y-4">
+                    <div className="text-center">
+                        <p className="text-secondary text-sm">Amount Due</p>
+                        <p className="text-4xl font-bold text-primary">{formatCurrency(total)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {['cash', 'card', 'upi', 'other'].map(m => (
+                            <button key={m} onClick={() => setMethod(m as PaymentMethod)} className={`w-full py-2 text-sm font-semibold rounded-full transition-colors ${method === m ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary'}`}>
+                                {m.charAt(0).toUpperCase() + m.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                    {method === 'cash' && (
+                        <div className="space-y-3 animate-fadeInUp">
+                            <input type="text" inputMode="decimal" value={cashPaid} onChange={e => setCashPaid(e.target.value)} placeholder="Cash Received" className="w-full input-base p-2 rounded-lg text-center text-lg" autoFocus />
+                            <div className="flex gap-2 justify-center">
+                                {quickCashOptions.map(val => <button key={val} onClick={() => setCashPaid(val.toString())} className="button-secondary text-xs px-3 py-1.5">{formatCurrency(val)}</button>)}
+                            </div>
+                            {change >= 0 && <p className="text-center text-lg">Change Due: <strong className="text-sky-400">{formatCurrency(change)}</strong></p>}
+                        </div>
+                    )}
+                     <button onClick={() => onFinalize(method, method === 'cash' ? parseFloat(cashPaid) : undefined, method === 'cash' ? change : undefined)} className="button-primary w-full py-3 mt-2 text-lg">Confirm Sale</button>
+                </div>
+            </div>
+        </div>,
+        document.getElementById('modal-root')!
+    )
+};
+
+const HeldBillsModal: React.FC<{
+    bills: HeldBill[];
+    onClose: () => void;
+    onRestore: (bill: HeldBill) => void;
+}> = ({ bills, onClose, onRestore }) => (
+    ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="glass-card rounded-xl shadow-2xl w-full max-w-sm p-0 border border-divider animate-scaleIn max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <ModalHeader title="Held Bills" onClose={onClose} />
+                <div className="flex-grow p-4 space-y-2 overflow-y-auto">
+                    {bills.map(bill => (
+                        <button key={bill.id} onClick={() => onRestore(bill)} className="w-full p-3 bg-subtle rounded-lg text-left hover-bg-stronger">
+                            <p className="font-semibold text-primary">{bill.customerName}</p>
+                            <p className="text-xs text-secondary">{bill.items.length} items • {new Date(bill.timestamp).toLocaleTimeString()}</p>
+                        </button>
+                    ))}
+                    {bills.length === 0 && <p className="text-center text-sm text-secondary py-8">No bills on hold.</p>}
+                </div>
+            </div>
+        </div>,
+        document.getElementById('modal-root')!
+    )
+);

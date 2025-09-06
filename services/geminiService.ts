@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight } from "../types";
+import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -391,6 +391,33 @@ Text: "${text}"`,
   }
 }
 
+const structuredPlanSchema = {
+    type: Type.ARRAY,
+    description: "An array of day plans for the trip.",
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            date: { type: Type.STRING, description: `The date for this day's plan in YYYY-MM-DD format. Base the start date on today's date: ${new Date().toISOString().split('T')[0]}.` },
+            title: { type: Type.STRING, description: "A catchy title for the day, e.g., 'Day 1: Arrival and Beach Exploration'." },
+            items: {
+                type: Type.ARRAY,
+                description: "A list of activities for the day, ordered chronologically. Include items for breakfast, lunch, and dinner.",
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        time: { type: Type.STRING, description: "The time for the activity in HH:MM format." },
+                        activity: { type: Type.STRING, description: "A short description of the activity." },
+                        type: { type: Type.STRING, description: "The type of activity. Must be one of: 'travel', 'food', 'activity', 'lodging', 'other'. Specifically use 'food' for meals like breakfast, lunch, snacks, and dinner." },
+                        notes: { type: Type.STRING, description: "Optional extra details or notes for the activity." },
+                    },
+                    required: ["time", "activity", "type"]
+                }
+            }
+        },
+        required: ["date", "title", "items"]
+    }
+};
+
 const tripDetailsSchema = {
     type: Type.OBJECT,
     properties: {
@@ -401,49 +428,37 @@ const tripDetailsSchema = {
             description: "A list of participant names mentioned in the text. Exclude any mention of the user themselves (e.g., 'me', 'I', 'myself')." 
         },
         plan: {
-            type: Type.OBJECT,
-            description: "If the user asks to 'plan' the trip, generate a plan. Otherwise, this can be null.",
-            properties: {
-                itinerary: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING },
-                    description: "A day-by-day itinerary. Each string is a plan for one day. E.g., 'Day 1: Arrive, check in, explore market.'" 
-                },
-                budgetSuggestions: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: "A list of suggested budget items and estimated costs. E.g., 'Flights: $300', 'Accommodation: $400'."
-                },
-                packingChecklist: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: "A list of suggested items to pack for the trip."
-                }
-            },
+            ...structuredPlanSchema,
+            description: "If the user asks to 'plan' the trip, generate a structured, day-by-day plan. Otherwise, this MUST be null.",
         }
     },
     required: ["tripName", "participants"]
 };
 
-export async function parseTripCreationText(text: string): Promise<{ tripName: string; participants: string[]; plan?: { itinerary: string[]; budgetSuggestions: string[]; packingChecklist: string[] } } | null> {
+export async function parseTripCreationText(text: string): Promise<{ tripName: string; participants: string[]; plan?: TripDayPlan[] } | null> {
   if (!text) throw new Error("Input text cannot be empty.");
   
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are an expert at parsing trip details from text. Analyze the following text. 
+      contents: `You are an expert at parsing trip details and creating itineraries. Analyze the following text. 
 1. Extract a trip name.
-2. Extract a list of participants. The user who is inputting the text is also a participant, but do NOT include them in the list.
-3. If the user uses words like "plan", "suggest", or "itinerary", generate a simple plan for the trip including a brief itinerary, budget suggestions, and a packing checklist.
+2. Extract a list of participants. The user inputting the text is also a participant but should NOT be included in this list.
+3. If the user uses words like "plan", "suggest", or "itinerary", generate a detailed, structured plan for the trip, including specific times and meals like breakfast, lunch, and dinner.
 Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema },
     });
     const result = JSON.parse(response.text);
     if (result && result.tripName) {
+        const plan = result.plan ? result.plan.map((day: any) => ({
+            ...day,
+            id: self.crypto.randomUUID(),
+            items: day.items.map((item: any) => ({...item, id: self.crypto.randomUUID()}))
+        })) : undefined;
       return {
         tripName: result.tripName,
         participants: result.participants || [],
-        plan: result.plan || undefined
+        plan
       };
     }
     return null;
@@ -451,6 +466,37 @@ Text: "${text}"`,
     console.error("Error parsing trip creation text from Gemini API:", error);
     throw new Error(error instanceof Error ? `Failed to parse trip text: ${error.message}` : "An unknown error occurred during parsing.");
   }
+}
+
+export async function generateAITripPlan(prompt: string, existingPlan?: TripDayPlan[]): Promise<TripDayPlan[]> {
+    if (!prompt) throw new Error("Prompt cannot be empty.");
+
+    const fullPrompt = `You are an expert travel agent. A user needs a trip plan. 
+    Analyze their request and generate a structured plan with a day-by-day itinerary. Include specific times and meals (breakfast, lunch, dinner).
+    ${existingPlan ? `They have an existing plan they might want to modify. Existing Plan:\n${JSON.stringify(existingPlan)}` : ''}
+    User's Request: "${prompt}"`;
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: fullPrompt,
+            config: { responseMimeType: "application/json", responseSchema: structuredPlanSchema },
+        });
+        const result = JSON.parse(response.text);
+        
+        // Add unique IDs to the generated plan
+        return result.map((day: any) => ({
+            ...day,
+            id: self.crypto.randomUUID(),
+            items: day.items.map((item: any) => ({
+                ...item,
+                id: self.crypto.randomUUID()
+            }))
+        }));
+    } catch (error) {
+        console.error("Error generating trip plan from Gemini API:", error);
+        throw new Error(error instanceof Error ? `Failed to generate trip plan: ${error.message}` : "An unknown error occurred.");
+    }
 }
 
 const financialTopicSchema = {

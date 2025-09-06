@@ -182,12 +182,20 @@ export interface TripParticipant {
     name: string;
 }
 
-export interface TripPlace {
+export interface TripItineraryItem {
     id: string;
-    name: string;
-    date: string; // ISO string
+    time: string; // "HH:MM"
+    activity: string;
+    type: 'travel' | 'food' | 'activity' | 'lodging' | 'other';
     notes?: string;
-    status: 'visited' | 'planned';
+    isCompleted?: boolean;
+}
+
+export interface TripDayPlan {
+    id: string;
+    date: string; // ISO string YYYY-MM-DD
+    title: string;
+    items: TripItineraryItem[];
 }
 
 export interface Trip {
@@ -197,7 +205,8 @@ export interface Trip {
     date: string; // ISO string
     currency: string;
     notes?: string;
-    places?: TripPlace[];
+    plan?: TripDayPlan[];
+    budget?: number;
 }
 
 export interface TripPayer {
@@ -331,14 +340,15 @@ export interface ShopProduct {
     lowStockThreshold?: number;
     purchasePrice: number;
     sellingPrice: number;
-    categoryId: string; // Link to main category system
+    categoryId?: string; 
 }
 export interface ShopSaleItem {
-    productId: string; // Links to ShopProduct
+    productId: string; // Links to ShopProduct, or 'custom' for ad-hoc items
     productName: string; // Denormalized for receipt generation
     quantity: number;
     pricePerUnit: number; // Selling price at the time of sale
     purchasePricePerUnit: number; // Cost at time of sale for profit calc
+    notes?: string;
 }
 
 export type DiscountType = 'percentage' | 'flat';
@@ -346,6 +356,8 @@ export interface Discount {
     type: DiscountType;
     value: number; // e.g., 10 for 10% or 100 for 100 currency units
 }
+
+export type PaymentMethod = 'cash' | 'card' | 'upi' | 'other' | 'split';
 
 export interface ShopSale {
     id: string;
@@ -359,7 +371,18 @@ export interface ShopSale {
     taxAmount: number;
     totalAmount: number;
     profit: number;
+    paymentMethod: PaymentMethod;
+    amountPaid?: number; // For cash transactions
+    changeGiven?: number; // For cash transactions
 }
+
+export interface HeldBill {
+    id: string;
+    timestamp: string;
+    customerName?: string;
+    items: ShopSaleItem[];
+}
+
 export interface ShopEmployee {
     id: string;
     shopId: string;

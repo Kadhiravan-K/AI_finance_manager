@@ -106,32 +106,53 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-3">
         {sortedLists && sortedLists.length > 0 ? (
-          sortedLists.map(list => {
+          sortedLists.map((list, index) => {
             const listTotal = list.items.reduce((sum, item) => sum + (item.rate || 0), 0);
             const purchasedTotal = list.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0);
-            
+            const progress = listTotal > 0 ? (purchasedTotal / listTotal) * 100 : 0;
+
             return (
-              <div key={list.id} className="p-3 bg-subtle rounded-lg group transition-colors hover-bg-stronger">
+              <div key={list.id} onClick={() => handleSelectList(list.id)} className="glass-card p-4 rounded-xl group flex flex-col gap-2 animate-fadeInUp cursor-pointer" style={{ animationDelay: `${index * 50}ms` }}>
+                {/* Row 1: Title & Actions */}
                 <div className="flex justify-between items-start">
-                  <div onClick={() => handleSelectList(list.id)} className="flex-grow cursor-pointer min-w-0">
-                    <p className="font-semibold text-primary truncate">{list.title}</p>
-                  </div>
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    <button onClick={() => handleSelectList(list.id)} className="text-sm font-semibold text-sky-400 hover:text-sky-300">Edit</button>
-                    <button onClick={() => handleDeleteList(list.id)} className="text-sm font-semibold text-rose-400 hover:text-rose-300">Delete</button>
-                  </div>
+                  <p className="font-bold text-lg text-primary truncate pr-2">
+                    {list.title}
+                  </p>
+                  <button
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteList(list.id);
+                      }}
+                      className="p-1 -mr-2 -mt-1 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                      aria-label={`Delete list ${list.title}`}
+                  >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                  </button>
                 </div>
-                <div className="flex justify-between items-end mt-1">
-                  <div onClick={() => handleSelectList(list.id)} className="flex-grow cursor-pointer min-w-0">
-                    <div className="flex items-center gap-2 text-xs text-secondary">
-                      <span>{list.items.length === 1 ? '1 item' : `${list.items.length} items`}</span>
-                      <span className="text-tertiary">•</span>
-                      <span>{new Date(list.updatedAt).toLocaleDateString()}</span>
-                    </div>
+
+                {/* Row 2: Metadata */}
+                <div className="flex items-center gap-2 text-xs text-secondary">
+                  <span>{list.items.length === 1 ? '1 item' : `${list.items.length} items`}</span>
+                  <span className="text-tertiary">•</span>
+                  <span>Updated: {new Date(list.updatedAt).toLocaleDateString()}</span>
+                </div>
+                
+                {/* Row 3: Progress bar */}
+                <div className="w-full bg-slate-700/50 rounded-full h-2 mt-2">
+                  <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%` }}></div>
+                </div>
+
+                {/* Row 4: Totals */}
+                <div className="flex justify-between items-center text-sm mt-1">
+                  <div className="text-left">
+                    <p className="text-xs text-secondary">List Total</p>
+                    <p className="font-semibold text-primary">{formatCurrency(listTotal)}</p>
                   </div>
-                  <div className="text-xs text-right flex-shrink-0">
-                    <p className="text-secondary leading-tight">Purchase Total: <span className="font-semibold text-emerald-400">{formatCurrency(purchasedTotal)}</span></p>
-                    <p className="text-secondary leading-tight">List Total: <span className="font-semibold text-primary">{formatCurrency(listTotal)}</span></p>
+                  <div className="text-right">
+                    <p className="text-xs text-secondary">Purchased</p>
+                    <p className="font-semibold text-emerald-400">{formatCurrency(purchasedTotal)}</p>
                   </div>
                 </div>
               </div>

@@ -14,8 +14,6 @@ const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ onClose }) => {
   const isConnected = settings.googleCalendar?.connected || false;
 
   const handleToggleConnection = () => {
-    // This is a placeholder for the actual OAuth flow
-    // In a real app, this would trigger the Google login popup
     setSettings(prev => ({
       ...prev,
       googleCalendar: {

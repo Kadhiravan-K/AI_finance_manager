@@ -1,5 +1,7 @@
+
 import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
-import { Trip, Contact, TripParticipant, ContactGroup } from '../types';
+// Fix: Add TripDayPlan to imports
+import { Trip, Contact, TripParticipant, ContactGroup, TripDayPlan } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import ModalHeader from './ModalHeader';
 import { USER_SELF_ID } from '../constants';
@@ -33,10 +35,12 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
   const [aiText, setAiText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [unmatchedNames, setUnmatchedNames] = useState<string[]>([]);
-  const [planResult, setPlanResult] = useState<{ itinerary: string[]; budgetSuggestions: string[]; packingChecklist: string[] } | null>(null);
+  // Fix: Changed state to handle TripDayPlan[] and renamed for clarity.
+  const [planResult, setPlanResult] = useState<TripDayPlan[] | null>(trip?.plan || null);
   
   const [name, setName] = useState(trip?.name || '');
   const [currency, setCurrency] = useState(trip?.currency || settings.currency);
+  const [budget, setBudget] = useState(trip?.budget?.toString() || '');
   const [showParticipantPicker, setShowParticipantPicker] = useState(false);
 
   const initialParticipants = useMemo(() => {
@@ -111,6 +115,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
         const result = await parseTripCreationText(aiText);
         if (result) {
             setName(result.tripName);
+            // Fix: This line now works due to the state type change.
             setPlanResult(result.plan || null);
             
             const lowerCaseContacts = contacts.map(c => ({...c, lowerName: c.name.toLowerCase()}));
@@ -142,25 +147,8 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && participants.length > 0) {
-      let tripNotes: string | undefined = undefined;
-      if (planResult) {
-        const { itinerary, budgetSuggestions, packingChecklist } = planResult;
-        let notesArr: string[] = [];
-        if (itinerary?.length > 0) {
-          notesArr.push('### Itinerary');
-          itinerary.forEach(item => notesArr.push(`- ${item}`));
-        }
-        if (budgetSuggestions?.length > 0) {
-          notesArr.push('\n### Budget Suggestions');
-          budgetSuggestions.forEach(item => notesArr.push(`- ${item}`));
-        }
-        if (packingChecklist?.length > 0) {
-          notesArr.push('\n### Packing Checklist');
-          packingChecklist.forEach(item => notesArr.push(`- ${item}`));
-        }
-        tripNotes = notesArr.join('\n');
-      }
-      onSave({ name: name.trim(), participants, currency, notes: tripNotes }, trip?.id);
+      // Fix: Save the structured plan object, not markdown notes.
+      onSave({ name: name.trim(), participants, currency, plan: planResult || undefined, budget: parseFloat(budget) || undefined }, trip?.id);
     }
   };
   
@@ -292,33 +280,15 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
             </div>
         ) : (
             <form onSubmit={handleSave} className="p-6 space-y-4 flex-grow overflow-y-auto">
-            {planResult && (
+            {planResult && planResult.length > 0 && (
                 <div className="p-3 bg-subtle rounded-lg border border-divider space-y-3 animate-fadeInUp">
                     <h4 className="font-semibold text-primary mb-2">✨ AI Generated Plan</h4>
-                    {planResult.itinerary?.length > 0 && (
-                        <div>
-                            <h5 className="font-medium text-secondary text-sm">Itinerary</h5>
-                            <ul className="list-disc pl-5 text-sm text-secondary">
-                                {planResult.itinerary.map((item, i) => <li key={i}>{item}</li>)}
-                            </ul>
-                        </div>
-                    )}
-                    {planResult.budgetSuggestions?.length > 0 && (
-                        <div>
-                            <h5 className="font-medium text-secondary text-sm">Budget Suggestions</h5>
-                            <ul className="list-disc pl-5 text-sm text-secondary">
-                                {planResult.budgetSuggestions.map((item, i) => <li key={i}>{item}</li>)}
-                            </ul>
-                        </div>
-                    )}
-                    {planResult.packingChecklist?.length > 0 && (
-                        <div>
-                            <h5 className="font-medium text-secondary text-sm">Packing Checklist</h5>
-                            <ul className="list-disc pl-5 text-sm text-secondary">
-                                {planResult.packingChecklist.map((item, i) => <li key={i}>{item}</li>)}
-                            </ul>
-                        </div>
-                    )}
+                    <div>
+                        <h5 className="font-medium text-secondary text-sm">Itinerary Overview</h5>
+                        <ul className="list-disc pl-5 text-sm text-secondary">
+                            {planResult.map((day) => <li key={day.id}>{day.title}</li>)}
+                        </ul>
+                    </div>
                 </div>
             )}
             <div>
@@ -328,10 +298,17 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
                 className="w-full input-base p-2 rounded-md" required autoFocus={!isCreating}
                 />
             </div>
-            <div>
-                <label className="text-sm text-secondary mb-1 block">Currency</label>
-                <CustomSelect options={currencyOptions} value={currency} onChange={setCurrency} />
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="text-sm text-secondary mb-1 block">Currency</label>
+                    <CustomSelect options={currencyOptions} value={currency} onChange={setCurrency} />
+                </div>
+                <div>
+                    <label className="text-sm text-secondary mb-1 block">Trip Budget (Optional)</label>
+                    <input type="number" value={budget} onChange={e => setBudget(e.target.value)} className="w-full input-base p-2 rounded-md no-spinner" placeholder="e.g. 50000" />
+                </div>
             </div>
+
 
             <div>
                 <p className="text-sm text-secondary mb-1">

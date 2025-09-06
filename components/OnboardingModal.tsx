@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { SettingsContext, AppDataContext } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import CustomSelect from './CustomSelect';
@@ -35,6 +35,10 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onFinish }) => {
     { id: self.crypto.randomUUID(), name: 'Cash', amount: '', accountType: AccountType.DEPOSITORY, currency: defaultCurrency },
     { id: self.crypto.randomUUID(), name: 'Main Bank', amount: '', accountType: AccountType.DEPOSITORY, currency: defaultCurrency },
   ]);
+
+  useEffect(() => {
+    setAccountFields(prev => prev.map(acc => ({ ...acc, currency: defaultCurrency })));
+  }, [defaultCurrency]);
 
   const handleFinish = async () => {
     let currentCategories = categories;

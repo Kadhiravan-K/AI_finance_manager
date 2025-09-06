@@ -107,6 +107,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
   
   const [toastQueue, setToastQueue] = useState<string[]>([]);
   const [tripDetailsId, setTripDetailsId] = useState<string | null>(null);
+  const [tripDetailsInitialTab, setTripDetailsInitialTab] = useState<'dashboard' | 'expenses' | 'planner'>('dashboard');
 
 
   const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
@@ -516,9 +517,20 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
       if(id) {
           setTrips(prev => prev.map(t => t.id === id ? { ...t, ...tripData } : t));
       } else {
-          setTrips(prev => [...prev, { ...tripData, id: self.crypto.randomUUID(), date: new Date().toISOString() }]);
+          const newTrip: Trip = { ...tripData, id: self.crypto.randomUUID(), date: new Date().toISOString() };
+          setTrips(prev => [...prev, newTrip]);
+          
+          if (newTrip.plan && newTrip.plan.length > 0) {
+              setTripDetailsId(newTrip.id);
+              setTripDetailsInitialTab('planner');
+              setActiveScreen('tripDetails');
+          }
       }
       closeActiveModal();
+  };
+
+  const handleUpdateTrip = (updatedTrip: Trip) => {
+    setTrips(prev => prev.map(t => t.id === updatedTrip.id ? updatedTrip : t));
   };
   
   const handleAddTripExpense = (tripId: string, items: Omit<TripExpense, 'id'|'tripId'|'date'>[]) => {
@@ -866,7 +878,7 @@ const MainContentMemoized: React.FC<FinanceTrackerProps> = ({
       case 'tripManagement': return <TripManagementScreen trips={trips} tripExpenses={tripExpenses} onTripSelect={(id) => { setTripDetailsId(id); setActiveScreen('tripDetails'); }} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => handleItemDeletion(id, 'trip', trips.find(t=>t.id===id)?.name || 'trip')} onShowSummary={() => openModal('globalTripSummary')} />;
       case 'tripDetails':
         const selectedTrip = trips.find(t => t.id === tripDetailsId);
-        if (selectedTrip) return <TripDetailsScreen trip={selectedTrip} expenses={tripExpenses.filter(e => e.tripId === tripDetailsId)} categories={categories} onAddExpense={() => openModal('addTripExpense', { trip: selectedTrip })} onEditExpense={(expense) => openModal('addTripExpense', { trip: selectedTrip, expenseToEdit: expense })} onDeleteExpense={handleDeleteTripExpense} onBack={() => { setTripDetailsId(null); setActiveScreen('tripManagement'); }} />;
+        if (selectedTrip) return <TripDetailsScreen trip={selectedTrip} expenses={tripExpenses.filter(e => e.tripId === tripDetailsId)} categories={categories} onAddExpense={() => openModal('addTripExpense', { trip: selectedTrip })} onEditExpense={(expense) => openModal('addTripExpense', { trip: selectedTrip, expenseToEdit: expense })} onDeleteExpense={handleDeleteTripExpense} onBack={() => { setTripDetailsId(null); setTripDetailsInitialTab('dashboard'); setActiveScreen('tripManagement'); }} onUpdateTrip={handleUpdateTrip} initialTab={tripDetailsInitialTab} />;
         return null;
       case 'refunds': return <RefundsScreen refunds={refunds} contacts={contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={handleClaimRefund} onDeleteRefund={(id) => handleItemDeletion(id, 'refund', refunds.find(r=>r.id===id)?.description || 'refund')} openModal={openModal} />;
       case 'dataHub': return <DataHubScreen

@@ -10,22 +10,23 @@ interface ModalHeaderProps {
 
 const ModalHeader: React.FC<ModalHeaderProps> = ({ title, onClose, onBack, icon, onSettingsClick }) => {
   return (
-    <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between relative themed-header sticky top-0 z-10">
-      <div className="modal-glow-bar"></div>
-      <div className="flex items-center gap-3">
+    <div className="p-4 border-b border-divider flex-shrink-0 flex items-center relative themed-header sticky top-0 z-10 h-[69px]">
+      <div className="absolute left-2 top-1/2 -translate-y-1/2">
         {onBack && (
-          <button onClick={onBack} className="p-2 -ml-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors">
+          <button onClick={onBack} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
         )}
-        <div className="flex items-center gap-2">
-            {icon && <span className="text-2xl">{icon}</span>}
-            <h2 className="text-xl font-bold text-primary">{title}</h2>
-        </div>
       </div>
-       <div className="flex items-center">
+      
+      <div className="flex-grow flex items-center justify-center gap-2 text-center px-12">
+          {icon && <span className="text-2xl">{icon}</span>}
+          <h2 className="text-xl font-bold text-primary truncate">{title}</h2>
+      </div>
+
+       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
         {onSettingsClick && (
             <button onClick={onSettingsClick} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors" aria-label="Open settings">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
@@ -34,7 +35,7 @@ const ModalHeader: React.FC<ModalHeaderProps> = ({ title, onClose, onBack, icon,
                 </svg>
             </button>
         )}
-        <button onClick={onClose} className="p-2 -mr-2 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors close-button">
+        <button onClick={onClose} className="p-2 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors close-button">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
