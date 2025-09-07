@@ -16,10 +16,15 @@ export const currencies = [
 
 export function getCurrencyFormatter(currencyCode: string, options?: Intl.NumberFormatOptions): Intl.NumberFormat {
   const defaultOptions: Intl.NumberFormatOptions = {
-    style: 'currency',
-    currency: currencyCode,
     minimumFractionDigits: 2,
   };
   
-  return new Intl.NumberFormat(undefined, { ...defaultOptions, ...options });
+  const finalOptions: Intl.NumberFormatOptions = { ...defaultOptions, ...options };
+
+  if (finalOptions.style === 'currency' || !finalOptions.style) {
+    finalOptions.style = 'currency';
+    finalOptions.currency = currencyCode;
+  }
+  
+  return new Intl.NumberFormat(undefined, finalOptions);
 }

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Transaction, TransactionType, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import { getTopLevelCategory } from '../utils/categories';
 
 interface CategoryPieChartProps {
   title: string;
@@ -22,17 +23,6 @@ const COLORS = [
   '#ec4899', // pink-500
   '#64748b', // slate-500
 ];
-
-const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
-    let current = categories.find(c => c.id === categoryId);
-    if (!current) return undefined;
-    while (current.parentId) {
-        const parent = categories.find(c => c.id === current.parentId);
-        if (!parent) break;
-        current = parent;
-    }
-    return current;
-};
 
 const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions, categories, type, isVisible, currency, hoveredId }) => {
   const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0, notation: 'compact' }, currency);

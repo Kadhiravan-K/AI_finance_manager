@@ -1,6 +1,4 @@
-
 import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
-// Fix: Add TripDayPlan to imports
 import { Trip, Contact, TripParticipant, ContactGroup, TripDayPlan } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import ModalHeader from './ModalHeader';
@@ -35,8 +33,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
   const [aiText, setAiText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [unmatchedNames, setUnmatchedNames] = useState<string[]>([]);
-  // Fix: Changed state to handle TripDayPlan[] and renamed for clarity.
-  const [planResult, setPlanResult] = useState<TripDayPlan[] | null>(trip?.plan || null);
+  const [planResult, setPlanResult] = useState<TripDayPlan[] | undefined>(trip?.plan || undefined);
   
   const [name, setName] = useState(trip?.name || '');
   const [currency, setCurrency] = useState(trip?.currency || settings.currency);
@@ -115,8 +112,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
         const result = await parseTripCreationText(aiText);
         if (result) {
             setName(result.tripName);
-            // Fix: This line now works due to the state type change.
-            setPlanResult(result.plan || null);
+            setPlanResult(result.plan || undefined);
             
             const lowerCaseContacts = contacts.map(c => ({...c, lowerName: c.name.toLowerCase()}));
             const newUnmatched: string[] = [];
@@ -147,8 +143,7 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && participants.length > 0) {
-      // Fix: Save the structured plan object, not markdown notes.
-      onSave({ name: name.trim(), participants, currency, plan: planResult || undefined, budget: parseFloat(budget) || undefined }, trip?.id);
+      onSave({ name: name.trim(), participants, currency, plan: planResult, budget: parseFloat(budget) || undefined }, trip?.id);
     }
   };
   

@@ -1,6 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { TrustBinItem } from '../types';
+import {
+  TrustBinItem,
+  Transaction,
+  RecurringTransaction,
+  TripExpense,
+  Refund,
+  Settlement,
+  Goal,
+  ShoppingList,
+  GlossaryEntry
+} from '../types';
 import ModalHeader from './ModalHeader';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomCheckbox from './CustomCheckbox';
@@ -49,9 +59,55 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
   };
 
   const getItemDescription = (item: TrustBinItem): string => {
+    // Fix: Use a type-safe switch to access properties correctly based on itemType.
     switch (item.itemType) {
-      case 'transaction': return `${item.item.description} (${formatCurrency(item.item.amount)})`;
-      default: return item.item.name || item.item.description || 'Untitled Item';
+      case 'transaction': {
+        const tx = item.item as Transaction;
+        return `${tx.description} (${formatCurrency(tx.amount)})`;
+      }
+      case 'recurringTransaction': {
+        const rtx = item.item as RecurringTransaction;
+        return `${rtx.description} (${formatCurrency(rtx.amount)})`;
+      }
+      case 'tripExpense': {
+        const te = item.item as TripExpense;
+        return `${te.description} (${formatCurrency(te.amount)})`;
+      }
+      case 'refund': {
+        const refund = item.item as Refund;
+        return `${refund.description} (${formatCurrency(refund.amount)})`;
+      }
+      case 'settlement': {
+        const settlement = item.item as Settlement;
+        return `Settlement (${formatCurrency(settlement.amount)})`;
+      }
+      case 'account':
+      case 'category':
+      case 'payee':
+      case 'sender':
+      case 'contact':
+      case 'contactGroup':
+      case 'trip':
+      case 'shop':
+      case 'shopProduct':
+      case 'shopEmployee':
+      case 'shopShift':
+        // These all have a 'name' property
+        return (item.item as { name: string }).name;
+
+      case 'goal': {
+        const goal = item.item as Goal;
+        return `${goal.name} (${formatCurrency(goal.targetAmount)})`;
+      }
+      case 'shoppingList':
+        return (item.item as ShoppingList).title;
+      case 'glossaryEntry':
+        return (item.item as GlossaryEntry).term;
+      default:
+        // Should not be reached if all ItemType are handled.
+        // This is a safe fallback.
+        const anyItem = item.item as any;
+        return anyItem.name || anyItem.description || anyItem.title || anyItem.term || 'Untitled Item';
     }
   };
 

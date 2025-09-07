@@ -8,6 +8,8 @@ import CustomSelect from './CustomSelect';
 import CustomCheckbox from './CustomCheckbox';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import { getTopLevelCategory } from '../utils/categories';
+import NetWorthTrendChart from './NetWorthTrendChart';
 
 interface ReportsScreenProps {
   transactions: Transaction[];
@@ -19,18 +21,6 @@ interface ReportsScreenProps {
 
 type ReportType = 'breakdown' | 'trend';
 type ComparePeriodType = 'previous' | 'last_year' | 'last_month' | 'last_quarter' | 'custom';
-
-// Fix: Add missing getTopLevelCategory helper function.
-const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
-    let current = categories.find(c => c.id === categoryId);
-    if (!current) return undefined;
-    while (current.parentId) {
-        const parent = categories.find(c => c.id === current.parentId);
-        if (!parent) break;
-        current = parent;
-    }
-    return current;
-};
 
 // A functional AccountSelector for this screen's needs
 const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string[], onChange: (ids: string[]) => void }> = ({ accounts, selectedIds, onChange }) => {
@@ -317,6 +307,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
         {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
         {reportType === 'breakdown' ? (
         <>
+            <NetWorthTrendChart transactions={transactions} accounts={accounts} currency={reportCurrency} />
             <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
             <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} />
         </>

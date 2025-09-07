@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { Transaction, Account, Category, Goal, Shop, Trip, Contact } from '../types';
+import { Transaction, Account, Category, Goal, Shop, Trip, Contact, ItemType, AppState } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { getCurrencyFormatter } from '../utils/currency';
 
@@ -11,6 +12,7 @@ interface DataHubProps {
   shops: Shop[];
   trips: Trip[];
   contacts: Contact[];
+  settings: AppState['settings'];
 
   onAddTransaction: () => void;
   onEditTransaction: (transaction: Transaction) => void;
@@ -46,7 +48,6 @@ type Tab = 'transactions' | 'accounts' | 'categories' | 'shops' | 'trips' | 'con
 const DataHubScreen: React.FC<DataHubProps> = (props) => {
   const [activeTab, setActiveTab] = useState<Tab>('transactions');
   const [searchQuery, setSearchQuery] = useState('');
-  const formatCurrency = useCurrencyFormatter();
 
   const getCategoryPath = (categoryId: string, allCategories: Category[]): string => {
     let path: string[] = [], current = allCategories.find(c => c.id === categoryId);
@@ -66,15 +67,17 @@ const DataHubScreen: React.FC<DataHubProps> = (props) => {
   const filteredData = useMemo(() => {
     const q = searchQuery.toLowerCase();
     if (!q) return props;
+    const filter = (items: any[], key: string) => items.filter(item => item[key]?.toLowerCase().includes(q));
+    
     return {
       ...props,
-      transactions: props.transactions.filter(t => t.description.toLowerCase().includes(q)),
-      accounts: props.accounts.filter(a => a.name.toLowerCase().includes(q)),
-      categories: props.categories.filter(c => c.name.toLowerCase().includes(q)),
-      shops: props.shops.filter(s => s.name.toLowerCase().includes(q)),
-      trips: props.trips.filter(t => t.name.toLowerCase().includes(q)),
-      contacts: props.contacts.filter(c => c.name.toLowerCase().includes(q)),
-      goals: props.goals.filter(g => g.name.toLowerCase().includes(q)),
+      transactions: filter(props.transactions, 'description'),
+      accounts: filter(props.accounts, 'name'),
+      categories: filter(props.categories, 'name'),
+      shops: filter(props.shops, 'name'),
+      trips: filter(props.trips, 'name'),
+      contacts: filter(props.contacts, 'name'),
+      goals: filter(props.goals, 'name'),
     };
   }, [searchQuery, props]);
   
@@ -85,27 +88,29 @@ const DataHubScreen: React.FC<DataHubProps> = (props) => {
   );
 
   const renderContent = () => {
+    const listProps = {
+        items: filteredData[activeTab],
+        onEdit: props[`onEdit${capitalize(activeTab.slice(0, -1))}` as keyof DataHubProps] as (item: any) => void,
+        onDelete: props[`onDelete${capitalize(activeTab.slice(0, -1))}` as keyof DataHubProps] as (id: string) => void,
+        itemType: activeTab.slice(0, -1) as ItemType
+    };
+
     switch (activeTab) {
-        case 'transactions': return <ListItem title="Description" items={filteredData.transactions} onEdit={props.onEditTransaction} onDelete={props.onDeleteTransaction} renderDetails={t => <span className={`font-semibold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>{formatCurrency(t.amount)}</span>} />;
-        case 'accounts': return <ListItem title="Account Name" items={filteredData.accounts} onEdit={props.onEditAccount} onDelete={props.onDeleteAccount} renderDetails={a => <span className="font-semibold">{getCurrencyFormatter(a.currency).format(accountBalances.get(a.id) || 0)}</span>} />;
-        case 'categories': return <ListItem title="Category Name" items={filteredData.categories} onEdit={props.onEditCategory} onDelete={props.onDeleteCategory} renderDetails={c => <span className="text-xs text-secondary">{getCategoryPath(c.id, props.categories)}</span>} />;
-        case 'shops': return <ListItem title="Shop Name" items={filteredData.shops} onEdit={props.onEditShop} onDelete={props.onDeleteShop} renderDetails={s => <span className="text-xs text-secondary">{s.currency}</span>} />;
-        case 'trips': return <ListItem title="Trip Name" items={filteredData.trips} onEdit={props.onEditTrip} onDelete={props.onDeleteTrip} renderDetails={t => <span className="text-xs text-secondary">{new Date(t.date).toLocaleDateString()}</span>} />;
-        case 'contacts': return <ListItem title="Contact Name" items={filteredData.contacts} onEdit={props.onEditContact} onDelete={props.onDeleteContact} renderDetails={c => <span className="text-xs text-secondary">{c.groupId}</span>} />;
-        case 'goals': return <ListItem title="Goal Name" items={filteredData.goals} onEdit={props.onEditGoal} onDelete={props.onDeleteGoal} renderDetails={g => <span className="font-semibold">{formatCurrency(g.currentAmount)} / {formatCurrency(g.targetAmount)}</span>} />;
+        case 'transactions': return <ListItem {...listProps} renderDetails={(t: Transaction) => <span className={`font-semibold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>{getCurrencyFormatter(props.accounts.find(a=>a.id===t.accountId)?.currency || '').format(t.amount)}</span>} />;
+        case 'accounts': return <ListItem {...listProps} renderDetails={(a: Account) => <span className="font-semibold">{getCurrencyFormatter(a.currency).format(accountBalances.get(a.id) || 0)}</span>} />;
+        case 'categories': return <ListItem {...listProps} renderDetails={(c: Category) => <span className="text-xs text-secondary">{getCategoryPath(c.id, props.categories)}</span>} />;
+        case 'shops': return <ListItem {...listProps} renderDetails={(s: Shop) => <span className="text-xs text-secondary">{s.currency}</span>} />;
+        case 'trips': return <ListItem {...listProps} renderDetails={(t: Trip) => <span className="text-xs text-secondary">{new Date(t.date).toLocaleDateString()}</span>} />;
+        case 'contacts': return <ListItem {...listProps} renderDetails={(c: Contact) => <span className="text-xs text-secondary">{c.groupId}</span>} />;
+        case 'goals': return <ListItem {...listProps} renderDetails={(g: Goal) => <span className="font-semibold">{getCurrencyFormatter(props.settings.currency).format(g.currentAmount)} / {getCurrencyFormatter(props.settings.currency).format(g.targetAmount)}</span>} />;
     }
   };
   
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
   const handleAdd = () => {
-    switch(activeTab) {
-      case 'transactions': props.onAddTransaction(); break;
-      case 'accounts': props.onAddAccount(); break;
-      case 'categories': props.onAddCategory(); break;
-      case 'shops': props.onAddShop(); break;
-      case 'trips': props.onAddTrip(); break;
-      case 'contacts': props.onAddContact(); break;
-      case 'goals': props.onAddGoal(); break;
-    }
+    const handler = props[`onAdd${capitalize(activeTab.slice(0, -1))}` as keyof DataHubProps] as () => void;
+    if (handler) handler();
   };
 
   return (
@@ -113,7 +118,7 @@ const DataHubScreen: React.FC<DataHubProps> = (props) => {
       <div className="p-4 border-b border-divider flex-shrink-0 flex flex-col gap-4">
         <h2 className="text-xl font-bold text-primary text-center">Data Hub 🗄️</h2>
         <div className="relative">
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="input-base w-full rounded-full py-2 px-3 pl-10" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={`Search ${activeTab}...`} className="input-base w-full rounded-full py-2 px-3 pl-10" />
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute top-1/2 left-3 -translate-y-1/2 text-tertiary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
         </div>
       </div>
@@ -143,12 +148,12 @@ const DataHubScreen: React.FC<DataHubProps> = (props) => {
 };
 
 const ListItem: React.FC<{
-    title: string;
     items: any[];
     onEdit: (item: any) => void;
     onDelete: (id: string) => void;
+    itemType: ItemType;
     renderDetails: (item: any) => React.ReactNode;
-}> = ({ title, items, onEdit, onDelete, renderDetails }) => {
+}> = ({ items, onEdit, onDelete, itemType, renderDetails }) => {
     return (
         <div className="space-y-2 animate-fadeInUp">
             {items.map(item => (

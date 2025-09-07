@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Budget, Category, Transaction, TransactionType } from '../types';
+import { Budget, Category, Transaction, TransactionType, FinancialProfile } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import { getAIBudgetSuggestion } from '../services/geminiService';
+import LoadingSpinner from './LoadingSpinner';
 
 interface BudgetsScreenProps {
   categories: Category[];
@@ -8,11 +10,15 @@ interface BudgetsScreenProps {
   budgets: Budget[];
   onSaveBudget: (categoryId: string, amount: number) => void;
   onAddBudget: () => void;
+  financialProfile: FinancialProfile;
+  findOrCreateCategory: (name: string, type: TransactionType) => string;
 }
 
-const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions, budgets, onSaveBudget, onAddBudget }) => {
+const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions, budgets, onSaveBudget, onAddBudget, financialProfile, findOrCreateCategory }) => {
   const [budgetAmounts, setBudgetAmounts] = useState<Record<string, string>>({});
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [aiSuggestions, setAiSuggestions] = useState<{ categoryName: string, amount: number, reasoning: string }[] | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const formatCurrency = useCurrencyFormatter();
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -63,6 +69,26 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
         return newSet;
     });
   };
+
+  const handleGetAiSuggestions = async () => {
+    setIsAiLoading(true);
+    setAiSuggestions(null);
+    try {
+        const suggestions = await getAIBudgetSuggestion(financialProfile, categories);
+        setAiSuggestions(suggestions);
+    } catch (error) {
+        alert("Could not fetch AI suggestions. Please ensure you've set your monthly income in the Financial Health section.");
+    }
+    setIsAiLoading(false);
+  };
+  
+  const handleApplySuggestion = (categoryName: string, amount: number) => {
+      const categoryId = findOrCreateCategory(categoryName, TransactionType.EXPENSE);
+      if (categoryId) {
+          onSaveBudget(categoryId, amount);
+          setAiSuggestions(prev => prev ? prev.filter(s => s.categoryName !== categoryName) : null);
+      }
+  };
   
   const topLevelCategories = useMemo(() => categories.filter(c => !c.parentId && c.type === TransactionType.EXPENSE), [categories]);
 
@@ -91,6 +117,7 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
           <div className="flex items-center gap-2">
             <input
               type="number"
+              onWheel={e => e.currentTarget.blur()}
               placeholder={budget ? formatCurrency(budget.amount) : 'Set Budget'}
               value={budgetAmounts[category.id] || ''}
               onChange={(e) => {
@@ -136,13 +163,36 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
 
   return (
     <div className="p-6 flex-grow overflow-y-auto pr-2">
-      <h2 className="text-2xl font-bold text-primary mb-2">Monthly Budgets</h2>
-      <p className="text-sm text-secondary mb-4">Set spending limits for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+            <h2 className="text-2xl font-bold text-primary mb-2">Monthly Budgets</h2>
+            <p className="text-sm text-secondary">Set spending limits for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
+        </div>
+        <button onClick={handleGetAiSuggestions} disabled={isAiLoading} className="button-secondary px-3 py-1.5 flex items-center gap-2">
+            {isAiLoading ? <LoadingSpinner /> : '✨'}
+            <span>Get AI Suggestions</span>
+        </button>
+      </div>
+
+      {aiSuggestions && (
+          <div className="p-4 mb-4 bg-violet-900/50 border border-violet-700 rounded-lg space-y-2 animate-fadeInUp">
+              <h4 className="font-semibold text-primary">AI Budget Suggestions</h4>
+              {aiSuggestions.map(s => (
+                  <div key={s.categoryName} className="p-2 bg-subtle rounded-md">
+                      <div className="flex justify-between items-center">
+                          <p className="font-medium text-primary">{s.categoryName}: {formatCurrency(s.amount)}</p>
+                          <button onClick={() => handleApplySuggestion(s.categoryName, s.amount)} className="button-primary px-3 py-1 text-xs">Apply</button>
+                      </div>
+                      <p className="text-xs text-secondary mt-1">{s.reasoning}</p>
+                  </div>
+              ))}
+          </div>
+      )}
       
-      {!hasBudgets ? (
+      {!hasBudgets && !aiSuggestions && !isAiLoading ? (
         <div className="text-center py-12">
           <p className="text-lg font-medium text-secondary">No budgets set for this month.</p>
-          <p className="text-sm text-tertiary">Start by setting a budget for a category below.</p>
+          <p className="text-sm text-tertiary">Start by setting a budget for a category below, or ask the AI for suggestions.</p>
         </div>
       ) : null}
 

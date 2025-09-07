@@ -95,3 +95,24 @@ export const generateCategories = (): Category[] => {
 };
 
 export const DEFAULT_CATEGORIES = generateCategories();
+
+export const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
+    let current = categories.find(c => c.id === categoryId);
+    if (!current) return undefined;
+    while (current.parentId) {
+        const parent = categories.find(c => c.id === current.parentId);
+        if (!parent) break;
+        current = parent;
+    }
+    return current;
+};
+
+export const getCategoryPath = (categoryId: string, categories: Category[]): string => {
+    const path: string[] = [];
+    let current = categories.find(c => c.id === categoryId);
+    while (current) {
+        path.unshift(current.name);
+        current = categories.find(c => c.id === current.parentId);
+    }
+    return path.join(' / ') || 'Uncategorized';
+};

@@ -12,10 +12,7 @@ export const ALL_FAB_ACTIONS: FabAction[] = [
     // Core Actions
     { key: 'addTransaction', label: 'Add Transaction', icon: '➕', target: { modal: 'addTransaction' } },
     { key: 'openCalendar', label: 'Calendar', icon: '🗓️', target: { screen: 'calendar' } },
-    // Fix: Corrected target screen to 'shoppingLists' as 'notes' screen is deprecated.
-    { key: 'openNotes', label: 'Notes', icon: '📝', target: { screen: 'shoppingLists' } },
-    // Fix: Corrected target screen to 'shoppingLists' as 'notes' screen is deprecated.
-    { key: 'addNote', label: 'Add Note', icon: '🗒️', target: { screen: 'shoppingLists' } },
+    { key: 'addNote', label: 'Add List', icon: '🗒️', target: { screen: 'shoppingLists' } },
     { key: 'openTrip', label: 'Trips', icon: '✈️', target: { screen: 'tripManagement' } },
     { key: 'openSearch', label: 'Search', icon: '🔍', target: { modal: 'globalSearch' } },
     

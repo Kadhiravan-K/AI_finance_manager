@@ -1,18 +1,17 @@
 import React, { useState, useMemo, useContext } from 'react';
-// Fix: Import ActiveScreen and ActiveModal to define component props
 import { CalendarEvent, ActiveScreen, ActiveModal } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import EmptyState from './EmptyState';
 
-// Fix: Add props interface for the component
 interface CalendarScreenProps {
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;
   setActiveScreen: (screen: ActiveScreen) => void;
   setTripDetailsId: (id: string) => void;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
-const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveScreen, setTripDetailsId }) => {
+const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveScreen, setTripDetailsId, openModal }) => {
     const dataContext = useContext(AppDataContext);
     const { settings } = useContext(SettingsContext);
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -76,6 +75,10 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
         setCurrentDate(today);
         setSelectedDate(today);
     }
+    
+    const handleAddEvent = (date: Date) => {
+        openModal('addCalendarEvent', { initialDate: date });
+    };
 
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -158,7 +161,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path></svg>
                     </button>
                 </div>
-                <div className="w-20"></div>
+                <button onClick={() => handleAddEvent(selectedDate || new Date())} className="button-secondary text-sm px-3 py-1">+ Add Event</button>
             </div>
             
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-secondary p-2 flex-shrink-0">
@@ -175,7 +178,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
                     const eventsOnDay = calendarEvents.filter(e => e.date.toDateString() === date.toDateString());
                     
                     return (
-                        <div key={day} onClick={() => setSelectedDate(date)} className={`p-1 text-center rounded-lg cursor-pointer aspect-square flex flex-col items-center justify-start transition-colors ${isSelected ? 'bg-emerald-500/30' : 'hover:bg-subtle'}`}>
+                        <div key={day} onClick={() => handleAddEvent(date)} className={`p-1 text-center rounded-lg cursor-pointer aspect-square flex flex-col items-center justify-start transition-colors ${isSelected ? 'bg-emerald-500/30' : 'hover:bg-subtle'}`}>
                             <span className={`w-7 h-7 flex items-center justify-center rounded-full text-sm ${isToday ? 'bg-emerald-500 text-white' : 'text-primary'}`}>{day}</span>
                             <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap px-1">
                                 {eventsOnDay.slice(0, 3).map(e => <div key={e.id} className={`w-2 h-2 rounded-full ${colorMap[e.color]}`}></div>)}

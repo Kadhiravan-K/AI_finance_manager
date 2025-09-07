@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
-import { IdentifiedSubscription } from '../types';
+import { IdentifiedSubscription, RecurringTransaction, TransactionType } from '../types';
 import { identifySubscriptions } from '../services/geminiService';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState from './EmptyState';
 
-const SubscriptionsScreen: React.FC = () => {
+interface SubscriptionsScreenProps {
+    onAddRecurring: (data: Partial<RecurringTransaction>) => void;
+}
+
+const SubscriptionsScreen: React.FC<SubscriptionsScreenProps> = ({ onAddRecurring }) => {
     const dataContext = useContext(AppDataContext);
     const settingsContext = useContext(SettingsContext);
     
@@ -24,7 +28,6 @@ const SubscriptionsScreen: React.FC = () => {
         
         try {
             const results = await identifySubscriptions(dataContext.transactions, settingsContext.categories);
-            // Sort by amount descending
             results.sort((a, b) => b.averageAmount - a.averageAmount);
             setSubscriptions(results);
         } catch (err) {
@@ -36,7 +39,30 @@ const SubscriptionsScreen: React.FC = () => {
     
     useEffect(() => {
         analyzeTransactions();
-    }, []); // Run once on component mount
+    }, []);
+
+    const handleCreateBill = (sub: IdentifiedSubscription) => {
+        if (!dataContext) return;
+
+        const categoryId = dataContext.findOrCreateCategory(sub.category, TransactionType.EXPENSE);
+        const recurringData: Partial<RecurringTransaction> = {
+            description: `${sub.vendorName} Subscription`,
+            amount: sub.averageAmount,
+            type: TransactionType.EXPENSE,
+            categoryId,
+            frequencyUnit: sub.frequency === 'yearly' ? 'years' : 'months',
+            interval: 1,
+            nextDueDate: new Date().toISOString(),
+        };
+        onAddRecurring(recurringData);
+        // Remove from suggestions
+        setSubscriptions(prev => prev.filter(s => s.vendorName !== sub.vendorName));
+    };
+    
+    const handleDismiss = (sub: IdentifiedSubscription) => {
+        setSubscriptions(prev => prev.filter(s => s.vendorName !== sub.vendorName));
+    };
+
 
     const totalMonthlyCost = useMemo(() => {
         return subscriptions
@@ -84,14 +110,20 @@ const SubscriptionsScreen: React.FC = () => {
         return (
             <div className="space-y-3">
                 {subscriptions.map((sub, index) => (
-                    <div key={index} className="p-3 bg-subtle rounded-lg flex justify-between items-center animate-fadeInUp" style={{ animationDelay: `${index * 50}ms` }}>
-                        <div>
-                            <p className="font-semibold text-primary">{sub.vendorName}</p>
-                            <p className="text-xs text-secondary capitalize">{sub.frequency} &bull; {sub.transactionCount} transactions</p>
+                    <div key={index} className="p-3 bg-subtle rounded-lg group animate-fadeInUp" style={{ animationDelay: `${index * 50}ms` }}>
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold text-primary">{sub.vendorName}</p>
+                                <p className="text-xs text-secondary capitalize">{sub.frequency} &bull; {sub.transactionCount} transactions</p>
+                            </div>
+                            <div className="text-right">
+                               <p className="font-semibold text-primary">{formatCurrency(sub.averageAmount)}</p>
+                               <p className="text-xs text-tertiary">{sub.category}</p>
+                            </div>
                         </div>
-                        <div className="text-right">
-                           <p className="font-semibold text-primary">{formatCurrency(sub.averageAmount)}</p>
-                           <p className="text-xs text-tertiary">{sub.category}</p>
+                        <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-divider opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleDismiss(sub)} className="text-xs px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors">Dismiss</button>
+                            <button onClick={() => handleCreateBill(sub)} className="button-primary px-3 py-1 text-sm">Create Bill</button>
                         </div>
                     </div>
                 ))}

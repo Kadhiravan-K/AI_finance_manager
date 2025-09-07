@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Transaction, TransactionType, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import { getTopLevelCategory } from '../utils/categories';
 
 interface CategoryBarChartProps {
   title: string;
@@ -13,17 +14,6 @@ interface CategoryBarChartProps {
 const COLORS = [
   '#10b981', '#3b82f6', '#ef4444', '#f97316', '#8b5cf6', '#eab308', '#ec4899', '#64748b'
 ];
-
-const getTopLevelCategory = (categoryId: string, categories: Category[]): Category | undefined => {
-    let current = categories.find(c => c.id === categoryId);
-    if (!current) return undefined;
-    while (current.parentId) {
-        const parent = categories.find(c => c.id === current.parentId);
-        if (!parent) break;
-        current = parent;
-    }
-    return current;
-};
 
 const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions, categories, type, currency }) => {
   const formatCurrency = useCurrencyFormatter({ minimumFractionDigits: 0, maximumFractionDigits: 0 }, currency);

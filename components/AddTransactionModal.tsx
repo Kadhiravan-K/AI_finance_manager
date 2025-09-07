@@ -1,31 +1,36 @@
-
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import EditTransactionModal from './EditTransactionModal';
-import { Transaction, Account, ModalState, Contact, TransactionType, ParsedReceiptData } from '../types';
-import ModalHeader from './ModalHeader';
+import { Transaction, Account, Contact, TransactionType, ActiveModal, Category } from '../types';
+import { SettingsContext } from '../contexts/SettingsContext';
 import CustomSelect from './CustomSelect';
+import CustomDatePicker from './CustomDatePicker';
+import ModalHeader from './ModalHeader';
 import LoadingSpinner from './LoadingSpinner';
-import { parseReceiptImage } from '../services/geminiService';
+import ToggleSwitch from './ToggleSwitch';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 const modalRoot = document.getElementById('modal-root')!;
+
+type Tab = 'auto' | 'manual';
+
+interface ItemizedItem {
+    id: string;
+    description: string;
+    amount: string;
+    categoryId: string;
+    parentId: string | null;
+}
 
 interface AddTransactionModalProps {
     onCancel: () => void;
     onSaveAuto: (text: string, accountId?: string) => Promise<void>;
-    onSaveManual: (data: Transaction | { 
-      action: 'split-and-replace';
-      originalTransactionId: string;
-      newTransactions: Omit<Transaction, 'id'>[];
-    }) => void;
-    isDisabled: boolean;
+    onSaveManual: (data: Transaction) => void;
+    initialTab?: Tab;
     initialText?: string | null;
     onInitialTextConsumed?: () => void;
-    initialTab?: 'auto' | 'manual';
     accounts: Account[];
     contacts: Contact[];
-    openModal: (name: ModalState['name'], props?: Record<string, any>) => void;
+    openModal: (name: ActiveModal, props?: Record<string, any>) => void;
     onOpenCalculator: (onResult: (result: number) => void) => void;
     selectedAccountId?: string;
 }
@@ -34,220 +39,228 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     onCancel,
     onSaveAuto,
     onSaveManual,
-    isDisabled,
+    initialTab = 'auto',
     initialText,
     onInitialTextConsumed,
-    initialTab,
     accounts,
     contacts,
     openModal,
     onOpenCalculator,
-    selectedAccountId,
+    selectedAccountId
 }) => {
-    const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialTab || 'auto');
-    const [text, setText] = useState(initialText || '');
-    const [isLoading, setIsLoading] = useState(false);
-    const [autoSelectedAccountId, setAutoSelectedAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
-    const [isListening, setIsListening] = useState(false);
-    const [manualInitialData, setManualInitialData] = useState<Partial<Transaction> & { itemizedItems?: { description: string; amount: string }[] } | undefined>(undefined);
+    // Tab State
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
-    const recognitionRef = useRef<any | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // Auto Tab State
+    const [autoText, setAutoText] = useState(initialText || '');
+    const [isParsing, setIsParsing] = useState(false);
+    const [selectedParseAccountId, setSelectedParseAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
 
+    // Manual Tab State
+    const { categories } = useContext(SettingsContext);
+    const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
+    const [amount, setAmount] = useState<string>('');
+    const [description, setDescription] = useState<string>('');
+    const [accountId, setAccountId] = useState<string>(selectedAccountId || accounts[0]?.id || '');
+    const [notes, setNotes] = useState<string>('');
+    const [date, setDate] = useState<Date>(new Date());
+    
+    // Itemization state
+    const [isItemized, setIsItemized] = useState(false);
+    const [items, setItems] = useState<ItemizedItem[]>([
+        { id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null }
+    ]);
+    const formatCurrency = useCurrencyFormatter(undefined, accounts.find(a => a.id === accountId)?.currency);
+
+    const itemizedTotal = useMemo(() => {
+        if (!isItemized) return 0;
+        return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    }, [isItemized, items]);
+
+    
     useEffect(() => {
         if (initialText) {
-            setText(initialText);
+            setAutoText(initialText);
             setActiveTab('auto');
             if (onInitialTextConsumed) {
                 onInitialTextConsumed();
             }
         }
     }, [initialText, onInitialTextConsumed]);
-    
-    useEffect(() => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            console.warn("Speech recognition not supported by this browser.");
-            return;
-        }
 
-        const recognition: any = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
-
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            setText(prev => prev ? `${prev} ${transcript}` : transcript);
-        };
-        recognition.onend = () => setIsListening(false);
-        recognition.onerror = (event: any) => {
-            if (event.error !== 'no-speech') {
-              console.error('Speech recognition error:', event.error);
-            }
-            setIsListening(false);
-        };
-        
-        recognitionRef.current = recognition;
-    }, []);
-
-    const handleListen = async () => {
-        if (!recognitionRef.current) {
-            alert("Speech recognition is not supported by your browser.");
-            return;
-        }
-        
+    const handleAutoParse = async () => {
+        if (!autoText.trim() || !selectedParseAccountId) return;
+        setIsParsing(true);
         try {
-            const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-            if (permissionStatus.state === 'denied') {
-                alert("Microphone access is denied. Please enable it in your browser settings to use voice input.");
-                return;
-            }
-            
-            if (isListening) {
-                recognitionRef.current.stop();
-            } else {
-                recognitionRef.current.start();
-                setIsListening(true);
-            }
-        } catch (error) {
-            console.error("Could not check microphone permission:", error);
-            alert("Could not access microphone. Please ensure you are on a secure (HTTPS) connection.");
-        }
-    };
-    
-    const handleScanClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64Data = (e.target?.result as string).split(',')[1];
-                if (base64Data) {
-                    setIsLoading(true);
-                    try {
-                        const parsedData = await parseReceiptImage(base64Data, file.type);
-                        if (parsedData) {
-                            setManualInitialData({
-                                description: parsedData.merchantName,
-                                amount: parsedData.totalAmount,
-                                date: parsedData.transactionDate,
-                                type: TransactionType.EXPENSE,
-                                itemizedItems: parsedData.lineItems.map(item => ({
-                                    description: item.description,
-                                    amount: String(item.amount),
-                                })),
-                            });
-                            setActiveTab('manual');
-                        } else {
-                            alert("AI could not parse the receipt. Please try another image or enter manually.");
-                        }
-                    } catch (error) {
-                        alert(`Error scanning receipt: ${error instanceof Error ? error.message : "Unknown error"}`);
-                    } finally {
-                        setIsLoading(false);
-                    }
-                }
-            };
-            reader.readAsDataURL(file);
+            await onSaveAuto(autoText, selectedParseAccountId);
+            onCancel(); // Close on success
+        } catch (e) {
+            console.error("Parsing failed", e);
+            // Don't close on error
+        } finally {
+            setIsParsing(false);
         }
     };
 
-
-    const handleAutoSubmit = async (e: React.FormEvent) => {
+    const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
-        await onSaveAuto(text, autoSelectedAccountId);
-        setIsLoading(false);
+        const finalAmount = isItemized ? itemizedTotal : parseFloat(amount);
+        if (isNaN(finalAmount) || finalAmount <= 0) {
+            alert("Please enter a valid amount.");
+            return;
+        }
+
+        let finalDescription = description;
+        let finalNotes = notes;
+        let finalCategoryId = items[0]?.categoryId || items[0]?.parentId || '';
+        
+        if (isItemized) {
+            if (!description) finalDescription = items[0]?.description || 'Itemized Expense';
+            finalNotes = `${notes ? notes + '\n\n' : ''}Itemized Details:\n${items.map(i => `- ${i.description}: ${formatCurrency(parseFloat(i.amount) || 0)}`).join('\n')}`;
+            // If all items have the same category, use it. Otherwise, categorize as 'Miscellaneous'.
+            const categoryIds = new Set(items.map(i => i.categoryId || i.parentId).filter(Boolean));
+            if (categoryIds.size === 1) {
+                finalCategoryId = categoryIds.values().next().value;
+            } else {
+                 finalCategoryId = categories.find(c => c.name === 'Miscellaneous')?.id || categories[0].id;
+            }
+        } else {
+            const topLevelCat = categories.find(c => c.id === items[0].parentId);
+            if (!items[0].categoryId && topLevelCat) {
+                finalCategoryId = topLevelCat.id;
+            }
+        }
+        
+        if (!finalCategoryId) {
+            alert("Please select a category.");
+            return;
+        }
+
+        const transactionData: Transaction = {
+            id: self.crypto.randomUUID(),
+            description: finalDescription,
+            amount: finalAmount,
+            type,
+            accountId,
+            categoryId: finalCategoryId,
+            date: date.toISOString(),
+            notes: finalNotes.trim() || undefined,
+        };
+        onSaveManual(transactionData);
+        onCancel();
     };
 
-    const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${
-                active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary'
-            }`}
-        >
-            {children}
+    const topLevelCategories = useMemo(() => categories.filter(c => c.type === type && !c.parentId), [categories, type]);
+
+    const handleItemChange = (id: string, field: 'description' | 'amount' | 'categoryId' | 'parentId', value: string | null) => {
+        setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+    };
+    const handleAddItem = () => setItems(prev => [...prev, {id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null}]);
+    const handleRemoveItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
+
+
+    const TabButton = ({ tab, label }: { tab: Tab, label: string }) => (
+        <button type="button" onClick={() => setActiveTab(tab)} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ activeTab === tab ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+            {label}
         </button>
     );
-    
-    const accountOptions = accounts.map(account => ({ value: account.id, label: account.name }));
-    
+
     const modalContent = (
       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <ModalHeader title="Add Transaction" onClose={onCancel} />
             <div className="flex border-b border-divider flex-shrink-0">
-              <TabButton active={activeTab === 'auto'} onClick={() => setActiveTab('auto')}>🤖 Automatic</TabButton>
-              <TabButton active={activeTab === 'manual'} onClick={() => { setManualInitialData(undefined); setActiveTab('manual'); }}>✍️ Manual</TabButton>
+                <TabButton tab="auto" label="Automatic (AI Parse) 🤖" />
+                <TabButton tab="manual" label="Manual Entry ✍️" />
             </div>
             
-            {activeTab === 'auto' ? (
-                <form onSubmit={handleAutoSubmit} className="p-6 space-y-4">
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                  <div className="pt-2">
-                    <label className="block text-sm font-medium text-secondary mb-1">Save to Account</label>
-                    <CustomSelect
-                      value={autoSelectedAccountId}
-                      onChange={setAutoSelectedAccountId}
-                      options={accountOptions}
-                      placeholder="Select an account"
-                    />
-                  </div>
-                  <div className="relative">
+            {activeTab === 'auto' && (
+                <div className="p-6 space-y-4 animate-fadeInUp">
+                    <p className="text-sm text-secondary">Paste a transaction message from your bank, or type a simple phrase like "Dinner for 500". The AI will do the rest.</p>
                     <textarea
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        placeholder='Paste message or Quick Add: "Lunch 500"'
-                        className="w-full h-24 p-3 pr-12 transition-all duration-200 resize-none shadow-inner themed-textarea"
-                        disabled={!autoSelectedAccountId || isLoading}
-                        aria-label="Transaction message input"
+                        value={autoText}
+                        onChange={(e) => setAutoText(e.target.value)}
+                        placeholder='e.g., "INR 500 spent on Zomato"'
+                        className="w-full h-24 p-3 transition-all duration-200 resize-none shadow-inner themed-textarea"
+                        disabled={isParsing}
                         autoFocus
                     />
-                    <button type="button" onClick={handleListen} title="Voice Input" className={`absolute bottom-3 right-3 p-2 rounded-full transition-colors ${isListening ? 'bg-rose-500/50 text-rose-300 animate-pulse' : 'bg-subtle hover:bg-card-hover'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                        </svg>
+                     <CustomSelect
+                        value={selectedParseAccountId}
+                        onChange={setSelectedParseAccountId}
+                        options={accounts.map(acc => ({ value: acc.id, label: acc.name }))}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAutoParse}
+                        disabled={!autoText.trim() || isParsing || !selectedParseAccountId}
+                        className="button-primary w-full flex items-center justify-center font-bold py-3 px-4"
+                    >
+                        {isParsing ? <LoadingSpinner /> : 'Parse with AI'}
                     </button>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!autoSelectedAccountId || !text.trim() || isLoading}
-                    className="button-primary w-full flex items-center justify-center font-bold py-3 px-4"
-                  >
-                    {isLoading ? <LoadingSpinner /> : 'Add via Text'}
-                  </button>
-                  <div className="flex items-center gap-2">
-                      <div className="flex-grow border-t border-divider"></div>
-                      <span className="text-xs text-secondary">OR</span>
-                      <div className="flex-grow border-t border-divider"></div>
-                  </div>
-                   <button
-                    type="button"
-                    onClick={handleScanClick}
-                    disabled={!autoSelectedAccountId || isLoading}
-                    className="button-secondary w-full flex items-center justify-center font-bold py-3 px-4"
-                  >
-                    {isLoading ? <LoadingSpinner /> : '📷 Scan or Upload Receipt'}
-                  </button>
+                </div>
+            )}
+
+            {activeTab === 'manual' && (
+                <form onSubmit={handleManualSubmit} className="flex-grow flex flex-col overflow-hidden animate-fadeInUp">
+                    <div className="flex-grow overflow-y-auto p-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
+                            <button type="button" onClick={() => { setType(TransactionType.EXPENSE); setItems([{ id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null }]) }} className={`w-full py-2 text-sm font-semibold rounded-full ${type === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : ''}`}>Expense</button>
+                            <button type="button" onClick={() => { setType(TransactionType.INCOME); setItems([{ id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null }]) }} className={`w-full py-2 text-sm font-semibold rounded-full ${type === TransactionType.INCOME ? 'bg-emerald-500 text-white' : ''}`}>Income</button>
+                        </div>
+
+                         <div className="grid grid-cols-2 gap-4">
+                            <CustomSelect value={accountId} onChange={setAccountId} options={accounts.map(a => ({value: a.id, label: a.name}))} />
+                            <CustomDatePicker value={date} onChange={setDate} />
+                        </div>
+
+                        {!isItemized ? (
+                            <>
+                                <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Description" className="input-base w-full p-2 rounded-lg" required />
+                                <div className="relative">
+                                    <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" className="input-base w-full p-2 rounded-lg no-spinner" required />
+                                    <button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary p-1">🧮</button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <CustomSelect value={items[0].parentId || ''} onChange={val => { handleItemChange(items[0].id, 'parentId', val || null); handleItemChange(items[0].id, 'categoryId', ''); }} options={[{value: '', label: 'Select Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} />
+                                    <CustomSelect value={items[0].categoryId} onChange={val => handleItemChange(items[0].id, 'categoryId', val)} options={items[0].parentId ? categories.filter(c => c.parentId === items[0].parentId).map(c => ({value: c.id, label: c.name})) : []} disabled={!items[0].parentId} />
+                                </div>
+                            </>
+                        ) : null}
+
+                        <ToggleSwitch label="Itemize Transaction" checked={isItemized} onChange={setIsItemized} />
+
+                        {isItemized && (
+                            <div className="p-3 bg-subtle rounded-lg space-y-2 border border-divider">
+                                {items.map((item, index) => {
+                                    const subCategories = item.parentId ? categories.filter(c => c.parentId === item.parentId) : [];
+                                    return (
+                                        <div key={item.id} className="p-2 bg-subtle rounded-lg space-y-2 border border-divider">
+                                            <div className="flex items-center gap-2">
+                                                <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item ${index + 1}`} className="input-base p-1.5 rounded-md flex-grow" />
+                                                <input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="Amount" className="input-base p-1.5 rounded-md w-24 no-spinner text-right" />
+                                                <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-rose-400 font-bold text-xl leading-none">&times;</button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', ''); }} options={[{value: '', label: 'Select Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} />
+                                                <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={subCategories.map(c => ({value: c.id, label: c.name}))} disabled={!item.parentId || subCategories.length === 0} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <button type="button" onClick={handleAddItem} className="text-xs text-sky-400 hover:text-sky-300">+ Add Item</button>
+                                <p className="text-right font-semibold pt-2 border-t border-divider mt-2">Total of Items: {formatCurrency(itemizedTotal)}</p>
+                            </div>
+                        )}
+                        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (Optional)" rows={2} className="input-base w-full p-2 rounded-lg resize-none" />
+                    </div>
+                    <div className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-3 bg-subtle rounded-b-xl">
+                        <button type="button" onClick={() => { onCancel(); openModal('refund'); }} className="button-secondary px-4 py-2">Process Refund</button>
+                        <div className="flex-grow"></div>
+                        <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+                        <button type="submit" className="button-primary px-4 py-2">Save Transaction</button>
+                    </div>
                 </form>
-            ) : (
-                <EditTransactionModal
-                   isEmbedded={true}
-                   initialData={manualInitialData}
-                   onSave={onSaveManual}
-                   onCancel={onCancel}
-                   accounts={accounts}
-                   contacts={contacts}
-                   openModal={openModal}
-                   onOpenCalculator={onOpenCalculator}
-                   selectedAccountId={selectedAccountId}
-                />
             )}
         </div>
       </div>

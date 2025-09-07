@@ -1,51 +1,24 @@
 import React, { useState } from 'react';
-import { InvestmentHolding, Account, AccountType } from '../types';
+import { InvestmentHolding, Account, AccountType, ActiveModal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import EmptyState from './EmptyState';
-import ModalHeader from './ModalHeader';
-import CustomSelect from './CustomSelect';
 
 interface InvestmentsScreenProps {
   accounts: Account[];
   holdings: InvestmentHolding[];
   onBuy: () => void;
-  onSell: (holdingId: string, quantity: number, price: number, toAccountId: string) => void;
-  onUpdateValue: (holdingId: string, newCurrentValue: number) => void;
+  onSell: (holding: InvestmentHolding) => void;
+  onUpdateValue: (holding: InvestmentHolding) => void;
   onRefresh: () => void;
 }
 
 
 const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holdings, onBuy, onSell, onUpdateValue, onRefresh }) => {
-  const [view, setView] = useState<'list' | 'sell' | 'update'>('list');
-  const [selectedHolding, setSelectedHolding] = useState<InvestmentHolding | null>(null);
-  const [formData, setFormData] = useState({ quantity: 0, price: '', linkedAccountId: '', currentValue: '' });
   const formatCurrency = useCurrencyFormatter();
   
   const depositoryAccounts = accounts.filter(a => a.accountType === AccountType.DEPOSITORY);
   
-  const resetForm = () => {
-      setFormData({ quantity: 0, price: '', linkedAccountId: '', currentValue: ''});
-      setSelectedHolding(null);
-      setView('list');
-  }
-
-  const handleSellSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedHolding) return;
-    onSell(selectedHolding.id, formData.quantity, parseFloat(formData.price), formData.linkedAccountId);
-    resetForm();
-  }
-  
-  const handleUpdateSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!selectedHolding) return;
-      onUpdateValue(selectedHolding.id, parseFloat(formData.currentValue));
-      resetForm();
-  }
-  
-  const accountOptions = depositoryAccounts.map(a => ({ value: a.id, label: a.name }));
-
-  const renderList = () => (
+  return (
     <div className="h-full flex flex-col">
        <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-primary">Investments 📈</h2>
@@ -85,8 +58,8 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
                   </div>
               </div>
               <div className="flex justify-end gap-2 mt-2">
-                <button onClick={() => { setSelectedHolding(h); setView('update'); setFormData(f => ({...f, currentValue: h.currentValue.toString()}))}} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Update Value</button>
-                <button onClick={() => { setSelectedHolding(h); setView('sell'); setFormData(f => ({...f, quantity: h.quantity, linkedAccountId: depositoryAccounts[0]?.id || ''}))}} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Sell</button>
+                <button onClick={() => onUpdateValue(h)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Update Value</button>
+                <button onClick={() => onSell(h)} className="text-xs px-2 py-1 bg-rose-600/50 text-rose-200 rounded-full">Sell</button>
               </div>
             </div>
           )
@@ -97,34 +70,6 @@ const InvestmentsScreen: React.FC<InvestmentsScreenProps> = ({ accounts, holding
       </div>
     </div>
   );
-  
-  if (view === 'sell' && selectedHolding) {
-    return (
-        <div className="h-full flex flex-col">
-            <ModalHeader title={`Sell ${selectedHolding.name}`} onBack={resetForm} onClose={resetForm} />
-            <form onSubmit={handleSellSubmit} className="p-6 space-y-4">
-                <input type="number" step="any" value={formData.quantity} onChange={e => setFormData(f => ({...f, quantity: parseFloat(e.target.value) || 0}))} className="input-base w-full p-2" max={selectedHolding.quantity}/>
-                <input type="number" step="0.01" value={formData.price} onChange={e => setFormData(f => ({...f, price: e.target.value}))} placeholder="Price per unit" className="input-base w-full p-2" required />
-                <CustomSelect value={formData.linkedAccountId} onChange={v => setFormData(f => ({...f, linkedAccountId: v}))} options={accountOptions} />
-                <div className="flex justify-end gap-3"><button type="submit" className="button-primary">Confirm Sale</button></div>
-            </form>
-        </div>
-    );
-  }
-  
-  if (view === 'update' && selectedHolding) {
-      return (
-          <div className="h-full flex flex-col">
-              <ModalHeader title={`Update ${selectedHolding.name}`} onBack={resetForm} onClose={resetForm} />
-              <form onSubmit={handleUpdateSubmit} className="p-6 space-y-4">
-                  <input type="number" step="0.01" value={formData.currentValue} onChange={e => setFormData(f => ({...f, currentValue: e.target.value}))} placeholder="New Total Value" className="input-base w-full p-2" required />
-                  <div className="flex justify-end gap-3"><button type="submit" className="button-primary">Update Value</button></div>
-              </form>
-          </div>
-      );
-  }
-
-  return renderList();
 };
 
 export default InvestmentsScreen;

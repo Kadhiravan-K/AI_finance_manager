@@ -1,6 +1,9 @@
 
+
+
+
 import React, { useState, useMemo, useRef } from 'react';
-import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem } from '../types';
+import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem, ActiveModal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { calculateTripSummary } from '../utils/calculations';
 import CategoryPieChart from './CategoryPieChart';
@@ -18,13 +21,15 @@ interface TripDetailsScreenProps {
   categories: Category[];
   onUpdateTrip: (trip: Trip) => void;
   initialTab?: TripDetailsTab;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 type TripDetailsTab = 'dashboard' | 'expenses' | 'planner';
 
 const ItineraryTimeline: React.FC<{
     plan: TripDayPlan[];
     setPlan: React.Dispatch<React.SetStateAction<TripDayPlan[]>>;
-}> = ({ plan, setPlan }) => {
+    openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+}> = ({ plan, setPlan, openModal }) => {
     
     const [draggedItemInfo, setDraggedItemInfo] = useState<{ dayId: string; itemId: string } | null>(null);
     const [dropTarget, setDropTarget] = useState<{ dayId: string; beforeItemId: string | null } | null>(null);
@@ -189,7 +194,9 @@ const ItineraryTimeline: React.FC<{
                                         </div>
                                         <div className="flex-grow">
                                             <div className="flex items-center gap-2">
-                                                <input type="time" value={item.time} onChange={e => handleItemChange(day.id, item.id, 'time', e.target.value)} className={`timeline-editable-input font-semibold text-slate-300 w-20 ${item.isCompleted ? 'line-through' : ''}`} />
+                                                <button type="button" onClick={() => openModal('timePicker', { initialTime: item.time, onSave: (newTime: string) => handleItemChange(day.id, item.id, 'time', newTime) })} className={`timeline-editable-input font-semibold text-slate-300 w-20 text-center ${item.isCompleted ? 'line-through' : ''}`}>
+                                                    {item.time}
+                                                </button>
                                                 <input value={item.activity} onChange={e => handleItemChange(day.id, item.id, 'activity', e.target.value)} className={`timeline-editable-input font-semibold text-slate-100 ${item.isCompleted ? 'line-through' : ''}`} />
                                             </div>
                                             <textarea value={item.notes || ''} onChange={e => handleItemChange(day.id, item.id, 'notes', e.target.value)} placeholder="Add notes..." className={`timeline-editable-input text-sm text-slate-400 mt-1 w-full resize-none ${item.isCompleted ? 'line-through' : ''}`} rows={1}></textarea>
@@ -235,7 +242,7 @@ const TripBudgetSummary: React.FC<{ budget: number; totalSpent: number; currency
 };
 
 
-const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, onAddExpense, onEditExpense, onDeleteExpense, onBack, categories, onUpdateTrip, initialTab }) => {
+const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, onAddExpense, onEditExpense, onDeleteExpense, onBack, categories, onUpdateTrip, initialTab, openModal }) => {
   const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
   const [activeTab, setActiveTab] = useState<TripDetailsTab>(initialTab || 'dashboard');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -374,22 +381,30 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
 
         {activeTab === 'planner' && (
             <div className="space-y-4 animate-fadeInUp">
-                <div className="space-y-2">
-                    <textarea 
-                        value={aiPrompt}
-                        onChange={e => setAiPrompt(e.target.value)}
-                        placeholder="e.g., 'Add a visit to a museum on day 2' or 'Find a good place for dinner tonight'."
-                        className="w-full h-24 themed-textarea p-3"
-                        disabled={isGenerating}
-                    />
-                    <button onClick={handleGeneratePlan} disabled={isGenerating || !aiPrompt.trim()} className="button-primary w-full py-2 flex items-center justify-center">
-                        {isGenerating ? <LoadingSpinner /> : 'Generate / Update Plan'}
-                    </button>
+                <div className="p-4 bg-violet-900/30 rounded-lg border border-violet-700/50">
+                    <h3 className="font-bold text-primary mb-2 flex items-center gap-2"><span className="text-2xl">✨</span> AI Itinerary Planner</h3>
+                    <p className="text-sm text-secondary mb-4">Describe your ideal trip, and the AI will generate a plan for you. You can also ask it to modify your existing plan.</p>
+                    <div className="relative">
+                        <textarea 
+                            value={aiPrompt}
+                            onChange={e => setAiPrompt(e.target.value)}
+                            placeholder="e.g., 'Plan a 3-day relaxed beach trip with some good seafood restaurants'"
+                            className="w-full h-24 themed-textarea p-3 pr-24"
+                            disabled={isGenerating}
+                        />
+                        <button 
+                            onClick={handleGeneratePlan} 
+                            disabled={isGenerating || !aiPrompt.trim()} 
+                            className="absolute right-2 bottom-2 button-primary px-3 py-2 flex items-center justify-center text-sm"
+                        >
+                            {isGenerating ? <LoadingSpinner /> : 'Generate'}
+                        </button>
+                    </div>
                 </div>
                 <div className="p-4 bg-subtle rounded-lg border border-divider">
                     <h3 className="font-semibold text-lg text-primary mb-3">Trip Itinerary</h3>
                     {plan && plan.length > 0 ? (
-                        <ItineraryTimeline plan={plan} setPlan={setPlan} />
+                        <ItineraryTimeline plan={plan} setPlan={setPlan} openModal={openModal} />
                     ) : (
                         <p className="text-sm text-secondary text-center py-8">No plan has been generated yet. Use the prompt above to create one!</p>
                     )}

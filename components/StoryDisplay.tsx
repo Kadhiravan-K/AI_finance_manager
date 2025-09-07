@@ -1,5 +1,3 @@
-
-
 import React, { useMemo, useState, useEffect, useContext } from 'react';
 import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType, ActiveScreen, ActiveModal, AppState, AppliedViewOptions, ViewOptions } from '../types';
 import CategoryPieChart from './CategoryPieChart';
@@ -15,9 +13,11 @@ import FinancialHealthScore from './FinancialHealthScore';
 import DynamicAIInsights from './DynamicAIInsights';
 import EmptyState from './EmptyState';
 import { AppDataContext } from '../contexts/SettingsContext';
+import { getCategoryPath } from '../utils/categories';
+import { parseNaturalLanguageQuery } from '../services/geminiService';
+
 
 interface FinanceDisplayProps {
-  status: ProcessingStatus;
   transactions: Transaction[];
   allTransactions: Transaction[];
   accounts: Account[];
@@ -27,19 +27,9 @@ interface FinanceDisplayProps {
   goals: Goal[];
   investmentHoldings: InvestmentHolding[];
   onPayRecurring: (item: RecurringTransaction) => void;
-  error: string;
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
   onSettleDebt: (transactionId: string, splitDetailId: string, settlementAccountId: string, amount: number) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  onNaturalLanguageSearch: () => void;
-  dateFilter: DateRange;
-  setDateFilter: (filter: DateRange) => void;
-  customDateRange: CustomDateRange;
-  setCustomDateRange: React.Dispatch<React.SetStateAction<CustomDateRange>>;
-  isBalanceVisible: boolean;
-  setIsBalanceVisible: (visible: boolean) => void;
   dashboardWidgets: DashboardWidget[];
   mainContentRef?: React.RefObject<HTMLElement>;
   financialProfile: FinancialProfile;
@@ -54,14 +44,10 @@ interface FinanceDisplayProps {
   onAddTransaction: () => void;
   appState: AppState;
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+  onUpdateTransaction: (transaction: Transaction) => void;
 }
 
 const getCategory = (categoryId: string, categories: Category[]): Category | undefined => categories.find(c => c.id === categoryId);
-const getCategoryPath = (categoryId: string, categories: Category[]): string => {
-    let path: string[] = [], current = getCategory(categoryId, categories);
-    while (current) { path.unshift(current.name); current = categories.find(c => c.id === current.parentId); }
-    return path.join(' / ') || 'Uncategorized';
-};
 
 const formatDateGroup = (dateString: string) => {
     const date = new Date(dateString), today = new Date(), yesterday = new Date();
@@ -89,7 +75,7 @@ const DashboardSkeleton: React.FC = () => (
     </div>
 );
 
-const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdit, onDelete, isVisible, accounts }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, isVisible: boolean, accounts: Account[] }) => {
+const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdit, onDelete, isVisible, accounts, openModal }: { transaction: Transaction, category: Category | undefined, categoryPath: string, onEdit: (t: Transaction) => void, onDelete: (id: string) => void, isVisible: boolean, accounts: Account[], openModal: FinanceDisplayProps['openModal'] }) => {
     const isIncome = transaction.type === TransactionType.INCOME;
     const isTransfer = !!transaction.transferId;
     const isSplit = !!transaction.splitDetails && transaction.splitDetails.length > 0;
@@ -97,7 +83,7 @@ const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdi
     const formatCurrency = useCurrencyFormatter(undefined, account?.currency);
 
     return (
-        <div className="glass-card p-3 rounded-xl hover-bg-stronger group transition-colors duration-200 flex items-center gap-3 h-full">
+        <div className="glass-card p-3 rounded-xl hover-bg-stronger group transition-colors duration-200 flex items-center gap-3 h-full relative">
             <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl ${isIncome ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
                 {isSplit ? '➗' : (isTransfer ? '↔️' : (category?.icon || (isIncome ? '💰' : '💸')))}
             </div>
@@ -116,9 +102,10 @@ const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdi
                 </div>
             </div>
 
-            <div className="flex flex-shrink-0 items-center opacity-0 group-hover:opacity-100 transition-opacity -mr-2">
-                <button onClick={() => onEdit(transaction)} className="p-2 text-tertiary hover:text-sky-400 transition-colors" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                <button onClick={() => onDelete(transaction.id)} className="p-2 text-rose-500 hover:text-rose-400 transition-colors" aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => openModal('editNote', { transaction })} className="p-2 text-tertiary hover:text-sky-400 transition-colors" aria-label="Edit note"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg></button>
+                <button onClick={() => onEdit(transaction)} className="p-2 text-tertiary hover:text-sky-400 transition-colors" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                <button onClick={() => onDelete(transaction.id)} className="p-2 text-rose-500 hover:text-rose-400 transition-colors" aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
         </div>
     );
@@ -126,7 +113,17 @@ const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdi
 
 
 // VIRTUALIZED LIST COMPONENT
-const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete, isBalanceVisible, mainContentRef, accounts }: Pick<FinanceDisplayProps, 'transactions' | 'categories' | 'onEdit' | 'onDelete' | 'isBalanceVisible' | 'mainContentRef' | 'accounts'>) => {
+interface VirtualizedTransactionListProps {
+    transactions: Transaction[];
+    categories: Category[];
+    onEdit: (transaction: Transaction) => void;
+    onDelete: (id: string) => void;
+    isBalanceVisible: boolean;
+    mainContentRef?: React.RefObject<HTMLElement>;
+    accounts: Account[];
+    openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+}
+const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete, isBalanceVisible, mainContentRef, accounts, openModal }: VirtualizedTransactionListProps) => {
     const ITEM_HEIGHT = 72; // Adjusted height for new design with p-3
     const HEADER_HEIGHT = 32;
     const OVERSCAN = 5;
@@ -186,7 +183,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
                 const categoryPath = getCategoryPath(t.categoryId, categories);
                 return (
                     <li key={t.id} className="virtual-scroll-item p-1" style={{ transform: `translateY(${item.offsetTop}px)`, height: `${ITEM_HEIGHT}px`}}>
-                        <TransactionItem transaction={t} category={category} categoryPath={categoryPath} onEdit={onEdit} onDelete={onDelete} isVisible={isBalanceVisible} accounts={accounts} />
+                        <TransactionItem transaction={t} category={category} categoryPath={categoryPath} onEdit={onEdit} onDelete={onDelete} isVisible={isBalanceVisible} accounts={accounts} openModal={openModal} />
                     </li>
                 );
             })}
@@ -194,9 +191,15 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, error, onEdit, onDelete, onSettleDebt, isBalanceVisible, setIsBalanceVisible, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, appState, openModal, ...rest }) => {
+const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, onEdit, onDelete, onSettleDebt, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, appState, openModal, ...rest }) => {
     
-    const dataContext = useContext(AppDataContext);
+    const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
+    const [error, setError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateFilter, setDateFilter] = useState<DateRange>('month');
+    const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: new Date(), end: new Date() });
+    const [isBalanceVisible, setIsBalanceVisible] = useState(true);
+
     const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
         sort: { key: 'date', direction: 'desc' },
         filters: { income: true, expense: true }
@@ -214,15 +217,15 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
     };
     
     const isViewOptionsApplied = useMemo(() => {
-        return viewOptions.sort.key !== 'date' || viewOptions.sort.direction !== 'desc' || !viewOptions.filters.income || !viewOptions.filters.expense;
+        return viewOptions.sort.key !== 'date' || viewOptions.sort.direction !== 'desc' || viewOptions.filters.income === false || viewOptions.filters.expense === false;
     }, [viewOptions]);
 
     const sortedAndFilteredTransactions = useMemo(() => {
         let result = [...transactions];
 
         // Apply filters
-        if (!viewOptions.filters.income) result = result.filter(t => t.type !== 'income');
-        if (!viewOptions.filters.expense) result = result.filter(t => t.type !== 'expense');
+        if (viewOptions.filters.income === false) result = result.filter(t => t.type !== 'income');
+        if (viewOptions.filters.expense === false) result = result.filter(t => t.type !== 'expense');
 
         // Apply sorters
         const { key, direction } = viewOptions.sort;
@@ -238,6 +241,23 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
 
         return result;
     }, [transactions, viewOptions]);
+        
+    const handleNaturalLanguageSearch = async () => {
+      if (!searchQuery.trim()) return;
+      setStatus(ProcessingStatus.PROCESSING);
+      setError('');
+      try {
+        const result = await parseNaturalLanguageQuery(searchQuery);
+        setSearchQuery(result.searchQuery || '');
+        if (result.dateFilter) {
+          setDateFilter(result.dateFilter);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'AI search failed');
+      } finally {
+        setStatus(ProcessingStatus.IDLE);
+      }
+    };
     
     const DashboardCard = React.memo(({ title, amount, isVisible, color, currency }: {title: string, amount: number, isVisible: boolean, color: 'emerald' | 'rose' | 'primary', currency: string}) => {
         const formatCurrency = useCurrencyFormatter({ notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 }, currency);
@@ -281,67 +301,67 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
     };
 
     const currencySummaries = useMemo(() => {
-        // 1. Determine active currencies from selected accounts.
+        // 1. Get transactions for the currently selected accounts
+        const selectedTransactions = allTransactions.filter(t => rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.includes(t.accountId));
+
+        // 2. Determine active currencies from those transactions.
+        const accountMap = new Map(accounts.map(acc => [acc.id, acc.currency]));
         const activeCurrencies = new Set<string>();
-        accounts.forEach(acc => {
-            if (rest.selectedAccountIds.includes(acc.id)) {
-                activeCurrencies.add(acc.currency);
-            }
+        selectedTransactions.forEach(t => {
+            const currency = accountMap.get(t.accountId);
+            if (currency) activeCurrencies.add(currency);
         });
     
-        // Initialize summaries for all active currencies to 0
+        // 3. Initialize summaries for all active currencies to 0
         const summaries: Record<string, { income: number, expense: number, balance: number }> = {};
         activeCurrencies.forEach(currency => {
             summaries[currency] = { income: 0, expense: 0, balance: 0 };
         });
     
-        // 2. Filter ALL transactions by the current date range from props.
-        let dateFilteredTransactions = allTransactions;
+        // 4. Filter selected transactions by the current date range
+        let dateFilteredTransactions = selectedTransactions;
         const now = new Date();
-        switch (rest.dateFilter) {
+        switch (dateFilter) {
             case 'today':
-                dateFilteredTransactions = allTransactions.filter(t => new Date(t.date).toDateString() === now.toDateString());
+                dateFilteredTransactions = selectedTransactions.filter(t => new Date(t.date).toDateString() === now.toDateString());
                 break;
             case 'week':
                 const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-                dateFilteredTransactions = allTransactions.filter(t => new Date(t.date) >= startOfWeek);
+                dateFilteredTransactions = selectedTransactions.filter(t => new Date(t.date) >= startOfWeek);
                 break;
             case 'month':
-                dateFilteredTransactions = allTransactions.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
+                dateFilteredTransactions = selectedTransactions.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
                 break;
             case 'custom':
-                 if (rest.customDateRange.start && rest.customDateRange.end) {
-                    const start = rest.customDateRange.start;
+                 if (customDateRange.start && customDateRange.end) {
+                    const start = customDateRange.start;
                     start.setHours(0,0,0,0);
-                    const end = rest.customDateRange.end;
+                    const end = customDateRange.end;
                     end.setHours(23,59,59,999);
-                    dateFilteredTransactions = allTransactions.filter(t => new Date(t.date) >= start && new Date(t.date) <= end);
+                    dateFilteredTransactions = selectedTransactions.filter(t => new Date(t.date) >= start && new Date(t.date) <= end);
                 }
                 break;
         }
     
-        // 3. Calculate totals for selected accounts using the date-filtered list.
-        const accountMap = new Map(accounts.map(acc => [acc.id, acc]));
+        // 5. Calculate totals for each currency using the date-filtered list.
         for (const t of dateFilteredTransactions) {
-            if (rest.selectedAccountIds.includes(t.accountId)) {
-                const account = accountMap.get(t.accountId);
-                if (account && summaries[account.currency]) {
-                    if (t.type === TransactionType.INCOME) {
-                        summaries[account.currency].income += t.amount;
-                    } else {
-                        summaries[account.currency].expense += t.amount;
-                    }
+            const currency = accountMap.get(t.accountId);
+            if (currency && summaries[currency]) {
+                if (t.type === TransactionType.INCOME) {
+                    summaries[currency].income += t.amount;
+                } else {
+                    summaries[currency].expense += t.amount;
                 }
             }
         }
         
-        // 4. Calculate final balances
+        // 6. Calculate final balances
         for (const currency in summaries) {
             summaries[currency].balance = summaries[currency].income - summaries[currency].expense;
         }
     
         return Object.entries(summaries).sort(([currA], [currB]) => currA.localeCompare(currB));
-    }, [allTransactions, accounts, rest.selectedAccountIds, rest.dateFilter, rest.customDateRange]);
+    }, [allTransactions, accounts, rest.selectedAccountIds, dateFilter, customDateRange]);
 
     const Dashboard = ({ income, expense, isVisible, currency }: { income: number, expense: number, isVisible: boolean, currency: string }) => {
         const balance = income - expense;
@@ -391,7 +411,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
 
     const widgetMap: Record<DashboardWidget['id'], React.ReactNode> = {
         financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
-        aiCoach: <DynamicAIInsights appState={appState} dateFilter={rest.dateFilter} />,
+        aiCoach: <DynamicAIInsights appState={appState} dateFilter={dateFilter} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         summary: summaryWidget,
@@ -446,10 +466,10 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
             </div>
             
             <TransactionFilters
-                searchQuery={rest.searchQuery} setSearchQuery={rest.setSearchQuery}
-                onNaturalLanguageSearch={rest.onNaturalLanguageSearch}
-                dateFilter={rest.dateFilter} setDateFilter={rest.setDateFilter}
-                customDateRange={rest.customDateRange} setCustomDateRange={rest.setCustomDateRange}
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+                onNaturalLanguageSearch={handleNaturalLanguageSearch}
+                dateFilter={dateFilter} setDateFilter={setDateFilter}
+                customDateRange={customDateRange} setCustomDateRange={setCustomDateRange}
             />
 
             <div className="mt-4">
@@ -459,12 +479,12 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ status, transac
 
             <div className="mt-4">
                 {transactions.length > 0 ? (
-                    <VirtualizedTransactionList accounts={accounts} transactions={sortedAndFilteredTransactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} />
+                    <VirtualizedTransactionList accounts={accounts} transactions={sortedAndFilteredTransactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} openModal={openModal} />
                 ) : (
                     <EmptyState
                         icon="💸"
-                        title={rest.selectedAccountIds.length > 0 ? 'No Transactions Yet' : 'Select an Account'}
-                        message={rest.selectedAccountIds.length > 0 ? "Your recent transactions will appear here once you add them." : "Choose an account from the header to see your transactions."}
+                        title={rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.length > 0 ? 'No Transactions Yet' : 'Select an Account'}
+                        message={rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.length > 0 ? "Your recent transactions will appear here once you add them." : "Choose an account from the header to see your transactions."}
                         actionText="Add First Transaction"
                         onAction={onAddTransaction}
                     />

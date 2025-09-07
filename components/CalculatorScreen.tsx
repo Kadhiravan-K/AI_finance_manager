@@ -3,7 +3,7 @@ import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { AppState } from '../types';
 import { parseNaturalLanguageCalculation, getCurrencyConversionRate } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
-import { currencies, getCurrencyFormatter }from '../utils/currency';
+import { currencies, getCurrencyFormatter } from '../utils/currency';
 import CustomSelect from './CustomSelect';
 
 type CalculatorType = 'basic' | 'currency' | 'emi' | 'sip' | 'goal' | 'swp';
@@ -12,9 +12,11 @@ interface CalculatorScreenProps {
   appState: AppState;
 }
 
-const inputBaseClasses = "w-full input-base p-2 rounded-lg no-spinner text-right";
+const inputBaseClasses = "w-full input-base p-3 rounded-lg no-spinner";
 const labelBaseClasses = "block text-sm font-medium text-secondary mb-1";
-const resultCardBaseClasses = "p-4 bg-subtle rounded-lg space-y-2 text-center";
+const resultCardBaseClasses = "p-4 glass-card rounded-xl space-y-2 text-center mt-4";
+const formCardBaseClasses = "p-4 glass-card rounded-xl space-y-4";
+
 
 interface BasicCalculatorProps {
   appState: AppState;
@@ -115,7 +117,7 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
                 <div className="text-secondary text-lg h-6 truncate" aria-live="polite">{expression || '0'}</div>
                 <div className="text-primary text-4xl font-bold h-12 truncate" aria-live="polite">{result}</div>
             </div>
-             <div className="grid grid-cols-4 gap-2">
+             <div className="grid grid-cols-4 gap-1.5">
                 <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('DEL')} className="calc-btn-special">DEL</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('%')} className="calc-btn-operator">%</CalcButton>
@@ -175,12 +177,14 @@ const CurrencyCalculator: React.FC<CurrencyCalculatorProps> = ({ appState }) => 
 
     return (
         <div className="space-y-4">
+          <div className={formCardBaseClasses}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className={labelBaseClasses}>Amount</label><input type="text" inputMode="decimal" value={fromAmount} onChange={e => setFromAmount(e.target.value)} className={inputBaseClasses} /></div>
+                <div><label className={labelBaseClasses}>Amount</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={fromAmount} onChange={e => setFromAmount(e.target.value)} className={inputBaseClasses} /></div>
                 <div><label className={labelBaseClasses}>From</label><CustomSelect value={fromCurrency} onChange={setFromCurrency} options={currencies.map(c => ({value: c.code, label: c.code}))}/></div>
             </div>
             <div className="text-center"><button onClick={handleConvert} disabled={isLoading} className="button-secondary p-3 rounded-full">{isLoading ? <LoadingSpinner/> : '↓'}</button></div>
             <div><label className={labelBaseClasses}>To</label><CustomSelect value={toCurrency} onChange={setToCurrency} options={currencies.map(c => ({value: c.code, label: c.code}))}/></div>
+          </div>
             {rate && <div className={resultCardBaseClasses}><p className="text-sm text-secondary">Result</p><p className="text-2xl font-bold text-primary">{fromFormatter.format(parseFloat(fromAmount) || 0)} = {toFormatter.format(toAmount)}</p><p className="text-xs text-tertiary">Rate: 1 {fromCurrency} = {rate.toFixed(4)} {toCurrency}</p></div>}
         </div>
     );
@@ -207,10 +211,12 @@ const EMICalculator = () => {
 
     return (
         <div className="space-y-4">
-            <div><label className={labelBaseClasses}>Loan Amount (Principal)</label><input type="text" inputMode="decimal" value={principal} onChange={e => setPrincipal(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Annual Interest Rate (%)</label><input type="text" inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Loan Tenure (Years)</label><input type="text" inputMode="decimal" value={tenure} onChange={e => setTenure(e.target.value)} className={inputBaseClasses} /></div>
-            <button onClick={calculate} className="button-primary w-full py-2">Calculate EMI</button>
+            <div className={formCardBaseClasses}>
+              <div><label className={labelBaseClasses}>Loan Amount (Principal)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={principal} onChange={e => setPrincipal(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Annual Interest Rate (%)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Loan Tenure (Years)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={tenure} onChange={e => setTenure(e.target.value)} className={inputBaseClasses} /></div>
+              <button onClick={calculate} className="button-primary w-full py-2">Calculate EMI</button>
+            </div>
             {result && <div className={resultCardBaseClasses}><p className="text-sm text-secondary">Monthly EMI</p><p className="text-2xl font-bold text-primary">{formatCurrency(result.emi)}</p><div className="flex justify-around text-xs pt-2 border-t border-divider"><p>Total Interest:<br/>{formatCurrency(result.totalInterest)}</p><p>Total Payment:<br/>{formatCurrency(result.totalPayment)}</p></div></div>}
         </div>
     );
@@ -237,16 +243,17 @@ const SIPCalculator = () => {
 
     return (
         <div className="space-y-4">
-            <div><label className={labelBaseClasses}>Monthly Investment</label><input type="text" inputMode="decimal" value={monthly} onChange={e => setMonthly(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Expected Annual Return (%)</label><input type="text" inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Investment Period (Years)</label><input type="text" inputMode="decimal" value={period} onChange={e => setPeriod(e.target.value)} className={inputBaseClasses} /></div>
-            <button onClick={calculate} className="button-primary w-full py-2">Calculate Future Value</button>
+            <div className={formCardBaseClasses}>
+              <div><label className={labelBaseClasses}>Monthly Investment</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={monthly} onChange={e => setMonthly(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Expected Annual Return (%)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Investment Period (Years)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={period} onChange={e => setPeriod(e.target.value)} className={inputBaseClasses} /></div>
+              <button onClick={calculate} className="button-primary w-full py-2">Calculate Future Value</button>
+            </div>
             {result && <div className={resultCardBaseClasses}><p className="text-sm text-secondary">Total Value</p><p className="text-2xl font-bold text-primary">{formatCurrency(result.total)}</p><div className="flex justify-around text-xs pt-2 border-t border-divider"><p>Invested:<br/>{formatCurrency(result.invested)}</p><p>Est. Returns:<br/>{formatCurrency(result.returns)}</p></div></div>}
         </div>
     );
 };
 
-// Fix: Add SWPCalculator component
 const SWPCalculator = () => {
     const [principal, setPrincipal] = useState('');
     const [withdrawal, setWithdrawal] = useState('');
@@ -285,10 +292,12 @@ const SWPCalculator = () => {
 
     return (
         <div className="space-y-4">
-            <div><label className={labelBaseClasses}>Total Investment</label><input type="text" inputMode="decimal" value={principal} onChange={e => setPrincipal(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Monthly Withdrawal</label><input type="text" inputMode="decimal" value={withdrawal} onChange={e => setWithdrawal(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Expected Annual Return (%)</label><input type="text" inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
-            <button onClick={calculate} className="button-primary w-full py-2">Calculate SWP Duration</button>
+            <div className={formCardBaseClasses}>
+              <div><label className={labelBaseClasses}>Total Investment</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={principal} onChange={e => setPrincipal(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Monthly Withdrawal</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={withdrawal} onChange={e => setWithdrawal(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Expected Annual Return (%)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
+              <button onClick={calculate} className="button-primary w-full py-2">Calculate SWP Duration</button>
+            </div>
             {result && <div className={resultCardBaseClasses}><p className="text-sm text-secondary">Your funds will last for</p><p className="text-2xl font-bold text-primary">{result.years} years and {result.months} months</p><div className="flex justify-around text-xs pt-2 border-t border-divider"><p>Total Withdrawn:<br/>{formatCurrency(result.totalWithdrawal)}</p></div></div>}
         </div>
     );
@@ -313,10 +322,13 @@ const GoalCalculator = () => {
 
     return (
         <div className="space-y-4">
-            <div><label className={labelBaseClasses}>Target Amount</label><input type="text" inputMode="decimal" value={target} onChange={e => setTarget(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Expected Annual Return (%)</label><input type="text" inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
-            <div><label className={labelBaseClasses}>Investment Period (Years)</label><input type="text" inputMode="decimal" value={period} onChange={e => setPeriod(e.target.value)} className={inputBaseClasses} /></div>
-            <button onClick={calculate} className="button-primary w-full py-2">Calculate Monthly Investment</button>
+            <div className={formCardBaseClasses}>
+              <div><label className={labelBaseClasses}>Target Amount</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={target} onChange={e => setTarget(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Expected Annual Return (%)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={rate} onChange={e => setRate(e.target.value)} className={inputBaseClasses} /></div>
+              <div><label className={labelBaseClasses}>Investment Period (Years)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={period} onChange={e => setPeriod(e.target.value)} className={inputBaseClasses} /></div>
+              <button onClick={calculate} className="button-primary w-full py-2">Calculate Monthly Investment</button>
+            </div>
+            {/* Fix: Corrected a closing div tag typo. */}
             {result && <div className={resultCardBaseClasses}><p className="text-sm text-secondary">Required Monthly Investment</p><p className="text-2xl font-bold text-primary">{formatCurrency(result.monthly)}</p></div>}
         </div>
     );
@@ -326,7 +338,7 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
   const [activeTab, setActiveTab] = useState<CalculatorType>('basic');
 
   const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void }) => (
-    <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
+    <button onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
     </button>
   );
@@ -337,7 +349,7 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
          <h2 className="text-2xl font-bold text-primary text-center">Calculator 🧮</h2>
        </div>
        <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
-         <div className="flex items-center gap-2">
+         <div className="flex items-center gap-1">
            <TabButton active={activeTab === 'basic'} onClick={() => setActiveTab('basic')}>Basic</TabButton>
            <TabButton active={activeTab === 'currency'} onClick={() => setActiveTab('currency')}>Currency</TabButton>
            <TabButton active={activeTab === 'emi'} onClick={() => setActiveTab('emi')}>EMI</TabButton>

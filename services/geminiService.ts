@@ -1,5 +1,13 @@
+
+
+
+
+// Fix: Add necessary imports from @google/genai.
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan } from "../types";
+// Fix: Import types from the correct types file.
+// Fix: 'TransactionType' is an enum used as a value, so it must be imported directly, not as a type.
+import { TransactionType } from "../types";
+import type { Transaction, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan, GlossaryEntry } from "../types";
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -231,7 +239,7 @@ export async function getDashboardInsights(transactions: Transaction[], categori
             return acc;
         }, {} as Record<string, number>);
     
-    const top3 = Object.entries(topSpendingCategories).sort(([,a],[,b]) => b-a).slice(0, 3).map(([name, amount]) => `${name} (${amount.toFixed(0)})`).join(', ');
+    const top3 = Object.entries(topSpendingCategories).sort(([,a],[,b]) => (b as number) - (a as number)).slice(0, 3).map(([name, amount]) => `${name} (${(amount as number).toFixed(0)})`).join(', ');
 
     const prompt = `You are a helpful financial analyst. Based on this summary of a user's transactions for the period "${dateFilterLabel}", provide one short, actionable, and encouraging insight. 
     Data:
@@ -326,7 +334,6 @@ export async function getAICoachAction(command: string, appState: AppState, chat
     }
 }
 
-// Fix: Added missing getAIChatResponse function to support the simple AI chat modal.
 export async function getAIChatResponse(appState: AppState, message: string, chatHistory: { role: 'user' | 'model', text: string }[]): Promise<string> {
     const { financialProfile, accounts, categories } = appState;
     const accountList = accounts.map(a => a.name).join(', ') || 'none';
@@ -554,7 +561,7 @@ export async function getShopInsights(sales: ShopSale[] | undefined, products: S
         acc[name] = (acc[name] || 0) + item.quantity;
         return acc;
     }, {} as Record<string, number>);
-    const bestsellers = Object.entries(productSales).sort(([,a],[,b]) => b - a).slice(0, 3).map(([name, q]) => `${name} (${q} sold)`);
+    const bestsellers = Object.entries(productSales).sort(([,a],[,b]) => (b as number) - (a as number)).slice(0, 3).map(([name, q]) => `${name} (${q} sold)`);
 
     const summary = {
         totalRevenue: totalRevenue.toFixed(2),
@@ -868,5 +875,41 @@ export async function getProactiveInsights(appState: AppState): Promise<Proactiv
     } catch (error) {
         console.error("Error getting proactive insights:", error);
         throw new Error("Could not generate AI insights at this time.");
+    }
+}
+
+const glossaryEntrySchema = {
+    type: Type.OBJECT,
+    properties: {
+        term: { type: Type.STRING, description: "The financial term being defined." },
+        emoji: { type: Type.STRING, description: "A single, relevant emoji for the term." },
+        definition: { type: Type.STRING, description: "A clear, simple, and easy-to-understand definition of the term for a beginner." },
+        usageLogic: { type: Type.STRING, description: "A brief explanation of how this concept is used within this specific finance app." },
+        example: { type: Type.STRING, description: "A simple, practical example of the term in use." },
+        tags: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING },
+            description: "A list of 2-4 relevant lowercase tags."
+        }
+    },
+    required: ["term", "emoji", "definition", "usageLogic", "example", "tags"]
+};
+
+export async function generateGlossaryEntry(term: string): Promise<Omit<GlossaryEntry, 'id'>> {
+    if (!term) throw new Error("Term cannot be empty.");
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `You are a financial educator. A user is searching for the term "${term}" in their personal finance app's glossary. 
+            Generate a complete glossary entry for this term. The definition should be simple for a beginner. 
+            The 'usageLogic' should explain how the concept applies specifically within the context of this app.
+            Provide a relevant emoji, a simple example, and a few tags.`,
+            config: { responseMimeType: "application/json", responseSchema: glossaryEntrySchema },
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error generating glossary entry from Gemini API:", error);
+        throw new Error(error instanceof Error ? `Failed to generate definition: ${error.message}` : "An unknown error occurred.");
     }
 }

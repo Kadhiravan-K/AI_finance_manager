@@ -12,10 +12,10 @@ const ShareGuideModal: React.FC<ShareGuideModalProps> = ({ onClose }) => {
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Auto-Add from G-Pay" onClose={onClose} icon="📲" />
+        <ModalHeader title="Auto-Add from Any App" onClose={onClose} icon="📲" />
         <div className="p-6 space-y-4 overflow-y-auto">
           <p className="text-secondary text-sm">
-            While direct integration isn't possible for security reasons, you can instantly add transactions from Google Pay (or any payment app) using the 'Share' feature. Here's how:
+            You can instantly add transactions from Google Pay, your bank's app, or even an SMS message using the 'Share' feature. Here's how:
           </p>
           <div className="space-y-4">
             <div className="flex items-start gap-4 p-3 bg-subtle rounded-lg">

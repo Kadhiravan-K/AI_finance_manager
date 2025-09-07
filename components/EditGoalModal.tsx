@@ -77,6 +77,7 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) 
           </div>
           <input 
             type="number" 
+            onWheel={e => e.currentTarget.blur()}
             min="0.01" 
             step="0.01" 
             placeholder="Target Amount" 

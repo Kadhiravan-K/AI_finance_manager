@@ -11,22 +11,22 @@ const STEPS = [
   {
     target: '.themed-header',
     title: 'The Header',
-    content: 'Access the main menu, search, notifications, and other quick actions from here.',
+    content: 'Quickly access your accounts, global search, and the powerful AI Hub from here.',
     position: 'bottom',
     padding: 4,
   },
   {
-    target: 'header button[aria-label="Open navigation menu"]',
-    title: 'All Your Tools',
-    content: 'Tap here to find every tool and screen available, like Trip Management, Investments, and more!',
+    target: 'header button[aria-label="Open AI Hub"]',
+    title: 'AI Financial Coach',
+    content: 'Tap here to chat with an AI, run financial simulations, or get smart suggestions!',
     position: 'bottom',
     padding: 8,
     isCircle: true,
   },
   {
-    target: '.interactive-fab-container',
+    target: '.footer-add-button',
     title: 'The "Magic" Button',
-    content: 'Start here to quickly add transactions and see the AI work its magic!',
+    content: 'This is the fastest way to add transactions. Paste a message or type a short phrase and let the AI do the work!',
     position: 'top',
     padding: 8,
     isCircle: true,
@@ -63,16 +63,13 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
           setGuideRect(guideRef.current.getBoundingClientRect());
         }
       } else {
-        // If element not found, skip to next step or finish
-        if (stepIndex < STEPS.length - 1) {
-            setStepIndex(s => s + 1);
-        } else {
-            onFinish();
-        }
+        // If element not found, it might not be rendered yet, retry
+        console.warn(`Onboarding guide couldn't find target: ${currentStep.target}`);
+        setTimeout(updateRect, 200);
       }
     };
 
-    // Use a timeout to ensure the element is rendered, especially for the FAB
+    // Use a timeout to ensure the element is rendered, especially for animated elements
     const timerId = setTimeout(updateRect, 100);
     window.addEventListener('resize', updateRect);
     
@@ -80,11 +77,12 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
       clearTimeout(timerId);
       window.removeEventListener('resize', updateRect);
     };
-  }, [currentStep, stepIndex, onFinish, guideRect]);
+  }, [currentStep, guideRect]);
 
   const handleNext = () => {
     if (stepIndex < STEPS.length - 1) {
       setGuideRect(null); // Reset guide rect to recalculate for next step
+      setTargetRect(null); // Reset target rect to ensure recalculation
       setStepIndex(stepIndex + 1);
     } else {
       onFinish();
@@ -96,7 +94,6 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
       width: 'calc(100% - 32px)',
       maxWidth: '320px',
       zIndex: 101,
-      transition: 'top 0.3s ease, bottom 0.3s ease, left 0.3s ease, opacity 0.3s ease',
       transform: 'none',
   };
 
@@ -144,12 +141,12 @@ const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onFinish }) => {
 
   const guideContent = (
     <div 
-      className="fixed inset-0 bg-slate-900/80 z-[100] transition-all duration-300" 
-      style={targetRect ? clipPathStyle : { opacity: 0 }}
+      className="onboarding-overlay fixed inset-0 bg-slate-900/80 z-[100]" 
+      style={targetRect ? clipPathStyle : { opacity: 0, pointerEvents: 'none' }}
     >
       <div
         ref={guideRef}
-        className="glass-card rounded-lg shadow-lg text-primary animate-fadeInUp"
+        className="onboarding-guide-popover glass-card rounded-lg shadow-lg text-primary animate-fadeInUp"
         style={guideStyle}
       >
         <div className="p-4">

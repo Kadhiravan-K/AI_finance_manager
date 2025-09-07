@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift, ShopType, Category, PaymentMethod, HeldBill } from '../types';
+import { Shop, ShopProduct, ShopSale, ShopSaleItem, ShopEmployee, ShopShift, ShopType, Category, PaymentMethod, HeldBill, ActiveModal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
@@ -17,22 +17,27 @@ type ShopView = 'analytics' | 'billing' | 'products' | 'employees' | 'shifts';
 
 // Form for creating/editing a product
 const ProductForm: React.FC<{
+    shop: Shop,
     product: ShopProduct | null, 
     onSave: (productData: Omit<ShopProduct, 'id' | 'shopId'>, id?: string) => void, 
     onCancel: () => void,
     categories: Category[]
-}> = ({ product, onSave, onCancel, categories }) => {
+}> = ({ shop, product, onSave, onCancel, categories }) => {
     const [formState, setFormState] = useState({
         name: product?.name || '',
         description: product?.description || '',
         tags: product?.tags?.join(', ') || '',
         qrCode: product?.qrCode || '',
-        stockQuantity: product?.stockQuantity.toString() || '0',
-        lowStockThreshold: product?.lowStockThreshold?.toString() || '0',
-        purchasePrice: product?.purchasePrice.toString() || '0',
-        sellingPrice: product?.sellingPrice.toString() || '0',
+        stockQuantity: product?.stockQuantity.toString() || '',
+        lowStockThreshold: product?.lowStockThreshold?.toString() || '',
+        purchasePrice: product?.purchasePrice.toString() || '',
+        sellingPrice: product?.sellingPrice.toString() || '',
         categoryId: product?.categoryId || ''
     });
+    
+    const isRetail = ['physical_retail', 'online_ecommerce', 'garage_sale'].includes(shop.type);
+    const isRental = shop.type === 'rental_business';
+    const isService = shop.type === 'freelance_service';
 
     const handleChange = (field: keyof typeof formState, value: string) => {
         setFormState(prev => ({ ...prev, [field]: value }));
@@ -60,20 +65,24 @@ const ProductForm: React.FC<{
 
     return (
         <form onSubmit={handleSubmit} className="p-4 border-t border-divider bg-subtle space-y-3">
-            <h4 className="font-semibold text-primary">{product ? 'Edit Product' : 'Create New Product'}</h4>
-            <input type="text" value={formState.name} onChange={e => handleChange('name', e.target.value)} placeholder="Product Name" className="w-full input-base p-2 rounded-md" required/>
+            <h4 className="font-semibold text-primary">{product ? `Edit ${isService ? 'Service' : 'Product'}` : `Create New ${isService ? 'Service' : 'Product'}`}</h4>
+            <input type="text" value={formState.name} onChange={e => handleChange('name', e.target.value)} placeholder={isService ? 'Service Name' : 'Product Name'} className="w-full input-base p-2 rounded-md" required/>
             <textarea value={formState.description} onChange={e => handleChange('description', e.target.value)} placeholder="Description (optional)" rows={2} className="w-full input-base p-2 rounded-md resize-none" />
             <div className="grid grid-cols-2 gap-3">
                 <input type="text" value={formState.tags} onChange={e => handleChange('tags', e.target.value)} placeholder="Tags (comma-separated)" className="w-full input-base p-2 rounded-md" />
-                <input type="text" value={formState.qrCode} onChange={e => handleChange('qrCode', e.target.value)} placeholder="Barcode/QR (Optional)" className="w-full input-base p-2 rounded-md" />
+                {isRetail && <input type="text" value={formState.qrCode} onChange={e => handleChange('qrCode', e.target.value)} placeholder="Barcode/QR (Optional)" className="w-full input-base p-2 rounded-md" />}
             </div>
+            
+            {!isService && (
+                 <div className="grid grid-cols-2 gap-3">
+                    <input type="number" onWheel={e => e.currentTarget.blur()} value={formState.stockQuantity} onChange={e => handleChange('stockQuantity', e.target.value)} placeholder={isRental ? 'Available Units' : 'Stock Quantity'} className="w-full input-base p-2 rounded-md no-spinner" />
+                    {isRetail && <input type="number" onWheel={e => e.currentTarget.blur()} value={formState.lowStockThreshold} onChange={e => handleChange('lowStockThreshold', e.target.value)} placeholder="Low Stock Alert Level" className="w-full input-base p-2 rounded-md no-spinner" />}
+                </div>
+            )}
+
              <div className="grid grid-cols-2 gap-3">
-                <input type="number" value={formState.stockQuantity} onChange={e => handleChange('stockQuantity', e.target.value)} placeholder="Stock Quantity" className="w-full input-base p-2 rounded-md no-spinner" />
-                <input type="number" value={formState.lowStockThreshold} onChange={e => handleChange('lowStockThreshold', e.target.value)} placeholder="Low Stock Alert Level" className="w-full input-base p-2 rounded-md no-spinner" />
-            </div>
-             <div className="grid grid-cols-2 gap-3">
-                <input type="text" inputMode="decimal" value={formState.purchasePrice} onChange={e => handleChange('purchasePrice', e.target.value)} placeholder="Purchase Price (e.g. 10.50)" className="w-full input-base p-2 rounded-md no-spinner" />
-                <input type="text" inputMode="decimal" value={formState.sellingPrice} onChange={e => handleChange('sellingPrice', e.target.value)} placeholder="Selling Price (e.g. 15.00)" className="w-full input-base p-2 rounded-md no-spinner" />
+                {isRetail && <input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={formState.purchasePrice} onChange={e => handleChange('purchasePrice', e.target.value)} placeholder="Purchase Price" className="w-full input-base p-2 rounded-md no-spinner" />}
+                <input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={formState.sellingPrice} onChange={e => handleChange('sellingPrice', e.target.value)} placeholder={isRental ? "Price Per Rental" : (isService ? "Service Price" : "Selling Price")} className="w-full input-base p-2 rounded-md no-spinner" />
             </div>
             <div>
                  <label className="text-sm font-medium text-secondary mb-1">Category</label>
@@ -286,12 +295,12 @@ const BillingView: React.FC<{
     };
 
     return (
-        <div className="flex flex-col md:flex-row h-full gap-4">
+        <div className="h-full flex flex-col md:flex-row gap-4 overflow-hidden">
              {showPaymentModal && <PaymentModal total={totalAmount} shop={shop} onFinalize={handleFinalizeSale} onClose={() => setShowPaymentModal(false)} />}
              {showHeldBills && <HeldBillsModal bills={heldBills} onRestore={handleRestoreBill} onClose={() => setShowHeldBills(false)} />}
 
             {/* Left side: Product selection */}
-            <div className="w-full md:w-1/2 lg:w-3/5 flex flex-col min-h-0">
+            <div className="w-full md:w-3/5 flex flex-col min-h-0">
                 <input type="search" value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products by name or barcode..." className="w-full input-base p-2 rounded-lg mb-3 flex-shrink-0" />
                 <div className="pos-category-tabs flex-shrink-0">
                     <button onClick={() => setActiveCategoryId('all')} className={`pos-category-tab ${activeCategoryId === 'all' ? 'active' : ''}`}>All</button>
@@ -315,7 +324,7 @@ const BillingView: React.FC<{
             </div>
 
             {/* Right side: Bill/Cart */}
-            <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col bg-subtle p-3 rounded-lg border border-divider min-h-0">
+            <div className="w-full md:w-2/5 flex flex-col bg-subtle p-3 rounded-lg border border-divider min-h-0">
                 <div className="grid grid-cols-2 gap-2 mb-2 flex-shrink-0">
                     <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Customer Name (Optional)" className="w-full input-base p-2 rounded-lg" />
                     <CustomSelect value={employeeId} onChange={setEmployeeId} options={[{value: '', label: 'No Employee'},...employees.map(e => ({ value: e.id, label: e.name }))]} />
@@ -346,7 +355,7 @@ const BillingView: React.FC<{
                      <div className="flex justify-between items-center">
                         <span className="text-secondary">Discount</span>
                         <div className="flex items-center gap-2">
-                            <input type="text" inputMode="decimal" value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="w-20 input-base p-1 rounded-md text-right no-spinner" />
+                            <input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="w-20 input-base p-1 rounded-md text-right no-spinner" />
                             <div className="flex items-center gap-1 p-0.5 rounded-full bg-subtle border border-divider">
                                 <button onClick={() => setDiscountType('flat')} className={`px-3 py-1 text-xs rounded-full ${discountType === 'flat' ? 'bg-emerald-500 text-white' : ''}`}>Flat</button>
                                 <button onClick={() => setDiscountType('percentage')} className={`px-3 py-1 text-xs rounded-full ${discountType === 'percentage' ? 'bg-emerald-500 text-white' : ''}`}>%</button>
@@ -485,11 +494,14 @@ const AnalyticsView: React.FC<{
     );
 };
 
-const ShiftForm: React.FC<{
+interface ShiftFormProps {
     shift: ShopShift | null,
     onSave: (data: Omit<ShopShift, 'id'|'shopId'>, id?: string) => void,
-    onCancel: () => void
-}> = ({ shift, onSave, onCancel }) => {
+    onCancel: () => void,
+    openModal: (name: ActiveModal, props?: Record<string, any>) => void,
+}
+
+const ShiftForm: React.FC<ShiftFormProps> = ({ shift, onSave, onCancel, openModal }) => {
     const [formState, setFormState] = useState({
         name: shift?.name || '',
         startTime: shift?.startTime || '09:00',
@@ -508,8 +520,8 @@ const ShiftForm: React.FC<{
             <h4 className="font-semibold text-primary">{shift ? 'Edit Shift' : 'Create New Shift'}</h4>
             <input type="text" value={formState.name} onChange={e => setFormState(p => ({...p, name: e.target.value}))} placeholder="Shift Name (e.g., Morning)" className="w-full input-base p-2 rounded-md" required />
             <div className="grid grid-cols-2 gap-3">
-                <input type="time" value={formState.startTime} onChange={e => setFormState(p => ({...p, startTime: e.target.value}))} className="w-full input-base p-2 rounded-md" />
-                <input type="time" value={formState.endTime} onChange={e => setFormState(p => ({...p, endTime: e.target.value}))} className="w-full input-base p-2 rounded-md" />
+                 <button type="button" onClick={() => openModal('timePicker', { initialTime: formState.startTime, onSave: (t: string) => setFormState(p=>({...p, startTime: t})) })} className="w-full input-base p-2 rounded-md">{formState.startTime}</button>
+                 <button type="button" onClick={() => openModal('timePicker', { initialTime: formState.endTime, onSave: (t: string) => setFormState(p=>({...p, endTime: t})) })} className="w-full input-base p-2 rounded-md">{formState.endTime}</button>
             </div>
             <div className="flex justify-end gap-2">
                 <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
@@ -551,7 +563,7 @@ const EmployeeForm: React.FC<{
             <input type="text" value={formState.name} onChange={e => setFormState(p => ({...p, name: e.target.value}))} placeholder="Employee Name" className="w-full input-base p-2 rounded-md" required />
             <input type="text" value={formState.contactInfo} onChange={e => setFormState(p => ({...p, contactInfo: e.target.value}))} placeholder="Contact Info (Optional)" className="w-full input-base p-2 rounded-md" />
              <div className="grid grid-cols-2 gap-3">
-                <input type="number" value={formState.salary} onChange={e => setFormState(p => ({...p, salary: e.target.value}))} placeholder="Salary (Optional)" className="w-full input-base p-2 rounded-md no-spinner" />
+                <input type="number" onWheel={e => e.currentTarget.blur()} value={formState.salary} onChange={e => setFormState(p => ({...p, salary: e.target.value}))} placeholder="Salary (Optional)" className="w-full input-base p-2 rounded-md no-spinner" />
                 <CustomSelect value={formState.shiftId} onChange={val => setFormState(p => ({...p, shiftId: val}))} options={shiftOptions} />
             </div>
             <div className="flex justify-end gap-2">
@@ -579,6 +591,7 @@ interface ShopScreenProps {
     onDeleteEmployee: (id: string) => void;
     onSaveShift: (shopId: string, shift: Omit<ShopShift, 'id' | 'shopId'>, id?: string) => void;
     onDeleteShift: (id: string) => void;
+    openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
 interface ShopDetailViewProps extends ShopScreenProps {
@@ -587,7 +600,7 @@ interface ShopDetailViewProps extends ShopScreenProps {
 }
 
 const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
-    const { shop, products, sales, employees, shifts, onBack, onSaveProduct, onDeleteProduct, onRecordSale, onSaveEmployee, onDeleteEmployee, onSaveShift, onDeleteShift } = props;
+    const { shop, products, sales, employees, shifts, onBack, onSaveProduct, onDeleteProduct, onRecordSale, onSaveEmployee, onDeleteEmployee, onSaveShift, onDeleteShift, openModal } = props;
     const [view, setView] = useState<ShopView>('billing');
     const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null);
     const [showProductForm, setShowProductForm] = useState(false);
@@ -650,7 +663,7 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
                         </div>
                     ))}
                     <button onClick={() => { setEditingProduct(null); setShowProductForm(true); }} className="w-full button-secondary py-2 mt-2">+ Add Product</button>
-                    {showProductForm && <ProductForm product={editingProduct} onSave={handleSaveProd} onCancel={() => { setShowProductForm(false); setEditingProduct(null); }} categories={categories} />}
+                    {showProductForm && <ProductForm shop={shop} product={editingProduct} onSave={handleSaveProd} onCancel={() => { setShowProductForm(false); setEditingProduct(null); }} categories={categories} />}
                 </div>
             );
             case 'employees': return (
@@ -674,7 +687,7 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
                      {shifts.length === 0 && (
                         <button onClick={handleAddDefaultShifts} className="w-full button-secondary py-2 mt-2">Add Default Shifts</button>
                     )}
-                    {showShiftForm && <ShiftForm shift={editingShift} onSave={handleSaveSh} onCancel={() => { setShowShiftForm(false); setEditingShift(null); }} />}
+                    {showShiftForm && <ShiftForm shift={editingShift} onSave={handleSaveSh} onCancel={() => { setShowShiftForm(false); setEditingShift(null); }} openModal={openModal} />}
                 </div>
             );
             default: return null;
@@ -693,7 +706,7 @@ const ShopDetailView: React.FC<ShopDetailViewProps> = (props) => {
                     <TabButton tab="shifts" label="Shifts" />
                 </div>
             </div>
-            <div className={`flex-grow ${view === 'billing' ? 'p-4 overflow-hidden' : 'overflow-y-auto p-4'}`}>
+            <div className={`flex-grow overflow-hidden ${view === 'billing' ? 'p-4' : 'overflow-y-auto p-4'}`}>
                 {renderView()}
             </div>
         </div>
@@ -739,6 +752,18 @@ const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => 
         handleCancel();
     };
 
+    const StatCard = ({ title, value, icon, colorClass }: { title: string, value: string, icon: string, colorClass: string }) => (
+        <div className="p-3 bg-subtle rounded-lg flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${colorClass}/20`}>
+                <span className={`text-xl ${colorClass}`}>{icon}</span>
+            </div>
+            <div>
+                <p className="text-xs text-secondary">{title}</p>
+                <p className="text-lg font-bold text-primary">{value}</p>
+            </div>
+        </div>
+    );
+
     return (
         <div className="h-full flex flex-col">
             <div className="p-4 border-b border-divider flex-shrink-0">
@@ -751,23 +776,25 @@ const ShopDashboard: React.FC<ShopScreenProps & { onSelectShop: (id: string) => 
                     const shopSalesData = sales.filter(s => s.shopId === shop.id);
                     const shopSalesCount = shopSalesData.length;
                     const totalProfit = shopSalesData.reduce((sum, s) => sum + s.profit, 0);
+                    const totalRevenue = shopSalesData.reduce((sum, s) => sum + s.totalAmount, 0);
 
                     return (
-                        <div key={shop.id} onClick={() => onSelectShop(shop.id)} className="glass-card p-4 rounded-xl group cursor-pointer flex flex-col justify-between">
-                            <div>
-                                <div className="flex justify-between items-start">
+                        <div key={shop.id} onClick={() => onSelectShop(shop.id)} className="glass-card p-4 rounded-xl group cursor-pointer flex flex-col gap-3">
+                            <div className="flex justify-between items-start">
+                                <div>
                                     <h3 className="font-bold text-lg text-primary">{shop.name}</h3>
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                        <button onClick={(e) => { e.stopPropagation(); handleEdit(shop); }} className="text-xs text-sky-400 hover:brightness-125 px-2 py-1 rounded-full transition-colors bg-subtle hover-bg-stronger">Edit</button>
-                                        <button onClick={(e) => { e.stopPropagation(); onDeleteShop(shop.id); }} className="text-xs text-rose-400 hover:brightness-125 px-2 py-1 rounded-full transition-colors bg-subtle hover-bg-stronger">Delete</button>
-                                    </div>
+                                    <p className="text-xs text-secondary capitalize">{shop.type.replace('_', ' ')}</p>
                                 </div>
-                                <p className="text-xs text-secondary capitalize">{shop.type.replace('_', ' ')}</p>
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                    <button onClick={(e) => { e.stopPropagation(); handleEdit(shop); }} className="text-xs text-sky-400 hover:brightness-125 px-2 py-1 rounded-full transition-colors bg-subtle hover-bg-stronger">Edit</button>
+                                    <button onClick={(e) => { e.stopPropagation(); onDeleteShop(shop.id); }} className="text-xs text-rose-400 hover:brightness-125 px-2 py-1 rounded-full transition-colors bg-subtle hover-bg-stronger">Delete</button>
+                                </div>
                             </div>
-                            <div className="mt-4 pt-2 border-t border-divider grid grid-cols-3 text-center">
-                                <div><p className="text-xs text-secondary">Products</p><p className="font-bold text-primary">{shopProductsCount}</p></div>
-                                <div><p className="text-xs text-secondary">Sales</p><p className="font-bold text-primary">{shopSalesCount}</p></div>
-                                <div><p className="text-xs text-secondary">Profit</p><p className="font-bold text-emerald-400">{formatCurrency(totalProfit)}</p></div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} icon="💰" colorClass="text-emerald-400" />
+                                <StatCard title="Total Profit" value={formatCurrency(totalProfit)} icon="💸" colorClass="text-green-400" />
+                                <StatCard title="Total Sales" value={shopSalesCount.toString()} icon="🧾" colorClass="text-sky-400" />
+                                <StatCard title="Products" value={shopProductsCount.toString()} icon="📦" colorClass="text-violet-400" />
                             </div>
                         </div>
                     );
@@ -820,7 +847,7 @@ const PaymentModal: React.FC<{
                     </div>
                     {method === 'cash' && (
                         <div className="space-y-3 animate-fadeInUp">
-                            <input type="text" inputMode="decimal" value={cashPaid} onChange={e => setCashPaid(e.target.value)} placeholder="Cash Received" className="w-full input-base p-2 rounded-lg text-center text-lg" autoFocus />
+                            <input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={cashPaid} onChange={e => setCashPaid(e.target.value)} placeholder="Cash Received" className="w-full input-base p-2 rounded-lg text-center text-lg" autoFocus />
                             <div className="flex gap-2 justify-center">
                                 {quickCashOptions.map(val => <button key={val} onClick={() => setCashPaid(val.toString())} className="button-secondary text-xs px-3 py-1.5">{formatCurrency(val)}</button>)}
                             </div>

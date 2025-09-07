@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-// Fix: Import ActiveModal and Priority to use in props and component logic.
 import { RecurringTransaction, Category, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
@@ -10,9 +9,7 @@ interface ScheduledPaymentsScreenProps {
   onAdd: () => void;
   onEdit: (item: RecurringTransaction) => void;
   onDelete: (id: string) => void;
-  // Fix: Add missing onUpdate prop to handle priority changes.
   onUpdate: (item: RecurringTransaction) => void;
-  // Fix: Add missing openModal prop to match usage in StoryGenerator.tsx.
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 

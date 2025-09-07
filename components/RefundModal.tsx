@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Transaction, Account, Refund, Contact } from '../types';
+import { Transaction, Account, Refund, Contact, ActiveModal } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -17,9 +17,10 @@ interface RefundModalProps {
   refunds: Refund[];
   onClose: () => void;
   onSave: (refundData: Omit<Refund, 'id' | 'isClaimed' | 'claimedDate'>, id?: string) => void;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
-const RefundModal: React.FC<RefundModalProps> = ({ refund, originalTransaction, allTransactions, accounts, contacts, refunds, onClose, onSave }) => {
+const RefundModal: React.FC<RefundModalProps> = ({ refund, originalTransaction, allTransactions, accounts, contacts, refunds, onClose, onSave, openModal }) => {
   const isEditing = !!refund;
   
   const [linkedTx, setLinkedTx] = useState<Transaction | null>(null);
@@ -191,7 +192,9 @@ const RefundModal: React.FC<RefundModalProps> = ({ refund, originalTransaction, 
               <label className="text-sm text-secondary mb-1 block">Expected By (Optional)</label>
               <div className="flex gap-2">
                   <CustomDatePicker value={expectedDate} onChange={setExpectedDate}/>
-                  <input type="time" value={expectedTime} onChange={e => setExpectedTime(e.target.value)} className="w-full input-base p-2 rounded-lg" disabled={!expectedDate} />
+                  <button type="button" onClick={() => openModal('timePicker', { initialTime: expectedTime, onSave: setExpectedTime })} disabled={!expectedDate} className="w-full input-base p-2 rounded-lg">
+                    {expectedTime}
+                  </button>
               </div>
             </div>
 

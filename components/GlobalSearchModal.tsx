@@ -4,6 +4,7 @@ import { ActiveModal, ActiveScreen, AppState } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import LoadingSpinner from './LoadingSpinner';
+import { getCategoryPath } from '../utils/categories';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -71,7 +72,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       settings: settingsContext.settings,
       achievements: dataContext.unlockedAchievements,
       streaks: dataContext.streaks,
-      // Fix: Add missing 'challenges' property to satisfy AppState type.
       challenges: dataContext.challenges,
       trips: dataContext.trips,
       tripExpenses: dataContext.tripExpenses,
@@ -85,6 +85,8 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       shopShifts: dataContext.shopShifts,
       shoppingLists: dataContext.shoppingLists,
       glossaryEntries: dataContext.glossaryEntries,
+      // Fix: Add missing 'debts' property.
+      debts: dataContext.debts,
     };
   }, [dataContext, settingsContext]);
 
@@ -108,7 +110,11 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
     );
     
     const transactions = (appState.transactions || [])
-      .filter(t => t.description.toLowerCase().includes(q))
+      .filter(t => 
+        t.description.toLowerCase().includes(q) ||
+        t.notes?.toLowerCase().includes(q) ||
+        getCategoryPath(t.categoryId, appState.categories).toLowerCase().includes(q)
+      )
       .slice(0, 5);
 
     const trips = (appState.trips || [])
@@ -133,7 +139,7 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
     </div>
   );
 
-  const hasResults = searchResults.screens.length > 0 || searchResults.transactions.length > 0 || searchResults.trips.length > 0 || searchResults.goals.length > 0;
+  const hasResults = searchResults.screens.length > 0 || searchResults.transactions.length > 0 || searchResults.trips.length > 0 || searchResults.goals.length > 0 || searchResults.shoppingLists.length > 0;
 
   return ReactDOM.createPortal(
     <>
@@ -164,13 +170,13 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
                 ))}
               </SearchResultSection>
             )}
-            {searchResults.transactions.length > 0 && (
+            {searchResults.transactions.length > 0 && appState && (
               <SearchResultSection title="Transactions">
                 {searchResults.transactions.map(t => (
                   <button key={t.id} onClick={() => handleNavigate('dashboard', 'editTransaction', { transaction: t })} className="w-full flex items-center justify-between gap-4 p-3 text-left rounded-lg hover-bg-stronger transition-colors">
                     <div>
                       <p className="font-medium text-primary">{t.description}</p>
-                      <p className="text-xs text-secondary">{new Date(t.date).toLocaleDateString()}</p>
+                      <p className="text-xs text-secondary">{new Date(t.date).toLocaleDateString()} &bull; {getCategoryPath(t.categoryId, appState.categories)}</p>
                     </div>
                     <span className={`font-semibold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>{formatCurrency(t.amount)}</span>
                   </button>

@@ -34,7 +34,6 @@ const AIChatModal: React.FC<AIChatModalProps> = ({ onClose, appState }) => {
     if (!message.trim() || isLoading) return;
 
     const userMessage = message;
-    // Fix: Corrected property from 'parts' to 'text' for consistency.
     const currentHistory = history.map(h => ({ role: h.role, text: h.text }));
     
     setHistory(prev => [...prev, { role: 'user', text: userMessage }]);
@@ -42,7 +41,6 @@ const AIChatModal: React.FC<AIChatModalProps> = ({ onClose, appState }) => {
     setIsLoading(true);
 
     try {
-      // The service function expects a specific format for history
       const response = await getAIChatResponse(appState, userMessage, currentHistory);
       setHistory(prev => [...prev, { role: 'model', text: response }]);
     } catch (err) {

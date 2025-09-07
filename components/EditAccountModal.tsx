@@ -70,6 +70,7 @@ const EditAccountModal: React.FC<EditAccountModalProps> = ({ account, onSave, on
               <label className="text-sm text-secondary mb-1 block">Credit Limit (Optional)</label>
               <input
                 type="number"
+                onWheel={e => e.currentTarget.blur()}
                 value={formData.creditLimit || ''}
                 onChange={e => setFormData(p => ({ ...p, creditLimit: parseFloat(e.target.value) || undefined }))}
                 className="w-full input-base p-2 rounded-lg no-spinner"

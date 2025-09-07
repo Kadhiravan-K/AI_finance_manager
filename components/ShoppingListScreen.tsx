@@ -1,18 +1,17 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
-// Fix: Import ActiveModal to use in props.
-import { ShoppingList, ShoppingListItem, ItemType, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
+import { ShoppingList, ShoppingListItem, ItemType, Priority, AppliedViewOptions, ViewOptions, ActiveModal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomCheckbox from './CustomCheckbox';
 import EmptyState from './EmptyState';
 
 interface ShoppingListScreenProps {
   onCreateExpense: (list: ShoppingList) => void;
-  // Fix: Add missing openModal prop to match usage in StoryGenerator.tsx.
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+  onDeleteItem: (id: string, itemType: ItemType) => void;
 }
 
-export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreateExpense, openModal }) => {
+export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreateExpense, openModal, onDeleteItem }) => {
   const dataContext = useContext(AppDataContext);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const formatCurrency = useCurrencyFormatter();
@@ -24,7 +23,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
 
   if (!dataContext) return <div>Loading...</div>;
 
-  const { shoppingLists, setShoppingLists, deleteItem } = dataContext;
+  const { shoppingLists, setShoppingLists } = dataContext;
 
   const sortedLists = useMemo(() => {
     let result = [...(shoppingLists || [])];
@@ -83,7 +82,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
   };
   
   const handleDeleteList = (id: string) => {
-      deleteItem(id, 'shoppingList');
+      const list = (shoppingLists || []).find(l => l.id === id);
+      if (list) {
+          onDeleteItem(id, 'shoppingList');
+      }
       if (selectedListId === id) {
           setSelectedListId(null);
       }
@@ -185,33 +187,33 @@ interface ShoppingListDetailViewProps {
 const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, onSave, onBack, onCreateExpense }) => {
   const [currentList, setCurrentList] = useState<ShoppingList>(list);
   const formatCurrency = useCurrencyFormatter();
+  const formatNumber = useCurrencyFormatter({ style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
 
-  const formatCompactNumber = (num: number): string => {
-    if (num === 0) return '0.00';
-    if (num < 1000) return num.toFixed(2);
-    const formatter = new Intl.NumberFormat('en', {
-        notation: 'compact',
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1
-    });
-    return formatter.format(num);
-  };
-  
   const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
-  const priorityStyles: Record<Priority, { icon: string; colorClass: string; borderColorClass: string; buttonClass: string; }> = {
-    'High': { icon: '🔴', colorClass: 'text-rose-400', borderColorClass: 'border-rose-500/50', buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
-    'Medium': { icon: '🟡', colorClass: 'text-yellow-400', borderColorClass: 'border-yellow-500/50', buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
-    'Low': { icon: '🟢', colorClass: 'text-green-400', borderColorClass: 'border-green-500/50', buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
-    'None': { icon: '⚪', colorClass: 'text-slate-500', borderColorClass: 'border-transparent', buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
+  const priorityStyles: Record<Priority, { dotClass: string }> = {
+    'High': { dotClass: 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.7)]' },
+    'Medium': { dotClass: 'bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.7)]' },
+    'Low': { dotClass: 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' },
+    'None': { dotClass: 'bg-slate-600 border border-slate-500' },
   };
+  const priorityBarColors: Record<Priority, string> = {
+    'High': 'bg-rose-500',
+    'Medium': 'bg-yellow-400',
+    'Low': 'bg-emerald-400',
+    'None': 'bg-transparent',
+  };
+
 
   useEffect(() => {
     setCurrentList(list);
   }, [list]);
 
   const total = useMemo(() => currentList.items.reduce((sum, item) => sum + (item.rate || 0), 0), [currentList.items]);
+  const totalItemCount = currentList.items.length;
   const purchasedTotal = useMemo(() => currentList.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0), [currentList.items]);
+  const purchasedItemCount = useMemo(() => currentList.items.filter(i => i.isPurchased).length, [currentList.items]);
+
 
   const sortedItems = useMemo(() => {
     const priorityOrder: Record<Priority, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'None': 3 };
@@ -292,11 +294,13 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
             <div className="text-sm font-semibold text-secondary text-center px-1">Qty</div>
             <div className="text-sm font-semibold text-secondary text-center" title="Priority">Priority</div>
             <div className="text-sm font-semibold text-secondary text-right px-1">Rate</div>
+            <div></div>
           </div>
         {sortedItems.map(item => {
           const itemPriority = item.priority || 'None';
           return (
-            <div key={item.id} className={`shopping-list-item-grid group p-2 rounded-lg hover-bg-stronger border-l-4 transition-colors ${priorityStyles[itemPriority].borderColorClass}`}>
+            <div key={item.id} className={`shopping-list-item-grid group p-2 rounded-lg hover-bg-stronger relative pl-4`}>
+              <div className={`absolute left-1.5 top-2 bottom-2 w-1 rounded-full ${priorityBarColors[itemPriority]}`}></div>
               <CustomCheckbox id={item.id} label="" checked={item.isPurchased} onChange={checked => {
                   handleItemChange(item.id, 'isPurchased', checked);
               }} />
@@ -317,34 +321,41 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
                 <button
                     type="button"
                     onClick={() => handlePriorityChange(item.id)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${priorityStyles[itemPriority].buttonClass}`}
+                    className={`w-4 h-4 rounded-full transition-all duration-200 hover:scale-125 ${priorityStyles[itemPriority].dotClass}`}
                     title={`Set Priority: ${itemPriority}`}
                 >
-                    <span className="text-lg">{priorityStyles[itemPriority].icon}</span>
+                    <span className="sr-only">Set Priority: {itemPriority}</span>
                 </button>
               </div>
-              <div className="flex items-center justify-end">
+              
+              <div className="w-full h-full">
                 {editingRateId === item.id ? (
                   <input
                     type="number"
-                    value={item.rate || ''}
-                    onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                    onBlur={() => setEditingRateId(null)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setEditingRateId(null); } }}
-                    className="shopping-list-item-input rate no-spinner"
+                    onWheel={e => e.currentTarget.blur()}
+                    defaultValue={item.rate || ''}
+                    onBlur={e => {
+                      handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0);
+                      setEditingRateId(null);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } 
+                      else if (e.key === 'Escape') { setEditingRateId(null); }
+                    }}
+                    className={`shopping-list-item-input rate no-spinner text-primary`}
                     autoFocus
-                    onFocus={e => e.target.select()}
                   />
                 ) : (
-                  <span 
-                    onClick={() => setEditingRateId(item.id)} 
-                    className={`p-1 cursor-pointer w-full text-right ${item.isPurchased ? 'line-through text-secondary' : 'text-primary'}`}
+                  <div
+                    onClick={() => setEditingRateId(item.id)}
+                    className={`w-full h-full flex items-center justify-end text-right px-1 cursor-pointer rounded-md ${item.isPurchased ? 'line-through text-secondary' : 'text-primary'}`}
                   >
-                    {formatCompactNumber(item.rate)}
-                  </span>
+                    {formatNumber(item.rate || 0)}
+                  </div>
                 )}
-                <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity ml-2">&times;</button>
               </div>
+
+              <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity justify-self-center text-xl font-bold">&times;</button>
             </div>
           )
         })}
@@ -353,15 +364,24 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
         </button>
       </div>
       <div className="p-4 border-t border-divider flex-shrink-0 space-y-3">
-        <div className="flex justify-between items-center text-lg font-bold">
-          <span className="text-secondary">Purchased Total:</span>
-          <span className="text-emerald-400">{formatCurrency(purchasedTotal)}</span>
+        <div className="space-y-2">
+            <div className="grid grid-cols-3 text-xs text-secondary font-semibold">
+                <span></span>
+                <span className="text-center">Items</span>
+                <span className="text-right">Amount</span>
+            </div>
+            <div className="grid grid-cols-3 items-center">
+                <span className="font-bold text-secondary">Purchased</span>
+                <span className="text-center font-mono text-primary">{purchasedItemCount}</span>
+                <span className="text-right font-bold text-lg text-emerald-400">{formatCurrency(purchasedTotal)}</span>
+            </div>
+             <div className="grid grid-cols-3 items-center">
+                <span className="font-bold text-secondary">List Total</span>
+                <span className="text-center font-mono text-primary">{totalItemCount}</span>
+                <span className="text-right font-bold text-lg text-primary">{formatCurrency(total)}</span>
+            </div>
         </div>
-         <div className="flex justify-between items-center text-sm font-bold">
-          <span className="text-secondary">List Total:</span>
-          <span className="text-primary">{formatCurrency(total)}</span>
-        </div>
-         <button onClick={handleCreateExpenseClick} className="w-full button-secondary py-2" disabled={purchasedTotal === 0}>Create Expense from List</button>
+         <button onClick={handleCreateExpenseClick} className="w-full button-secondary py-2 mt-2" disabled={purchasedTotal === 0}>Create Expense from List</button>
       </div>
     </div>
   );

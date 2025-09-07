@@ -4,8 +4,9 @@
 
 
 
+
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction } from 'react';
-import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt } from '../types';
+import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType } from '../types';
 import FinanceDisplay from './StoryDisplay';
 import ReportsScreen from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
@@ -30,7 +31,6 @@ import ManualScreen from './ManualScreen';
 import { AppDataContext } from '../contexts/SettingsContext';
 import { parseNaturalLanguageQuery } from '../services/geminiService';
 import { calculateNextDueDate } from '../utils/date';
-import DebtManagerScreen from './DebtManagerScreen';
 
 
 interface MainContentProps {
@@ -81,7 +81,6 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
     findOrCreateCategory,
     updateStreak,
     onUpdateTransaction,
-    setDebts,
   } = dataContext;
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
@@ -227,14 +226,6 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         return <ShoppingListScreen onCreateExpense={() => {}} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} />;
     case 'subscriptions':
       return <SubscriptionsScreen onAddRecurring={(data) => openModal('editRecurring', { recurringTransaction: data })} />;
-    case 'debtManager':
-      return <DebtManagerScreen debts={appState.debts} onAddDebt={() => openModal('editDebt')} onEditDebt={(debt) => openModal('editDebt', { debt })} onDeleteDebt={(id) => deleteItem(id, 'debt')} onSaveDebt={(debt, id) => {
-          if (id) {
-              setDebts((p: Debt[]) => p.map(d => d.id === id ? { ...d, ...debt } : d));
-          } else {
-              setDebts((p: Debt[]) => [...p, { ...debt, id: self.crypto.randomUUID(), currentBalance: debt.totalAmount }]);
-          }
-      }} />;
     case 'tripDetails':
       // Fix: Use the tripDetailsId prop directly instead of searching the modal stack.
       const trip = appState.trips.find(t => t.id === tripDetailsId);

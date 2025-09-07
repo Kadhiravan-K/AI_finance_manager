@@ -47,13 +47,7 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
         return newSet;
     });
   };
-
-  const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
-    <button onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
-        {children}
-    </button>
-  );
-
+  
   const dataModules: { key: keyof AppState; label: string }[] = [
     { key: 'transactions', label: 'Transactions' },
     { key: 'accounts', label: 'Accounts' },
@@ -75,6 +69,20 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
     { key: 'shopShifts', label: 'Shop Shifts' },
     { key: 'settings', label: 'App Settings' },
   ];
+
+  const handleToggleAll = () => {
+    if (selectedDataKeys.size === dataModules.length) {
+      setSelectedDataKeys(new Set()); // Deselect all
+    } else {
+      setSelectedDataKeys(new Set(dataModules.map(m => m.key))); // Select all
+    }
+  };
+
+  const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
+    <button onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+        {children}
+    </button>
+  );
 
   const modalContent = (
     <div
@@ -123,16 +131,23 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
                 <div className="animate-fadeInUp">
                     <h3 className="font-semibold text-lg text-primary mb-2">Advanced Export to JSON</h3>
                     <p className="text-sm text-secondary mb-4">Select the specific data modules you want to export. This is useful for creating custom backups or migrating parts of your data.</p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 rounded-lg bg-subtle border border-divider">
-                        {dataModules.map(module => (
-                            <CustomCheckbox 
-                                key={module.key}
-                                id={`export-${module.key}`}
-                                label={module.label}
-                                checked={selectedDataKeys.has(module.key)}
-                                onChange={checked => handleDataKeyToggle(module.key, checked)}
-                            />
-                        ))}
+                    <div className="p-3 rounded-lg bg-subtle border border-divider">
+                        <div className="flex justify-end pb-2 border-b border-divider">
+                            <button onClick={handleToggleAll} className="text-xs font-semibold text-sky-400 hover:text-sky-300">
+                                {selectedDataKeys.size === dataModules.length ? 'Deselect All' : 'Select All'}
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                            {dataModules.map(module => (
+                                <CustomCheckbox 
+                                    key={module.key}
+                                    id={`export-${module.key}`}
+                                    label={module.label}
+                                    checked={selectedDataKeys.has(module.key)}
+                                    onChange={checked => handleDataKeyToggle(module.key, checked)}
+                                />
+                            ))}
+                        </div>
                     </div>
                      <div className="flex justify-end pt-4">
                         <button

@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-// Fix: Import ActiveModal to use in props.
 import { Refund, Contact, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
@@ -10,7 +9,6 @@ interface RefundsScreenProps {
   onEditRefund: (refund: Refund) => void;
   onClaimRefund: (refundId: string) => void;
   onDeleteRefund: (refundId: string) => void;
-  // Fix: Add missing openModal prop to match usage in StoryGenerator.tsx.
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 

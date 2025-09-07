@@ -10,7 +10,7 @@ interface ModalHeaderProps {
 
 const ModalHeader: React.FC<ModalHeaderProps> = ({ title, onClose, onBack, icon, onSettingsClick }) => {
   return (
-    <div className="p-4 border-b border-divider flex-shrink-0 flex items-center relative themed-header sticky top-0 z-10 h-[69px]">
+    <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between relative themed-header sticky top-0 z-10 h-[69px]">
       <div className="absolute left-2 top-1/2 -translate-y-1/2">
         {onBack && (
           <button onClick={onBack} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors">

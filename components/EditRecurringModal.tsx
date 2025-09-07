@@ -1,132 +1,106 @@
 import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { RecurringTransaction, Category, Account, TransactionType, FrequencyUnit, ReminderUnit, Priority } from '../types';
+import { RecurringTransaction, Account, Category, TransactionType } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-import ToggleSwitch from './ToggleSwitch';
 
 const modalRoot = document.getElementById('modal-root')!;
 
 interface EditRecurringModalProps {
+  recurringTransaction?: Partial<RecurringTransaction>;
+  onSave: (data: Omit<RecurringTransaction, 'id'>, id?: string) => void;
   onClose: () => void;
-  onSave: (item: Omit<RecurringTransaction, 'id' | 'nextDueDate'> & { id?: string }) => void;
-  recurringTransaction?: RecurringTransaction;
-  categories: Category[];
   accounts: Account[];
+  categories: Category[];
 }
 
-const defaultFormState: Omit<RecurringTransaction, 'id' | 'nextDueDate'> = {
-  description: '', amount: 0, type: TransactionType.EXPENSE, categoryId: '', accountId: '', startDate: new Date().toISOString(), interval: 1, frequencyUnit: 'months', startTime: '09:00', priority: 'None'
-};
+const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ recurringTransaction, onSave, onClose, accounts, categories }) => {
+  const isCreating = !recurringTransaction?.id;
 
-const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ onClose, onSave, recurringTransaction, categories, accounts }) => {
-  const isEditing = !!recurringTransaction;
-
-  const getInitialState = () => {
-    if (recurringTransaction) {
-        return { ...recurringTransaction };
-    }
-    return { ...defaultFormState, accountId: accounts[0]?.id || '' };
-  };
-  
-  const [formState, setFormState] = useState(getInitialState());
-  const [isReminderOn, setIsReminderOn] = useState(!!recurringTransaction?.reminder);
-
-  const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
-  const priorityStyles: Record<Priority, { buttonClass: string; }> = {
-    'High': { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
-    'Medium': { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
-    'Low': { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
-    'None': { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
-  };
-
-  const handlePriorityChange = () => {
-    const currentPriority = formState.priority || 'None';
-    const currentIndex = priorities.indexOf(currentPriority);
-    const nextIndex = (currentIndex + 1) % priorities.length;
-    const nextPriority = priorities[nextIndex];
-    setFormState(p => ({...p, priority: nextPriority}));
-  };
+  const [formData, setFormData] = useState({
+    description: recurringTransaction?.description || '',
+    amount: recurringTransaction?.amount?.toString() || '',
+    type: recurringTransaction?.type || TransactionType.EXPENSE,
+    categoryId: recurringTransaction?.categoryId || '',
+    accountId: recurringTransaction?.accountId || accounts[0]?.id || '',
+    frequencyUnit: recurringTransaction?.frequencyUnit || 'months',
+    interval: recurringTransaction?.interval?.toString() || '1',
+    nextDueDate: new Date(recurringTransaction?.nextDueDate || new Date()),
+    endDate: recurringTransaction?.endDate ? new Date(recurringTransaction.endDate) : null,
+    notes: recurringTransaction?.notes || '',
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const startDate = new Date(formState.startDate);
-    const [hours, minutes] = (formState.startTime || '00:00').split(':').map(Number);
-    startDate.setHours(hours, minutes, 0, 0);
-
-    let finalFormState: any = { ...formState, startDate: startDate.toISOString() };
-    if (!isReminderOn) {
-        delete finalFormState.reminder;
+    const amount = parseFloat(formData.amount);
+    if (formData.description.trim() && amount > 0 && formData.categoryId && formData.accountId) {
+      onSave({
+        ...formData,
+        amount: amount,
+        interval: parseInt(formData.interval, 10) || 1,
+        nextDueDate: formData.nextDueDate.toISOString(),
+        endDate: formData.endDate?.toISOString()
+      }, recurringTransaction?.id);
+      onClose();
     }
-    
-    // Fix: Pass only the single item object to the onSave handler as expected.
-    onSave(finalFormState);
   };
   
-  const getCategoryPath = (categoryId: string): string => {
-    const path: string[] = [];
-    let current = categories.find(c => c.id === categoryId);
-    while (current) {
-        path.unshift(current.name);
-        current = categories.find(c => c.id === current.parentId);
-    }
-    return path.join(' / ') || 'Uncategorized';
-  };
-
-  const categoryOptions = categories.filter(c => c.type === formState.type).map(c => ({ value: c.id, label: getCategoryPath(c.id) }));
-  const accountOptions = accounts.map(a => ({ value: a.id, label: a.name }));
-  const frequencyUnitOptions: {value: FrequencyUnit, label: string}[] = [
-      {value: 'days', label: 'Day(s)'}, {value: 'weeks', label: 'Week(s)'}, {value: 'months', label: 'Month(s)'}, {value: 'years', label: 'Year(s)'},
+  const typeOptions = [
+    { value: TransactionType.EXPENSE, label: 'Expense' },
+    { value: TransactionType.INCOME, label: 'Income' },
   ];
-  const reminderUnitOptions: {value: ReminderUnit, label: string}[] = [
-      {value: 'minutes', label: 'Minute(s)'}, {value: 'hours', label: 'Hour(s)'}, {value: 'days', label: 'Day(s)'},
+  
+  const frequencyOptions = [
+      { value: 'days', label: 'Days' },
+      { value: 'weeks', label: 'Weeks' },
+      { value: 'months', label: 'Months' },
+      { value: 'years', label: 'Years' },
   ];
-  const typeOptions = [ {value: TransactionType.EXPENSE, label: 'Expense'}, {value: TransactionType.INCOME, label: 'Income'}, ];
 
-  const modalContent = (
+  const categoryOptions = useMemo(() => {
+    return categories
+      .filter(c => c.type === formData.type)
+      .map(c => ({ value: c.id, label: c.name }));
+  }, [categories, formData.type]);
+  
+  const accountOptions = useMemo(() => {
+    return accounts.map(a => ({ value: a.id, label: a.name }));
+  }, [accounts]);
+
+  return ReactDOM.createPortal(
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title={isEditing ? 'Edit Scheduled Payment' : 'Add Scheduled Payment'} onClose={onClose} />
-        <form onSubmit={handleSubmit} className="p-6 space-y-3 flex-grow overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label className="text-xs text-secondary mb-1 block">Start Date</label><CustomDatePicker value={new Date(formState.startDate)} onChange={date => setFormState(p => ({...p, startDate: date.toISOString()}))} /></div>
-              <div><label className="text-xs text-secondary mb-1 block">Start Time</label><input type="time" value={formState.startTime} onChange={e => setFormState(p => ({...p, startTime: e.target.value}))} className="w-full input-base p-2 rounded-lg" /></div>
-            </div>
-             <div>
-                <label className="text-xs text-secondary mb-1 block">Frequency</label>
-                <div className="flex gap-2 items-center"><span className="text-secondary text-sm">Every</span><input type="number" value={formState.interval} onWheel={e => (e.target as HTMLElement).blur()} onChange={e => setFormState(p => ({...p, interval: parseInt(e.target.value) || 1}))} className="input-base w-16 p-2 rounded-lg no-spinner" /><div className="flex-grow"><CustomSelect options={frequencyUnitOptions} value={formState.frequencyUnit} onChange={v => setFormState(p => ({...p, frequencyUnit: v as FrequencyUnit}))} /></div></div>
-              </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label className="text-xs text-secondary mb-1 block">Account</label><CustomSelect options={accountOptions} value={formState.accountId} onChange={v => setFormState(p => ({...p, accountId: v}))} placeholder="Select Account" /></div>
-              <div><label className="text-xs text-secondary mb-1 block">Amount</label><input type="number" min="0.01" step="0.01" placeholder="Amount" value={formState.amount || ''} onWheel={e => (e.target as HTMLElement).blur()} onChange={e => setFormState(p => ({...p, amount: parseFloat(e.target.value) || 0}))} className="w-full input-base p-2 rounded-full no-spinner" required /></div>
-            </div>
-             <div><label className="text-xs text-secondary mb-1 block">Description</label><input type="text" placeholder="Description (e.g., Rent)" value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))} className="w-full input-base p-2 rounded-full" required /></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div><label className="text-xs text-secondary mb-1 block">Type</label><CustomSelect options={typeOptions} value={formState.type} onChange={v => setFormState(p => ({...p, type: v as TransactionType, categoryId: ''}))} /></div>
-                <div><label className="text-xs text-secondary mb-1 block">Category</label><CustomSelect options={categoryOptions} value={formState.categoryId} onChange={v => setFormState(p => ({...p, categoryId: v}))} placeholder="Select Category" /></div>
-            </div>
-            <div className="pt-2 border-t border-divider">
-                <label className="block text-sm font-medium text-secondary mb-2">Priority</label>
-                <button
-                    type="button"
-                    onClick={handlePriorityChange}
-                    className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors w-full text-center ${priorityStyles[formState.priority || 'None'].buttonClass}`}
-                >
-                    {formState.priority || 'None'}
-                </button>
-            </div>
-            <div className="pt-2 border-t border-divider">
-                <ToggleSwitch checked={isReminderOn} onChange={setIsReminderOn} label="Set a Reminder" />
-                {isReminderOn && (<div className="flex gap-2 items-center mt-2 animate-fadeInUp"><span className="text-secondary text-sm">Remind me</span><input type="number" value={formState.reminder?.value || 1} onWheel={e => (e.target as HTMLElement).blur()} onChange={e => setFormState(p => ({...p, reminder: { value: parseInt(e.target.value) || 1, unit: p.reminder?.unit || 'days' }}))} className="input-base w-16 p-2 rounded-lg no-spinner" /><div className="flex-grow"><CustomSelect options={reminderUnitOptions} value={formState.reminder?.unit || 'days'} onChange={v => setFormState(p => ({...p, reminder: { value: p.reminder?.value || 1, unit: v as ReminderUnit }}))} /></div><span className="text-secondary text-sm">before</span></div>)}
-            </div>
-            <div className="flex justify-end space-x-2 pt-2"><button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button><button type="submit" className="button-primary px-4 py-2">{isEditing ? 'Save' : 'Add'}</button></div>
+        <ModalHeader title={isCreating ? "Add Scheduled Payment" : "Edit Scheduled Payment"} onClose={onClose} />
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+          <input type="text" value={formData.description} onChange={e => setFormData(p => ({...p, description: e.target.value}))} placeholder="Description" className="input-base w-full p-2 rounded-lg" required autoFocus/>
+          <div className="grid grid-cols-2 gap-4">
+            <input type="number" step="0.01" value={formData.amount} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(p => ({...p, amount: e.target.value}))} placeholder="Amount" className="input-base w-full p-2 rounded-lg no-spinner" required/>
+            <CustomSelect options={typeOptions} value={formData.type} onChange={v => setFormData(p => ({...p, type: v as TransactionType, categoryId: ''}))} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <CustomSelect options={accountOptions} value={formData.accountId} onChange={v => setFormData(p => ({...p, accountId: v}))} />
+            <CustomSelect options={categoryOptions} value={formData.categoryId} onChange={v => setFormData(p => ({...p, categoryId: v}))} />
+          </div>
+           <div className="grid grid-cols-3 gap-4 items-end">
+                <span className="text-secondary text-sm self-center">Repeats every:</span>
+                <input type="number" value={formData.interval} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(p => ({...p, interval: e.target.value}))} className="input-base w-full p-2 rounded-lg no-spinner" />
+                <CustomSelect options={frequencyOptions} value={formData.frequencyUnit} onChange={v => setFormData(p => ({...p, frequencyUnit: v as any}))} />
+           </div>
+           <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm text-secondary mb-1 block">Next Due Date</label><CustomDatePicker value={formData.nextDueDate} onChange={d => setFormData(p => ({...p, nextDueDate: d}))} /></div>
+                <div><label className="text-sm text-secondary mb-1 block">End Date (Optional)</label><CustomDatePicker value={formData.endDate} onChange={d => setFormData(p => ({...p, endDate: d}))} /></div>
+           </div>
+           <textarea value={formData.notes} onChange={e => setFormData(p => ({...p, notes: e.target.value}))} placeholder="Notes (optional)" rows={2} className="input-base w-full p-2 rounded-lg resize-none" />
+           <div className="flex justify-end gap-3 pt-4">
+            <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
+            <button type="submit" className="button-primary px-4 py-2">{isCreating ? 'Add Payment' : 'Save Changes'}</button>
+          </div>
         </form>
       </div>
-    </div>
+    </div>,
+    modalRoot
   );
-  
-  return ReactDOM.createPortal(modalContent, modalRoot);
 };
 
 export default EditRecurringModal;
