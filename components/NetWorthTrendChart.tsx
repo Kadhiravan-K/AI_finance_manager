@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-// Fix: Import TransactionType enum.
 import { Transaction, Account, AccountType, TransactionType } from '../types';
 import TimeSeriesLineChart from './TimeSeriesLineChart';
 
@@ -52,7 +51,6 @@ const NetWorthTrendChart: React.FC<NetWorthTrendChartProps> = ({ transactions, a
         id: point.date.toISOString(),
         date: point.date.toISOString(),
         amount: point.amount,
-        // Fix: Use enum member instead of string literal.
         type: TransactionType.INCOME, // Use 'income' type to show positive values correctly
         accountId: '',
         categoryId: '',
@@ -68,7 +66,6 @@ const NetWorthTrendChart: React.FC<NetWorthTrendChartProps> = ({ transactions, a
       title="Net Worth Trend"
       transactions={chartData}
       period="year"
-      // Fix: Use enum member instead of string literal.
       type={TransactionType.INCOME}
       currency={currency}
       onPointClick={() => {}}

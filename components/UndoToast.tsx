@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 
 interface UndoToastProps {
@@ -13,7 +14,8 @@ const UndoToast: React.FC<UndoToastProps> = ({ message, onUndo, onConfirm, onClo
   const [dragState, setDragState] = useState({ startX: 0, currentX: 0, isDragging: false });
   const toastRef = useRef<HTMLDivElement>(null);
   const undoClicked = useRef(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Fix: Changed NodeJS.Timeout to number, as setTimeout in the browser returns a number, not a NodeJS.Timeout object.
+  const timeoutRef = useRef<number | null>(null);
 
   const handleClose = (confirm: boolean) => {
     if (timeoutRef.current) {
@@ -28,7 +30,7 @@ const UndoToast: React.FC<UndoToastProps> = ({ message, onUndo, onConfirm, onClo
   
   useEffect(() => {
     setVisible(true);
-    timeoutRef.current = setTimeout(() => handleClose(true), 5000);
+    timeoutRef.current = window.setTimeout(() => handleClose(true), 5000);
     return () => {
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);

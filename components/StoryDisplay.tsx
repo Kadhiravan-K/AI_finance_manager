@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useContext } from 'react';
+import React, { useMemo, useState, useEffect, useContext, useRef } from 'react';
 import { ProcessingStatus, Transaction, TransactionType, Category, DateRange, CustomDateRange, Budget, RecurringTransaction, Goal, Account, InvestmentHolding, DashboardWidget, FinancialProfile, AccountType, ActiveScreen, ActiveModal, AppState, AppliedViewOptions, ViewOptions } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import TransactionFilters from './TransactionFilters';
@@ -81,31 +81,50 @@ const TransactionItem = React.memo(({ transaction, category, categoryPath, onEdi
     const isSplit = !!transaction.splitDetails && transaction.splitDetails.length > 0;
     const account = accounts.find(a => a.id === transaction.accountId);
     const formatCurrency = useCurrencyFormatter(undefined, account?.currency);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     return (
-        <div className="glass-card p-3 rounded-xl hover-bg-stronger group transition-colors duration-200 flex items-center gap-3 h-full relative">
+        <div className="glass-card p-3 rounded-xl hover-bg-stronger transition-colors duration-200 flex items-center gap-3 h-full">
             <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl ${isIncome ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
                 {isSplit ? '➗' : (isTransfer ? '↔️' : (category?.icon || (isIncome ? '💰' : '💸')))}
             </div>
             
-            <div className="flex-grow overflow-hidden flex justify-between items-center gap-4">
-                <div className="overflow-hidden">
-                    <p className="text-primary truncate font-semibold">{transaction.description}</p>
-                    <p className="text-secondary truncate text-xs mt-0.5">{categoryPath}</p>
-                </div>
-
-                <div className="text-right flex-shrink-0">
-                    <span className={`font-semibold font-mono text-base ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}
-                    </span>
-                    <p className="text-tertiary truncate text-xs mt-0.5">{account?.name}</p>
-                </div>
+            <div className="flex-grow overflow-hidden">
+                <p className="text-primary truncate font-semibold">{transaction.description}</p>
+                <p className="text-secondary truncate text-xs mt-0.5">{categoryPath}</p>
             </div>
 
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openModal('editNote', { transaction })} className="p-2 text-tertiary hover:text-sky-400 transition-colors" aria-label="Edit note"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg></button>
-                <button onClick={() => onEdit(transaction)} className="p-2 text-tertiary hover:text-sky-400 transition-colors" aria-label="Edit transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                <button onClick={() => onDelete(transaction.id)} className="p-2 text-rose-500 hover:text-rose-400 transition-colors" aria-label="Delete transaction"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            <div className="text-right flex-shrink-0">
+                <span className={`font-semibold font-mono text-base ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {isVisible ? `${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}` : '••••'}
+                </span>
+                <p className="text-tertiary truncate text-xs mt-0.5">{account?.name}</p>
+            </div>
+
+            <div className="relative flex-shrink-0">
+                <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(p => !p); }} className="p-2 text-tertiary hover:text-primary transition-colors rounded-full hover:bg-subtle" aria-label="More options">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                </button>
+                {isMenuOpen && (
+                    <div ref={menuRef} className="absolute right-0 top-full mt-1 w-48 bg-bg-card-strong rounded-lg shadow-xl z-30 border border-divider p-1 animate-scaleIn" style={{ transformOrigin: 'top right' }}>
+                        <button onClick={() => { openModal('editNote', { transaction }); setIsMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-primary hover-bg-stronger rounded-md flex items-center gap-3">📝 <span>Edit Note</span></button>
+                        <button onClick={() => { onEdit(transaction); setIsMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-primary hover-bg-stronger rounded-md flex items-center gap-3">✏️ <span>Edit Transaction</span></button>
+                        <button onClick={() => { onDelete(transaction.id); setIsMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-rose-400 hover-bg-stronger rounded-md flex items-center gap-3">🗑️ <span>Delete</span></button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -198,7 +217,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, a
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter, setDateFilter] = useState<DateRange>('month');
     const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: new Date(), end: new Date() });
-    const [isBalanceVisible, setIsBalanceVisible] = useState(true);
+    const [isBalanceVisible, setIsBalanceVisible] = useState(false);
 
     const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
         sort: { key: 'date', direction: 'desc' },
@@ -267,7 +286,8 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, a
             primary: 'text-primary'
         }[color];
         return (
-            <div className="glass-card p-3 rounded-2xl flex-grow transition-all flex flex-col justify-between h-20">
+            <div className="glass-card p-3 rounded-2xl flex-grow transition-all flex flex-col justify-between h-20 interactive-card">
+                 <div className="glow-effect"></div>
                 <div>
                     <div className="flex items-center text-sm text-secondary">
                         <span>{title}</span>

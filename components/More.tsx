@@ -1,5 +1,3 @@
-
-
 import React, { useContext, useState } from 'react';
 import { ActiveModal, ActiveScreen } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -35,7 +33,8 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
   }
 
   const ToolButton: React.FC<{ screen?: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>, icon: string, label: string }> = ({ screen, modal, modalProps, icon, label }) => (
-    <button onClick={() => handleNav(screen, modal, modalProps)} className={layout === 'grid' ? "management-tool-button" : "management-list-item"}>
+    <button onClick={() => handleNav(screen, modal, modalProps)} className={`${layout === 'grid' ? "management-tool-button" : "management-list-item"} interactive-card`}>
+      <div className="glow-effect"></div>
       <span className={layout === 'grid' ? "text-3xl" : "text-2xl"}>{icon}</span>
       <span className={layout === 'grid' ? "text-xs font-semibold" : "font-semibold"}>{label}</span>
     </button>
@@ -83,16 +82,16 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
     {
       title: 'App & Data',
       tools: [
-        { key: 'dataHub', screen: 'dataHub', icon: '🗄️', label: 'Data Hub' },
+        // Help & Support
         { modal: 'integrations', icon: '🔗', label: 'Integrations' },
-        { modal: 'appSettings', icon: '⚙️', label: 'Settings' },
-        { modal: 'trustBin', icon: '🗑️', label: 'Trust Bin' },
-        { modal: 'importExport', icon: '📄', label: 'Import/Export' },
-        { modal: 'feedback', icon: '📨', label: 'Feedback' },
         { screen: 'manual', icon: '📖', label: 'Manual' },
         { modal: 'shareGuide', icon: '📲', label: 'Share Guide'},
+        { modal: 'importExport', icon: '📄', label: 'Import/Export' },
+        // Data Management
+        { modal: 'appSettings', icon: '⚙️', label: 'Settings' },
+        { modal: 'trustBin', icon: '🗑️', label: 'Trust Bin' },
+        { key: 'faq', screen: 'faq', icon: '❓', label: 'FAQ' },
       ].filter(tool => !tool.key || settings.enabledTools[tool.key as keyof typeof settings.enabledTools])
-       .sort((a, b) => a.label.localeCompare(b.label)),
     }
   ];
 
@@ -136,7 +135,8 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
             <div key="Danger Zone">
                 <h3 className="text-sm font-semibold text-tertiary mb-3 px-1">Danger Zone</h3>
                 <div className={layout === 'grid' ? "management-grid" : "management-list"}>
-                    <button onClick={handleResetApp} className={`${layout === 'grid' ? "management-tool-button" : "management-list-item"} text-rose-400`}>
+                    <button onClick={handleResetApp} className={`${layout === 'grid' ? "management-tool-button" : "management-list-item"} text-rose-400 interactive-card`}>
+                        <div className="glow-effect"></div>
                         <span className={layout === 'grid' ? "text-3xl" : "text-2xl"}>⚠️</span>
                         <span className={layout === 'grid' ? "text-xs font-semibold" : "font-semibold"}>Reset App</span>
                     </button>

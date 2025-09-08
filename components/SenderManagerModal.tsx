@@ -15,7 +15,6 @@ interface SenderManagerModalProps {
 const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose, onDelete }) => {
   const { senders, setSenders } = useContext(SettingsContext);
   const [editingSender, setEditingSender] = useState<Sender | null>(null);
-  // Fix: Use SenderType enum member instead of a string literal for type safety.
   const [formState, setFormState] = useState<Omit<Sender, 'id'>>({ identifier: '', name: '', type: SenderType.TRUSTED });
 
   const handleEdit = (sender: Sender) => {
@@ -25,7 +24,6 @@ const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose, onDele
 
   const handleCancel = () => {
     setEditingSender(null);
-    // Fix: Use SenderType enum member instead of a string literal for type safety.
     setFormState({ identifier: '', name: '', type: SenderType.TRUSTED });
   };
 
@@ -40,8 +38,8 @@ const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose, onDele
   };
   
   const senderTypeOptions = [
-      {value: 'trusted', label: 'Trusted'},
-      {value: 'blocked', label: 'Blocked'},
+      {value: SenderType.TRUSTED, label: 'Trusted'},
+      {value: SenderType.BLOCKED, label: 'Blocked'},
   ];
 
   const modalContent = (

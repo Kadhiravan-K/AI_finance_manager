@@ -1,12 +1,5 @@
-
-
-
-
-
-
-
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction } from 'react';
-import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType } from '../types';
+import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt } from '../types';
 import FinanceDisplay from './StoryDisplay';
 import ReportsScreen from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
@@ -31,6 +24,8 @@ import ManualScreen from './ManualScreen';
 import { AppDataContext } from '../contexts/SettingsContext';
 import { parseNaturalLanguageQuery } from '../services/geminiService';
 import { calculateNextDueDate } from '../utils/date';
+import DebtManagerScreen from './DebtManagerScreen';
+import FaqScreen from './FaqScreen';
 
 
 interface MainContentProps {
@@ -81,6 +76,7 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
     findOrCreateCategory,
     updateStreak,
     onUpdateTransaction,
+    setDebts,
   } = dataContext;
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
@@ -209,6 +205,8 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         return <LearnScreen onOpenChat={() => openModal('aiChat')} onOpenGlossary={() => setActiveScreen('glossary')} />;
     case 'manual':
         return <ManualScreen />;
+    case 'faq':
+        return <FaqScreen />;
     case 'refunds':
         return <RefundsScreen refunds={appState.refunds} contacts={appState.contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={(id) => setRefunds(p => p.map(r => r.id === id ? {...r, isClaimed: true, claimedDate: new Date().toISOString()} : r))} onDeleteRefund={(id) => deleteItem(id, 'refund')} openModal={openModal} />;
     case 'shop':
@@ -226,12 +224,20 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         return <ShoppingListScreen onCreateExpense={() => {}} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} />;
     case 'subscriptions':
       return <SubscriptionsScreen onAddRecurring={(data) => openModal('editRecurring', { recurringTransaction: data })} />;
+    case 'debtManager':
+      return <DebtManagerScreen debts={appState.debts} onAddDebt={() => openModal('editDebt')} onEditDebt={(debt) => openModal('editDebt', { debt })} onDeleteDebt={(id) => deleteItem(id, 'debt')} onSaveDebt={(debt, id) => {
+          if (id) {
+              setDebts((p: Debt[]) => p.map(d => d.id === id ? { ...d, ...debt } : d));
+          } else {
+              setDebts((p: Debt[]) => [...p, { ...debt, id: self.crypto.randomUUID(), currentBalance: debt.totalAmount }]);
+          }
+      }} />;
     case 'tripDetails':
       // Fix: Use the tripDetailsId prop directly instead of searching the modal stack.
       const trip = appState.trips.find(t => t.id === tripDetailsId);
       if(trip) {
           // Fix: Pass the required 'openModal' prop to TripDetailsScreen.
-          return <TripDetailsScreen trip={trip} expenses={appState.tripExpenses.filter(e => e.tripId === trip.id)} onAddExpense={() => openModal('addTripExpense', {trip})} onEditExpense={(expense) => openModal('addTripExpense', {trip, expenseToEdit: expense})} onDeleteExpense={(id) => deleteItem(id, 'tripExpense')} onBack={() => setActiveScreen('tripManagement')} categories={appState.categories} onUpdateTrip={(updatedTrip) => setTrips(p => p.map(t => t.id === updatedTrip.id ? updatedTrip : t))} openModal={openModal} />
+          return <TripDetailsScreen trip={trip} expenses={appState.tripExpenses.filter(e => e.tripId === trip.id)} onAddExpense={() => openModal('addTripExpense', {trip})} onEditExpense={(expense) => openModal('addTripExpense', {trip, expenseToEdit: expense})} onDeleteExpense={(id) => deleteItem(id, 'tripExpense')} onBack={() => setActiveScreen('tripManagement')} categories={appState.categories} onUpdateTrip={(updatedTrip) => setTrips(p => p.map(t => t.id === updatedTrip.id ? updatedTrip : t))} openModal={openModal} />;
       }
       return <div className="p-4">Trip not found. Go back to <button className="text-sky-400" onClick={() => setActiveScreen('tripManagement')}>Trip Management</button>.</div>;
     default:

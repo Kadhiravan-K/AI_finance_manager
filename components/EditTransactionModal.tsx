@@ -127,7 +127,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <CustomSelect value={parentId || ''} onChange={val => { setParentId(val || null); setCategoryId(''); }} options={[{value: '', label: 'Select Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} />
-                    <CustomSelect value={categoryId} onChange={setCategoryId} options={subCategories.map(c => ({value: c.id, label: c.name}))} disabled={!parentId || subCategories.length === 0} />
+                    <CustomSelect value={categoryId} onChange={setCategoryId} options={subCategories.map(c => ({value: c.id, label: c.name}))} disabled={!parentId || subCategories.length === 0} placeholder="Subcategory" />
                 </div>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (Optional)" rows={2} className="input-base w-full p-2 rounded-lg resize-none" />
                 

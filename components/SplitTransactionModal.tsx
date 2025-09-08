@@ -145,10 +145,10 @@ const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transacti
                 {participants.map(p => (
                     <div key={p.id} className="flex items-center gap-2 p-2 bg-slate-700/50 rounded-lg">
                         <span className="font-semibold flex-grow truncate">{p.name}</span>
-                        {mode === 'percentage' && <input type="number" value={p.percentage} onBlur={() => handleParticipantChange(p.id, 'percentage', p.percentage)} onChange={e => setParticipants(parts => parts.map(part => part.id === p.id ? {...part, percentage: e.target.value} : part))} className="w-16 bg-slate-800 p-1 rounded-md text-center" placeholder="%" />}
-                        {mode === 'shares' && <input type="number" value={p.shares} onBlur={() => handleParticipantChange(p.id, 'shares', p.shares)} onChange={e => setParticipants(parts => parts.map(part => part.id === p.id ? {...part, shares: e.target.value} : part))} className="w-16 bg-slate-800 p-1 rounded-md text-center" placeholder="sh." />}
+                        {mode === 'percentage' && <input type="number" onWheel={e => e.currentTarget.blur()} value={p.percentage} onBlur={() => handleParticipantChange(p.id, 'percentage', p.percentage)} onChange={e => setParticipants(parts => parts.map(part => part.id === p.id ? {...part, percentage: e.target.value} : part))} className="w-16 bg-slate-800 p-1 rounded-md text-center no-spinner" placeholder="%" />}
+                        {mode === 'shares' && <input type="number" onWheel={e => e.currentTarget.blur()} value={p.shares} onBlur={() => handleParticipantChange(p.id, 'shares', p.shares)} onChange={e => setParticipants(parts => parts.map(part => part.id === p.id ? {...part, shares: e.target.value} : part))} className="w-16 bg-slate-800 p-1 rounded-md text-center no-spinner" placeholder="sh." />}
                         {mode === 'manual' ? 
-                            <input type="number" value={p.amount || ''} onChange={e => handleParticipantChange(p.id, 'amount', e.target.value)} className="w-24 bg-slate-800 p-1 rounded-md text-right" />
+                            <input type="number" onWheel={e => e.currentTarget.blur()} value={p.amount || ''} onChange={e => handleParticipantChange(p.id, 'amount', e.target.value)} className="w-24 bg-slate-800 p-1 rounded-md text-right no-spinner" />
                             :
                             <span className="w-24 text-right font-mono">{formatCurrency(p.amount)}</span>
                         }

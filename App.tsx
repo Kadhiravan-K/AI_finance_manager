@@ -2,7 +2,7 @@
 
 import React, { useState, useContext, useEffect, useRef, useCallback, useMemo } from 'react';
 import Header from './components/Header';
-import { MainContent } from './components/StoryGenerator';
+import { MainContent } from './components/MainContent';
 import { SettingsProvider, SettingsContext, AppDataProvider, AppDataContext, DEFAULT_SETTINGS } from './contexts/SettingsContext';
 import { ActiveScreen, ActiveModal, ModalState, AppState, TrustBinItem, Category, TransactionType, ContactGroup, Contact, Account, UndoToastState, Transaction, Debt } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -57,6 +57,8 @@ import EditAccountModal from './components/EditAccountModal';
 import SellInvestmentModal from './components/SellInvestmentModal';
 import UpdateInvestmentModal from './components/UpdateInvestmentModal';
 import EditDebtModal from './components/EditDebtModal';
+import CameraModal from './components/CameraModal';
+import MiniCalculatorModal from './components/MiniCalculatorModal';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -76,6 +78,12 @@ const AppContent: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [timePickerState, setTimePickerState] = useState<{ initialTime: string; onSave: (time: string) => void; } | null>(null);
   const [tripDetailsId, setTripDetailsId] = useState<string | null>(null);
+  const [calculatorState, setCalculatorState] = useState<{ onResult: (result: number) => void } | null>(null);
+
+  // For screen transitions
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const [screenToRender, setScreenToRender] = useState(activeScreen);
+  const animationTimeoutRef = useRef<number | undefined>(undefined);
 
 
   const triggerConfetti = useCallback(() => {
@@ -140,6 +148,10 @@ const AppContent: React.FC = () => {
 
   const activeModal = modalStack[modalStack.length - 1] || null;
   
+  const onOpenCalculator = useCallback((onResult: (result: number) => void) => {
+    setCalculatorState({ onResult });
+  }, []);
+
   const openModal = useCallback((name: ActiveModal, props?: Record<string, any>) => {
     if (name === 'timePicker' && props) {
         setTimePickerState({ initialTime: props.initialTime, onSave: props.onSave });
@@ -147,14 +159,25 @@ const AppContent: React.FC = () => {
         setModalStack(prev => [...prev, { name, props }]);
     }
   }, []);
+
+  const handleScreenChange = useCallback((screen: ActiveScreen) => {
+    if (screen === activeScreen) return;
+    clearTimeout(animationTimeoutRef.current);
+    setIsAnimatingOut(true);
+    animationTimeoutRef.current = window.setTimeout(() => {
+        setActiveScreen(screen);
+        setScreenToRender(screen);
+        setIsAnimatingOut(false);
+    }, 300); // Match animation duration
+  }, [activeScreen]);
   
   const onNavigate = useCallback((screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => {
       if (screen === 'tripDetails' && props?.tripId) {
           setTripDetailsId(props.tripId);
       }
-      setActiveScreen(screen);
+      handleScreenChange(screen);
       if (modal) openModal(modal, props);
-  }, [openModal]);
+  }, [openModal, handleScreenChange]);
 
 
   const closeActiveModal = useCallback(() => setModalStack(prev => prev.slice(0, -1)), []);
@@ -171,6 +194,24 @@ const AppContent: React.FC = () => {
       root.classList.remove('light');
     }
   }, [settings.theme]);
+  
+  useEffect(() => {
+    // Event listener for the mouse-following glow effect
+    const handleMouseMove = (e: MouseEvent) => {
+      const card = (e.target as HTMLElement).closest('.interactive-card');
+      if (card) {
+        const glow = card.querySelector('.glow-effect') as HTMLElement;
+        if (glow) {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          glow.style.transform = `translate(${x - glow.offsetWidth / 2}px, ${y - glow.offsetHeight / 2}px)`;
+        }
+      }
+    };
+    document.body.addEventListener('mousemove', handleMouseMove);
+    return () => document.body.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     // Listen for shared text from the service worker
@@ -204,6 +245,8 @@ const AppContent: React.FC = () => {
     if (!activeModal) return null;
     
     switch (activeModal.name) {
+        case 'camera':
+            return <CameraModal onClose={closeActiveModal} onCapture={activeModal.props?.onCapture} />;
         case 'accountsManager':
             return <AccountsManagerModal onClose={closeActiveModal} accounts={accounts} onAddAccount={dataContext.onAddAccount} onEditAccount={(acc) => openModal('editAccount', { account: acc })} onDeleteAccount={dataContext.onDeleteAccount} />;
         case 'categories':
@@ -261,9 +304,9 @@ const AppContent: React.FC = () => {
         case 'editShop':
             return <EditShopModal shop={activeModal.props?.shop} onCancel={closeActiveModal} onSave={(shop, id) => { if(id) dataContext.setShops(p => p.map(s => s.id === id ? {...s, ...shop} : s)); else dataContext.setShops(p => [...p, {...shop, id: self.crypto.randomUUID()}]); }} />;
         case 'addTransaction':
-             return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={dataContext.onSaveAutoTransaction} onSaveManual={dataContext.onSaveManualTransaction} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={()=>{}} initialText={sharedText} onInitialTextConsumed={onSharedTextConsumed} initialTab={activeModal.props?.initialTab} />;
+             return <AddTransactionModal onCancel={closeActiveModal} onSaveAuto={dataContext.onSaveAutoTransaction} onSaveManual={dataContext.onSaveManualTransaction} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={onOpenCalculator} initialText={sharedText} onInitialTextConsumed={onSharedTextConsumed} initialTab={activeModal.props?.initialTab} />;
         case 'editTransaction':
-            return <EditTransactionModal transaction={activeModal.props?.transaction} onCancel={closeActiveModal} onSave={dataContext.onUpdateTransaction} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={()=>{}} />;
+            return <EditTransactionModal transaction={activeModal.props?.transaction} onCancel={closeActiveModal} onSave={dataContext.onUpdateTransaction} accounts={accounts} contacts={contacts} openModal={openModal} onOpenCalculator={onOpenCalculator} />;
         case 'editAccount':
             return <EditAccountModal account={activeModal.props?.account} onClose={closeActiveModal} onSave={(acc) => dataContext.setAccounts(p => p.map(a => a.id === acc.id ? acc : a))} />;
         case 'editCategory':
@@ -317,6 +360,15 @@ const AppContent: React.FC = () => {
             onClose={() => setTimePickerState(null)}
           />
       )}
+       {calculatorState && (
+          <MiniCalculatorModal
+            onClose={() => setCalculatorState(null)}
+            onResult={(result) => {
+              calculatorState.onResult(result);
+              setCalculatorState(null);
+            }}
+          />
+       )}
       <div className="aurora-container">
         <div className="aurora aurora-1"></div>
         <div className="aurora aurora-2"></div>
@@ -330,17 +382,17 @@ const AppContent: React.FC = () => {
               <span>Offline Mode</span>
             </div>
           )}
-          {activeScreen !== 'more' && (
+          {screenToRender !== 'more' && (
             <Header 
               onOpenAccounts={() => openModal('accountsManager')}
               onOpenSearch={() => openModal('globalSearch')}
               onOpenAIHub={() => openModal('aiHub')}
             />
           )}
-          <main ref={mainContentRef} className="flex-grow overflow-y-auto relative pb-[68px]">
+          <main ref={mainContentRef} className={`flex-grow overflow-y-auto relative pb-[68px] ${isAnimatingOut ? 'screen-transition-exit' : 'screen-transition-enter'}`}>
              <MainContent 
-                activeScreen={activeScreen}
-                setActiveScreen={setActiveScreen}
+                activeScreen={screenToRender}
+                setActiveScreen={handleScreenChange}
                 modalStack={modalStack}
                 setModalStack={setModalStack}
                 isOnline={isOnline}
@@ -356,7 +408,7 @@ const AppContent: React.FC = () => {
           </main>
           <Footer 
             activeScreen={activeScreen} 
-            setActiveScreen={setActiveScreen} 
+            setActiveScreen={handleScreenChange} 
             onAddClick={() => openModal('addTransaction', { initialTab: 'auto' })}
           />
            {renderActiveModal()}

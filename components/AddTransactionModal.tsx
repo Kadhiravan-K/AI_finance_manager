@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Transaction, Account, Contact, TransactionType, ActiveModal, Category } from '../types';
+import { Transaction, Account, Contact, TransactionType, ActiveModal, Category, ParsedReceiptData } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -8,6 +8,8 @@ import ModalHeader from './ModalHeader';
 import LoadingSpinner from './LoadingSpinner';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import { parseReceiptImage } from '../services/geminiService';
+import SlidingToggle from './SlidingToggle';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -48,24 +50,20 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     onOpenCalculator,
     selectedAccountId
 }) => {
-    // Tab State
     const [activeTab, setActiveTab] = useState<Tab>(initialTab);
-
-    // Auto Tab State
     const [autoText, setAutoText] = useState(initialText || '');
     const [isParsing, setIsParsing] = useState(false);
     const [selectedParseAccountId, setSelectedParseAccountId] = useState(selectedAccountId || accounts[0]?.id || '');
 
-    // Manual Tab State
     const { categories } = useContext(SettingsContext);
-    const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
+    const [type, setType] = useState<TransactionType>(TransactionType.INCOME);
     const [amount, setAmount] = useState<string>('');
     const [description, setDescription] = useState<string>('');
     const [accountId, setAccountId] = useState<string>(selectedAccountId || accounts[0]?.id || '');
     const [notes, setNotes] = useState<string>('');
     const [date, setDate] = useState<Date>(new Date());
+    const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
     
-    // Itemization state
     const [isItemized, setIsItemized] = useState(false);
     const [items, setItems] = useState<ItemizedItem[]>([
         { id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null }
@@ -93,10 +91,39 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         setIsParsing(true);
         try {
             await onSaveAuto(autoText, selectedParseAccountId);
-            onCancel(); // Close on success
+            onCancel();
         } catch (e) {
             console.error("Parsing failed", e);
-            // Don't close on error
+        } finally {
+            setIsParsing(false);
+        }
+    };
+
+    const handleReceiptScan = async (imageData: { base64: string, mimeType: string }) => {
+        setIsParsing(true);
+        try {
+            const parsedData = await parseReceiptImage(imageData.base64, imageData.mimeType);
+            if (parsedData) {
+                setDescription(parsedData.merchantName);
+                setDate(new Date(parsedData.transactionDate));
+                setAmount(String(parsedData.totalAmount));
+                if (parsedData.lineItems && parsedData.lineItems.length > 0) {
+                    setIsItemized(true);
+                    setItems(parsedData.lineItems.map(item => ({
+                        id: self.crypto.randomUUID(),
+                        description: item.description,
+                        amount: String(item.amount),
+                        categoryId: '',
+                        parentId: null
+                    })));
+                }
+                setActiveTab('manual');
+            } else {
+                alert("Could not read the receipt. Please try again or enter manually.");
+            }
+        } catch (error) {
+            console.error("Error scanning receipt:", error);
+            alert(error instanceof Error ? error.message : "An unknown error occurred while scanning.");
         } finally {
             setIsParsing(false);
         }
@@ -105,10 +132,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const finalAmount = isItemized ? itemizedTotal : parseFloat(amount);
-        if (isNaN(finalAmount) || finalAmount <= 0) {
-            alert("Please enter a valid amount.");
-            return;
-        }
+        if (isNaN(finalAmount) || finalAmount <= 0) return;
 
         let finalDescription = description;
         let finalNotes = notes;
@@ -117,7 +141,6 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         if (isItemized) {
             if (!description) finalDescription = items[0]?.description || 'Itemized Expense';
             finalNotes = `${notes ? notes + '\n\n' : ''}Itemized Details:\n${items.map(i => `- ${i.description}: ${formatCurrency(parseFloat(i.amount) || 0)}`).join('\n')}`;
-            // If all items have the same category, use it. Otherwise, categorize as 'Miscellaneous'.
             const categoryIds = new Set(items.map(i => i.categoryId || i.parentId).filter(Boolean));
             if (categoryIds.size === 1) {
                 finalCategoryId = categoryIds.values().next().value;
@@ -131,19 +154,19 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             }
         }
         
-        if (!finalCategoryId) {
-            alert("Please select a category.");
-            return;
-        }
+        if (!finalCategoryId) { alert("Please select a category."); return; }
+        
+        const finalDate = new Date(date);
+        const [hours, minutes] = time.split(':').map(Number);
+        finalDate.setHours(hours, minutes, 0, 0);
 
         const transactionData: Transaction = {
             id: self.crypto.randomUUID(),
             description: finalDescription,
             amount: finalAmount,
-            type,
-            accountId,
+            type, accountId,
             categoryId: finalCategoryId,
-            date: date.toISOString(),
+            date: finalDate.toISOString(),
             notes: finalNotes.trim() || undefined,
         };
         onSaveManual(transactionData);
@@ -152,15 +175,15 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
     const topLevelCategories = useMemo(() => categories.filter(c => c.type === type && !c.parentId), [categories, type]);
 
-    const handleItemChange = (id: string, field: 'description' | 'amount' | 'categoryId' | 'parentId', value: string | null) => {
+    const handleItemChange = (id: string, field: keyof ItemizedItem, value: string | null) => {
         setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
     };
     const handleAddItem = () => setItems(prev => [...prev, {id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null}]);
     const handleRemoveItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
 
-
-    const TabButton = ({ tab, label }: { tab: Tab, label: string }) => (
-        <button type="button" onClick={() => setActiveTab(tab)} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ activeTab === tab ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+    const TabButton = ({ tab, label, icon }: { tab: Tab, label: string, icon: string }) => (
+        <button type="button" onClick={() => setActiveTab(tab)} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none flex items-center justify-center gap-2 ${ activeTab === tab ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+            <span>{icon}</span>
             {label}
         </button>
     );
@@ -170,32 +193,19 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <ModalHeader title="Add Transaction" onClose={onCancel} />
             <div className="flex border-b border-divider flex-shrink-0">
-                <TabButton tab="auto" label="Automatic (AI Parse) 🤖" />
-                <TabButton tab="manual" label="Manual Entry ✍️" />
+                <TabButton tab="auto" label="AI Parse" icon="🤖" />
+                <TabButton tab="manual" label="Manual" icon="✍️" />
             </div>
             
             {activeTab === 'auto' && (
                 <div className="p-6 space-y-4 animate-fadeInUp">
-                    <p className="text-sm text-secondary">Paste a transaction message from your bank, or type a simple phrase like "Dinner for 500". The AI will do the rest.</p>
-                    <textarea
-                        value={autoText}
-                        onChange={(e) => setAutoText(e.target.value)}
-                        placeholder='e.g., "INR 500 spent on Zomato"'
-                        className="w-full h-24 p-3 transition-all duration-200 resize-none shadow-inner themed-textarea"
-                        disabled={isParsing}
-                        autoFocus
-                    />
-                     <CustomSelect
-                        value={selectedParseAccountId}
-                        onChange={setSelectedParseAccountId}
-                        options={accounts.map(acc => ({ value: acc.id, label: acc.name }))}
-                    />
-                    <button
-                        type="button"
-                        onClick={handleAutoParse}
-                        disabled={!autoText.trim() || isParsing || !selectedParseAccountId}
-                        className="button-primary w-full flex items-center justify-center font-bold py-3 px-4"
-                    >
+                    <p className="text-sm text-secondary">Paste a transaction message or type a phrase. The AI will do the rest.</p>
+                    <CustomSelect value={selectedParseAccountId} onChange={setSelectedParseAccountId} options={accounts.map(acc => ({ value: acc.id, label: acc.name }))} />
+                    <textarea value={autoText} onChange={(e) => setAutoText(e.target.value)} placeholder='e.g., "INR 500 spent on Zomato"' className="w-full h-24 themed-textarea" disabled={isParsing} autoFocus />
+                     <button type="button" onClick={() => openModal('camera', { onCapture: handleReceiptScan })} className="w-full text-center p-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400 flex items-center justify-center gap-2">
+                        📷 Scan a Receipt
+                    </button>
+                    <button type="button" onClick={handleAutoParse} disabled={!autoText.trim() || isParsing || !selectedParseAccountId} className="button-primary w-full flex items-center justify-center font-bold py-3">
                         {isParsing ? <LoadingSpinner /> : 'Parse with AI'}
                     </button>
                 </div>
@@ -204,32 +214,35 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             {activeTab === 'manual' && (
                 <form onSubmit={handleManualSubmit} className="flex-grow flex flex-col overflow-hidden animate-fadeInUp">
                     <div className="flex-grow overflow-y-auto p-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
-                            <button type="button" onClick={() => { setType(TransactionType.EXPENSE); setItems([{ id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null }]) }} className={`w-full py-2 text-sm font-semibold rounded-full ${type === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : ''}`}>Expense</button>
-                            <button type="button" onClick={() => { setType(TransactionType.INCOME); setItems([{ id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null }]) }} className={`w-full py-2 text-sm font-semibold rounded-full ${type === TransactionType.INCOME ? 'bg-emerald-500 text-white' : ''}`}>Income</button>
-                        </div>
-
+                        <SlidingToggle
+                            options={[{ value: TransactionType.INCOME, label: 'Income' }, { value: TransactionType.EXPENSE, label: 'Expense' }]}
+                            value={type}
+                            onChange={(v) => setType(v as TransactionType)}
+                        />
                          <div className="grid grid-cols-2 gap-4">
                             <CustomSelect value={accountId} onChange={setAccountId} options={accounts.map(a => ({value: a.id, label: a.name}))} />
-                            <CustomDatePicker value={date} onChange={setDate} />
+                             <div className="grid grid-cols-2 gap-2">
+                                <CustomDatePicker value={date} onChange={setDate} />
+                                <button type="button" onClick={() => openModal('timePicker', { initialTime: time, onSave: setTime })} className="w-full input-base p-2 rounded-lg flex items-center justify-center gap-2 font-mono text-lg tracking-wider">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>{time}</span>
+                                </button>
+                            </div>
                         </div>
-
-                        {!isItemized ? (
+                        <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Description" className="input-base w-full p-2 rounded-lg" required />
+                        {!isItemized && (
                             <>
-                                <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Description" className="input-base w-full p-2 rounded-lg" required />
                                 <div className="relative">
-                                    <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" className="input-base w-full p-2 rounded-lg no-spinner" required />
+                                    <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" className="input-base w-full p-2 rounded-lg" required />
                                     <button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary p-1">🧮</button>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <CustomSelect value={items[0].parentId || ''} onChange={val => { handleItemChange(items[0].id, 'parentId', val || null); handleItemChange(items[0].id, 'categoryId', ''); }} options={[{value: '', label: 'Select Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} />
-                                    <CustomSelect value={items[0].categoryId} onChange={val => handleItemChange(items[0].id, 'categoryId', val)} options={items[0].parentId ? categories.filter(c => c.parentId === items[0].parentId).map(c => ({value: c.id, label: c.name})) : []} disabled={!items[0].parentId} />
+                                    <CustomSelect value={items[0].categoryId} onChange={val => handleItemChange(items[0].id, 'categoryId', val)} options={items[0].parentId ? categories.filter(c => c.parentId === items[0].parentId).map(c => ({value: c.id, label: c.name})) : []} disabled={!items[0].parentId} placeholder="Subcategory" />
                                 </div>
                             </>
-                        ) : null}
-
+                        )}
                         <ToggleSwitch label="Itemize Transaction" checked={isItemized} onChange={setIsItemized} />
-
                         {isItemized && (
                             <div className="p-3 bg-subtle rounded-lg space-y-2 border border-divider">
                                 {items.map((item, index) => {
@@ -238,18 +251,23 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                                         <div key={item.id} className="p-2 bg-subtle rounded-lg space-y-2 border border-divider">
                                             <div className="flex items-center gap-2">
                                                 <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item ${index + 1}`} className="input-base p-1.5 rounded-md flex-grow" />
-                                                <input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="Amount" className="input-base p-1.5 rounded-md w-24 no-spinner text-right" />
+                                                <input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="Amount" className="input-base p-1.5 rounded-md w-24 text-right" />
                                                 <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-rose-400 font-bold text-xl leading-none">&times;</button>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', ''); }} options={[{value: '', label: 'Select Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} />
-                                                <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={subCategories.map(c => ({value: c.id, label: c.name}))} disabled={!item.parentId || subCategories.length === 0} />
+                                                <CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', ''); }} options={[{value: '', label: 'Select Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} placeholder="Category" />
+                                                <CustomSelect value={item.categoryId} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={subCategories.map(c => ({value: c.id, label: c.name}))} placeholder="Subcategory" disabled={!item.parentId || subCategories.length === 0} />
                                             </div>
                                         </div>
                                     );
                                 })}
-                                <button type="button" onClick={handleAddItem} className="text-xs text-sky-400 hover:text-sky-300">+ Add Item</button>
+                                <div className="text-center">
+                                    <button type="button" onClick={handleAddItem} className="text-xs text-sky-400 hover:text-sky-300">+ Add Item</button>
+                                </div>
                                 <p className="text-right font-semibold pt-2 border-t border-divider mt-2">Total of Items: {formatCurrency(itemizedTotal)}</p>
+                                <button type="button" onClick={() => openModal('splitTransaction', { transaction: { amount: itemizedTotal > 0 ? itemizedTotal : parseFloat(amount) || 0 } })} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
+                                    ➗ Split with Contacts
+                                </button>
                             </div>
                         )}
                         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (Optional)" rows={2} className="input-base w-full p-2 rounded-lg resize-none" />

@@ -77,6 +77,7 @@ export const DEFAULT_SETTINGS: Settings = {
         shoppingLists: true,
         subscriptions: true,
         debtManager: true,
+        faq: true,
     },
     footerActions: ['dashboard', 'reports', 'calendar', 'more'],
     googleCalendar: {

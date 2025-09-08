@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
   TrustBinItem,
@@ -9,7 +10,19 @@ import {
   Settlement,
   Goal,
   ShoppingList,
-  GlossaryEntry
+  GlossaryEntry,
+  Account,
+  Category,
+  Payee,
+  Sender,
+  Contact,
+  ContactGroup,
+  Trip,
+  Shop,
+  ShopProduct,
+  ShopEmployee,
+  ShopShift,
+  Debt
 } from '../types';
 import ModalHeader from './ModalHeader';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -26,7 +39,25 @@ interface TrustBinModalProps {
 
 const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, onRestore, onPermanentDelete }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [countdown, setCountdown] = useState(3);
+  // Fix: Changed NodeJS.Timeout to number, as setInterval in the browser returns a number, not a NodeJS.Timeout object.
+  const countdownRef = useRef<number | null>(null);
   const formatCurrency = useCurrencyFormatter();
+  
+  useEffect(() => {
+    if (selectedIds.size > 0) {
+      setCountdown(3);
+      countdownRef.current = window.setInterval(() => {
+        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    } else {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      setCountdown(3);
+    }
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [selectedIds.size]);
 
   const handleSelect = (itemId: string, isChecked: boolean) => {
     setSelectedIds(prev => {
@@ -82,19 +113,27 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
         return `Settlement (${formatCurrency(settlement.amount)})`;
       }
       case 'account':
+        return (item.item as Account).name;
       case 'category':
+        return (item.item as Category).name;
       case 'payee':
+        return (item.item as Payee).name;
       case 'sender':
+        return (item.item as Sender).name;
       case 'contact':
+        return (item.item as Contact).name;
       case 'contactGroup':
+        return (item.item as ContactGroup).name;
       case 'trip':
+        return (item.item as Trip).name;
       case 'shop':
+        return (item.item as Shop).name;
       case 'shopProduct':
+        return (item.item as ShopProduct).name;
       case 'shopEmployee':
+        return (item.item as ShopEmployee).name;
       case 'shopShift':
-        // These all have a 'name' property
-        return (item.item as { name: string }).name;
-
+        return (item.item as ShopShift).name;
       case 'goal': {
         const goal = item.item as Goal;
         return `${goal.name} (${formatCurrency(goal.targetAmount)})`;
@@ -103,9 +142,10 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
         return (item.item as ShoppingList).title;
       case 'glossaryEntry':
         return (item.item as GlossaryEntry).term;
+      case 'debt':
+        return (item.item as Debt).name;
       default:
-        // Should not be reached if all ItemType are handled.
-        // This is a safe fallback.
+        // This is a safe fallback that should not be reached if all types are handled.
         const anyItem = item.item as any;
         return anyItem.name || anyItem.description || anyItem.title || anyItem.term || 'Untitled Item';
     }
@@ -175,11 +215,15 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
         
         {selectedIds.size > 0 && (
           <div className="flex-shrink-0 p-4 border-t border-divider flex justify-end gap-3 animate-fadeInUp">
+            <button
+                onClick={handlePermanentDeleteSelected}
+                disabled={countdown > 0}
+                className="button-primary px-4 py-2 text-sm bg-rose-600 hover:bg-rose-500 disabled:bg-slate-500 disabled:cursor-wait"
+            >
+                Delete ({countdown > 0 ? countdown : selectedIds.size})
+            </button>
             <button onClick={handleRestoreSelected} className="button-primary px-4 py-2 text-sm">
                 Restore ({selectedIds.size})
-            </button>
-            <button onClick={handlePermanentDeleteSelected} className="button-primary px-4 py-2 text-sm bg-rose-600 hover:bg-rose-500">
-                Delete ({selectedIds.size})
             </button>
           </div>
         )}

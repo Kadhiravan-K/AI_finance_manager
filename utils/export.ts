@@ -89,7 +89,6 @@ export const exportSelectedDataToJson = (appState: AppState, keysToExport: (keyo
   
   keysToExport.forEach(key => {
     if (key in appState) {
-      // Fix: Use a type assertion to any to avoid complex key type issues.
       (dataToExport as any)[key] = appState[key];
     }
   });

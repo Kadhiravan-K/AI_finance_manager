@@ -172,7 +172,7 @@ export interface TripExpense {
 export type Theme = 'light' | 'dark';
 export type TrustBinDeletionPeriodUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
 
-export type ToggleableTool = 'achievements' | 'aiHub' | 'dataHub' | 'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'budgets' | 'goals' | 'learn' | 'challenges' | 'shoppingLists' | 'subscriptions' | 'debtManager';
+export type ToggleableTool = 'achievements' | 'aiHub' | 'dataHub' | 'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'budgets' | 'goals' | 'learn' | 'challenges' | 'shoppingLists' | 'subscriptions' | 'debtManager' | 'faq';
 
 export interface NotificationSettings {
     enabled: boolean;
@@ -342,9 +342,9 @@ export interface AppState {
     debts: Debt[];
 }
 
-export type ActiveScreen = 'dashboard' | 'reports' | 'budgets' | 'goals' | 'investments' | 'scheduled' | 'more' | 'tripManagement' | 'achievements' | 'calculator' | 'calendar' | 'challenges' | 'dataHub' | 'glossary' | 'learn' | 'manual' | 'refunds' | 'shop' | 'shoppingLists' | 'subscriptions' | 'tripDetails' | 'debtManager';
+export type ActiveScreen = 'dashboard' | 'reports' | 'budgets' | 'goals' | 'investments' | 'scheduled' | 'more' | 'tripManagement' | 'achievements' | 'calculator' | 'calendar' | 'challenges' | 'dataHub' | 'glossary' | 'learn' | 'manual' | 'refunds' | 'shop' | 'shoppingLists' | 'subscriptions' | 'tripDetails' | 'debtManager' | 'faq';
 
-export type ActiveModal = 'addTransaction' | 'editTransaction' | 'accountsManager' | 'editAccount' | 'categories' | 'editCategory' | 'payees' | 'senderManager' | 'appSettings' | 'importExport' | 'feedback' | 'transfer' | 'splitTransaction' | 'viewOptions' | 'globalSearch' | 'aiHub' | 'trustBin' | 'dashboardSettings' | 'notificationSettings' | 'manageTools' | 'editTrip' | 'addTripExpense' | 'tripSummary' | 'editGoal' | 'financialHealth' | 'addCalendarEvent' | 'editNote' | 'aiChat' | 'refund' | 'editContact' | 'editContactGroup' | 'contacts' | 'integrations' | 'footerCustomization' | 'editGlossaryEntry' | 'buyInvestment' | 'sellInvestment' | 'updateInvestment' | 'editShop' | 'editRecurring' | 'shareGuide' | 'timePicker' | 'editDebt';
+export type ActiveModal = 'addTransaction' | 'editTransaction' | 'accountsManager' | 'editAccount' | 'categories' | 'editCategory' | 'payees' | 'senderManager' | 'appSettings' | 'importExport' | 'feedback' | 'transfer' | 'splitTransaction' | 'viewOptions' | 'globalSearch' | 'aiHub' | 'trustBin' | 'dashboardSettings' | 'notificationSettings' | 'manageTools' | 'editTrip' | 'addTripExpense' | 'tripSummary' | 'editGoal' | 'financialHealth' | 'addCalendarEvent' | 'editNote' | 'aiChat' | 'refund' | 'editContact' | 'editContactGroup' | 'contacts' | 'integrations' | 'footerCustomization' | 'editGlossaryEntry' | 'buyInvestment' | 'sellInvestment' | 'updateInvestment' | 'editShop' | 'editRecurring' | 'shareGuide' | 'timePicker' | 'editDebt' | 'camera';
 
 export interface ModalState {
   name: ActiveModal;

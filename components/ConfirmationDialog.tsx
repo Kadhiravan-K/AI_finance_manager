@@ -14,11 +14,11 @@ interface ConfirmationDialogProps {
 }
 
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', cancelLabel = 'Cancel' }) => {
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     if (isOpen) {
-      setCountdown(3); // Reset on open
+      setCountdown(5); // Reset on open
       const timer = setInterval(() => {
         setCountdown(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);

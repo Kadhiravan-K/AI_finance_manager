@@ -326,11 +326,11 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
             <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expense</TabButton>
             <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
         </div>
-         <div className="grid grid-cols-2 gap-4">
-            <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
-            <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
+        <div className="space-y-3">
+          <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
+          <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
+          <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
         </div>
-        <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
         <CustomSelect 
             options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
             value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
