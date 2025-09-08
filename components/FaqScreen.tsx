@@ -49,7 +49,7 @@ const FaqItem: React.FC<{ q: string; a: string; isOpen: boolean; onClick: () => 
         <div className="bg-subtle rounded-lg">
             <button onClick={onClick} className="w-full p-4 text-left flex justify-between items-center">
                 <span className="font-semibold text-primary">{q}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7 7" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </button>
             {isOpen && (
                 <div className="p-4 border-t border-divider animate-fadeInUp">

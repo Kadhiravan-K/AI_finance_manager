@@ -85,7 +85,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       shopShifts: dataContext.shopShifts,
       shoppingLists: dataContext.shoppingLists,
       glossaryEntries: dataContext.glossaryEntries,
-      // Fix: Add missing 'debts' property.
       debts: dataContext.debts,
     };
   }, [dataContext, settingsContext]);

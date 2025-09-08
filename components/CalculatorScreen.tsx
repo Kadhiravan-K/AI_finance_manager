@@ -328,7 +328,6 @@ const GoalCalculator = () => {
               <div><label className={labelBaseClasses}>Investment Period (Years)</label><input type="text" inputMode="decimal" onWheel={e => e.currentTarget.blur()} value={period} onChange={e => setPeriod(e.target.value)} className={inputBaseClasses} /></div>
               <button onClick={calculate} className="button-primary w-full py-2">Calculate Monthly Investment</button>
             </div>
-            {/* Fix: Corrected a closing div tag typo. */}
             {result && <div className={resultCardBaseClasses}><p className="text-sm text-secondary">Required Monthly Investment</p><p className="text-2xl font-bold text-primary">{formatCurrency(result.monthly)}</p></div>}
         </div>
     );

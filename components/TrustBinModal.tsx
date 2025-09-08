@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
@@ -40,7 +41,6 @@ interface TrustBinModalProps {
 const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, onRestore, onPermanentDelete }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [countdown, setCountdown] = useState(3);
-  // Fix: Changed NodeJS.Timeout to number, as setInterval in the browser returns a number, not a NodeJS.Timeout object.
   const countdownRef = useRef<number | null>(null);
   const formatCurrency = useCurrencyFormatter();
   
@@ -90,7 +90,6 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
   };
 
   const getItemDescription = (item: TrustBinItem): string => {
-    // Fix: Use a type-safe switch to access properties correctly based on itemType.
     switch (item.itemType) {
       case 'transaction': {
         const tx = item.item as Transaction;
@@ -145,7 +144,6 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
       case 'debt':
         return (item.item as Debt).name;
       default:
-        // This is a safe fallback that should not be reached if all types are handled.
         const anyItem = item.item as any;
         return anyItem.name || anyItem.description || anyItem.title || anyItem.term || 'Untitled Item';
     }

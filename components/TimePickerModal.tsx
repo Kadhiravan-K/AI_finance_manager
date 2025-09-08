@@ -17,7 +17,6 @@ const TimeScroller: React.FC<{
 }> = ({ values, value, onChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  // Fix: Initialize useRef with undefined as it expects an initial value. The type is updated to allow for undefined.
   const timeoutRef = useRef<number | undefined>(undefined);
   const isInteracting = useRef(false);
 

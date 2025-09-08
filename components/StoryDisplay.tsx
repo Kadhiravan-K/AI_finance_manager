@@ -387,14 +387,14 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, a
         const balance = income - expense;
 
         return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-left stagger-delay">
-                <div className="sm:col-span-1" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-left">
+                <div className="sm:col-span-1 stagger-delay" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                     <DashboardCard currency={currency} title="Income" amount={income} isVisible={isVisible} color="emerald" />
                 </div>
-                <div className="sm:col-span-1" style={{ '--stagger-index': 2 } as React.CSSProperties}>
+                <div className="sm:col-span-1 stagger-delay" style={{ '--stagger-index': 2 } as React.CSSProperties}>
                     <DashboardCard currency={currency} title="Expenses" amount={expense} isVisible={isVisible} color="rose" />
                 </div>
-                <div className="col-span-2 sm:col-span-1" style={{ '--stagger-index': 3 } as React.CSSProperties}>
+                <div className="col-span-2 sm:col-span-1 stagger-delay" style={{ '--stagger-index': 3 } as React.CSSProperties}>
                     <DashboardCard currency={currency} title="Balance" amount={balance} isVisible={isVisible} color="primary" />
                 </div>
             </div>
@@ -471,44 +471,49 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, a
     }
 
     return (
-        <div className="px-4">
-            <div className="flex justify-between items-center my-4">
-                <h2 className="text-xl font-bold text-primary">Dashboard</h2>
-                <div className="flex items-center gap-1">
-                    <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 rounded-full text-secondary hover:text-primary transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isBalanceVisible ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z" : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" } /></svg>
-                    </button>
-                    <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="p-2 rounded-full text-secondary hover:text-primary transition-colors relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}> <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /> </svg>
-                        {isViewOptionsApplied && <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full"></div>}
-                    </button>
+        <div className="px-4 dashboard-grid-container">
+            <div className="dashboard-widgets-column">
+              <div className="flex justify-between items-center my-4">
+                  <h2 className="text-xl font-bold text-primary">Dashboard</h2>
+                  <div className="flex items-center gap-1">
+                      <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-2 rounded-full text-secondary hover:text-primary transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isBalanceVisible ? "M15 12a3 3 0 11-6 0 3 3 0 016 0z" : "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" } /></svg>
+                      </button>
+                      <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="p-2 rounded-full text-secondary hover:text-primary transition-colors relative">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}> <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /> </svg>
+                          {isViewOptionsApplied && <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full"></div>}
+                      </button>
+                  </div>
+              </div>
+              
+              <TransactionFilters
+                  searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+                  onNaturalLanguageSearch={handleNaturalLanguageSearch}
+                  dateFilter={dateFilter} setDateFilter={setDateFilter}
+                  customDateRange={customDateRange} setCustomDateRange={setCustomDateRange}
+              />
+
+              <div className="mt-4">
+                  {renderContent()}
+                  {visibleWidgets.map(widget => <div key={widget.id}>{widgetMap[widget.id]}</div>)}
+              </div>
+            </div>
+
+            <div className="transactions-column">
+                <h3 className="text-xl font-bold text-primary my-4">Recent Transactions</h3>
+                <div className="flex-grow overflow-y-auto">
+                    {transactions.length > 0 ? (
+                        <VirtualizedTransactionList accounts={accounts} transactions={sortedAndFilteredTransactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} openModal={openModal} />
+                    ) : (
+                        <EmptyState
+                            icon="💸"
+                            title={rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.length > 0 ? 'No Transactions Yet' : 'Select an Account'}
+                            message={rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.length > 0 ? "Your recent transactions will appear here once you add them." : "Choose an account from the header to see your transactions."}
+                            actionText="Add First Transaction"
+                            onAction={onAddTransaction}
+                        />
+                    )}
                 </div>
-            </div>
-            
-            <TransactionFilters
-                searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-                onNaturalLanguageSearch={handleNaturalLanguageSearch}
-                dateFilter={dateFilter} setDateFilter={setDateFilter}
-                customDateRange={customDateRange} setCustomDateRange={setCustomDateRange}
-            />
-
-            <div className="mt-4">
-                {renderContent()}
-                {visibleWidgets.map(widget => <div key={widget.id}>{widgetMap[widget.id]}</div>)}
-            </div>
-
-            <div className="mt-4">
-                {transactions.length > 0 ? (
-                    <VirtualizedTransactionList accounts={accounts} transactions={sortedAndFilteredTransactions} categories={categories} onEdit={onEdit} onDelete={onDelete} isBalanceVisible={isBalanceVisible} mainContentRef={mainContentRef} openModal={openModal} />
-                ) : (
-                    <EmptyState
-                        icon="💸"
-                        title={rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.length > 0 ? 'No Transactions Yet' : 'Select an Account'}
-                        message={rest.selectedAccountIds.includes('all') || rest.selectedAccountIds.length > 0 ? "Your recent transactions will appear here once you add them." : "Choose an account from the header to see your transactions."}
-                        actionText="Add First Transaction"
-                        onAction={onAddTransaction}
-                    />
-                )}
             </div>
         </div>
     );

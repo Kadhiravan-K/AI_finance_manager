@@ -1,4 +1,5 @@
-import React, { useState, useContext, useCallback, Dispatch, SetStateAction } from 'react';
+// Fix: Import `useEffect` from React to resolve 'Cannot find name' error.
+import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
 import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt } from '../types';
 import FinanceDisplay from './StoryDisplay';
 import ReportsScreen from './ReportsScreen';
@@ -50,6 +51,15 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
   const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId } = props;
 
   const dataContext = useContext(AppDataContext);
+  const [isResponsive, setIsResponsive] = useState(window.innerWidth >= 640 && window.matchMedia("(orientation: landscape)").matches);
+
+  useEffect(() => {
+    const checkResponsive = () => {
+      setIsResponsive(window.innerWidth >= 640 && window.matchMedia("(orientation: landscape)").matches);
+    };
+    window.addEventListener('resize', checkResponsive);
+    return () => window.removeEventListener('resize', checkResponsive);
+  }, []);
 
   if (!dataContext) {
     return null; // Or a loading spinner
@@ -155,6 +165,10 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
     openModal,
     onUpdateTransaction,
   };
+
+  const mainContentClasses = `flex-grow overflow-y-auto relative ${
+    !isResponsive ? 'pb-[68px]' : ''
+  }`;
 
   // A fully implemented router to pass correct props to each screen
   switch (activeScreen) {
