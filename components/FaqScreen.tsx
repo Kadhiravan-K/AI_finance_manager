@@ -7,7 +7,7 @@ const FAQ_DATA = [
     },
     {
         q: "Can I edit or delete a transaction?",
-        a: "Yes. On the Dashboard screen, simply tap on any transaction to open the editing modal. To delete, hover over a transaction on a desktop or long-press on mobile to reveal the edit/delete options."
+        a: "Yes. On the Dashboard screen, find the transaction in the 'Recent Transactions' list. Hovering over it (or tapping the three-dots menu) will reveal options to edit or delete it."
     },
     {
         q: "What is the 'Trust Bin'?",
@@ -46,16 +46,14 @@ const FAQ_DATA = [
 
 const FaqItem: React.FC<{ q: string; a: string; isOpen: boolean; onClick: () => void }> = ({ q, a, isOpen, onClick }) => {
     return (
-        <div className="bg-subtle rounded-lg">
-            <button onClick={onClick} className="w-full p-4 text-left flex justify-between items-center">
-                <span className="font-semibold text-primary">{q}</span>
+        <div className={`faq-item ${isOpen ? 'open' : ''}`}>
+            <button onClick={onClick} className="faq-question">
+                <span>{q}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </button>
-            {isOpen && (
-                <div className="p-4 border-t border-divider animate-fadeInUp">
-                    <p className="text-secondary text-sm">{a}</p>
-                </div>
-            )}
+            <div className="faq-answer">
+                <p>{a}</p>
+            </div>
         </div>
     );
 };

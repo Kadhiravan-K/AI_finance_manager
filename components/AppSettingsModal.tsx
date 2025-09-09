@@ -7,6 +7,7 @@ import CustomSelect from './CustomSelect';
 import { AppState, Theme, TrustBinDeletionPeriodUnit, ActiveScreen } from '../types';
 import { createBackup, restoreBackup } from '../utils/backup';
 import { NAV_ITEM_DEFINITIONS } from './Footer';
+import ToggleSwitch from './ToggleSwitch';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -113,6 +114,22 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
                 <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
                         <TabButton active={settings.theme === 'dark'} onClick={() => handleThemeChange('dark')}>Dark</TabButton>
                         <TabButton active={settings.theme === 'light'} onClick={() => handleThemeChange('light')}>Light</TabButton>
+                </div>
+                <div className="mt-4 space-y-2">
+                    <div className="p-3 bg-subtle rounded-lg flex items-center justify-between">
+                        <span className="font-medium text-primary">FAB Glow Effect</span>
+                        <ToggleSwitch 
+                            checked={settings.fabGlowEffect ?? false} 
+                            onChange={checked => setSettings(prev => ({...prev, fabGlowEffect: checked}))} 
+                        />
+                    </div>
+                    <div className="p-3 bg-subtle rounded-lg flex items-center justify-between">
+                        <span className="font-medium text-primary">Hub Cursor Glow</span>
+                        <ToggleSwitch 
+                            checked={settings.hubCursorGlowEffect ?? false} 
+                            onChange={checked => setSettings(prev => ({...prev, hubCursorGlowEffect: checked}))} 
+                        />
+                    </div>
                 </div>
             </div>
              <div className="pt-4 border-t border-divider">

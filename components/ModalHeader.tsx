@@ -21,7 +21,7 @@ const ModalHeader: React.FC<ModalHeaderProps> = ({ title, onClose, onBack, icon,
         )}
       </div>
       
-      <div className="flex-grow flex items-center justify-center gap-2 text-center px-12">
+      <div className="flex-grow flex items-center justify-center gap-2 text-center px-12 min-w-0">
           {icon && <span className="text-2xl">{icon}</span>}
           <h2 className="text-xl font-bold text-primary truncate">{title}</h2>
       </div>

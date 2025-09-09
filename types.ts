@@ -13,6 +13,12 @@ export enum AccountType {
 
 export type Priority = 'None' | 'Low' | 'Medium' | 'High';
 
+export interface ItemizedDetail {
+  description: string;
+  amount: number;
+  categoryId: string;
+}
+
 export interface SplitDetail {
   id: string;
   personName: string;
@@ -36,6 +42,7 @@ export interface Transaction {
   isRecurring?: boolean;
   transferId?: string;
   splitDetails?: SplitDetail[];
+  itemizedDetails?: ItemizedDetail[];
 }
 
 export interface Account {
@@ -115,6 +122,8 @@ export interface RecurringTransaction {
   endDate?: string;
   notes?: string;
   priority?: Priority;
+  startTime?: string;
+  reminderDays?: number;
 }
 
 export interface InvestmentHolding {
@@ -203,6 +212,8 @@ export interface Settings {
     googleCalendar: {
       connected: boolean;
     };
+    fabGlowEffect?: boolean;
+    hubCursorGlowEffect?: boolean;
 }
 
 export interface FinancialProfile {
@@ -299,6 +310,7 @@ export interface ShoppingList {
     items: ShoppingListItem[];
     createdAt: string;
     updatedAt: string;
+    tripId?: string;
 }
 
 export interface GlossaryEntry {

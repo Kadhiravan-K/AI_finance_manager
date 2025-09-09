@@ -1,4 +1,3 @@
-// Fix: Import `useEffect` from React to resolve 'Cannot find name' error.
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
 import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt } from '../types';
 import FinanceDisplay from './StoryDisplay';
@@ -42,13 +41,12 @@ interface MainContentProps {
   onSharedTextConsumed: () => void;
   onGoalComplete: () => void;
   appState: AppState;
-  // Fix: Add missing tripDetailsId prop to satisfy App.tsx
   tripDetailsId: string | null;
+  shoppingListId: string | null;
 }
 
 export const MainContent: React.FC<MainContentProps> = (props) => {
-  // Fix: Destructure tripDetailsId to be used in the tripDetails case
-  const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId } = props;
+  const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId, shoppingListId } = props;
 
   const dataContext = useContext(AppDataContext);
   const [isResponsive, setIsResponsive] = useState(window.innerWidth >= 640 && window.matchMedia("(orientation: landscape)").matches);
@@ -224,7 +222,6 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
     case 'refunds':
         return <RefundsScreen refunds={appState.refunds} contacts={appState.contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={(id) => setRefunds(p => p.map(r => r.id === id ? {...r, isClaimed: true, claimedDate: new Date().toISOString()} : r))} onDeleteRefund={(id) => deleteItem(id, 'refund')} openModal={openModal} />;
     case 'shop':
-        // Fix: Pass the required 'openModal' prop to ShopScreen.
         return <ShopScreen shops={appState.shops} products={appState.shopProducts} sales={appState.shopSales} employees={appState.shopEmployees} shifts={appState.shopShifts} onSaveShop={(shop, id) => {
             if(id) setShops(p => p.map(s => s.id === id ? {...s, ...shop} : s)); else setShops(p => [...p, {id: self.crypto.randomUUID(), ...shop}]);
         }} onDeleteShop={(id)=>deleteItem(id, 'shop')} onSaveProduct={(shopId, prod, id) => {
@@ -235,7 +232,7 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
             if(id) setShopShifts(p => p.map(s => s.id === id ? {...s, ...shift} : s)); else setShopShifts(p => [...p, {id: self.crypto.randomUUID(), shopId, ...shift}]);
         }} onDeleteShift={(id)=>deleteItem(id, 'shopShift')} openModal={openModal} />;
     case 'shoppingLists':
-        return <ShoppingListScreen onCreateExpense={() => {}} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} />;
+        return <ShoppingListScreen shoppingListId={shoppingListId} onCreateExpense={() => {}} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} onNavigate={onNavigate} />;
     case 'subscriptions':
       return <SubscriptionsScreen onAddRecurring={(data) => openModal('editRecurring', { recurringTransaction: data })} />;
     case 'debtManager':
@@ -247,11 +244,9 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
           }
       }} />;
     case 'tripDetails':
-      // Fix: Use the tripDetailsId prop directly instead of searching the modal stack.
       const trip = appState.trips.find(t => t.id === tripDetailsId);
       if(trip) {
-          // Fix: Pass the required 'openModal' prop to TripDetailsScreen.
-          return <TripDetailsScreen trip={trip} expenses={appState.tripExpenses.filter(e => e.tripId === trip.id)} onAddExpense={() => openModal('addTripExpense', {trip})} onEditExpense={(expense) => openModal('addTripExpense', {trip, expenseToEdit: expense})} onDeleteExpense={(id) => deleteItem(id, 'tripExpense')} onBack={() => setActiveScreen('tripManagement')} categories={appState.categories} onUpdateTrip={(updatedTrip) => setTrips(p => p.map(t => t.id === updatedTrip.id ? updatedTrip : t))} openModal={openModal} />;
+          return <TripDetailsScreen trip={trip} expenses={appState.tripExpenses.filter(e => e.tripId === trip.id)} onAddExpense={() => openModal('addTripExpense', {trip})} onEditExpense={(expense) => openModal('addTripExpense', {trip, expenseToEdit: expense})} onDeleteExpense={(id) => deleteItem(id, 'tripExpense')} onBack={() => { onNavigate('tripManagement'); }} categories={appState.categories} onUpdateTrip={(updatedTrip) => setTrips(p => p.map(t => t.id === updatedTrip.id ? updatedTrip : t))} openModal={openModal} onNavigate={onNavigate} />;
       }
       return <div className="p-4">Trip not found. Go back to <button className="text-sky-400" onClick={() => setActiveScreen('tripManagement')}>Trip Management</button>.</div>;
     default:

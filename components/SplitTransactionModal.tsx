@@ -1,183 +1,151 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Transaction } from '../types';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
+import { Transaction, Contact } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
+import { SettingsContext } from '../contexts/SettingsContext';
+import { USER_SELF_ID } from '../constants';
+import CustomCheckbox from './CustomCheckbox';
 
 interface SplitTransactionModalProps {
   transaction: Transaction;
   onSave: (transactionId: string, splits: { personName: string; amount: number }[]) => void;
   onCancel: () => void;
+  items?: { id: string, description: string, amount: string }[];
 }
-
-type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 
 interface Participant {
-  id: string;
+  id: string; // contactId
   name: string;
   amount: number;
-  percentage: string;
-  shares: string;
 }
 
-const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transaction, onSave, onCancel }) => {
+interface ItemParticipant {
+    itemId: string;
+    contactId: string;
+}
+
+const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transaction, onSave, onCancel, items }) => {
   const formatCurrency = useCurrencyFormatter();
-  const [mode, setMode] = useState<SplitMode>('equally');
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [newPersonName, setNewPersonName] = useState('');
+  const { contacts } = useContext(SettingsContext);
   
-  useEffect(() => {
-    // Initialize with "You" as the first participant
-    setParticipants([{ id: 'you', name: 'You', amount: 0, percentage: '100', shares: '1' }]);
-  }, [transaction]);
+  const allParticipants = useMemo(() => [
+    { id: USER_SELF_ID, name: 'You', groupId: '' },
+    ...contacts
+  ], [contacts]);
 
-  useEffect(() => {
-    // Recalculate whenever mode or participants change
-    const totalAmount = transaction.amount;
-    let newParticipants = [...participants];
-    const numParticipants = newParticipants.length;
+  const [itemAssignments, setItemAssignments] = useState<ItemParticipant[]>(() => {
+    if (!items) return [];
+    // Initially, assign all items to 'You'
+    return items.map(item => ({ itemId: item.id, contactId: USER_SELF_ID }));
+  });
 
-    switch (mode) {
-      case 'equally':
-        const splitAmount = numParticipants > 0 ? totalAmount / numParticipants : 0;
-        newParticipants = newParticipants.map(p => ({ ...p, amount: splitAmount }));
-        break;
-      case 'percentage':
-        let totalPercentage = newParticipants.reduce((sum, p) => sum + (parseFloat(p.percentage) || 0), 0);
-        newParticipants = newParticipants.map(p => {
-            const percentage = parseFloat(p.percentage) || 0;
-            const amount = totalPercentage > 0 ? (percentage / totalPercentage) * totalAmount : 0;
-            return { ...p, amount };
+  const participantTotals = useMemo(() => {
+    const totals = new Map<string, number>();
+    allParticipants.forEach(p => totals.set(p.id, 0));
+
+    if (items) {
+        items.forEach(item => {
+            const itemAmount = parseFloat(item.amount) || 0;
+            const assignees = itemAssignments.filter(a => a.itemId === item.id);
+            if (assignees.length > 0) {
+                const splitAmount = itemAmount / assignees.length;
+                assignees.forEach(assignee => {
+                    totals.set(assignee.contactId, (totals.get(assignee.contactId) || 0) + splitAmount);
+                });
+            }
         });
-        break;
-      case 'shares':
-        let totalShares = newParticipants.reduce((sum, p) => sum + (parseFloat(p.shares) || 0), 0);
-        newParticipants = newParticipants.map(p => {
-            const shares = parseFloat(p.shares) || 0;
-            const amount = totalShares > 0 ? (shares / totalShares) * totalAmount : 0;
-            return { ...p, amount };
-        });
-        break;
-      case 'manual':
-        // In manual mode, amounts are controlled by user input, so we don't recalculate them here.
-        break;
-    }
-    setParticipants(newParticipants);
-  }, [mode, participants.length, transaction.amount]);
-
-  const handleAddParticipant = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPersonName.trim()) {
-      setParticipants(prev => [...prev, {
-        id: self.crypto.randomUUID(),
-        name: newPersonName.trim(),
-        amount: 0,
-        percentage: '',
-        shares: '1',
-      }]);
-      setNewPersonName('');
-    }
-  };
-
-  const handleRemoveParticipant = (id: string) => {
-    setParticipants(prev => prev.filter(p => p.id !== id));
-  };
-  
-  const handleParticipantChange = (id: string, field: 'percentage' | 'shares' | 'amount', value: string) => {
-    let newParticipants = participants.map(p => p.id === id ? { ...p, [field]: value } : p);
-
-    const totalAmount = transaction.amount;
-
-    if (mode === 'percentage') {
-        let totalPercentage = newParticipants.reduce((sum, p) => sum + (parseFloat(p.percentage) || 0), 0);
-         newParticipants = newParticipants.map(p => {
-            const percentage = parseFloat(p.percentage) || 0;
-            const amount = totalPercentage > 0 ? (percentage / totalPercentage) * totalAmount : 0;
-            return { ...p, amount };
-        });
-    } else if (mode === 'shares') {
-        let totalShares = newParticipants.reduce((sum, p) => sum + (parseFloat(p.shares) || 0), 0);
-        newParticipants = newParticipants.map(p => {
-            const shares = parseFloat(p.shares) || 0;
-            const amount = totalShares > 0 ? (shares / totalShares) * totalAmount : 0;
-            return { ...p, amount };
-        });
-    } else if (mode === 'manual') {
-        const changedParticipant = newParticipants.find(p => p.id === id);
-        if(changedParticipant) changedParticipant.amount = parseFloat(value) || 0;
+    } else {
+        // Fallback for non-itemized transactions: split total equally
+        const participantsInSplit = allParticipants.filter(p => itemAssignments.some(a => a.contactId === p.id && a.itemId === 'total'));
+        if (participantsInSplit.length > 0) {
+            const splitAmount = transaction.amount / participantsInSplit.length;
+            participantsInSplit.forEach(p => totals.set(p.id, splitAmount));
+        }
     }
     
-    setParticipants(newParticipants);
+    return Array.from(totals.entries())
+        .map(([id, amount]) => ({ id, name: allParticipants.find(p => p.id === id)!.name, amount }))
+        .filter(p => p.amount > 0.005); // Filter out zero/tiny amounts
+
+  }, [items, itemAssignments, transaction.amount, allParticipants]);
+  
+  const handleAssignmentToggle = (itemId: string, contactId: string) => {
+    setItemAssignments(prev => {
+        const isAssigned = prev.some(a => a.itemId === itemId && a.contactId === contactId);
+        if (isAssigned) {
+            return prev.filter(a => !(a.itemId === itemId && a.contactId === contactId));
+        } else {
+            return [...prev, { itemId, contactId }];
+        }
+    });
   };
 
-  const totalAssigned = useMemo(() => participants.reduce((sum, p) => sum + p.amount, 0), [participants]);
-  const isSaveDisabled = Math.abs(totalAssigned - transaction.amount) > 0.01; // Allow for small floating point discrepancies
+  const totalAssigned = useMemo(() => participantTotals.reduce((sum, p) => sum + p.amount, 0), [participantTotals]);
+  const isSaveDisabled = Math.abs(totalAssigned - transaction.amount) > 0.01;
 
   const handleSubmit = () => {
     if (isSaveDisabled) return;
-    onSave(transaction.id, participants.map(({ name, amount }) => ({ personName: name, amount })));
+    const finalSplits = participantTotals.map(p => ({ personName: p.name, amount: p.amount }));
+    onSave(transaction.id, finalSplits);
   };
-
-  const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
-    <button onClick={onClick} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}>
-      {children}
-    </button>
-  );
-
+  
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-slate-700/50 animate-scaleIn" onClick={e => e.stopPropagation()}>
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title="Split Expense" onClose={onCancel} icon="➗" />
         
-        <div className="p-6 text-center border-b border-slate-700/50">
-            <p className="text-slate-400 text-sm">Total Amount</p>
-            <p className="text-3xl font-bold text-white">{formatCurrency(transaction.amount)}</p>
-            <p className="text-slate-300 text-sm truncate">{transaction.description}</p>
+        <div className="p-6 text-center border-b border-divider">
+            <p className="text-secondary text-sm">Total Amount</p>
+            <p className="text-3xl font-bold text-primary">{formatCurrency(transaction.amount)}</p>
+            <p className="text-secondary text-sm truncate">{transaction.description}</p>
         </div>
 
         <div className="p-4 flex-grow overflow-y-auto">
-            <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg mb-4">
-                <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
-                <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>
-                <TabButton active={mode === 'shares'} onClick={() => setMode('shares')}>Shares</TabButton>
-                <TabButton active={mode === 'manual'} onClick={() => setMode('manual')}>Manual</TabButton>
-            </div>
-            <div className="space-y-2">
-                {participants.map(p => (
-                    <div key={p.id} className="flex items-center gap-2 p-2 bg-slate-700/50 rounded-lg">
-                        <span className="font-semibold flex-grow truncate">{p.name}</span>
-                        {mode === 'percentage' && <input type="number" onWheel={e => e.currentTarget.blur()} value={p.percentage} onBlur={() => handleParticipantChange(p.id, 'percentage', p.percentage)} onChange={e => setParticipants(parts => parts.map(part => part.id === p.id ? {...part, percentage: e.target.value} : part))} className="w-16 bg-slate-800 p-1 rounded-md text-center no-spinner" placeholder="%" />}
-                        {mode === 'shares' && <input type="number" onWheel={e => e.currentTarget.blur()} value={p.shares} onBlur={() => handleParticipantChange(p.id, 'shares', p.shares)} onChange={e => setParticipants(parts => parts.map(part => part.id === p.id ? {...part, shares: e.target.value} : part))} className="w-16 bg-slate-800 p-1 rounded-md text-center no-spinner" placeholder="sh." />}
-                        {mode === 'manual' ? 
-                            <input type="number" onWheel={e => e.currentTarget.blur()} value={p.amount || ''} onChange={e => handleParticipantChange(p.id, 'amount', e.target.value)} className="w-24 bg-slate-800 p-1 rounded-md text-right no-spinner" />
-                            :
-                            <span className="w-24 text-right font-mono">{formatCurrency(p.amount)}</span>
-                        }
-                        {p.id !== 'you' && (
-                           <button onClick={() => handleRemoveParticipant(p.id)} className="w-7 h-7 flex items-center justify-center text-rose-400 flex-shrink-0 hover:bg-rose-500/10 rounded-full">
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                           </button>
-                        )}
+            {items && items.length > 0 ? (
+                <div className="space-y-3">
+                    <h3 className="font-semibold text-primary">Assign Items to People</h3>
+                    {items.map(item => (
+                        <div key={item.id} className="p-3 bg-subtle rounded-lg">
+                            <div className="flex justify-between font-medium">
+                                <span>{item.description}</span>
+                                <span>{formatCurrency(parseFloat(item.amount) || 0)}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                                {allParticipants.map(p => (
+                                    <CustomCheckbox
+                                        key={p.id}
+                                        id={`${item.id}-${p.id}`}
+                                        label={p.name}
+                                        checked={itemAssignments.some(a => a.itemId === item.id && a.contactId === p.id)}
+                                        onChange={() => handleAssignmentToggle(item.id, p.id)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                 <p className="text-sm text-center text-secondary">No items to assign. Splits will be calculated equally for the total amount.</p>
+            )}
+        </div>
+        
+        <div className="p-4 border-t border-divider flex-shrink-0 space-y-3">
+            <h3 className="font-semibold text-primary">Final Split</h3>
+            <div className="space-y-1 max-h-24 overflow-y-auto pr-2">
+                {participantTotals.map(p => (
+                    <div key={p.id} className="flex justify-between text-sm">
+                        <span>{p.name} owes</span>
+                        <span className="font-mono">{formatCurrency(p.amount)}</span>
                     </div>
                 ))}
             </div>
-             <form onSubmit={handleAddParticipant} className="flex items-center gap-2 mt-4">
-                <input type="text" value={newPersonName} onChange={e => setNewPersonName(e.target.value)} placeholder="Add person..." className="flex-grow bg-slate-700/80 p-2 rounded-md border border-slate-600"/>
-                <button type="submit" className="px-4 py-2 rounded-lg bg-sky-600 font-semibold text-sm">Add</button>
-            </form>
-        </div>
-
-        <div className="flex-shrink-0 p-4 border-t border-slate-700 space-y-2">
-            <div className="flex justify-between text-sm">
-                <span className="font-semibold">Total Assigned:</span>
+             <div className="flex justify-between text-sm font-semibold pt-2 border-t border-divider">
+                <span>Total Assigned:</span>
                 <span className={`font-mono ${isSaveDisabled ? 'text-rose-400' : 'text-emerald-400'}`}>{formatCurrency(totalAssigned)}</span>
             </div>
-             <div className="flex justify-between text-sm">
-                <span className="font-semibold">Remaining:</span>
-                <span className="font-mono">{formatCurrency(transaction.amount - totalAssigned)}</span>
-            </div>
             <div className="flex justify-end space-x-2 pt-2">
-                <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-slate-600">Cancel</button>
-                <button onClick={handleSubmit} disabled={isSaveDisabled} className="px-4 py-2 rounded-lg bg-emerald-600 disabled:bg-slate-700 disabled:cursor-not-allowed">Save Split</button>
+                <button onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+                <button onClick={handleSubmit} disabled={isSaveDisabled} className="button-primary px-4 py-2">Save Split</button>
             </div>
         </div>
       </div>

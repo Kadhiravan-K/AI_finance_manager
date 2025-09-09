@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Trip, Category, TransactionType, SplitDetail, TripExpense, Contact, TripParticipant, ParsedTripExpense } from '../types';
@@ -191,14 +192,16 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
   useEffect(() => {
     if (isEditing && expenseToEdit) {
       const category = categories.find(c => c.id === expenseToEdit.categoryId);
+      const isTopLevelSelected = !!(category && !category.parentId);
+      
       setItems([{
         id: expenseToEdit.id,
         description: expenseToEdit.description,
         price: String(expenseToEdit.amount),
         quantity: '1',
         notes: expenseToEdit.notes || '',
-        categoryId: expenseToEdit.categoryId,
-        parentId: category?.parentId || null,
+        categoryId: isTopLevelSelected ? '' : (expenseToEdit.categoryId || ''),
+        parentId: isTopLevelSelected ? (category?.id || null) : (category?.parentId || null),
       }]);
       setPayers(expenseToEdit.payers.map(p => ({ ...p, id: p.contactId, personName: (trip.participants||[]).filter(Boolean).find(tp => tp.contactId === p.contactId)?.name || 'Unknown', isSettled: p.contactId === USER_SELF_ID, shares: '1', percentage: '100' })));
       setSplitters(expenseToEdit.splitDetails);

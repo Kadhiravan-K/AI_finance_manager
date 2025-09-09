@@ -12,11 +12,11 @@ interface EditGoalModalProps {
 }
 
 const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) => {
-  const isCreating = !goal;
+  const isCreating = !goal?.id;
   
   const [name, setName] = useState(goal?.name || '');
   const [icon, setIcon] = useState(goal?.icon || '🏆');
-  const [targetAmount, setTargetAmount] = useState(goal?.targetAmount.toString() || '');
+  const [targetAmount, setTargetAmount] = useState(goal?.targetAmount ? String(goal.targetAmount) : '');
   const [productLink, setProductLink] = useState(goal?.productLink || '');
   const [priority, setPriority] = useState<Priority>(goal?.priority || 'None');
 
@@ -48,6 +48,7 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) 
         }, 
         goal?.id
       );
+      onClose();
     }
   };
 

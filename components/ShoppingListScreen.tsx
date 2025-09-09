@@ -1,60 +1,29 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
-import { ShoppingList, ShoppingListItem, ItemType, Priority, AppliedViewOptions, ViewOptions, ActiveModal } from '../types';
+import { ShoppingList, ShoppingListItem, ItemType, Priority, AppliedViewOptions, ViewOptions, ActiveModal, ActiveScreen } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomCheckbox from './CustomCheckbox';
 import EmptyState from './EmptyState';
 
 interface ShoppingListScreenProps {
+  shoppingListId: string | null;
   onCreateExpense: (list: ShoppingList) => void;
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
   onDeleteItem: (id: string, itemType: ItemType) => void;
+  onNavigate: (screen: ActiveScreen) => void;
 }
 
-export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreateExpense, openModal, onDeleteItem }) => {
+export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ shoppingListId, onCreateExpense, openModal, onDeleteItem, onNavigate }) => {
   const dataContext = useContext(AppDataContext);
-  const [selectedListId, setSelectedListId] = useState<string | null>(null);
-  const formatCurrency = useCurrencyFormatter();
+  const [selectedListId, setSelectedListId] = useState<string | null>(shoppingListId);
   
-  const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
-    sort: { key: 'updatedAt', direction: 'desc' },
-    filters: {}
-  });
+  useEffect(() => {
+    setSelectedListId(shoppingListId);
+  }, [shoppingListId]);
 
   if (!dataContext) return <div>Loading...</div>;
 
   const { shoppingLists, setShoppingLists } = dataContext;
-
-  const sortedLists = useMemo(() => {
-    let result = [...(shoppingLists || [])];
-    const { key, direction } = viewOptions.sort;
-    result.sort((a, b) => {
-        let comparison = 0;
-        switch(key) {
-            case 'title':
-                comparison = a.title.localeCompare(b.title);
-                break;
-            case 'updatedAt':
-                comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-                break;
-        }
-        return direction === 'asc' ? comparison : -comparison;
-    });
-    return result;
-  }, [shoppingLists, viewOptions]);
-
-  const viewOptionsConfig: ViewOptions = {
-    sortOptions: [
-        { key: 'updatedAt', label: 'Last Updated' },
-        { key: 'title', label: 'Title (A-Z)' },
-    ],
-    filterOptions: []
-  };
-
-  const isViewOptionsApplied = useMemo(() => {
-    return viewOptions.sort.key !== 'updatedAt' || viewOptions.sort.direction !== 'desc';
-  }, [viewOptions]);
-
 
   const handleSelectList = (id: string) => {
     setSelectedListId(id);
@@ -62,6 +31,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
 
   const handleBackToLists = () => {
     setSelectedListId(null);
+    onNavigate('shoppingLists'); // Navigate back to the main list view
   };
 
   const handleAddList = () => {
@@ -82,10 +52,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
   };
   
   const handleDeleteList = (id: string) => {
-      const list = (shoppingLists || []).find(l => l.id === id);
-      if (list) {
-          onDeleteItem(id, 'shoppingList');
-      }
+      onDeleteItem(id, 'shoppingList');
       if (selectedListId === id) {
           setSelectedListId(null);
       }
@@ -97,85 +64,105 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ onCreate
     return <ShoppingListDetailView list={selectedList} onSave={handleSaveList} onBack={handleBackToLists} onCreateExpense={onCreateExpense} />;
   }
 
-  return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-divider flex-shrink-0 flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-primary text-center">Shopping Lists 🛒</h2>
-        <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="button-secondary text-sm p-2 flex items-center gap-2 relative rounded-full aspect-square">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /></svg>
-            {isViewOptionsApplied && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[var(--color-bg-app)]"></div>}
-        </button>
-      </div>
-      <div className="flex-grow overflow-y-auto p-6 space-y-3">
-        {sortedLists && sortedLists.length > 0 ? (
-          sortedLists.map((list, index) => {
-            const listTotal = list.items.reduce((sum, item) => sum + (item.rate || 0), 0);
-            const purchasedTotal = list.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0);
-            const progress = listTotal > 0 ? (purchasedTotal / listTotal) * 100 : 0;
-
-            return (
-              <div key={list.id} onClick={() => handleSelectList(list.id)} className="glass-card p-4 rounded-xl group flex flex-col gap-2 animate-fadeInUp cursor-pointer" style={{ animationDelay: `${index * 50}ms` }}>
-                {/* Row 1: Title & Actions */}
-                <div className="flex justify-between items-start">
-                  <p className="font-bold text-lg text-primary truncate pr-2">
-                    {list.title}
-                  </p>
-                  <button
-                      onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteList(list.id);
-                      }}
-                      className="p-1 -mr-2 -mt-1 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                      aria-label={`Delete list ${list.title}`}
-                  >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                  </button>
-                </div>
-
-                {/* Row 2: Metadata */}
-                <div className="flex items-center gap-2 text-xs text-secondary">
-                  <span>{list.items.length === 1 ? '1 item' : `${list.items.length} items`}</span>
-                  <span className="text-tertiary">•</span>
-                  <span>Updated: {new Date(list.updatedAt).toLocaleDateString()}</span>
-                </div>
-                
-                {/* Row 3: Progress bar */}
-                <div className="w-full bg-slate-700/50 rounded-full h-2 mt-2">
-                  <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%` }}></div>
-                </div>
-
-                {/* Row 4: Totals */}
-                <div className="flex justify-between items-center text-sm mt-1">
-                  <div className="text-left">
-                    <p className="text-xs text-secondary">List Total</p>
-                    <p className="font-semibold text-primary">{formatCurrency(listTotal)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-secondary">Purchased</p>
-                    <p className="font-semibold text-emerald-400">{formatCurrency(purchasedTotal)}</p>
-                  </div>
-                </div>
-              </div>
-            )
-          })
-        ) : (
-          <EmptyState 
-            icon="🛒"
-            title="No Shopping Lists"
-            message="Create a list to keep track of your shopping items and expenses."
-            actionText="Create First List"
-            onAction={handleAddList}
-          />
-        )}
-      </div>
-      <div className="p-4 border-t border-divider flex-shrink-0">
-        <button onClick={handleAddList} className="button-primary w-full py-2">+ Add New List</button>
-      </div>
-    </div>
-  );
+  return <ShoppingListView onSelectList={handleSelectList} onAddList={handleAddList} onDeleteList={handleDeleteList} openModal={openModal} />;
 };
+
+interface ShoppingListViewProps {
+    onSelectList: (id: string) => void;
+    onAddList: () => void;
+    onDeleteList: (id: string) => void;
+    openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+}
+const ShoppingListView: React.FC<ShoppingListViewProps> = ({ onSelectList, onAddList, onDeleteList, openModal }) => {
+    const dataContext = useContext(AppDataContext);
+    const formatCurrency = useCurrencyFormatter();
+    const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
+        sort: { key: 'updatedAt', direction: 'desc' },
+        filters: {}
+    });
+
+    if (!dataContext) return null;
+    const { shoppingLists = [] } = dataContext;
+
+    const sortedLists = useMemo(() => {
+        let result = [...shoppingLists];
+        const { key, direction } = viewOptions.sort;
+        result.sort((a, b) => {
+            let comparison = 0;
+            switch(key) {
+                case 'title':
+                    comparison = a.title.localeCompare(b.title);
+                    break;
+                case 'updatedAt':
+                    comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                    break;
+            }
+            return direction === 'asc' ? comparison : -comparison;
+        });
+        return result;
+    }, [shoppingLists, viewOptions]);
+
+    const viewOptionsConfig: ViewOptions = {
+        sortOptions: [
+            { key: 'updatedAt', label: 'Last Updated' },
+            { key: 'title', label: 'Title (A-Z)' },
+        ],
+        filterOptions: []
+    };
+
+    const isViewOptionsApplied = useMemo(() => {
+        return viewOptions.sort.key !== 'updatedAt' || viewOptions.sort.direction !== 'desc';
+    }, [viewOptions]);
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-divider flex-shrink-0 flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-primary text-center">Shopping Lists 🛒</h2>
+                <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="button-secondary text-sm p-2 flex items-center gap-2 relative rounded-full aspect-square">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /></svg>
+                    {isViewOptionsApplied && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[var(--color-bg-app)]"></div>}
+                </button>
+            </div>
+            <div className="flex-grow overflow-y-auto p-6 space-y-3">
+                {sortedLists.length > 0 ? (
+                sortedLists.map((list, index) => {
+                    const listTotal = list.items.reduce((sum, item) => sum + (item.rate || 0), 0);
+                    const purchasedTotal = list.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0);
+                    const progress = listTotal > 0 ? (purchasedTotal / listTotal) * 100 : 0;
+
+                    return (
+                    <div key={list.id} onClick={() => onSelectList(list.id)} className="glass-card p-4 rounded-xl group flex flex-col gap-2 animate-fadeInUp cursor-pointer" style={{ animationDelay: `${index * 50}ms` }}>
+                        <div className="flex justify-between items-start">
+                        <p className="font-bold text-lg text-primary truncate pr-2">{list.title}</p>
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteList(list.id); }} className="p-1 -mr-2 -mt-1 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" aria-label={`Delete list ${list.title}`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-secondary">
+                        <span>{list.items.length} items</span>
+                        <span className="text-tertiary">•</span>
+                        <span>Updated: {new Date(list.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="w-full bg-slate-700/50 rounded-full h-2 mt-2">
+                        <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%` }}></div>
+                        </div>
+                        <div className="flex justify-between items-center text-sm mt-1">
+                            <div className="text-left"><p className="text-xs text-secondary">List Total</p><p className="font-semibold text-primary">{formatCurrency(listTotal)}</p></div>
+                            <div className="text-right"><p className="text-xs text-secondary">Purchased</p><p className="font-semibold text-emerald-400">{formatCurrency(purchasedTotal)}</p></div>
+                        </div>
+                    </div>
+                    )
+                })
+                ) : (
+                <EmptyState icon="🛒" title="No Shopping Lists" message="Create a list to keep track of your shopping items and expenses." actionText="Create First List" onAction={onAddList} />
+                )}
+            </div>
+            <div className="p-4 border-t border-divider flex-shrink-0">
+                <button onClick={onAddList} className="button-primary w-full py-2">+ Add New List</button>
+            </div>
+        </div>
+    )
+}
 
 interface ShoppingListDetailViewProps {
   list: ShoppingList;

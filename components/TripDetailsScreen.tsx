@@ -1,15 +1,12 @@
-
-
-
-
-import React, { useState, useMemo, useRef } from 'react';
-import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem, ActiveModal } from '../types';
+import React, { useState, useMemo, useRef, useContext } from 'react';
+import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem, ActiveModal, ActiveScreen, ShoppingList } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { calculateTripSummary } from '../utils/calculations';
 import CategoryPieChart from './CategoryPieChart';
 import { generateAITripPlan } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import CustomCheckbox from './CustomCheckbox';
+import { AppDataContext } from '../contexts/SettingsContext';
 
 interface TripDetailsScreenProps {
   trip: Trip;
@@ -22,8 +19,9 @@ interface TripDetailsScreenProps {
   onUpdateTrip: (trip: Trip) => void;
   initialTab?: TripDetailsTab;
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+  onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void;
 }
-type TripDetailsTab = 'dashboard' | 'expenses' | 'planner';
+type TripDetailsTab = 'dashboard' | 'expenses' | 'planner' | 'shopping';
 
 const ItineraryTimeline: React.FC<{
     plan: TripDayPlan[];
@@ -241,8 +239,47 @@ const TripBudgetSummary: React.FC<{ budget: number; totalSpent: number; currency
     );
 };
 
+const TripShoppingLists: React.FC<{ tripId: string, onNavigate: TripDetailsScreenProps['onNavigate'] }> = ({ tripId, onNavigate }) => {
+    const dataContext = useContext(AppDataContext);
+    if (!dataContext) return null;
 
-const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, onAddExpense, onEditExpense, onDeleteExpense, onBack, categories, onUpdateTrip, initialTab, openModal }) => {
+    const { shoppingLists, setShoppingLists } = dataContext;
+
+    const tripLists = useMemo(() => {
+        return (shoppingLists || []).filter(list => list.tripId === tripId);
+    }, [shoppingLists, tripId]);
+
+    const handleCreateList = () => {
+        const now = new Date().toISOString();
+        const newList: ShoppingList = {
+            id: self.crypto.randomUUID(),
+            title: 'New Trip Shopping List',
+            items: [],
+            createdAt: now,
+            updatedAt: now,
+            tripId: tripId,
+        };
+        setShoppingLists(prev => [...(prev || []), newList]);
+        onNavigate('shoppingLists', undefined, { shoppingListId: newList.id });
+    };
+
+    return (
+        <div className="space-y-3">
+            {tripLists.map(list => (
+                <button key={list.id} onClick={() => onNavigate('shoppingLists', undefined, { shoppingListId: list.id })} className="w-full text-left p-3 bg-subtle rounded-lg hover-bg-stronger transition-colors">
+                    <p className="font-semibold text-primary">{list.title}</p>
+                    <p className="text-xs text-secondary">{list.items.length} items</p>
+                </button>
+            ))}
+             <button onClick={handleCreateList} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
+                + Create Shopping List
+            </button>
+        </div>
+    );
+};
+
+
+const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, onAddExpense, onEditExpense, onDeleteExpense, onBack, categories, onUpdateTrip, initialTab, openModal, onNavigate }) => {
   const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
   const [activeTab, setActiveTab] = useState<TripDetailsTab>(initialTab || 'dashboard');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -312,8 +349,9 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
 
        <div className="flex border-b border-divider flex-shrink-0">
           <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')}>Dashboard</TabButton>
-          <TabButton active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')}>All Expenses</TabButton>
-          <TabButton active={activeTab === 'planner'} onClick={() => setActiveTab('planner')}>AI Planner</TabButton>
+          <TabButton active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')}>Expenses</TabButton>
+          <TabButton active={activeTab === 'planner'} onClick={() => setActiveTab('planner')}>Planner</TabButton>
+          <TabButton active={activeTab === 'shopping'} onClick={() => setActiveTab('shopping')}>Shopping</TabButton>
       </div>
 
       <div className="flex-grow overflow-y-auto p-6 space-y-6">
@@ -409,6 +447,12 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
                         <p className="text-sm text-secondary text-center py-8">No plan has been generated yet. Use the prompt above to create one!</p>
                     )}
                 </div>
+            </div>
+        )}
+
+        {activeTab === 'shopping' && (
+            <div className="animate-fadeInUp">
+                <TripShoppingLists tripId={trip.id} onNavigate={onNavigate} />
             </div>
         )}
       </div>

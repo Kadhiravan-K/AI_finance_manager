@@ -1,5 +1,3 @@
-
-
 import React, { useState, useContext, useEffect, useRef, useCallback, useMemo } from 'react';
 import Header from './components/Header';
 import { MainContent } from './components/MainContent';
@@ -78,6 +76,7 @@ const AppContent: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [timePickerState, setTimePickerState] = useState<{ initialTime: string; onSave: (time: string) => void; } | null>(null);
   const [tripDetailsId, setTripDetailsId] = useState<string | null>(null);
+  const [shoppingListId, setShoppingListId] = useState<string | null>(null);
   const [calculatorState, setCalculatorState] = useState<{ onResult: (result: number) => void } | null>(null);
 
   // For screen transitions
@@ -175,6 +174,9 @@ const AppContent: React.FC = () => {
       if (screen === 'tripDetails' && props?.tripId) {
           setTripDetailsId(props.tripId);
       }
+       if (screen === 'shoppingLists' && props?.shoppingListId) {
+          setShoppingListId(props.shoppingListId);
+      }
       handleScreenChange(screen);
       if (modal) openModal(modal, props);
   }, [openModal, handleScreenChange]);
@@ -188,12 +190,10 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     const root = document.documentElement;
-    if (settings.theme === 'light') {
-      root.classList.add('light');
-    } else {
-      root.classList.remove('light');
-    }
-  }, [settings.theme]);
+    root.classList.toggle('light', settings.theme === 'light');
+    root.classList.toggle('fab-glow-enabled', settings.fabGlowEffect ?? false);
+    root.classList.toggle('hub-cursor-glow-enabled', settings.hubCursorGlowEffect ?? false);
+  }, [settings.theme, settings.fabGlowEffect, settings.hubCursorGlowEffect]);
   
   useEffect(() => {
     // Event listener for the mouse-following glow effect
@@ -312,7 +312,7 @@ const AppContent: React.FC = () => {
         case 'editCategory':
             return <EditCategoryModal category={activeModal.props?.category} initialParentId={activeModal.props?.initialParentId} initialType={activeModal.props?.initialType} categories={categories} onSave={(cat, id) => { if(id) settingsContext.setCategories(p => p.map(c => c.id === id ? {...c, ...cat} : c)); else settingsContext.setCategories(p => [...p, {...cat, id: self.crypto.randomUUID()}]); }} onCancel={closeActiveModal} />;
         case 'editRecurring':
-             return <EditRecurringModal onClose={closeActiveModal} onSave={(data, id) => { if(id) dataContext.setRecurringTransactions(p => p.map(rt => rt.id === id ? {...rt, ...data} : rt)); else dataContext.setRecurringTransactions(p => [...p, {id: self.crypto.randomUUID(), ...data}]); }} recurringTransaction={activeModal.props?.recurringTransaction} accounts={accounts} categories={categories} />;
+             return <EditRecurringModal onClose={closeActiveModal} onSave={(data, id) => { if(id) dataContext.setRecurringTransactions(p => p.map(rt => rt.id === id ? {...rt, ...data} : rt)); else dataContext.setRecurringTransactions(p => [...p, {id: self.crypto.randomUUID(), ...data}]); }} recurringTransaction={activeModal.props?.recurringTransaction} accounts={accounts} categories={categories} openModal={openModal} />;
         case 'addCalendarEvent':
             return <AddCalendarEventModal onClose={closeActiveModal} onNavigate={onNavigate} initialDate={activeModal.props?.initialDate} />;
         case 'editNote':
@@ -324,7 +324,7 @@ const AppContent: React.FC = () => {
         case 'updateInvestment':
             return <UpdateInvestmentModal onClose={closeActiveModal} onSave={dataContext.onUpdateInvestmentValue} holding={activeModal.props?.holding} />;
         case 'splitTransaction':
-             return <SplitTransactionModal transaction={activeModal.props?.transaction} onSave={dataContext.onSplitTransaction} onCancel={closeActiveModal} />;
+             return <SplitTransactionModal transaction={activeModal.props?.transaction} onSave={dataContext.onSplitTransaction} onCancel={closeActiveModal} items={activeModal.props?.items} />;
         case 'shareGuide':
             return <ShareGuideModal onClose={closeActiveModal} />;
         case 'viewOptions':
@@ -404,12 +404,13 @@ const AppContent: React.FC = () => {
                 onGoalComplete={triggerConfetti}
                 appState={appState}
                 tripDetailsId={tripDetailsId}
+                shoppingListId={shoppingListId}
              />
           </main>
           <Footer 
             activeScreen={activeScreen} 
             setActiveScreen={handleScreenChange} 
-            onAddClick={() => openModal('addTransaction', { initialTab: 'auto' })}
+            onAddClick={() => openModal('addTransaction', { initialTab: 'manual' })}
           />
            {renderActiveModal()}
         </div>

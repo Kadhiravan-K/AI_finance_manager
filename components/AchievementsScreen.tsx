@@ -13,10 +13,10 @@ const AchievementsScreen: React.FC<AchievementsScreenProps> = ({ unlockedAchieve
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-divider flex-shrink-0">
-        <h2 className="text-xl font-bold text-primary text-center">Achievements</h2>
+        <h2 className="text-xl font-bold text-primary text-center">Achievements 🏅</h2>
       </div>
       <div className="flex-grow overflow-y-auto p-6">
-        <div className="achievements-grid">
+        <div className="achievement-list">
           {ALL_ACHIEVEMENTS.map(achievement => {
             const unlockedDate = unlockedMap.get(achievement.id);
             const isUnlocked = !!unlockedDate;
@@ -24,16 +24,13 @@ const AchievementsScreen: React.FC<AchievementsScreenProps> = ({ unlockedAchieve
             return (
               <div
                 key={achievement.id}
-                className={`achievement-badge ${isUnlocked ? 'unlocked' : 'locked'}`}
+                className={`achievement-item ${isUnlocked ? 'unlocked' : 'locked'}`}
               >
-                <div className="icon">{achievement.icon}</div>
-                <div className="name">{achievement.name}</div>
-                <div className="description">{achievement.description}</div>
-                {isUnlocked && (
-                  <div className="date">
-                    Unlocked: {new Date(unlockedDate).toLocaleDateString()}
-                  </div>
-                )}
+                <div className="achievement-icon">{achievement.icon}</div>
+                <div className="achievement-details">
+                    <p className="name">{achievement.name}</p>
+                    <p className="description">{achievement.description}</p>
+                </div>
               </div>
             );
           })}

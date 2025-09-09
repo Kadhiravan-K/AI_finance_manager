@@ -83,6 +83,8 @@ export const DEFAULT_SETTINGS: Settings = {
     googleCalendar: {
         connected: false,
     },
+    fabGlowEffect: false,
+    hubCursorGlowEffect: false,
 };
 
 const DEFAULT_FINANCIAL_PROFILE: FinancialProfile = {
@@ -176,6 +178,14 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       newSettings.enabledTools.shoppingLists = true;
     }
     delete newSettings.enabledTools.notes;
+
+    // Add new settings if they don't exist
+    if (newSettings.fabGlowEffect === undefined) {
+        newSettings.fabGlowEffect = false;
+    }
+    if (newSettings.hubCursorGlowEffect === undefined) {
+        newSettings.hubCursorGlowEffect = false;
+    }
 
 
     return newSettings as Settings;
@@ -735,5 +745,5 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         onTransfer, onExecuteAICommand, onSaveAutoTransaction, onSaveManualTransaction, onSplitTransaction
     ]);
 
-    return <AppDataContext.Provider value={value as any}>{children}</AppDataContext.Provider>;
+    return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }

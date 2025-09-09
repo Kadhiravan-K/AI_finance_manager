@@ -1,145 +1,154 @@
-import React, { useState, useMemo, useContext } from 'react';
-import { Transaction, Account, Contact, TransactionType, Category, SplitDetail, ActiveModal } from '../types';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
+import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail } from '../types';
 import { SettingsContext, AppDataContext } from '../contexts/SettingsContext';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import ModalHeader from './ModalHeader';
 
-interface ItemizedItem {
+interface Item {
     id: string;
     description: string;
     amount: string;
+    categoryId: string;
+    parentId: string | null;
 }
 
 interface EditTransactionModalProps {
-    transaction?: Transaction;
-    initialData?: Partial<Transaction> & { itemizedItems?: { description: string; amount: string }[] };
-    onSave: (data: any) => void;
+    transaction: Transaction;
+    onSave: (data: Transaction) => void;
     onCancel: () => void;
     accounts: Account[];
     contacts: Contact[];
     openModal: (name: ActiveModal, props?: Record<string, any>) => void;
     onOpenCalculator: (onResult: (result: number) => void) => void;
-    selectedAccountId?: string;
 }
 
 const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
-    transaction, initialData, onSave, onCancel, accounts, contacts, openModal, onOpenCalculator, selectedAccountId
+    transaction, onSave, onCancel, accounts, contacts, openModal, onOpenCalculator
 }) => {
-    const { categories } = useContext(SettingsContext);
-    const dataContext = useContext(AppDataContext);
-    const isEditing = !!transaction;
-
-    const [type, setType] = useState<TransactionType>(transaction?.type || initialData?.type || TransactionType.EXPENSE);
-    const [amount, setAmount] = useState<string>(transaction?.amount.toString() || initialData?.amount?.toString() || '');
-    const [description, setDescription] = useState<string>(transaction?.description || initialData?.description || '');
-    const [accountId, setAccountId] = useState<string>(transaction?.accountId || initialData?.accountId || selectedAccountId || accounts[0]?.id || '');
-    const [notes, setNotes] = useState<string>(transaction?.notes || initialData?.notes || '');
-    const [date, setDate] = useState<Date>(new Date(transaction?.date || initialData?.date || Date.now()));
+    const { categories, settings } = useContext(SettingsContext);
+    const formatCurrency = useCurrencyFormatter();
     
-    const initialCategory = categories.find(c => c.id === (transaction?.categoryId || initialData?.categoryId));
-    const [parentId, setParentId] = useState<string | null>(initialCategory?.parentId || null);
-    const [categoryId, setCategoryId] = useState<string>(transaction?.categoryId || initialData?.categoryId || '');
-
-    const [isItemized, setIsItemized] = useState(!!initialData?.itemizedItems && initialData.itemizedItems.length > 0);
-    const [items, setItems] = useState<ItemizedItem[]>(initialData?.itemizedItems?.map(i => ({...i, id: self.crypto.randomUUID()})) || [{id: self.crypto.randomUUID(), description: '', amount: ''}]);
-
-    const formatCurrency = useCurrencyFormatter(undefined, accounts.find(a => a.id === accountId)?.currency);
-
-    const itemizedTotal = useMemo(() => {
-        if (!isItemized) return 0;
-        return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-    }, [isItemized, items]);
-
-    const topLevelCategories = useMemo(() => categories.filter(c => c.type === type && !c.parentId), [categories, type]);
-    const subCategories = useMemo(() => parentId ? categories.filter(c => c.parentId === parentId) : [], [categories, parentId]);
+    // High-level state
+    const [isItemized, setIsItemized] = useState(!!transaction.itemizedDetails && transaction.itemizedDetails.length > 0);
     
-    const handleItemChange = (id: string, field: 'description' | 'amount', value: string) => {
+    // Non-itemized state
+    const [amount, setAmount] = useState(String(transaction.amount));
+    const [type, setType] = useState<TransactionType>(transaction.type);
+    const [description, setDescription] = useState(transaction.description);
+    const [notes, setNotes] = useState(transaction.notes || '');
+
+    const initialCategory = useMemo(() => categories.find(c => c.id === transaction.categoryId), [transaction.categoryId, categories]);
+    const [categoryId, setCategoryId] = useState(initialCategory?.parentId || (initialCategory ? initialCategory.id : ''));
+    const [subCategoryId, setSubCategoryId] = useState(initialCategory?.parentId ? initialCategory.id : '');
+    
+    // Itemized state
+    const initialItems = useMemo(() => {
+        if (transaction.itemizedDetails && transaction.itemizedDetails.length > 0) {
+            return transaction.itemizedDetails.map(detail => {
+                const category = categories.find(c => c.id === detail.categoryId);
+                return {
+                    id: self.crypto.randomUUID(), description: detail.description, amount: String(detail.amount), categoryId: detail.categoryId, parentId: category?.parentId || null,
+                };
+            });
+        }
+        const category = categories.find(c => c.id === transaction.categoryId);
+        return [{
+            id: self.crypto.randomUUID(), description: transaction.description, amount: String(transaction.amount), categoryId: category?.parentId ? transaction.categoryId : '', parentId: category?.parentId ? category.parentId : transaction.categoryId,
+        }];
+    }, [transaction, categories]);
+    const [items, setItems] = useState<Item[]>(initialItems);
+
+    const itemizedTotal = useMemo(() => items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0), [items]);
+    const topLevelCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
+    const topLevelCategoriesByType = useMemo(() => categories.filter(c => !c.parentId && c.type === type), [categories, type]);
+    const subCategories = useMemo(() => categories.filter(c => c.parentId === categoryId), [categories, categoryId]);
+    
+    const handleItemChange = (id: string, field: keyof Item, value: string | null) => {
         setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
     };
-    const handleAddItem = () => setItems(prev => [...prev, {id: self.crypto.randomUUID(), description: '', amount: ''}]);
+    const handleAddItem = () => setItems(prev => [...prev, {id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null}]);
     const handleRemoveItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const finalAmount = isItemized ? itemizedTotal : parseFloat(amount);
-        if (isNaN(finalAmount) || finalAmount <= 0) {
-            alert("Please enter a valid amount.");
-            return;
-        }
+        let transactionData: Transaction;
 
-        let finalDescription = description;
-        let finalNotes = notes;
         if (isItemized) {
-            finalNotes = `${notes ? notes + '\n\n' : ''}Itemized Details:\n${items.map(i => `- ${i.description}: ${formatCurrency(parseFloat(i.amount) || 0)}`).join('\n')}`;
-            if (!description) finalDescription = items[0]?.description || 'Itemized Expense';
-        }
+            const finalAmount = itemizedTotal;
+            if (isNaN(finalAmount) || finalAmount <= 0) { alert("Please enter valid amounts."); return; }
+            
+            const itemizedDetails: ItemizedDetail[] | undefined = items
+                .filter(i => i.description.trim() && parseFloat(i.amount) > 0 && (i.categoryId || i.parentId))
+                .map(i => ({ description: i.description, amount: parseFloat(i.amount), categoryId: i.categoryId || i.parentId! }));
 
-        const transactionData = {
-            ...transaction,
-            id: transaction?.id || self.crypto.randomUUID(),
-            description: finalDescription,
-            amount: finalAmount,
-            type,
-            accountId,
-            categoryId: categoryId || parentId,
-            date: date.toISOString(),
-            notes: finalNotes.trim() || undefined
-        };
+            if (!itemizedDetails || itemizedDetails.length === 0) { alert("Please fill out at least one valid item."); return; }
+            
+            const primaryCategory = categories.find(c => c.id === itemizedDetails[0].categoryId);
+            if (!primaryCategory) { alert("Please select a valid category."); return; }
+
+            transactionData = { ...transaction, description: description || `${items[0].description} & more`, amount: finalAmount, type: primaryCategory.type, categoryId: primaryCategory.id, notes, itemizedDetails };
+        } else {
+            const finalAmount = parseFloat(amount);
+            if (isNaN(finalAmount) || finalAmount <= 0) { alert("Please enter a valid amount."); return; }
+            if (!categoryId) { alert("Please select a category."); return; }
+
+             transactionData = { ...transaction, description, amount: finalAmount, type, categoryId: subCategoryId || categoryId, notes, itemizedDetails: undefined };
+        }
         onSave(transactionData);
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
-            <div className="flex-grow overflow-y-auto p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
-                    <button type="button" onClick={() => setType(TransactionType.EXPENSE)} className={`w-full py-2 text-sm font-semibold rounded-full ${type === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : ''}`}>Expense</button>
-                    <button type="button" onClick={() => setType(TransactionType.INCOME)} className={`w-full py-2 text-sm font-semibold rounded-full ${type === TransactionType.INCOME ? 'bg-emerald-500 text-white' : ''}`}>Income</button>
-                </div>
-
-                <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Description" className="input-base w-full p-2 rounded-lg" required autoFocus />
-
-                {!isItemized ? (
-                    <div className="relative">
-                        <input type="number" step="0.01" value={amount} onWheel={e => e.currentTarget.blur()} onChange={e => setAmount(e.target.value)} placeholder="Amount" className="input-base w-full p-2 rounded-lg no-spinner" required />
-                        <button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary p-1">🧮</button>
-                    </div>
-                ) : (
-                    <div className="p-3 bg-subtle rounded-lg space-y-2 border border-divider">
-                        {items.map((item, index) => (
-                            <div key={item.id} className="flex items-center gap-2">
-                                <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item ${index + 1}`} className="input-base p-1.5 rounded-md flex-grow" />
-                                <input type="number" step="0.01" value={item.amount} onWheel={e => e.currentTarget.blur()} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="Amount" className="input-base p-1.5 rounded-md w-24 no-spinner text-right" />
-                                <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-rose-400 font-bold text-xl leading-none">&times;</button>
+       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
+            <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                <ModalHeader title="Edit Transaction" onClose={onCancel} />
+                 <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
+                    <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                        {!isItemized ? (
+                            <div className="space-y-4 animate-fadeInUp">
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm font-medium text-secondary mb-1">Amount ({settings.currency})</label>
+                                        <div className="relative"><input type="number" value={amount} onChange={e=>setAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required /><button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
+                                    </div>
+                                    <div><label className="text-sm font-medium text-secondary mb-1">Type</label><CustomSelect options={[{value: 'expense', label: 'Expense'}, {value: 'income', label: 'Income'}]} value={type} onChange={val => { setType(val as TransactionType); setCategoryId(''); setSubCategoryId(''); }} /></div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="text-sm font-medium text-secondary mb-1">Category</label><CustomSelect options={topLevelCategoriesByType.map(c=>({value: c.id, label: c.name}))} value={categoryId} onChange={setCategoryId} placeholder="Select Category" /></div>
+                                    <div><label className="text-sm font-medium text-secondary mb-1">Subcategory</label><CustomSelect options={subCategories.map(c=>({value: c.id, label: c.name}))} value={subCategoryId} onChange={setSubCategoryId} placeholder="-" disabled={!categoryId} /></div>
+                                </div>
+                                <div><label className="text-sm font-medium text-secondary mb-1">Description</label><input type="text" value={description} onChange={e=>setDescription(e.target.value)} className="input-base w-full p-2 rounded-lg" required /></div>
+                                <div><label className="text-sm font-medium text-secondary mb-1">Notes (Optional)</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} className="input-base w-full p-2 rounded-lg resize-none" /></div>
                             </div>
-                        ))}
-                        <button type="button" onClick={handleAddItem} className="text-xs text-sky-400 hover:text-sky-300">+ Add Item</button>
-                        <p className="text-right font-semibold">Total: {formatCurrency(itemizedTotal)}</p>
+                        ) : (
+                             <div className="space-y-3 animate-fadeInUp">
+                                {isItemized && <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Overall Description (e.g., Groceries)" className="input-base w-full p-2 rounded-lg" />}
+                                {items.map((item, index) => (
+                                    <div key={item.id} className="itemized-item-card flex items-start gap-2">
+                                        <div className="flex-grow space-y-2">
+                                            <div className="flex items-center gap-2"><input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item Description`} className="input-base p-2 rounded-md w-full" required /><button type="button" onClick={() => openModal('splitTransaction', { transaction: {...transaction, amount: itemizedTotal}, items })} className="button-secondary px-3 py-2 text-xs">Split</button></div>
+                                            <div className="grid grid-cols-[1fr_auto_1fr] gap-2"><div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div><span className="p-2 text-center text-secondary">in</span><CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', val); }} options={[{value: '', label: 'Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} /></div>
+                                        </div>
+                                    {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-rose-400 hover:text-rose-300 rounded-full flex-shrink-0" aria-label="Remove item"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
+                                    </div>
+                                ))}
+                                <button type="button" onClick={handleAddItem} className="w-full text-center p-2 text-sm text-sky-400 hover:text-sky-300">+ Add Item</button>
+                                <div className="pt-3 border-t border-divider"><div className="flex justify-between items-center font-semibold text-lg"><span>Total:</span><span>{formatCurrency(itemizedTotal)}</span></div></div>
+                            </div>
+                        )}
+                         <div className="pt-4 border-t border-divider"><ToggleSwitch label="Itemize & Split Transaction" checked={isItemized} onChange={setIsItemized} /></div>
                     </div>
-                )}
-                
-                <ToggleSwitch label="Itemize & Split" checked={isItemized} onChange={setIsItemized} />
-
-                <div className="grid grid-cols-2 gap-4">
-                    <CustomSelect value={accountId} onChange={setAccountId} options={accounts.map(a => ({value: a.id, label: a.name}))} />
-                    <CustomDatePicker value={date} onChange={setDate} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <CustomSelect value={parentId || ''} onChange={val => { setParentId(val || null); setCategoryId(''); }} options={[{value: '', label: 'Select Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} />
-                    <CustomSelect value={categoryId} onChange={setCategoryId} options={subCategories.map(c => ({value: c.id, label: c.name}))} disabled={!parentId || subCategories.length === 0} placeholder="Subcategory" />
-                </div>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (Optional)" rows={2} className="input-base w-full p-2 rounded-lg resize-none" />
-                
-                <button type="button" onClick={() => openModal('splitTransaction', { transaction: { amount: isItemized ? itemizedTotal : parseFloat(amount) } })} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
-                    ➗ Split with Contacts
-                </button>
+                    <div className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-3 bg-subtle rounded-b-xl">
+                        <button type="button" onClick={() => openModal('refund', { originalTransaction: transaction })} className="button-secondary px-4 py-2">Process Refund</button>
+                        <div className="flex-grow"></div>
+                        <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+                        <button type="submit" className="button-primary px-4 py-2">Save Changes</button>
+                    </div>
+                </form>
             </div>
-            <div className="flex-shrink-0 p-4 border-t border-divider flex justify-end gap-3 bg-subtle rounded-b-xl">
-                <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
-                <button type="submit" className="button-primary px-4 py-2">{isEditing ? 'Save Changes' : 'Save Transaction'}</button>
-            </div>
-        </form>
+        </div>
     );
 };
 
