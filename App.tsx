@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useEffect, useRef, useCallback, useMemo } from 'react';
 import Header from './components/Header';
 import { MainContent } from './components/MainContent';
@@ -278,7 +279,8 @@ const AppContent: React.FC = () => {
         case 'editTrip':
             return <EditTripModal trip={activeModal.props?.trip} onClose={closeActiveModal} onSave={(tripData, id) => { if(id) dataContext.setTrips(p => p.map(t => t.id === id ? {...t, ...tripData} : t)); else dataContext.setTrips(p => [...p, {id: self.crypto.randomUUID(), date: new Date().toISOString(), ...tripData}]) }} onSaveContact={(contact) => { const newContact = {...contact, id: self.crypto.randomUUID()}; settingsContext.setContacts(p => [...p, newContact]); return newContact; }} onOpenContactsManager={() => openModal('contacts')} />;
         case 'addTripExpense':
-            return <AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={(items) => { const now = new Date().toISOString(); items.forEach(item => dataContext.setTripExpenses(p => [...p, {...item, id: self.crypto.randomUUID(), tripId: activeModal.props?.trip.id, date: now}])); }} onUpdate={(expense) => dataContext.setTripExpenses(p => p.map(e => e.id === expense.id ? {...e, ...expense} : e))} categories={categories} findOrCreateCategory={dataContext.findOrCreateCategory} onOpenCalculator={() => {}} onSaveContact={() => ({} as Contact)} />;
+            // Fix: Corrected the onSave handler to process a single expense object instead of an array, and removed invalid props 'onOpenCalculator' and 'onSaveContact'.
+            return <AddTripExpenseModal trip={activeModal.props?.trip} expenseToEdit={activeModal.props?.expenseToEdit} onClose={closeActiveModal} onSave={(expenseData) => { const now = new Date().toISOString(); dataContext.setTripExpenses(p => [...p, {...expenseData, id: self.crypto.randomUUID(), tripId: activeModal.props?.trip.id, date: now}]); }} onUpdate={(expense) => dataContext.setTripExpenses(p => p.map(e => e.id === expense.id ? {...e, ...expense} : e))} categories={categories} findOrCreateCategory={dataContext.findOrCreateCategory} />;
         case 'tripSummary':
             return <GlobalTripSummaryModal allExpenses={tripExpenses} trips={trips} settlements={settlements} onClose={closeActiveModal} onSettle={dataContext.handleRecordSettlement} />;
         case 'editGoal':

@@ -17,6 +17,7 @@ export interface ItemizedDetail {
   description: string;
   amount: number;
   categoryId: string;
+  splitDetails?: SplitDetail[];
 }
 
 export interface SplitDetail {
@@ -177,6 +178,7 @@ export interface TripExpense {
   notes?: string;
   payers: { contactId: string; amount: number }[];
   splitDetails: SplitDetail[];
+  itemizedDetails?: ItemizedDetail[];
 }
 
 export type Theme = 'light' | 'dark';
