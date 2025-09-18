@@ -1,3 +1,4 @@
+
 import React, { useState, useContext } from 'react';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { AppState } from '../types';
@@ -6,7 +7,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { currencies, getCurrencyFormatter } from '../utils/currency';
 import CustomSelect from './CustomSelect';
 
-type CalculatorType = 'basic' | 'currency' | 'emi' | 'sip' | 'goal' | 'swp';
+type CalculatorType = 'basic' | 'ai' | 'currency' | 'emi' | 'sip' | 'goal' | 'swp';
 
 interface CalculatorScreenProps {
   appState: AppState;
@@ -19,17 +20,14 @@ const formCardBaseClasses = "p-4 glass-card rounded-xl space-y-4";
 
 
 interface BasicCalculatorProps {
-  appState: AppState;
+  // No props needed now
 }
 
-const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
+const BasicCalculator: React.FC<BasicCalculatorProps> = () => {
     const [expression, setExpression] = useState('');
     const [result, setResult] = useState('');
     const [history, setHistory] = useState<{ query: string; answer: string }[]>([]);
-    const [aiQuery, setAiQuery] = useState('');
-    const [isAiLoading, setIsAiLoading] = useState(false);
-    const formatCurrency = useCurrencyFormatter();
-
+    
     const handleInput = (value: string) => {
         const isOperator = ['+', '-', '*', '/'].includes(value);
 
@@ -56,34 +54,30 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
     const handleCalculate = () => {
         if (!expression) return;
         try {
-            let sanitized = expression.replace(/[^-()\d/*+.^sqrt]/g, '');
-            sanitized = sanitized.replace(/\^/g, '**');
-            sanitized = sanitized.replace(/sqrt\(/g, 'Math.sqrt(');
+            // Replace user-friendly operators with JS-compatible ones
+            let exprToEval = expression
+                .replace(/×/g, '*')
+                .replace(/÷/g, '/');
+
+            // Basic security check: prevent anything that isn't a number, operator, or parenthesis
+            if (/[^0-9+\-*/().\s]/.test(exprToEval)) {
+                throw new Error("Invalid characters in expression");
+            }
             
             // eslint-disable-next-line no-new-func
-            const calculatedResult = new Function('return ' + sanitized)();
-            const resultStr = String(calculatedResult);
+            const calculatedResult = new Function('return ' + exprToEval)();
+            if (typeof calculatedResult !== 'number' || !isFinite(calculatedResult)) {
+                throw new Error("Invalid calculation");
+            }
+
+            const resultStr = String(parseFloat(calculatedResult.toPrecision(12)));
             setResult(resultStr);
-            setHistory(prev => [{ query: expression, answer: resultStr }, ...prev].slice(0, 10));
+            setHistory(prev => [{ query: expression, answer: resultStr }, ...prev].slice(0, 5));
         } catch (error) {
             setResult('Error');
         }
     };
     
-    const handleAiCalculate = async () => {
-        if (!aiQuery.trim()) return;
-        setIsAiLoading(true);
-        try {
-            const res = await parseNaturalLanguageCalculation(appState, aiQuery);
-            const answerStr = `${formatCurrency(res.answer)} (${res.explanation})`;
-            setHistory(prev => [{ query: aiQuery, answer: answerStr }, ...prev].slice(0, 10));
-            setAiQuery('');
-        } catch (error) {
-            setHistory(prev => [{ query: aiQuery, answer: `Error: ${error instanceof Error ? error.message : 'Calculation failed'}`}, ...prev]);
-        }
-        setIsAiLoading(false);
-    };
-
     const CalcButton = ({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) => (
         <button onClick={onClick} className={`calc-btn ${className}`}>
             {children}
@@ -102,20 +96,12 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
     
     return (
         <div className="space-y-3">
-            <div className="p-3 bg-subtle rounded-lg space-y-2">
-                <div className="relative">
-                    <input type="text" value={aiQuery} onChange={e => setAiQuery(e.target.value)} placeholder="Ask AI: 'food spending last month'" className="w-full input-base p-2 rounded-full pr-10" />
-                    <button onClick={handleAiCalculate} disabled={isAiLoading} className="absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-full bg-violet-500 text-white">
-                        {isAiLoading ? <LoadingSpinner/> : '✨'}
-                    </button>
+            <div className="calculator-result text-right p-2 space-y-1">
+                <div className="calculator-history pr-2 text-right">
+                     {history.length > 0 && <div className="truncate text-xs">{history[0].query} = {history[0].answer}</div>}
                 </div>
-                <div className="calculator-history pr-2">
-                    {history.map((item, i) => <div key={i}><p className="truncate">{item.query}</p><p className="font-semibold text-primary truncate">= {item.answer}</p></div>)}
-                </div>
-            </div>
-            <div className="calculator-result text-right p-4 space-y-1">
                 <div className="text-secondary text-lg h-6 truncate" aria-live="polite">{expression || '0'}</div>
-                <div className="text-primary text-4xl font-bold h-12 truncate" aria-live="polite">{result}</div>
+                <div className="text-primary text-3xl font-bold h-10 truncate" aria-live="polite">{result}</div>
             </div>
              <div className="grid grid-cols-4 gap-1.5">
                 <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
@@ -137,14 +123,70 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = ({ appState }) => {
                 <CalcButton onClick={() => handleButtonClick('2')}>2</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('3')}>3</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('+')} className="calc-btn-operator">+</CalcButton>
-
-                <CalcButton onClick={() => handleButtonClick('0')} className="col-span-2">0</CalcButton>
+                
+                <CalcButton onClick={() => handleButtonClick('00')}>00</CalcButton>
+                <CalcButton onClick={() => handleButtonClick('0')}>0</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('.')}>.</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('=')} className="calc-btn-operator">=</CalcButton>
             </div>
         </div>
     );
   };
+
+interface AICalculatorProps {
+    appState: AppState;
+}
+
+const AICalculator: React.FC<AICalculatorProps> = ({ appState }) => {
+    const [history, setHistory] = useState<{ query: string; answer: string }[]>([]);
+    const [aiQuery, setAiQuery] = useState('');
+    const [isAiLoading, setIsAiLoading] = useState(false);
+    const formatCurrency = useCurrencyFormatter();
+
+    const handleAiCalculate = async () => {
+        if (!aiQuery.trim()) return;
+        setIsAiLoading(true);
+        try {
+            const res = await parseNaturalLanguageCalculation(appState, aiQuery);
+            const answerStr = `${formatCurrency(res.answer)} (${res.explanation})`;
+            setHistory(prev => [{ query: aiQuery, answer: answerStr }, ...prev].slice(0, 10));
+            setAiQuery('');
+        } catch (error) {
+            setHistory(prev => [{ query: aiQuery, answer: `Error: ${error instanceof Error ? error.message : 'Calculation failed'}`}, ...prev]);
+        }
+        setIsAiLoading(false);
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="relative">
+                <input 
+                    type="text" 
+                    value={aiQuery} 
+                    onChange={e => setAiQuery(e.target.value)} 
+                    placeholder="Ask: 'food spending last month'" 
+                    className="w-full input-base p-3 rounded-full pr-12"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAiCalculate() }}
+                />
+                <button onClick={handleAiCalculate} disabled={isAiLoading || !aiQuery.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-violet-500 text-white">
+                    {isAiLoading ? <LoadingSpinner/> : '✨'}
+                </button>
+            </div>
+            <div className="p-4 bg-subtle rounded-lg space-y-3 min-h-[200px]">
+                <h4 className="text-sm font-semibold text-secondary">History</h4>
+                <div className="space-y-2 text-sm">
+                    {history.length === 0 && <p className="text-center text-tertiary pt-8">Ask a question about your finances to see results here.</p>}
+                    {history.map((item, i) => (
+                        <div key={i} className="p-2 rounded-md bg-subtle border border-divider">
+                            <p className="truncate text-tertiary">Q: {item.query}</p>
+                            <p className="font-semibold text-primary truncate">A: {item.answer}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
   
 interface CurrencyCalculatorProps {
   appState: AppState;
@@ -350,6 +392,7 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
        <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
          <div className="flex items-center gap-1">
            <TabButton active={activeTab === 'basic'} onClick={() => setActiveTab('basic')}>Basic</TabButton>
+           <TabButton active={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI</TabButton>
            <TabButton active={activeTab === 'currency'} onClick={() => setActiveTab('currency')}>Currency</TabButton>
            <TabButton active={activeTab === 'emi'} onClick={() => setActiveTab('emi')}>EMI</TabButton>
            <TabButton active={activeTab === 'sip'} onClick={() => setActiveTab('sip')}>SIP</TabButton>
@@ -358,7 +401,8 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
          </div>
        </div>
        <div className="flex-grow overflow-y-auto p-4">
-         {activeTab === 'basic' && <BasicCalculator appState={appState} />}
+         {activeTab === 'basic' && <BasicCalculator />}
+         {activeTab === 'ai' && <AICalculator appState={appState} />}
          {activeTab === 'currency' && <CurrencyCalculator appState={appState} />}
          {activeTab === 'emi' && <EMICalculator />}
          {activeTab === 'sip' && <SIPCalculator />}
