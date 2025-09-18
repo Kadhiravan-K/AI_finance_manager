@@ -41,6 +41,7 @@ export interface Transaction {
   payeeId?: string;
   isRecurring?: boolean;
   transferId?: string;
+  payers?: { contactId: string; amount: number }[];
   splitDetails?: SplitDetail[];
   itemizedDetails?: ItemizedDetail[];
 }

@@ -324,7 +324,11 @@ const AppContent: React.FC = () => {
         case 'updateInvestment':
             return <UpdateInvestmentModal onClose={closeActiveModal} onSave={dataContext.onUpdateInvestmentValue} holding={activeModal.props?.holding} />;
         case 'splitTransaction':
-             return <SplitTransactionModal transaction={activeModal.props?.transaction} onSave={dataContext.onSplitTransaction} onCancel={closeActiveModal} items={activeModal.props?.items} />;
+             return <SplitTransactionModal
+                transaction={activeModal.props?.transaction}
+                onSave={activeModal.props?.onSave || dataContext.onSplitTransaction}
+                onCancel={closeActiveModal}
+                items={activeModal.props?.items} />;
         case 'shareGuide':
             return <ShareGuideModal onClose={closeActiveModal} />;
         case 'viewOptions':

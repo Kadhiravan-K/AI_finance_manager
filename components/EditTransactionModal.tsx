@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useContext, useEffect } from 'react';
-import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail } from '../types';
+import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '../types';
 import { SettingsContext, AppDataContext } from '../contexts/SettingsContext';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -33,6 +33,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     
     // High-level state
     const [isItemized, setIsItemized] = useState(!!transaction.itemizedDetails && transaction.itemizedDetails.length > 0);
+    const [splitDetails, setSplitDetails] = useState<SplitDetail[] | undefined>(transaction.splitDetails);
     
     // Non-itemized state
     const [amount, setAmount] = useState(String(transaction.amount));
@@ -71,6 +72,26 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     };
     const handleAddItem = () => setItems(prev => [...prev, {id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null}]);
     const handleRemoveItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
+    
+    const handleSaveSplit = (transactionId: string, splits: { personName: string; amount: number }[]) => {
+        const newSplitDetails: SplitDetail[] = splits.map(s => ({
+            id: contacts.find(c => c.name === s.personName)?.id || self.crypto.randomUUID(),
+            personName: s.personName,
+            amount: s.amount,
+            isSettled: s.personName.toLowerCase() === 'you',
+        }));
+        setSplitDetails(newSplitDetails);
+    };
+
+    const handleOpenSplitModal = () => {
+        const currentItems = items.filter(i => i.description && i.amount).map(i => ({ description: i.description, amount: parseFloat(i.amount) || 0, categoryId: i.categoryId || i.parentId || '' }));
+
+        openModal('splitTransaction', {
+            transaction: { ...transaction, amount: itemizedTotal, itemizedDetails: currentItems },
+            onSave: handleSaveSplit,
+            items: items.filter(i => i.description && i.amount)
+        });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -89,13 +110,13 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             const primaryCategory = categories.find(c => c.id === itemizedDetails[0].categoryId);
             if (!primaryCategory) { alert("Please select a valid category."); return; }
 
-            transactionData = { ...transaction, description: description || `${items[0].description} & more`, amount: finalAmount, type: primaryCategory.type, categoryId: primaryCategory.id, notes, itemizedDetails };
+            transactionData = { ...transaction, description: description || `${items[0].description} & more`, amount: finalAmount, type: primaryCategory.type, categoryId: primaryCategory.id, notes, itemizedDetails, splitDetails };
         } else {
             const finalAmount = parseFloat(amount);
             if (isNaN(finalAmount) || finalAmount <= 0) { alert("Please enter a valid amount."); return; }
             if (!categoryId) { alert("Please select a category."); return; }
 
-             transactionData = { ...transaction, description, amount: finalAmount, type, categoryId: subCategoryId || categoryId, notes, itemizedDetails: undefined };
+             transactionData = { ...transaction, description, amount: finalAmount, type, categoryId: subCategoryId || categoryId, notes, itemizedDetails: undefined, splitDetails };
         }
         onSave(transactionData);
     };
@@ -128,14 +149,28 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                                 {items.map((item, index) => (
                                     <div key={item.id} className="itemized-item-card flex items-start gap-2">
                                         <div className="flex-grow space-y-2">
-                                            <div className="flex items-center gap-2"><input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item Description`} className="input-base p-2 rounded-md w-full" required /><button type="button" onClick={() => openModal('splitTransaction', { transaction: {...transaction, amount: itemizedTotal}, items })} className="button-secondary px-3 py-2 text-xs">Split</button></div>
+                                            <div className="flex items-center gap-2"><input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item Description`} className="input-base p-2 rounded-md w-full" required /></div>
                                             <div className="grid grid-cols-[1fr_auto_1fr] gap-2"><div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div><span className="p-2 text-center text-secondary">in</span><CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', val); }} options={[{value: '', label: 'Category'}, ...topLevelCategories.map(c => ({value: c.id, label: c.name}))]} /></div>
                                         </div>
-                                    {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-rose-400 hover:text-rose-300 rounded-full flex-shrink-0" aria-label="Remove item"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
+                                    {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-rose-400 hover:text-rose-300 rounded-full flex-shrink-0" aria-label="Remove item"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
                                     </div>
                                 ))}
                                 <button type="button" onClick={handleAddItem} className="w-full text-center p-2 text-sm text-sky-400 hover:text-sky-300">+ Add Item</button>
-                                <div className="pt-3 border-t border-divider"><div className="flex justify-between items-center font-semibold text-lg"><span>Total:</span><span>{formatCurrency(itemizedTotal)}</span></div></div>
+                                <div className="pt-3 border-t border-divider space-y-2">
+                                    <div className="flex justify-between items-center font-semibold text-lg">
+                                        <span>Total:</span>
+                                        <span>{formatCurrency(itemizedTotal)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-secondary">Split Details:</span>
+                                        <span className={`font-semibold ${splitDetails && splitDetails.length > 0 ? 'text-emerald-400' : 'text-tertiary'}`}>
+                                            {splitDetails && splitDetails.length > 0 ? `${splitDetails.length} people` : 'Not split'}
+                                        </span>
+                                    </div>
+                                    <button type="button" onClick={handleOpenSplitModal} className="w-full button-secondary py-2 text-sm">
+                                        {splitDetails && splitDetails.length > 0 ? 'Edit Split' : 'Split Expense'}
+                                    </button>
+                                </div>
                             </div>
                         )}
                          <div className="pt-4 border-t border-divider"><ToggleSwitch label="Itemize & Split Transaction" checked={isItemized} onChange={setIsItemized} /></div>
