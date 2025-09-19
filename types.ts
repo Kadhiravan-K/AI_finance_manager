@@ -184,7 +184,7 @@ export interface TripExpense {
 export type Theme = 'light' | 'dark';
 export type TrustBinDeletionPeriodUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
 
-export type ToggleableTool = 'achievements' | 'aiHub' | 'dataHub' | 'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'budgets' | 'goals' | 'learn' | 'challenges' | 'shoppingLists' | 'subscriptions' | 'debtManager' | 'faq';
+export type ToggleableTool = 'achievements' | 'aiHub' | 'dataHub' | 'investments' | 'payees' | 'refunds' | 'scheduledPayments' | 'senders' | 'shop' | 'calculator' | 'tripManagement' | 'accountTransfer' | 'calendar' | 'budgets' | 'goals' | 'learn' | 'challenges' | 'shoppingLists' | 'subscriptions' | 'debtManager' | 'faq' | 'feedback';
 
 export interface NotificationSettings {
     enabled: boolean;
@@ -196,7 +196,7 @@ export interface NotificationSettings {
 }
 
 export interface DashboardWidget {
-    id: 'financialHealth' | 'aiCoach' | 'summary' | 'upcoming' | 'budgets' | 'goals' | 'charts' | 'netWorth' | 'portfolio' | 'debts';
+    id: 'financialHealth' | 'aiCoach' | 'summary' | 'upcoming' | 'budgets' | 'goals' | 'charts' | 'netWorth' | 'portfolio' | 'debts' | 'netWorthTrend';
     name: string;
     visible: boolean;
 }

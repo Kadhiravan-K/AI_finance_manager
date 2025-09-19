@@ -21,7 +21,8 @@ interface AddTripExpenseModalProps {
     trip: Trip;
     expenseToEdit?: TripExpense;
     onClose: () => void;
-    onSave: (expense: Partial<TripExpense>) => void; // Changed to single expense
+    // Fix: Strengthened the 'onSave' prop type to ensure all required fields are passed.
+    onSave: (expense: Omit<TripExpense, 'id' | 'tripId' | 'date'>) => void;
     onUpdate: (expense: TripExpense) => void;
     categories: Category[];
     findOrCreateCategory: (name: string, type: TransactionType) => string;
@@ -98,7 +99,8 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             id, personName: data.name, amount: data.amount, isSettled: id === USER_SELF_ID
         }));
 
-        const expenseData: Partial<TripExpense> = {
+        // Fix: Use a more specific type for expenseData to match the onSave prop.
+        const expenseData: Omit<TripExpense, 'id' | 'tripId' | 'date'> = {
             description,
             amount: expenseAmount,
             categoryId: finalItemizedDetails[0].categoryId,
@@ -108,7 +110,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
         };
         
         if (isEditing) {
-            onUpdate({ ...expenseToEdit, ...expenseData });
+            onUpdate({ ...expenseToEdit!, ...expenseData });
         } else {
             onSave(expenseData);
         }

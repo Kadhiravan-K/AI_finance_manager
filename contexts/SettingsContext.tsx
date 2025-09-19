@@ -29,11 +29,12 @@ const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
     { id: 'financialHealth', name: "Financial Health", visible: true },
     { id: 'aiCoach', name: "AI Financial Coach", visible: true },
     { id: 'summary', name: 'Monthly Summary', visible: true },
+    { id: 'netWorth', name: 'Net Worth', visible: true },
+    { id: 'netWorthTrend', name: 'Net Worth Trend', visible: true },
     { id: 'upcoming', name: 'Upcoming/Due Bills', visible: true },
     { id: 'budgets', name: 'Budgets Summary', visible: false },
     { id: 'goals', name: 'Goals Summary', visible: false },
     { id: 'charts', name: 'Spending Charts', visible: false },
-    { id: 'netWorth', name: 'Net Worth', visible: false },
     { id: 'portfolio', name: 'Investment Portfolio', visible: false },
     { id: 'debts', name: 'Debts (Owed to You)', visible: false },
 ];
@@ -78,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
         subscriptions: true,
         debtManager: true,
         faq: true,
+        feedback: true,
     },
     footerActions: ['dashboard', 'reports', 'calendar', 'more'],
     googleCalendar: {

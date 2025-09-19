@@ -43,6 +43,8 @@ const TOOL_CATEGORIES: { title: string; tools: { key: ToggleableTool; name: stri
         tools: [
             { key: 'aiHub', name: 'AI Hub', icon: '🧠' },
             { key: 'dataHub', name: 'Data Hub', icon: '🗄️' },
+            { key: 'feedback', name: 'Send Feedback', icon: '📨' },
+            { key: 'faq', name: 'FAQ', icon: '❓' },
         ]
     }
 ];

@@ -91,6 +91,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
         { modal: 'appSettings', icon: '⚙️', label: 'Settings' },
         { modal: 'trustBin', icon: '🗑️', label: 'Trust Bin' },
         { key: 'faq', screen: 'faq', icon: '❓', label: 'FAQ' },
+        { key: 'feedback', modal: 'feedback', icon: '📨', label: 'Send Feedback' },
       ].filter(tool => !tool.key || settings.enabledTools[tool.key as keyof typeof settings.enabledTools])
     }
   ];

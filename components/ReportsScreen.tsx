@@ -307,7 +307,6 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
         {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
         {reportType === 'breakdown' ? (
         <>
-            <NetWorthTrendChart transactions={transactions} accounts={accounts} currency={reportCurrency} />
             <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
             <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} />
         </>

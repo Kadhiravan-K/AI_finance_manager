@@ -15,6 +15,7 @@ import EmptyState from './EmptyState';
 import { AppDataContext } from '../contexts/SettingsContext';
 import { getCategoryPath } from '../utils/categories';
 import { parseNaturalLanguageQuery } from '../services/geminiService';
+import NetWorthTrendChart from './NetWorthTrendChart';
 
 
 interface FinanceDisplayProps {
@@ -210,7 +211,7 @@ const VirtualizedTransactionList = ({ transactions, categories, onEdit, onDelete
     );
 };
 
-const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, onEdit, onDelete, onSettleDebt, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, appState, openModal, ...rest }) => {
+const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, allTransactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, onPayRecurring, onEdit, onDelete, onSettleDebt, dashboardWidgets, mainContentRef, financialProfile, onOpenFinancialHealth, isLoading, onAddTransaction, appState, openModal, baseCurrency, ...rest }) => {
     
     const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
     const [error, setError] = useState('');
@@ -433,6 +434,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, a
         financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
         aiCoach: <DynamicAIInsights appState={appState} dateFilter={dateFilter} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
+        netWorthTrend: <NetWorthTrendChart transactions={allTransactions} accounts={accounts} currency={baseCurrency} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         summary: summaryWidget,
         debts: <DebtsSummary transactions={allTransactions} accounts={accounts} onSettle={onSettleDebt} isVisible={isBalanceVisible}/>,
