@@ -1,9 +1,11 @@
 import React, { useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
+// Fix: Corrected import path for context
 import { SettingsContext } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
+// Fix: Import missing types
 import { AppState, Theme, TrustBinDeletionPeriodUnit, ActiveScreen } from '../types';
 import { createBackup, restoreBackup } from '../utils/backup';
 import { NAV_ITEM_DEFINITIONS } from './Footer';
@@ -18,7 +20,9 @@ interface AppSettingsModalProps {
 }
 
 const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, onRestore }) => {
-  const { settings, setSettings } = useContext(SettingsContext);
+  const settingsContext = useContext(SettingsContext);
+  if (!settingsContext) throw new Error("SettingsContext not found");
+  const { settings, setSettings } = settingsContext;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCurrencyChange = (currencyCode: string) => {
@@ -28,6 +32,10 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
   const handleThemeChange = (theme: Theme) => {
     setSettings(prev => ({ ...prev, theme: theme }));
   }
+
+  const handleLanguageChange = (languageCode: string) => {
+    setSettings(prev => ({ ...prev, language: languageCode }));
+  };
   
   const handleTrustBinPeriodChange = (field: 'value' | 'unit', value: string | number) => {
       setSettings(prev => ({
@@ -81,6 +89,13 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
     label: `${c.name} (${c.symbol})`
   }));
   
+  const languageOptions = [
+    { value: 'en', label: 'English' },
+    { value: 'hi', label: 'हिन्दी (Hindi)' },
+    { value: 'ta', label: 'தமிழ் (Tamil)' },
+    { value: 'ml', label: 'മലയാളം (Malayalam)' },
+  ];
+
   const trustBinUnitOptions: {value: TrustBinDeletionPeriodUnit, label: string}[] = [
       {value: 'minutes', label: 'Minutes'},
       {value: 'hours', label: 'Hours'},
@@ -91,7 +106,7 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
   ];
 
   const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
-    <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
+    <button type="button" onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
     </button>
   );
@@ -101,6 +116,14 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
         <ModalHeader title="App Settings" onClose={onClose} icon="⚙️" />
         <div className="p-6 space-y-4 flex-grow overflow-y-auto">
+            <div>
+                <label className="block text-sm font-medium text-secondary mb-1">Language</label>
+                <CustomSelect
+                    value={settings.language || 'en'}
+                    onChange={handleLanguageChange}
+                    options={languageOptions}
+                />
+            </div>
             <div>
                 <label className="block text-sm font-medium text-secondary mb-1">Currency</label>
                 <CustomSelect

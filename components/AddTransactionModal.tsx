@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect, useContext, useMemo } from 'react';
-import { Account, Contact, Transaction, TransactionType, ActiveModal, SpamWarning, ItemizedDetail, SplitDetail, ParsedTransactionData, Category } from '../types';
+import { Account, Contact, Transaction, TransactionType, ActiveModal, SpamWarning, ItemizedDetail, SplitDetail, ParsedTransactionData, Category, Sender, SenderType } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { parseTransactionText } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-import SpamWarningCard from './SpamWarningCard';
+// Fix: Use a named import for SpamWarningCard as it does not have a default export.
+import { SpamWarningCard } from './SpamWarningCard';
 import ModalHeader from './ModalHeader';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -33,13 +35,19 @@ interface AddTransactionModalProps {
   initialText: string | null;
   onInitialTextConsumed: () => void;
   initialTab?: 'auto' | 'manual';
+  transactionToDuplicate?: Transaction;
 }
 
 const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
-  onCancel, onSaveAuto, onSaveManual, accounts, contacts, openModal, onOpenCalculator, initialText, onInitialTextConsumed, initialTab
+  onCancel, onSaveAuto, onSaveManual, accounts, contacts, openModal, onOpenCalculator, initialText, onInitialTextConsumed, initialTab, transactionToDuplicate
 }) => {
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialTab || 'manual');
-  const { categories, settings } = useContext(SettingsContext);
+  const settingsContext = useContext(SettingsContext);
+  if (!settingsContext) {
+      throw new Error("SettingsContext not found in AddTransactionModal");
+  }
+  const { categories, settings, senders, setSenders } = settingsContext;
+
   const dataContext = useContext(AppDataContext);
   const formatCurrency = useCurrencyFormatter();
 
@@ -79,6 +87,31 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       onInitialTextConsumed();
     }
   }, [initialText, onInitialTextConsumed]);
+
+  useEffect(() => {
+    if (transactionToDuplicate) {
+        setActiveTab('manual');
+        const { description, amount, type, categoryId, accountId, notes: txNotes } = transactionToDuplicate;
+        const category = categories.find(c => c.id === categoryId);
+        
+        setManualDescription(description);
+        setManualAmount(String(amount));
+        setManualType(type);
+        setManualAccountId(accountId);
+        setNotes(txNotes || '');
+        setManualDate(new Date()); // Set to today
+        
+        if (category) {
+            if (category.parentId) {
+                setManualCategoryId(category.parentId);
+                setManualSubCategoryId(category.id);
+            } else {
+                setManualCategoryId(category.id);
+                setManualSubCategoryId('');
+            }
+        }
+    }
+  }, [transactionToDuplicate, categories]);
   
   useEffect(() => {
     if (isItemized) {
@@ -94,8 +127,48 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const handleAddItem = () => setItems(prev => [...prev, { id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null, splitDetails: [] }]);
   const handleRemoveItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
 
-  const handleParseText = async () => { /* ... existing logic ... */ };
-  const handleSpamApproval = (trustSender: boolean) => { /* ... existing logic ... */ };
+  const handleParseText = async () => {
+    if (!autoText.trim() || !selectedAccountId) return;
+    setIsParsing(true);
+    setSpamWarning(null);
+    try {
+      const parsedData = await parseTransactionText(autoText);
+      if (parsedData) {
+        if (parsedData.isSpam) {
+          setSpamWarning({ rawText: autoText, parsedData });
+        } else {
+          await onSaveAuto(autoText, selectedAccountId);
+          onCancel();
+        }
+      } else {
+        alert("Could not understand the transaction from the text provided.");
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "An error occurred during parsing.");
+    } finally {
+      setIsParsing(false);
+    }
+  };
+  
+  const handleSpamApproval = (trustSender: boolean) => {
+    if (!spamWarning) return;
+    
+    if (trustSender && spamWarning.parsedData.senderName) {
+        const newSender: Sender = {
+            id: self.crypto.randomUUID(),
+            name: spamWarning.parsedData.senderName,
+            identifier: spamWarning.parsedData.senderName,
+            type: SenderType.TRUSTED,
+        };
+        const exists = senders.find(s => s.identifier.toLowerCase() === newSender.identifier.toLowerCase());
+        if (!exists) {
+            setSenders(prev => [...prev, newSender]);
+        }
+    }
+    
+    onSaveAuto(spamWarning.rawText, selectedAccountId);
+    onCancel();
+  };
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,32 +246,91 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
           <ModalHeader title="Add Transaction" onClose={onCancel} />
           <div className="flex border-b border-divider flex-shrink-0">
-            <button onClick={() => setActiveTab('auto')} className="add-tx-tab w-full py-3 px-4">AI Parse</button>
+            <button onClick={() => setActiveTab('auto')} className={`add-tx-tab w-full py-3 px-4 ${activeTab === 'auto' ? 'active' : ''}`}>AI Parse</button>
             <button onClick={() => setActiveTab('manual')} className={`add-tx-tab w-full py-3 px-4 ${activeTab === 'manual' ? 'active' : ''}`}>Manual</button>
           </div>
           {activeTab === 'auto' ? (
              <div className="flex-grow overflow-y-auto p-6 space-y-4">
-               {/* AUTO TAB UI - UNCHANGED */}
+                {spamWarning ? (
+                    <SpamWarningCard
+                        warning={spamWarning}
+                        onApprove={handleSpamApproval}
+                        onDiscard={() => setSpamWarning(null)}
+                    />
+                ) : (
+                <>
+                    <p className="text-sm text-secondary">
+                    Paste a transaction SMS or type a simple phrase like "coffee for 500".
+                    The AI will do the rest.
+                    </p>
+                    <textarea
+                    value={autoText}
+                    onChange={(e) => setAutoText(e.target.value)}
+                    placeholder="e.g., INR 250 was spent on Amazon..."
+                    rows={5}
+                    className="w-full themed-textarea"
+                    disabled={isParsing}
+                    autoFocus
+                    />
+                    <div>
+                    <label className="text-sm font-medium text-secondary mb-1">Account</label>
+                    <CustomSelect
+                        options={accountOptions}
+                        value={selectedAccountId}
+                        onChange={setSelectedAccountId}
+                    />
+                    </div>
+                    <button
+                    onClick={handleParseText}
+                    disabled={isParsing || !autoText.trim()}
+                    className="button-primary w-full py-2 flex items-center justify-center"
+                    >
+                    {isParsing ? <LoadingSpinner /> : 'Parse with AI'}
+                    </button>
+                </>
+                )}
              </div>
           ) : (
             <form onSubmit={handleManualSubmit} className="flex-grow overflow-y-auto p-6 space-y-4">
               {!isItemized ? (
-                <>
-                  {/* NON-ITEMIZED UI - UNCHANGED */}
-                </>
+                <div className="space-y-4 animate-fadeInUp">
+                  <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="text-sm font-medium text-secondary mb-1">Amount ({selectedAccount?.currency})</label>
+                          <div className="relative">
+                              <input type="text" inputMode="decimal" value={manualAmount} onChange={e => setManualAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required />
+                              <button type="button" onClick={() => onOpenCalculator(res => setManualAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl" aria-label="Open calculator">🧮</button>
+                          </div>
+                      </div>
+                      <div>
+                          <label className="text-sm font-medium text-secondary mb-1">Type</label>
+                          <CustomSelect options={[{value: 'expense', label: 'Expense'}, {value: 'income', label: 'Income'}]} value={manualType} onChange={val => { setManualType(val as TransactionType); setManualCategoryId(''); setManualSubCategoryId(''); }} />
+                      </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="text-sm font-medium text-secondary mb-1">Category</label>
+                          <CustomSelect options={topLevelCategories.map(c=>({value: c.id, label: c.name}))} value={manualCategoryId} onChange={setManualCategoryId} placeholder="Select Category" />
+                      </div>
+                      <div>
+                          <label className="text-sm font-medium text-secondary mb-1">Subcategory</label>
+                          <CustomSelect options={subCategories.map(c=>({value: c.id, label: c.name}))} value={manualSubCategoryId} onChange={setManualSubCategoryId} placeholder="-" disabled={!manualCategoryId || subCategories.length === 0} />
+                      </div>
+                  </div>
+                  <div>
+                      <label className="text-sm font-medium text-secondary mb-1">Description</label>
+                      <input type="text" value={manualDescription} onChange={e => setManualDescription(e.target.value)} className="input-base w-full p-2 rounded-lg" required />
+                  </div>
+                </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 animate-fadeInUp">
                     <input type="text" value={manualDescription} onChange={e => setManualDescription(e.target.value)} placeholder="Overall Description (e.g., Dinner with friends)" className="input-base w-full p-2 rounded-lg" />
                     {items.map((item) => (
                         <div key={item.id} className="itemized-item-card">
                            <div className="flex items-start gap-2">
                                <div className="flex-grow space-y-2">
                                    <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder="Item Description" className="input-base p-2 rounded-md w-full" required />
-                                   <div className="grid grid-cols-[1fr_auto_1fr] gap-2">
-                                       <div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0.00" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
-                                       <span className="p-2 text-center text-secondary">in</span>
-                                       <CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', val); }} options={[{value: '', label: 'Category'}, ...topLevelExpenseCategories.map(c => ({value: c.id, label: c.name}))]} />
-                                   </div>
+                                   <div className="grid grid-cols-[1fr_auto_1fr] gap-2"><div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0.00" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div><span className="p-2 text-center text-secondary">in</span><CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', val); }} options={[{value: '', label: 'Category'}, ...topLevelExpenseCategories.map(c => ({value: c.id, label: c.name}))]} /></div>
                                </div>
                                {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-rose-400 hover:text-rose-300 rounded-full flex-shrink-0" aria-label="Remove item"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
                            </div>

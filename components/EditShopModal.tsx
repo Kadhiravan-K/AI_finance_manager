@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Shop, ShopType, BusinessType } from '../types';
@@ -44,13 +45,14 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, onSave, onCancel })
         label: `${c.code} - ${c.name}`
     })), []);
     
+    // Fix: Use ShopType enum members for values instead of string literals to match the type definition.
     const shopTypeOptions: { value: ShopType, label: string }[] = [
-        { value: 'physical_retail', label: 'Physical Retail' },
-        { value: 'online_ecommerce', label: 'Online E-commerce' },
-        { value: 'freelance_service', label: 'Freelance/Services' },
-        { value: 'rental_business', label: 'Rental Business' },
-        { value: 'garage_sale', label: 'Garage Sale/Pop-up' },
-        { value: 'other', label: 'Other' }
+        { value: ShopType.PHYSICAL_RETAIL, label: 'Physical Retail' },
+        { value: ShopType.ONLINE_ECOMMERCE, label: 'Online E-commerce' },
+        { value: ShopType.FREELANCE_SERVICE, label: 'Freelance/Services' },
+        { value: ShopType.RENTAL_BUSINESS, label: 'Rental Business' },
+        { value: ShopType.GARAGE_SALE, label: 'Garage Sale/Pop-up' },
+        { value: ShopType.OTHER, label: 'Other' }
     ];
 
     const businessTypeOptions = [{ value: '', label: 'Select Business Type (Optional)'}, ...Object.values(BusinessType).map(bt => ({ value: bt, label: bt }))];

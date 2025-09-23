@@ -1,5 +1,3 @@
-
-
 import { Transaction, Account, Category, Sender, AppState } from '../types';
 
 const getCategoryPath = (categoryId: string, categories: Category[]): string => {
@@ -89,7 +87,8 @@ export const exportSelectedDataToJson = (appState: AppState, keysToExport: (keyo
   
   keysToExport.forEach(key => {
     if (key in appState) {
-      (dataToExport as any)[key] = appState[key];
+        // Fix: Cast 'dataToExport' to 'any' to resolve a complex TypeScript error with dynamic key assignment.
+        (dataToExport as any)[key] = appState[key];
     }
   });
 

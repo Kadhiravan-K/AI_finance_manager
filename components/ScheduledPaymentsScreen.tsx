@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { RecurringTransaction, Category, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -21,7 +22,7 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
     filters: { income: true, expense: true }
   });
 
-  const priorityOrder: Record<Priority, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'None': 3 };
+  const priorityOrder: Record<Priority, number> = { [Priority.HIGH]: 0, [Priority.MEDIUM]: 1, [Priority.LOW]: 2, [Priority.NONE]: 3 };
 
   const sortedAndFiltered = useMemo(() => {
     let result = [...recurringTransactions];
@@ -40,7 +41,7 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
           comparison = b.amount - a.amount;
           break;
         case 'priority':
-          comparison = priorityOrder[a.priority || 'None'] - priorityOrder[b.priority || 'None'];
+          comparison = priorityOrder[a.priority || Priority.NONE] - priorityOrder[b.priority || Priority.NONE];
           break;
       }
       return direction === 'asc' ? comparison : -comparison;
@@ -65,16 +66,18 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
   }, [viewOptions]);
 
 
-  const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+  // Fix: Use Priority enum members instead of string literals.
+  const priorities: Priority[] = [Priority.NONE, Priority.LOW, Priority.MEDIUM, Priority.HIGH];
   const priorityStyles: Record<Priority, { buttonClass: string; }> = {
-    'High': { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
-    'Medium': { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
-    'Low': { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
-    'None': { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
+    [Priority.HIGH]: { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
+    [Priority.MEDIUM]: { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
+    [Priority.LOW]: { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
+    [Priority.NONE]: { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
   };
 
   const handlePriorityChange = (item: RecurringTransaction) => {
-    const currentPriority = item.priority || 'None';
+    // Fix: Use Priority enum member for default value.
+    const currentPriority = item.priority || Priority.NONE;
     const currentIndex = priorities.indexOf(currentPriority);
     const nextIndex = (currentIndex + 1) % priorities.length;
     const nextPriority = priorities[nextIndex];
@@ -101,9 +104,9 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handlePriorityChange(item)}
-                className={`text-xs font-semibold px-2 py-1 rounded-full transition-colors w-20 text-center ${priorityStyles[item.priority || 'None'].buttonClass}`}
+                className={`text-xs font-semibold px-2 py-1 rounded-full transition-colors w-20 text-center ${priorityStyles[item.priority || Priority.NONE].buttonClass}`}
               >
-                {item.priority || 'None'}
+                {item.priority || Priority.NONE}
               </button>
               <div className="space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => onEdit(item)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>

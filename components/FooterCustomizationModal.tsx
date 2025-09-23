@@ -1,3 +1,4 @@
+
 import React, { useContext, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -14,7 +15,8 @@ interface FooterCustomizationModalProps {
 
 const VALID_FOOTER_SCREENS: ActiveScreen[] = [
   'dashboard', 'reports', 'budgets', 'goals', 'investments', 
-  'tripManagement', 'shop', 'calendar', 'shoppingLists', 'more'
+  // Fix: Renamed 'shoppingLists' to 'notes' to match ActiveScreen type
+  'tripManagement', 'shop', 'calendar', 'notes', 'more'
 ];
 
 const EMOJI_MAP: Partial<Record<ActiveScreen, string>> = {
@@ -26,7 +28,8 @@ const EMOJI_MAP: Partial<Record<ActiveScreen, string>> = {
   tripManagement: '✈️',
   shop: '🏪',
   calendar: '🗓️',
-  shoppingLists: '🛒',
+  // Fix: Renamed 'shoppingLists' to 'notes' to match ActiveScreen type
+  notes: '📝',
   more: '•••'
 };
 

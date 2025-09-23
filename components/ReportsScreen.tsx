@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Transaction, Category, TransactionType, ReportPeriod, CustomDateRange, Account } from '../types';
+import { Transaction, Category, TransactionType, ReportPeriod, CustomDateRange, Account, ActiveModal, AppState } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import CategoryBarChart from './CategoryBarChart';
 import TimeSeriesBarChart from './TimeSeriesBarChart';
@@ -8,21 +8,22 @@ import CustomSelect from './CustomSelect';
 import CustomCheckbox from './CustomCheckbox';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import { getTopLevelCategory } from '../utils/categories';
-import NetWorthTrendChart from './NetWorthTrendChart';
+import LiveFeedScreen from './LiveFeedScreen';
 
 interface ReportsScreenProps {
+  appState: AppState;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
   transactions: Transaction[];
   categories: Category[];
   accounts: Account[];
-  selectedAccountIds: string[]; // This is the dashboard selection, we'll use it as a default
+  selectedAccountIds: string[];
   baseCurrency: string;
 }
 
-type ReportType = 'breakdown' | 'trend';
 type ComparePeriodType = 'previous' | 'last_year' | 'last_month' | 'last_quarter' | 'custom';
+type ReportType = 'breakdown' | 'trend';
 
-// A functional AccountSelector for this screen's needs
+// ... (Existing helper components like ReportAccountSelector and CategorySelector remain unchanged)
 const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string[], onChange: (ids: string[]) => void }> = ({ accounts, selectedIds, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = React.useRef<HTMLDivElement>(null);
@@ -63,7 +64,7 @@ const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string
         <div className="relative w-full" ref={wrapperRef}>
             <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full input-base rounded-lg py-2 px-3 text-left flex justify-between items-center">
                 <span className="truncate">{getButtonLabel()}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform ${isOpen ? 'rotate-180':''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform ${isOpen ? 'rotate-180':''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7 7" /></svg>
             </button>
             {isOpen && (
                 <div className="absolute z-10 mt-1 w-full glass-card rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto">
@@ -76,7 +77,6 @@ const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string
         </div>
     );
 };
-
 const CategorySelector: React.FC<{ categories: Category[], selectedIds: string[], onChange: (ids: string[]) => void }> = ({ categories, selectedIds, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = React.useRef<HTMLDivElement>(null);
@@ -117,7 +117,7 @@ const CategorySelector: React.FC<{ categories: Category[], selectedIds: string[]
         <div className="relative" ref={wrapperRef}>
             <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full input-base rounded-lg py-2 px-3 text-left flex justify-between items-center">
                 <span className="truncate">{getButtonLabel()}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform ${isOpen ? 'rotate-180':''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform ${isOpen ? 'rotate-180':''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7 7" /></svg>
             </button>
             {isOpen && (
                 <div className="absolute z-10 mt-1 w-full glass-card rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto">
@@ -132,6 +132,7 @@ const CategorySelector: React.FC<{ categories: Category[], selectedIds: string[]
 };
 
 
+// ... (filterTransactions function remains unchanged)
 const filterTransactions = (
     transactions: Transaction[], 
     accounts: Account[],
@@ -198,7 +199,8 @@ const filterTransactions = (
     return filtered;
 };
 
-const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories, accounts, selectedAccountIds, baseCurrency }) => {
+// Extracted original content into a sub-component
+const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>> = ({ transactions, categories, accounts, selectedAccountIds, baseCurrency }) => {
   const [transactionType, setTransactionType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [reportType, setReportType] = useState<ReportType>('breakdown');
   const [period, setPeriod] = useState<ReportPeriod>('month');
@@ -317,19 +319,17 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
   );
 
   return (
-    <div className="p-4 flex-grow overflow-y-auto pr-2">
-      <h2 className="text-2xl font-bold text-primary mb-4 text-center">Reports</h2>
-      
+    <div className="p-4 pr-2">
       <div className="p-4 rounded-xl glass-card space-y-4 mb-6 relative z-20">
         <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
             <TabButton active={transactionType === TransactionType.EXPENSE} onClick={() => setTransactionType(TransactionType.EXPENSE)}>Expense</TabButton>
             <TabButton active={transactionType === TransactionType.INCOME} onClick={() => setTransactionType(TransactionType.INCOME)}>Income</TabButton>
         </div>
-        <div className="space-y-3">
-          <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
-          <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
-          <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
+         <div className="grid grid-cols-2 gap-4">
+            <CustomSelect options={availableCurrencies} value={reportCurrency} onChange={val => { setReportCurrency(val); setReportAccountIds(['all']); }} />
+            <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
         </div>
+        <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
         <CustomSelect 
             options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
             value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
@@ -381,6 +381,36 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ transactions, categories,
       </div>
     </div>
   );
+}
+
+// New main component for the screen
+const ReportsScreen: React.FC<ReportsScreenProps> = ({ appState, openModal, ...rest }) => {
+    const [activeTab, setActiveTab] = useState<'reports' | 'live'>('reports');
+
+    const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+        <button onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+            {children}
+        </button>
+    );
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-divider flex-shrink-0">
+                <h2 className="text-2xl font-bold text-primary text-center">Analysis</h2>
+            </div>
+            <div className="flex border-b border-divider flex-shrink-0">
+                <TabButton active={activeTab === 'reports'} onClick={() => setActiveTab('reports')}>Reports</TabButton>
+                <TabButton active={activeTab === 'live'} onClick={() => setActiveTab('live')}>Live Feed</TabButton>
+            </div>
+            <div className="flex-grow overflow-y-auto">
+                {activeTab === 'reports' ? (
+                    <ReportContent {...rest} />
+                ) : (
+                    <LiveFeedScreen appState={appState} openModal={openModal} />
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default ReportsScreen;

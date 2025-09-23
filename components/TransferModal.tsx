@@ -138,6 +138,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTran
             
             {isCrossCurrency && (
                 <div className="p-3 bg-subtle rounded-lg space-y-3 animate-fadeInUp">
+                    {/* Fix: Added missing children to TabButton components */}
                     <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider"><TabButton active={rateMode === 'auto'} onClick={() => setRateMode('auto')}>Auto Rate</TabButton><TabButton active={rateMode === 'manual'} onClick={() => setRateMode('manual')}>Manual Rate</TabButton></div>
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-secondary flex-shrink-0">1 {fromAccount?.currency} =</span>

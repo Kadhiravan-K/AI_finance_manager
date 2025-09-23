@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Sender, SenderType } from '../types';
+// Fix: Corrected import path for context
 import { SettingsContext } from '../contexts/SettingsContext';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
@@ -13,7 +14,9 @@ interface SenderManagerModalProps {
 }
 
 const SenderManagerModal: React.FC<SenderManagerModalProps> = ({ onClose, onDelete }) => {
-  const { senders, setSenders } = useContext(SettingsContext);
+  const settingsContext = useContext(SettingsContext);
+  if (!settingsContext) throw new Error("SettingsContext not found");
+  const { senders, setSenders } = settingsContext;
   const [editingSender, setEditingSender] = useState<Sender | null>(null);
   const [formState, setFormState] = useState<Omit<Sender, 'id'>>({ identifier: '', name: '', type: SenderType.TRUSTED });
 

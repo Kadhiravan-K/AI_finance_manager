@@ -1,5 +1,7 @@
+
+
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
-import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt } from '../types';
+import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note } from '../types';
 import FinanceDisplay from './StoryDisplay';
 import ReportsScreen from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
@@ -17,7 +19,8 @@ import { ShopScreen } from './ShopScreen';
 import ChallengesScreen from './ChallengesScreen';
 import LearnScreen from './LearnScreen';
 import CalendarScreen from './CalendarScreen';
-import { ShoppingListScreen } from './ShoppingListScreen';
+// Fix: Corrected import to use the actual exported component name 'NotesScreen'.
+import { NotesScreen } from './ShoppingListScreen';
 import SubscriptionsScreen from './SubscriptionsScreen';
 import GlossaryScreen from './GlossaryScreen';
 import ManualScreen from './ManualScreen';
@@ -26,6 +29,7 @@ import { parseNaturalLanguageQuery } from '../services/geminiService';
 import { calculateNextDueDate } from '../utils/date';
 import DebtManagerScreen from './DebtManagerScreen';
 import FaqScreen from './FaqScreen';
+import LiveFeedScreen from './LiveFeedScreen';
 
 
 interface MainContentProps {
@@ -42,11 +46,13 @@ interface MainContentProps {
   onGoalComplete: () => void;
   appState: AppState;
   tripDetailsId: string | null;
-  shoppingListId: string | null;
+  // Fix: Renamed prop to 'noteId' to match usage in App.tsx and align with data structures.
+  noteId: string | null;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
-export const MainContent: React.FC<MainContentProps> = (props) => {
-  const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId, shoppingListId } = props;
+const MainContent: React.FC<MainContentProps> = (props) => {
+  const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId, noteId, openModal } = props;
 
   const dataContext = useContext(AppDataContext);
   const [isResponsive, setIsResponsive] = useState(window.innerWidth >= 640 && window.matchMedia("(orientation: landscape)").matches);
@@ -131,11 +137,6 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
     setRecurringTransactions(prev => prev.map(rt => rt.id === item.id ? updatedItem : rt));
   };
 
-
-  const openModal = useCallback((name: ActiveModal, modalProps?: Record<string, any>) => {
-    setModalStack(prev => [...prev, { name, props: modalProps }]);
-  }, [setModalStack]);
-
   const financeDisplayProps = {
     ...props,
     transactions: appState.transactions.filter(t => selectedAccountIds.includes('all') || selectedAccountIds.includes(t.accountId)),
@@ -172,8 +173,18 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
   switch (activeScreen) {
     case 'dashboard':
       return <FinanceDisplay {...financeDisplayProps} />;
+    case 'live':
+      return <LiveFeedScreen appState={appState} openModal={openModal} />;
     case 'reports':
-      return <ReportsScreen transactions={appState.transactions} categories={appState.categories} accounts={appState.accounts} selectedAccountIds={selectedAccountIds} baseCurrency={appState.settings.currency} />;
+      return <ReportsScreen 
+        appState={appState}
+        openModal={openModal}
+        transactions={appState.transactions} 
+        categories={appState.categories} 
+        accounts={appState.accounts} 
+        selectedAccountIds={selectedAccountIds} 
+        baseCurrency={appState.settings.currency} 
+      />;
     case 'budgets':
       return <BudgetsScreen categories={appState.categories} transactions={appState.transactions} budgets={appState.budgets} onSaveBudget={(categoryId: string, amount: number) => {
         const currentMonth = new Date().toISOString().slice(0, 7);
@@ -202,7 +213,7 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
     case 'tripManagement':
       return <TripManagementScreen trips={appState.trips} tripExpenses={appState.tripExpenses} onTripSelect={(tripId) => onNavigate('tripDetails', undefined, {tripId})} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => deleteItem(id, 'trip')} onShowSummary={() => openModal('tripSummary')} />;
     case 'achievements':
-      return <AchievementsScreen unlockedAchievements={appState.achievements} />;
+      return <AchievementsScreen unlockedAchievements={appState.unlockedAchievements} />;
     case 'calculator':
         return <CalculatorScreen appState={appState} />;
     case 'calendar':
@@ -231,8 +242,9 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         }} onDeleteEmployee={(id)=>deleteItem(id, 'shopEmployee')} onSaveShift={(shopId, shift, id) => {
             if(id) setShopShifts(p => p.map(s => s.id === id ? {...s, ...shift} : s)); else setShopShifts(p => [...p, {id: self.crypto.randomUUID(), shopId, ...shift}]);
         }} onDeleteShift={(id)=>deleteItem(id, 'shopShift')} openModal={openModal} />;
-    case 'shoppingLists':
-        return <ShoppingListScreen shoppingListId={shoppingListId} onCreateExpense={() => {}} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} onNavigate={onNavigate} />;
+    // Fix: Corrected case from 'shoppingLists' to 'notes' and passed the correct prop 'noteId'.
+    case 'notes':
+        return <NotesScreen noteId={noteId} onCreateExpense={() => {}} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} onNavigate={onNavigate} />;
     case 'subscriptions':
       return <SubscriptionsScreen onAddRecurring={(data) => openModal('editRecurring', { recurringTransaction: data })} />;
     case 'debtManager':
@@ -253,3 +265,4 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
       return <FinanceDisplay {...financeDisplayProps} />;
   }
 };
+export default MainContent;

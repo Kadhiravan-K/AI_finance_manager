@@ -1,5 +1,7 @@
 import React, { useContext } from 'react';
+// Fix: Corrected import path for context
 import { AppDataContext } from '../contexts/SettingsContext';
+import { UserStreak } from '../types';
 
 interface HeaderProps {
   onOpenAccounts: () => void;
@@ -13,6 +15,7 @@ const Header: React.FC<HeaderProps> = ({
   onOpenAIHub,
 }) => {
   const dataContext = useContext(AppDataContext);
+  // Fix: Correctly access streaks from the typed context
   const currentStreak = dataContext?.streaks.currentStreak || 0;
 
   return (

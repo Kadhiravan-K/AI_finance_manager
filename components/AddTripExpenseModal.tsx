@@ -104,6 +104,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             description,
             amount: expenseAmount,
             categoryId: finalItemizedDetails[0].categoryId,
+            notes: undefined,
             payers: finalPayers,
             splitDetails: finalSplitDetails,
             itemizedDetails: finalItemizedDetails,

@@ -135,10 +135,14 @@ const SubscriptionsScreen: React.FC<SubscriptionsScreenProps> = ({ onAddRecurrin
         <div className="h-full flex flex-col">
             <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-primary text-center flex-grow">Subscriptions</h2>
-                <button onClick={analyzeTransactions} disabled={isLoading} className="button-secondary text-sm px-3 py-1.5 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l5 5M20 20l-5-5" /></svg>
-                    Re-scan
-                </button>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => onAddRecurring({})} className="button-secondary text-sm px-3 py-1.5">
+                        + Create Bill
+                    </button>
+                    <button onClick={analyzeTransactions} disabled={isLoading} className="button-secondary text-sm p-2 rounded-full aspect-square">
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l5 5M20 20l-5-5" /></svg>
+                    </button>
+                </div>
             </div>
             
             {(totalMonthlyCost > 0 || totalYearlyCost > 0) && !isLoading && !error && (

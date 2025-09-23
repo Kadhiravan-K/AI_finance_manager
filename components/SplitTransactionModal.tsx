@@ -182,6 +182,7 @@ const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transacti
         <div className="p-4 flex-grow overflow-y-auto">
           <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">Split Between</h3>
+            {/* Fix: Added missing children to TabButton components */}
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
                 <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
                 <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>

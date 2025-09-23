@@ -1,5 +1,7 @@
+
+
 import React, { useState, useMemo, useRef, useContext } from 'react';
-import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem, ActiveModal, ActiveScreen, ShoppingList } from '../types';
+import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem, ActiveModal, ActiveScreen, Note } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { calculateTripSummary } from '../utils/calculations';
 import CategoryPieChart from './CategoryPieChart';
@@ -132,8 +134,20 @@ const ItineraryTimeline: React.FC<{
         }));
     };
     
+    const itemIcons: Record<TripItineraryItem['type'], string> = {
+        food: '🍴', travel: '✈️', activity: '🏞️', lodging: '🏨', other: '📌'
+    };
+    
     const handleAddItem = (dayId: string) => {
-        const newItem: TripItineraryItem = { id: self.crypto.randomUUID(), time: '12:00', activity: 'New Activity', type: 'activity', notes: '', isCompleted: false };
+        const newItem: TripItineraryItem = { 
+            id: self.crypto.randomUUID(), 
+            time: '12:00', 
+            activity: 'New Activity', 
+            type: 'activity', 
+            notes: '', 
+            isCompleted: false,
+            icon: itemIcons['activity']
+        };
         setPlan(prev => prev.map(day => day.id === dayId ? { ...day, items: [...day.items, newItem] } : day));
     };
 
@@ -148,10 +162,6 @@ const ItineraryTimeline: React.FC<{
             items: []
         };
         setPlan(prev => [...prev, newDay]);
-    };
-
-    const itemIcons: Record<TripItineraryItem['type'], string> = {
-        food: '🍴', travel: '✈️', activity: '🏞️', lodging: '🏨', other: '📌'
     };
 
     return (
@@ -179,7 +189,14 @@ const ItineraryTimeline: React.FC<{
                                 <div className="timeline-drag-handle" title="Drag to reorder">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                                 </div>
-                                <div className="timeline-item-icon">{itemIcons[item.type]}</div>
+                                <div className="timeline-item-icon">
+                                    <input
+                                        value={item.icon || itemIcons[item.type]}
+                                        onChange={e => handleItemChange(day.id, item.id, 'icon', e.target.value.slice(0, 2))}
+                                        className="bg-transparent text-center w-full h-full text-sm focus:outline-none p-0 border-0"
+                                        maxLength={2}
+                                    />
+                                </div>
                                 <div className={`timeline-item-content ${item.isCompleted ? 'opacity-60' : ''}`}>
                                     <div className="flex justify-between items-start gap-2">
                                         <div className="pt-1">
@@ -243,32 +260,33 @@ const TripShoppingLists: React.FC<{ tripId: string, onNavigate: TripDetailsScree
     const dataContext = useContext(AppDataContext);
     if (!dataContext) return null;
 
-    const { shoppingLists, setShoppingLists } = dataContext;
+    const { notes, setNotes } = dataContext;
 
     const tripLists = useMemo(() => {
-        return (shoppingLists || []).filter(list => list.tripId === tripId);
-    }, [shoppingLists, tripId]);
+        return (notes || []).filter(list => list.tripId === tripId && list.type === 'checklist');
+    }, [notes, tripId]);
 
     const handleCreateList = () => {
         const now = new Date().toISOString();
-        const newList: ShoppingList = {
+        const newList: Note = {
             id: self.crypto.randomUUID(),
             title: 'New Trip Shopping List',
-            items: [],
+            content: [],
+            type: 'checklist',
             createdAt: now,
             updatedAt: now,
             tripId: tripId,
         };
-        setShoppingLists(prev => [...(prev || []), newList]);
-        onNavigate('shoppingLists', undefined, { shoppingListId: newList.id });
+        setNotes(prev => [...(prev || []), newList]);
+        onNavigate('notes', undefined, { noteId: newList.id });
     };
 
     return (
         <div className="space-y-3">
             {tripLists.map(list => (
-                <button key={list.id} onClick={() => onNavigate('shoppingLists', undefined, { shoppingListId: list.id })} className="w-full text-left p-3 bg-subtle rounded-lg hover-bg-stronger transition-colors">
+                <button key={list.id} onClick={() => onNavigate('notes', undefined, { noteId: list.id })} className="w-full text-left p-3 bg-subtle rounded-lg hover-bg-stronger transition-colors">
                     <p className="font-semibold text-primary">{list.title}</p>
-                    <p className="text-xs text-secondary">{list.items.length} items</p>
+                    <p className="text-xs text-secondary">{Array.isArray(list.content) ? list.content.length : 0} items</p>
                 </button>
             ))}
              <button onClick={handleCreateList} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
@@ -333,7 +351,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
   };
 
   const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
-    <button onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
+    <button type="button" onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
         {children}
     </button>
   );
@@ -351,7 +369,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
           <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')}>Dashboard</TabButton>
           <TabButton active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')}>Expenses</TabButton>
           <TabButton active={activeTab === 'planner'} onClick={() => setActiveTab('planner')}>Planner</TabButton>
-          <TabButton active={activeTab === 'shopping'} onClick={() => setActiveTab('shopping')}>Shopping</TabButton>
+          <TabButton active={activeTab === 'shopping'} onClick={() => setActiveTab('shopping')}>Notes</TabButton>
       </div>
 
       <div className="flex-grow overflow-y-auto p-6 space-y-6">

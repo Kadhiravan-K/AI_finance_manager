@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { RecurringTransaction, Account, Category, TransactionType, ActiveModal } from '../types';
+import { RecurringTransaction, Account, Category, TransactionType, ActiveModal, Reminder } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -30,10 +30,8 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ recurringTransa
     interval: recurringTransaction?.interval?.toString() || '1',
     nextDueDate: new Date(recurringTransaction?.nextDueDate || new Date()),
     startTime: recurringTransaction?.startTime || '09:00',
-    reminderDays: recurringTransaction?.reminderDays?.toString() || '1',
+    reminders: recurringTransaction?.reminders || [],
   });
-  
-  const [showReminder, setShowReminder] = useState(!!recurringTransaction?.reminderDays);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,10 +47,24 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ recurringTransa
         amount: amount,
         interval: parseInt(formData.interval, 10) || 1,
         nextDueDate: nextDueDate.toISOString(),
-        reminderDays: showReminder ? (parseInt(formData.reminderDays) || 0) : undefined,
+        reminders: formData.reminders.length > 0 ? formData.reminders : undefined,
       }, recurringTransaction?.id);
       onClose();
     }
+  };
+
+  const handleReminderChange = (index: number, field: keyof Reminder, value: string) => {
+    const newReminders = [...formData.reminders];
+    newReminders[index] = { ...newReminders[index], [field]: value };
+    setFormData(p => ({ ...p, reminders: newReminders }));
+  };
+  
+  const addReminder = () => {
+      setFormData(p => ({...p, reminders: [...p.reminders, { value: 1, unit: 'days' }]}));
+  };
+
+  const removeReminder = (index: number) => {
+      setFormData(p => ({...p, reminders: p.reminders.filter((_, i) => i !== index)}));
   };
   
   const typeOptions = [
@@ -68,6 +80,7 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ recurringTransa
   ];
   
   const reminderUnitOptions = [
+      { value: 'hours', label: 'Hour(s)' },
       { value: 'days', label: 'Day(s)' },
       { value: 'weeks', label: 'Week(s)' },
   ]
@@ -105,16 +118,18 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ recurringTransa
                 <div><label className="text-sm text-secondary mb-1 block">Type</label><CustomSelect options={typeOptions} value={formData.type} onChange={v => setFormData(p => ({...p, type: v as TransactionType, categoryId: ''}))} /></div>
                 <div><label className="text-sm text-secondary mb-1 block">Category</label><CustomSelect options={categoryOptions} value={formData.categoryId} onChange={v => setFormData(p => ({...p, categoryId: v}))} /></div>
             </div>
-            <div className="p-3 bg-subtle rounded-lg">
-                <ToggleSwitch label="Set a Reminder" checked={showReminder} onChange={setShowReminder} />
-                {showReminder && (
-                    <div className="mt-3 pt-3 border-t border-divider grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center animate-fadeInUp">
-                        <span className="text-sm text-secondary">Remind me</span>
-                        <input type="number" value={formData.reminderDays} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(p => ({...p, reminderDays: e.target.value}))} className="input-base w-full p-2 rounded-lg no-spinner" />
-                        <CustomSelect options={reminderUnitOptions} value={'days'} onChange={() => {}} />
+            <div className="p-3 bg-subtle rounded-lg space-y-2">
+                <h4 className="text-sm font-semibold text-secondary">Reminders</h4>
+                {formData.reminders.map((reminder, index) => (
+                    <div key={index} className="grid grid-cols-[auto_1fr_1fr_auto_auto] gap-2 items-center">
+                        <span className="text-sm text-secondary">Remind</span>
+                        <input type="number" value={reminder.value} onWheel={e => e.currentTarget.blur()} onChange={e => handleReminderChange(index, 'value', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" />
+                        <CustomSelect options={reminderUnitOptions} value={reminder.unit} onChange={v => handleReminderChange(index, 'unit', v)} />
                         <span className="text-sm text-secondary">before</span>
+                        <button type="button" onClick={() => removeReminder(index)} className="text-rose-400 p-1">&times;</button>
                     </div>
-                )}
+                ))}
+                <button type="button" onClick={addReminder} className="w-full text-center p-2 text-sm text-sky-400 hover:text-sky-300">+ Add Reminder</button>
             </div>
            <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>

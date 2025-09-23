@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Goal, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
@@ -104,16 +105,18 @@ const GoalCard: React.FC<{
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (percentage / 100) * circumference;
 
-    const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+    // Fix: Use Priority enum members instead of string literals.
+    const priorities: Priority[] = [Priority.NONE, Priority.LOW, Priority.MEDIUM, Priority.HIGH];
     const priorityStyles: Record<Priority, { buttonClass: string; }> = {
-        'High': { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
-        'Medium': { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
-        'Low': { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
-        'None': { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
+        [Priority.HIGH]: { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
+        [Priority.MEDIUM]: { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
+        [Priority.LOW]: { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
+        [Priority.NONE]: { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
     };
 
     const handlePriorityChange = () => {
-        const currentPriority = goal.priority || 'None';
+        // Fix: Use Priority enum member for default value.
+        const currentPriority = goal.priority || Priority.NONE;
         const currentIndex = priorities.indexOf(currentPriority);
         const nextIndex = (currentIndex + 1) % priorities.length;
         const nextPriority = priorities[nextIndex];
@@ -127,7 +130,9 @@ const GoalCard: React.FC<{
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
     }, []);
 
     return (
@@ -160,9 +165,9 @@ const GoalCard: React.FC<{
                 <div className="flex flex-col items-center gap-1">
                      <button
                         onClick={handlePriorityChange}
-                        className={`text-xs font-semibold px-2 py-1 rounded-full transition-colors w-16 text-center ${priorityStyles[goal.priority || 'None'].buttonClass}`}
+                        className={`text-xs font-semibold px-2 py-1 rounded-full transition-colors w-16 text-center ${priorityStyles[goal.priority || Priority.NONE].buttonClass}`}
                     >
-                        {goal.priority || 'None'}
+                        {goal.priority || Priority.NONE}
                     </button>
                     <div className="relative" ref={menuRef}>
                         <button onClick={() => setIsMenuOpen(p => !p)} className="w-10 h-6 text-secondary flex items-center justify-center">
@@ -228,7 +233,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
       setAiSuggestion(null);
   };
   
-  const priorityOrder: Record<Priority, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'None': 3 };
+  const priorityOrder: Record<Priority, number> = { [Priority.HIGH]: 0, [Priority.MEDIUM]: 1, [Priority.LOW]: 2, [Priority.NONE]: 3 };
 
   const sortedAndFilteredGoals = useMemo(() => {
     let result = [...goals];
@@ -246,7 +251,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
                 comparison = progressB - progressA;
                 break;
             case 'priority':
-                comparison = priorityOrder[a.priority || 'None'] - priorityOrder[b.priority || 'None'];
+                comparison = priorityOrder[a.priority || Priority.NONE] - priorityOrder[b.priority || Priority.NONE];
                 break;
         }
         return direction === 'asc' ? comparison : -comparison;

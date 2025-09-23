@@ -1,8 +1,12 @@
+
+
+
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Contact, SplitDetail } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
+// Fix: Corrected import path for context
 import { SettingsContext } from '../contexts/SettingsContext';
 import { USER_SELF_ID } from '../constants';
 import CustomCheckbox from './CustomCheckbox';
@@ -57,7 +61,10 @@ const DebouncedNumericInput: React.FC<{
 };
 
 const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetails, onSave, onClose, participants, currency }) => {
-  const { contacts } = useContext(SettingsContext);
+  // Fix: Added a null check for the context to prevent runtime errors.
+  const settingsContext = useContext(SettingsContext);
+  if (!settingsContext) throw new Error("SettingsContext not found");
+  const { contacts } = settingsContext;
   const formatCurrency = useCurrencyFormatter(undefined, currency);
 
   const [mode, setMode] = useState<SplitMode>('equally');
@@ -118,7 +125,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     if (mode !== 'manual') {
       setSplitDetails(updatedSplits);
     }
-  }, [mode, item.amount, splitDetails.length, splitDetails.map(p => p.id).join(',')]);
+  }, [mode, item.amount, splitDetails]);
 
 
   const handleDetailChange = (id: string, field: 'amount' | 'percentage' | 'shares', value: string) => {

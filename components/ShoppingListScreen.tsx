@@ -1,79 +1,87 @@
+
+
+
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
-import { ShoppingList, ShoppingListItem, ItemType, Priority, AppliedViewOptions, ViewOptions, ActiveModal, ActiveScreen } from '../types';
+import { Note, ChecklistItem, ItemType, Priority, AppliedViewOptions, ViewOptions, ActiveModal, ActiveScreen } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import CustomCheckbox from './CustomCheckbox';
 import EmptyState from './EmptyState';
 
-interface ShoppingListScreenProps {
-  shoppingListId: string | null;
-  onCreateExpense: (list: ShoppingList) => void;
+interface NotesScreenProps {
+  noteId: string | null;
+  onCreateExpense: (list: Note) => void;
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
   onDeleteItem: (id: string, itemType: ItemType) => void;
   onNavigate: (screen: ActiveScreen) => void;
 }
 
-export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ shoppingListId, onCreateExpense, openModal, onDeleteItem, onNavigate }) => {
+export const NotesScreen: React.FC<NotesScreenProps> = ({ noteId, onCreateExpense, openModal, onDeleteItem, onNavigate }) => {
   const dataContext = useContext(AppDataContext);
-  const [selectedListId, setSelectedListId] = useState<string | null>(shoppingListId);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(noteId);
   
   useEffect(() => {
-    setSelectedListId(shoppingListId);
-  }, [shoppingListId]);
+    setSelectedNoteId(noteId);
+  }, [noteId]);
 
   if (!dataContext) return <div>Loading...</div>;
 
-  const { shoppingLists, setShoppingLists } = dataContext;
+  // Fix: Correctly destructure 'notes' and 'setNotes' from the context.
+  const { notes, setNotes } = dataContext;
 
   const handleSelectList = (id: string) => {
-    setSelectedListId(id);
+    setSelectedNoteId(id);
   };
 
   const handleBackToLists = () => {
-    setSelectedListId(null);
-    onNavigate('shoppingLists'); // Navigate back to the main list view
+    setSelectedNoteId(null);
+    onNavigate('notes'); // Navigate back to the main list view
   };
 
-  const handleAddList = () => {
+  const handleAddNote = (type: 'note' | 'checklist') => {
     const now = new Date().toISOString();
-    const newList: ShoppingList = {
+    const newNote: Note = {
       id: self.crypto.randomUUID(),
-      title: 'Untitled Shopping List',
-      items: [],
+      title: `Untitled ${type === 'note' ? 'Note' : 'Checklist'}`,
+      content: type === 'note' ? '' : [],
+      type: type,
       createdAt: now,
       updatedAt: now,
     };
-    setShoppingLists(prev => [...(prev || []), newList]);
-    setSelectedListId(newList.id);
+    setNotes(prev => [...(prev || []), newNote]);
+    setSelectedNoteId(newNote.id);
   };
 
-  const handleSaveList = (updatedList: ShoppingList) => {
-    setShoppingLists(prev => (prev || []).map(list => list.id === updatedList.id ? { ...updatedList, updatedAt: new Date().toISOString() } : list));
+  const handleSaveNote = (updatedNote: Note) => {
+    setNotes(prev => (prev || []).map(note => note.id === updatedNote.id ? { ...updatedNote, updatedAt: new Date().toISOString() } : note));
   };
   
-  const handleDeleteList = (id: string) => {
-      onDeleteItem(id, 'shoppingList');
-      if (selectedListId === id) {
-          setSelectedListId(null);
+  const handleDeleteNote = (id: string) => {
+      onDeleteItem(id, 'note');
+      if (selectedNoteId === id) {
+          setSelectedNoteId(null);
       }
   }
 
-  const selectedList = useMemo(() => shoppingLists?.find(list => list.id === selectedListId), [shoppingLists, selectedListId]);
+  const selectedNote = useMemo(() => notes?.find(note => note.id === selectedNoteId), [notes, selectedNoteId]);
 
-  if (selectedList) {
-    return <ShoppingListDetailView list={selectedList} onSave={handleSaveList} onBack={handleBackToLists} onCreateExpense={onCreateExpense} />;
+  if (selectedNote) {
+    if (selectedNote.type === 'checklist') {
+        return <ChecklistDetailView list={selectedNote} onSave={handleSaveNote} onBack={handleBackToLists} onCreateExpense={onCreateExpense} />;
+    }
+    // Add NoteDetailView here later
   }
 
-  return <ShoppingListView onSelectList={handleSelectList} onAddList={handleAddList} onDeleteList={handleDeleteList} openModal={openModal} />;
+  return <NoteListView onSelectNote={handleSelectList} onAddNote={handleAddNote} onDeleteNote={handleDeleteNote} openModal={openModal} />;
 };
 
-interface ShoppingListViewProps {
-    onSelectList: (id: string) => void;
-    onAddList: () => void;
-    onDeleteList: (id: string) => void;
+interface NoteListViewProps {
+    onSelectNote: (id: string) => void;
+    onAddNote: (type: 'note' | 'checklist') => void;
+    onDeleteNote: (id: string) => void;
     openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
-const ShoppingListView: React.FC<ShoppingListViewProps> = ({ onSelectList, onAddList, onDeleteList, openModal }) => {
+const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, onDeleteNote, openModal }) => {
     const dataContext = useContext(AppDataContext);
     const formatCurrency = useCurrencyFormatter();
     const [viewOptions, setViewOptions] = useState<AppliedViewOptions>({
@@ -82,10 +90,11 @@ const ShoppingListView: React.FC<ShoppingListViewProps> = ({ onSelectList, onAdd
     });
 
     if (!dataContext) return null;
-    const { shoppingLists = [] } = dataContext;
+    // Fix: Use the correct property 'notes' from the context.
+    const { notes = [] } = dataContext;
 
     const sortedLists = useMemo(() => {
-        let result = [...shoppingLists];
+        let result = [...notes];
         const { key, direction } = viewOptions.sort;
         result.sort((a, b) => {
             let comparison = 0;
@@ -100,7 +109,7 @@ const ShoppingListView: React.FC<ShoppingListViewProps> = ({ onSelectList, onAdd
             return direction === 'asc' ? comparison : -comparison;
         });
         return result;
-    }, [shoppingLists, viewOptions]);
+    }, [notes, viewOptions]);
 
     const viewOptionsConfig: ViewOptions = {
         sortOptions: [
@@ -117,7 +126,7 @@ const ShoppingListView: React.FC<ShoppingListViewProps> = ({ onSelectList, onAdd
     return (
         <div className="h-full flex flex-col">
             <div className="p-4 border-b border-divider flex-shrink-0 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-primary text-center">Shopping Lists 🛒</h2>
+                <h2 className="text-2xl font-bold text-primary text-center">Notes & Lists 📝</h2>
                 <button onClick={() => openModal('viewOptions', { options: viewOptionsConfig, currentValues: viewOptions, onApply: setViewOptions })} className="button-secondary text-sm p-2 flex items-center gap-2 relative rounded-full aspect-square">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 10h12M3 16h6" /></svg>
                     {isViewOptionsApplied && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[var(--color-bg-app)]"></div>}
@@ -125,70 +134,77 @@ const ShoppingListView: React.FC<ShoppingListViewProps> = ({ onSelectList, onAdd
             </div>
             <div className="flex-grow overflow-y-auto p-6 space-y-3">
                 {sortedLists.length > 0 ? (
-                sortedLists.map((list, index) => {
-                    const listTotal = list.items.reduce((sum, item) => sum + (item.rate || 0), 0);
-                    const purchasedTotal = list.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0);
+                sortedLists.map((note, index) => {
+                    // Fix: Add Array.isArray check to ensure content is an array before using array methods.
+                    const isChecklist = note.type === 'checklist' && Array.isArray(note.content);
+                    const listTotal = isChecklist ? note.content.reduce((sum, item) => sum + (item.rate || 0), 0) : 0;
+                    const purchasedTotal = isChecklist ? note.content.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0) : 0;
                     const progress = listTotal > 0 ? (purchasedTotal / listTotal) * 100 : 0;
 
                     return (
-                    <div key={list.id} onClick={() => onSelectList(list.id)} className="glass-card p-4 rounded-xl group flex flex-col gap-2 animate-fadeInUp cursor-pointer" style={{ animationDelay: `${index * 50}ms` }}>
+                    <div key={note.id} onClick={() => onSelectNote(note.id)} className="glass-card p-4 rounded-xl group flex flex-col gap-2 animate-fadeInUp cursor-pointer" style={{ animationDelay: `${index * 50}ms` }}>
                         <div className="flex justify-between items-start">
-                        <p className="font-bold text-lg text-primary truncate pr-2">{list.title}</p>
-                        <button onClick={(e) => { e.stopPropagation(); onDeleteList(list.id); }} className="p-1 -mr-2 -mt-1 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" aria-label={`Delete list ${list.title}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
+                            <p className="font-bold text-lg text-primary truncate pr-2">{note.title}</p>
+                            <button onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); }} className="p-1 -mr-2 -mt-1 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" aria-label={`Delete list ${note.title}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-secondary">
-                        <span>{list.items.length} items</span>
-                        <span className="text-tertiary">•</span>
-                        <span>Updated: {new Date(list.updatedAt).toLocaleDateString()}</span>
+                            <span>{isChecklist ? `${note.content.length} items` : 'Note'}</span>
+                            <span className="text-tertiary">•</span>
+                            <span>Updated: {new Date(note.updatedAt).toLocaleDateString()}</span>
                         </div>
-                        <div className="w-full bg-slate-700/50 rounded-full h-2 mt-2">
-                        <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%` }}></div>
-                        </div>
-                        <div className="flex justify-between items-center text-sm mt-1">
-                            <div className="text-left"><p className="text-xs text-secondary">List Total</p><p className="font-semibold text-primary">{formatCurrency(listTotal)}</p></div>
-                            <div className="text-right"><p className="text-xs text-secondary">Purchased</p><p className="font-semibold text-emerald-400">{formatCurrency(purchasedTotal)}</p></div>
-                        </div>
+                        {isChecklist && (
+                            <>
+                                <div className="w-full bg-slate-700/50 rounded-full h-2 mt-2">
+                                <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%` }}></div>
+                                </div>
+                                <div className="flex justify-between items-center text-sm mt-1">
+                                    <div className="text-left"><p className="text-xs text-secondary">List Total</p><p className="font-semibold text-primary">{formatCurrency(listTotal)}</p></div>
+                                    <div className="text-right"><p className="text-xs text-secondary">Purchased</p><p className="font-semibold text-emerald-400">{formatCurrency(purchasedTotal)}</p></div>
+                                </div>
+                            </>
+                        )}
                     </div>
                     )
                 })
                 ) : (
-                <EmptyState icon="🛒" title="No Shopping Lists" message="Create a list to keep track of your shopping items and expenses." actionText="Create First List" onAction={onAddList} />
+                <EmptyState icon="📝" title="No Notes or Lists" message="Create a note or a checklist to get started." />
                 )}
             </div>
-            <div className="p-4 border-t border-divider flex-shrink-0">
-                <button onClick={onAddList} className="button-primary w-full py-2">+ Add New List</button>
+            <div className="p-4 border-t border-divider flex-shrink-0 flex gap-2">
+                <button onClick={() => onAddNote('checklist')} className="button-secondary w-full py-2">+ New List</button>
+                <button onClick={() => onAddNote('note')} className="button-primary w-full py-2">+ New Note</button>
             </div>
         </div>
     )
 }
 
-interface ShoppingListDetailViewProps {
-  list: ShoppingList;
-  onSave: (list: ShoppingList) => void;
+interface ChecklistDetailViewProps {
+  list: Note;
+  onSave: (list: Note) => void;
   onBack: () => void;
-  onCreateExpense: (list: ShoppingList) => void;
+  onCreateExpense: (list: Note) => void;
 }
 
-const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, onSave, onBack, onCreateExpense }) => {
-  const [currentList, setCurrentList] = useState<ShoppingList>(list);
+const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave, onBack, onCreateExpense }) => {
+  const [currentList, setCurrentList] = useState<Note>(list);
   const formatCurrency = useCurrencyFormatter();
   const formatNumber = useCurrencyFormatter({ style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
 
-  const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+  const priorities: Priority[] = [Priority.NONE, Priority.LOW, Priority.MEDIUM, Priority.HIGH];
   const priorityStyles: Record<Priority, { dotClass: string }> = {
-    'High': { dotClass: 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.7)]' },
-    'Medium': { dotClass: 'bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.7)]' },
-    'Low': { dotClass: 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' },
-    'None': { dotClass: 'bg-slate-600 border border-slate-500' },
+    [Priority.HIGH]: { dotClass: 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.7)]' },
+    [Priority.MEDIUM]: { dotClass: 'bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.7)]' },
+    [Priority.LOW]: { dotClass: 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' },
+    [Priority.NONE]: { dotClass: 'bg-slate-600 border border-slate-500' },
   };
   const priorityBarColors: Record<Priority, string> = {
-    'High': 'bg-rose-500',
-    'Medium': 'bg-yellow-400',
-    'Low': 'bg-emerald-400',
-    'None': 'bg-transparent',
+    [Priority.HIGH]: 'bg-rose-500',
+    [Priority.MEDIUM]: 'bg-yellow-400',
+    [Priority.LOW]: 'bg-emerald-400',
+    [Priority.NONE]: 'bg-transparent',
   };
 
 
@@ -196,36 +212,38 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
     setCurrentList(list);
   }, [list]);
 
-  const total = useMemo(() => currentList.items.reduce((sum, item) => sum + (item.rate || 0), 0), [currentList.items]);
-  const totalItemCount = currentList.items.length;
-  const purchasedTotal = useMemo(() => currentList.items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0), [currentList.items]);
-  const purchasedItemCount = useMemo(() => currentList.items.filter(i => i.isPurchased).length, [currentList.items]);
+  const items = useMemo(() => Array.isArray(currentList.content) ? currentList.content : [], [currentList.content]);
+  
+  const total = useMemo(() => items.reduce((sum, item) => sum + (item.rate || 0), 0), [items]);
+  const totalItemCount = items.length;
+  const purchasedTotal = useMemo(() => items.filter(i => i.isPurchased).reduce((sum, item) => sum + (item.rate || 0), 0), [items]);
+  const purchasedItemCount = useMemo(() => items.filter(i => i.isPurchased).length, [items]);
 
 
   const sortedItems = useMemo(() => {
-    const priorityOrder: Record<Priority, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'None': 3 };
-    return [...currentList.items].sort((a, b) => {
+    const priorityOrder: Record<Priority, number> = { [Priority.HIGH]: 0, [Priority.MEDIUM]: 1, [Priority.LOW]: 2, [Priority.NONE]: 3 };
+    return [...items].sort((a, b) => {
         if (a.isPurchased !== b.isPurchased) {
             return a.isPurchased ? 1 : -1;
         }
-        const priorityA = a.priority || 'None';
-        const priorityB = b.priority || 'None';
+        const priorityA = a.priority || Priority.NONE;
+        const priorityB = b.priority || Priority.NONE;
         if (priorityOrder[priorityA] !== priorityOrder[priorityB]) {
             return priorityOrder[priorityA] - priorityOrder[priorityB];
         }
         return 0; 
     });
-  }, [currentList.items]);
+  }, [items]);
 
-  const handleItemChange = (itemId: string, field: keyof ShoppingListItem, value: string | number | boolean) => {
-    const updatedItems = currentList.items.map(item => item.id === itemId ? { ...item, [field]: value } : item);
-    setCurrentList(prev => ({ ...prev, items: updatedItems }));
+  const handleItemChange = (itemId: string, field: keyof ChecklistItem, value: string | number | boolean) => {
+    const updatedItems = items.map(item => item.id === itemId ? { ...item, [field]: value } : item);
+    setCurrentList(prev => ({ ...prev, content: updatedItems }));
   };
   
   const handlePriorityChange = (itemId: string) => {
-    const item = currentList.items.find(i => i.id === itemId);
+    const item = items.find(i => i.id === itemId);
     if (!item) return;
-    const currentPriority = item.priority || 'None';
+    const currentPriority = item.priority || Priority.NONE;
     const currentIndex = priorities.indexOf(currentPriority);
     const nextIndex = (currentIndex + 1) % priorities.length;
     const nextPriority = priorities[nextIndex];
@@ -233,25 +251,25 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
   };
 
   const handleAddItem = () => {
-    const newItem: ShoppingListItem = { id: self.crypto.randomUUID(), name: '', rate: 0, isPurchased: false, priority: 'None', quantity: '1' };
-    setCurrentList(prev => ({ ...prev, items: [...prev.items, newItem] }));
+    const newItem: ChecklistItem = { id: self.crypto.randomUUID(), name: '', rate: 0, isPurchased: false, priority: Priority.NONE, quantity: '1' };
+    setCurrentList(prev => ({ ...prev, content: [...items, newItem] }));
   };
 
   const handleRemoveItem = (itemId: string) => {
-    const updatedItems = currentList.items.filter(item => item.id !== itemId);
-    setCurrentList(prev => ({ ...prev, items: updatedItems }));
+    const updatedItems = items.filter(item => item.id !== itemId);
+    setCurrentList(prev => ({ ...prev, content: updatedItems }));
   };
   
   const handleCreateExpenseClick = () => {
     onSave(currentList); // Save any pending changes first
-    const purchasedItems = currentList.items.filter(item => item.isPurchased && item.name.trim() && item.rate > 0);
+    const purchasedItems = items.filter(item => item.isPurchased && item.name.trim() && item.rate > 0);
     if (purchasedItems.length === 0) {
       alert("Please check one or more purchased items with a valid name and rate to create an expense.");
       return;
     }
-    const listForExpense: ShoppingList = {
+    const listForExpense: Note = {
       ...currentList,
-      items: purchasedItems,
+      content: purchasedItems,
     };
     onCreateExpense(listForExpense);
   };
@@ -284,7 +302,7 @@ const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({ list, o
             <div></div>
           </div>
         {sortedItems.map(item => {
-          const itemPriority = item.priority || 'None';
+          const itemPriority = item.priority || Priority.NONE;
           return (
             <div key={item.id} className={`shopping-list-item-grid group p-2 rounded-lg hover-bg-stronger relative pl-4`}>
               <div className={`absolute left-1.5 top-2 bottom-2 w-1 rounded-full ${priorityBarColors[itemPriority]}`}></div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { SpamWarning } from '../types';
 
@@ -26,34 +27,23 @@ const SpamWarningCard: React.FC<SpamWarningCardProps> = ({ warning, onApprove, o
           <h3 className="font-bold text-yellow-300">{title}</h3>
           <p className="text-sm text-yellow-300/80 mt-1">{message}</p>
           <blockquote className="mt-2 p-2 text-xs bg-slate-800/50 rounded-md text-slate-300 italic border-l-2 border-yellow-500">
+            {/* Fix: Corrected JSX interpolation to display the raw text of the warning. */}
             "{warning.rawText}"
           </blockquote>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => onApprove(false)}
-              className="px-3 py-1 text-sm font-semibold bg-emerald-600 text-white rounded-md hover:bg-emerald-500 transition-colors"
-            >
-              Approve Transaction
-            </button>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2">
+        <p className="text-xs text-yellow-300/70">How would you like to proceed?</p>
+        <div className="flex gap-3">
+            <button onClick={onDiscard} className="button-secondary w-full py-2">Discard</button>
+            <button onClick={() => onApprove(false)} className="button-primary w-full py-2">Approve Once</button>
             {warning.parsedData.senderName && (
-               <button
-                onClick={() => onApprove(true)}
-                className="px-3 py-1 text-sm font-semibold bg-sky-600 text-white rounded-md hover:bg-sky-500 transition-colors"
-              >
-                Approve & Trust Sender
-              </button>
+                <button onClick={() => onApprove(true)} className="button-primary w-full py-2 bg-emerald-600 hover:bg-emerald-500">Always Trust Sender</button>
             )}
-            <button
-              onClick={onDiscard}
-              className="px-3 py-1 text-sm font-semibold bg-rose-600 text-white rounded-md hover:bg-rose-500 transition-colors"
-            >
-              Discard
-            </button>
-          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default SpamWarningCard;
+export { SpamWarningCard };

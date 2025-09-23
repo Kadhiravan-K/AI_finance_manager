@@ -141,7 +141,7 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
                             {dataModules.map(module => (
                                 <CustomCheckbox 
                                     key={module.key}
-                                    id={`export-${module.key}`}
+                                    id={`export-${String(module.key)}`}
                                     label={module.label}
                                     checked={selectedDataKeys.has(module.key)}
                                     onChange={checked => handleDataKeyToggle(module.key, checked)}

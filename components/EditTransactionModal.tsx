@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '../types';
+// Fix: Corrected import path for context
 import { SettingsContext, AppDataContext } from '../contexts/SettingsContext';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -28,7 +29,11 @@ interface EditTransactionModalProps {
 const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     transaction, onSave, onCancel, accounts, contacts, openModal, onOpenCalculator
 }) => {
-    const { categories, settings } = useContext(SettingsContext);
+    // Fix: Correctly access context values
+    const settingsContext = useContext(SettingsContext);
+    if (!settingsContext) throw new Error("SettingsContext not found");
+    const { categories, settings } = settingsContext;
+
     const formatCurrency = useCurrencyFormatter();
     
     // High-level state
@@ -91,6 +96,11 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             onSave: handleSaveSplit,
             items: items.filter(i => i.description && i.amount)
         });
+    };
+    
+    const handleDuplicate = () => {
+        onCancel(); // Close current modal
+        openModal('addTransaction', { transactionToDuplicate: transaction });
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -176,7 +186,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                          <div className="pt-4 border-t border-divider"><ToggleSwitch label="Itemize & Split Transaction" checked={isItemized} onChange={setIsItemized} /></div>
                     </div>
                     <div className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-3 bg-subtle rounded-b-xl">
-                        <button type="button" onClick={() => openModal('refund', { originalTransaction: transaction })} className="button-secondary px-4 py-2">Process Refund</button>
+                        <button type="button" onClick={handleDuplicate} className="button-secondary px-4 py-2">Duplicate</button>
                         <div className="flex-grow"></div>
                         <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
                         <button type="submit" className="button-primary px-4 py-2">Save Changes</button>

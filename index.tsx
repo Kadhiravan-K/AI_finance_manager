@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+// Fix: Use a default import for the main App component.
 import App from './App';
 
 const rootElement = document.getElementById('root');

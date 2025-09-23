@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Goal, Priority } from '../types';
@@ -18,14 +19,16 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) 
   const [icon, setIcon] = useState(goal?.icon || '🏆');
   const [targetAmount, setTargetAmount] = useState(goal?.targetAmount ? String(goal.targetAmount) : '');
   const [productLink, setProductLink] = useState(goal?.productLink || '');
-  const [priority, setPriority] = useState<Priority>(goal?.priority || 'None');
+  // Fix: Initialize priority state with the enum member, not a string literal.
+  const [priority, setPriority] = useState<Priority>(goal?.priority || Priority.NONE);
 
-  const priorities: Priority[] = ['None', 'Low', 'Medium', 'High'];
+  // Fix: Use Priority enum members instead of string literals.
+  const priorities: Priority[] = [Priority.NONE, Priority.LOW, Priority.MEDIUM, Priority.HIGH];
   const priorityStyles: Record<Priority, { buttonClass: string; }> = {
-    'High': { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
-    'Medium': { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
-    'Low': { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
-    'None': { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
+    [Priority.HIGH]: { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
+    [Priority.MEDIUM]: { buttonClass: 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' },
+    [Priority.LOW]: { buttonClass: 'bg-green-500/20 text-green-300 hover:bg-green-500/30' },
+    [Priority.NONE]: { buttonClass: 'bg-slate-500/20 text-slate-300 hover:bg-slate-500/30' },
   };
 
   const handlePriorityChange = () => {

@@ -12,6 +12,7 @@ import PortfolioSummary from './PortfolioSummary';
 import FinancialHealthScore from './FinancialHealthScore';
 import DynamicAIInsights from './DynamicAIInsights';
 import EmptyState from './EmptyState';
+// Fix: Corrected import path for context
 import { AppDataContext } from '../contexts/SettingsContext';
 import { getCategoryPath } from '../utils/categories';
 import { parseNaturalLanguageQuery } from '../services/geminiService';
@@ -381,7 +382,8 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, a
             summaries[currency].balance = summaries[currency].income - summaries[currency].expense;
         }
     
-        return Object.entries(summaries).sort(([currA], [currB]) => currA.localeCompare(currB));
+        // Fix: Cast the result of Object.entries to ensure correct type inference downstream.
+        return (Object.entries(summaries) as [string, { income: number; expense: number; balance: number }][]).sort(([currA], [currB]) => currA.localeCompare(currB));
     }, [allTransactions, accounts, rest.selectedAccountIds, dateFilter, customDateRange]);
 
     const Dashboard = ({ income, expense, isVisible, currency }: { income: number, expense: number, isVisible: boolean, currency: string }) => {
@@ -432,7 +434,7 @@ const FinanceDisplayMemoized: React.FC<FinanceDisplayProps> = ({ transactions, a
 
     const widgetMap: Record<DashboardWidget['id'], React.ReactNode> = {
         financialHealth: <FinancialHealthScore scoreData={healthScoreData} onClick={onOpenFinancialHealth} />,
-        aiCoach: <DynamicAIInsights appState={appState} dateFilter={dateFilter} />,
+        aiCoach: <DynamicAIInsights appState={appState} dateFilter={dateFilter as string} />,
         netWorth: <NetWorthSummary accounts={accounts} allTransactions={allTransactions} holdings={investmentHoldings} isVisible={isBalanceVisible} />,
         netWorthTrend: <NetWorthTrendChart transactions={allTransactions} accounts={accounts} currency={baseCurrency} />,
         portfolio: <PortfolioSummary holdings={investmentHoldings} isVisible={isBalanceVisible} />,

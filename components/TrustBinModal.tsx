@@ -131,8 +131,11 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
         return (item.item as ShopProduct).name;
       case 'shopEmployee':
         return (item.item as ShopEmployee).name;
-      case 'shopShift':
-        return (item.item as ShopShift).name;
+      case 'shopShift': {
+        // Fix: Correctly generate a description for a ShopShift item, as it does not have a 'name' property.
+        const shift = item.item as ShopShift;
+        return `Shift from ${new Date(shift.startTime).toLocaleTimeString()} to ${new Date(shift.endTime).toLocaleTimeString()}`;
+      }
       case 'goal': {
         const goal = item.item as Goal;
         return `${goal.name} (${formatCurrency(goal.targetAmount)})`;
@@ -190,7 +193,8 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
           {trustBinItems.length === 0 ? (
             <p className="text-center text-secondary py-8">The Trust Bin is empty.</p>
           ) : (
-            Object.entries(groupedItems).map(([groupName, items]) => (
+            // Fix: Cast Object.entries result to resolve type inference issue.
+            (Object.entries(groupedItems) as [string, TrustBinItem[]][]).map(([groupName, items]) => (
                 <div key={groupName}>
                     <h3 className="font-semibold text-secondary text-sm mb-2">{groupName}</h3>
                     <div className="space-y-2">

@@ -67,7 +67,7 @@ const ViewOptionsModal: React.FC<ViewOptionsModalProps> = ({ options, currentVal
                   <button key={opt.key} onClick={() => handleSortChange(opt.key)} className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors flex items-center gap-1 ${localSort.key === opt.key ? 'bg-emerald-500 text-white' : 'bg-subtle hover-bg-stronger text-primary'}`}>
                     {opt.label}
                     {localSort.key === opt.key && (
-                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform duration-200 ${localSort.direction === 'asc' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform duration-200 ${localSort.direction === 'asc' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                     )}
                   </button>
                 ))}

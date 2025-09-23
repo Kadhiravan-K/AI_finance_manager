@@ -1,4 +1,5 @@
 
+
 import React, { useState, useContext } from 'react';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { AppState } from '../types';
@@ -79,7 +80,7 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = () => {
     };
     
     const CalcButton = ({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) => (
-        <button onClick={onClick} className={`calc-btn ${className}`}>
+        <button type="button" onClick={onClick} className={`calc-btn ${className}`}>
             {children}
         </button>
     );
@@ -104,6 +105,7 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = () => {
                 <div className="text-primary text-3xl font-bold h-10 truncate" aria-live="polite">{result}</div>
             </div>
              <div className="grid grid-cols-4 gap-1.5">
+                {/* Fix: Added missing children to CalcButton components */}
                 <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('DEL')} className="calc-btn-special">DEL</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('%')} className="calc-btn-operator">%</CalcButton>
@@ -379,7 +381,7 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
   const [activeTab, setActiveTab] = useState<CalculatorType>('basic');
 
   const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void }) => (
-    <button onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
+    <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
     </button>
   );
@@ -391,6 +393,7 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
        </div>
        <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
          <div className="flex items-center gap-1">
+           {/* Fix: Added missing children to TabButton components */}
            <TabButton active={activeTab === 'basic'} onClick={() => setActiveTab('basic')}>Basic</TabButton>
            <TabButton active={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI</TabButton>
            <TabButton active={activeTab === 'currency'} onClick={() => setActiveTab('currency')}>Currency</TabButton>
