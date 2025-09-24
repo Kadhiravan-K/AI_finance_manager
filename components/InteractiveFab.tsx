@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { ActiveScreen, ActiveModal } from '../types';
 
@@ -18,7 +19,6 @@ const InteractiveFab: React.FC<InteractiveFabProps> = ({ onNavigate }) => {
     left: { 
       label: 'Add List', 
       icon: '📝', 
-      // Fix: Navigate to 'notes' screen instead of 'shoppingLists'.
       onClick: () => onNavigate('notes') 
     },
     right: { 

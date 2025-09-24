@@ -1,5 +1,4 @@
 
-
 import React, { createContext, ReactNode, useState, useCallback } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { 
@@ -8,14 +7,169 @@ import {
     Challenge, Trip, TripExpense, Refund, Settlement, Shop, ShopProduct, ShopSale, 
     ShopEmployee, ShopShift, Note, GlossaryEntry, Debt, TransactionType, ItemType, ActiveScreen, 
     DashboardWidget, Invoice, InvoiceStatus, ShopType,
-    // Fix: Import missing types
     TrustBinItem,
-    AccountType
+    AccountType,
+    TripDayPlan,
+    TripParticipant
 } from '../types';
 import { DEFAULT_CATEGORIES } from '../utils/categories';
 import { DEFAULT_GLOSSARY_ENTRIES } from '../utils/glossary';
+import { USER_SELF_ID } from '../constants';
 
-// Define the shape of the context data
+// --- START OF DEFAULT DATA ---
+
+const DEFAULT_COLLEGE_GROUP_ID = "group-college-friends-default";
+
+const DEFAULT_CONTACT_GROUP: ContactGroup[] = [
+    { id: DEFAULT_COLLEGE_GROUP_ID, name: "College Friends", icon: "🎓" }
+];
+
+const studentNames = [
+    "K P ABISHEK", "AKALYA K", "AKASH KUMAR C M", "ALBIN THOMAS JOBY", "ARAVINTH S", "ARJUN P", "ARUNKUMAR A", 
+    "ASHIF AHAMMED M", "ASWIN SHAJU", "AWINI S", "BALAJI M", "BESVIN ELRAO L", "DHARUN R", "G FAHEEM KHASHIF KHAN", 
+    "GIRIRAJALINGAM P", "HARISANTH M", "JASWANTH S", "JAYACHANDHAR J", "JAYAPRASANTH S", "KADHIRAVAN K", 
+    "KALAI SELVAN V", "KALAISELVAN S", "KATHIRAVAN M J", "KAVILKANNAN S", "KAVIYA M", "KAZANDHRAN M E", "KISHOR M", 
+    "MADHAN R", "MANISH M", "MANOJ V", "MOHAMED THOUFEEK T S", "T R MOHAMMED ASHARAF", "MOHANRAJ C", "MUBARAK A", 
+    "MUKESH M", "MUTHUKUMAR S", "NAVEEN M", "NIKSHITHA SHERIN N", "PARTHASARATHI J", "POOVARASAN P", "PRANAV M", 
+    "RAGU R", "RAJAN I", "SAMUEL K THOBIYAS", "SANJAI S", "SANJAYKUMAR L V", "SARAN R", "SHAJIN A", "SHAJU A", 
+    "SHARAN G", "SIVAPRIYA V", "SREEJITH R", "SRIMURALIKRISHNA S", "SRINIVASAN K", "SUDHARSAN S K", "SUGUMARAN T", 
+    "SUNILKUMAR E", "UDHASINI C", "VIGNESH S", "VIKRAM S", "VISHNU A", "YOKESH G", "ESKAI PANDI", "PREM KUMAR E", 
+    "SRI DEVANAESHWARAN", "VETRIVEL", "MAHENDRA KUMAR"
+];
+
+const DEFAULT_CONTACTS: Contact[] = studentNames.map(name => ({
+    id: self.crypto.randomUUID(),
+    name: name,
+    groupId: DEFAULT_COLLEGE_GROUP_ID
+}));
+
+const getStartDate = (dayOffset: number): string => {
+    const date = new Date();
+    date.setDate(date.getDate() + dayOffset);
+    return date.toISOString().split('T')[0];
+};
+
+const DEFAULT_TRIP_ID = "trip-goa-college-default";
+
+const DEFAULT_TRIP_PLAN: TripDayPlan[] = [
+    {
+        id: self.crypto.randomUUID(),
+        date: getStartDate(0),
+        title: "Day 0: Travel to Goa",
+        items: [
+            { id: self.crypto.randomUUID(), time: "15:10", activity: "Start Journey from Coimbatore", type: 'travel', icon: '🚂' },
+            { id: self.crypto.randomUUID(), time: "15:15", activity: "Overnight Travel (Train: CBE JBP SF SPL)", type: 'travel', icon: '🌙' }
+        ]
+    },
+    {
+        id: self.crypto.randomUUID(),
+        date: getStartDate(1),
+        title: "Day 1: North Goa Beaches",
+        items: [
+            { id: self.crypto.randomUUID(), time: "06:00", activity: "Arrival at Madgaon", type: 'travel', icon: '🚉' },
+            { id: self.crypto.randomUUID(), time: "07:00", activity: "Transfer to Hotel & Refreshment", type: 'travel', icon: '🏨' },
+            { id: self.crypto.randomUUID(), time: "09:00", activity: "Breakfast", type: 'food', icon: '🍳' },
+            { id: self.crypto.randomUUID(), time: "10:00", activity: "Visit Miramar Beach", type: 'activity', icon: '🏖️' },
+            { id: self.crypto.randomUUID(), time: "12:00", activity: "Explore Fort Aguada", type: 'activity', icon: '🏰' },
+            { id: self.crypto.randomUUID(), time: "14:00", activity: "Dolphin Point Trip (Optional)", type: 'activity', icon: '🐬' },
+            { id: self.crypto.randomUUID(), time: "16:00", activity: "Relax at Calangute Beach", type: 'activity', icon: '🌊' },
+            { id: self.crypto.randomUUID(), time: "18:00", activity: "Sunset at Baga Beach", type: 'activity', icon: '🌅' },
+            { id: self.crypto.randomUUID(), time: "20:00", activity: "Dinner & Hotel Check-in", type: 'lodging', icon: '🛌' }
+        ]
+    },
+    {
+        id: self.crypto.randomUUID(),
+        date: getStartDate(2),
+        title: "Day 2: South Goa Heritage",
+        items: [
+            { id: self.crypto.randomUUID(), time: "09:00", activity: "Breakfast", type: 'food', icon: '🍳' },
+            { id: self.crypto.randomUUID(), time: "10:00", activity: "Visit Old Goa Churches", type: 'activity', icon: '⛪' },
+            { id: self.crypto.randomUUID(), time: "13:00", activity: "Lunch", type: 'food', icon: '🍛' },
+            { id: self.crypto.randomUUID(), time: "15:00", activity: "Cantilon Beach", type: 'activity', icon: '🏖️' },
+            { id: self.crypto.randomUUID(), time: "18:00", activity: "Mandovi River Dancing Cruise", type: 'activity', icon: '🚢' },
+            { id: self.crypto.randomUUID(), time: "20:00", activity: "Dinner & Overnight Stay", type: 'lodging', icon: '🛌' }
+        ]
+    },
+    {
+        id: self.crypto.randomUUID(),
+        date: getStartDate(3),
+        title: "Day 3: Naval Aviation & Departure",
+        items: [
+            { id: self.crypto.randomUUID(), time: "09:00", activity: "Breakfast", type: 'food', icon: '🍳' },
+            { id: self.crypto.randomUUID(), time: "10:00", activity: "INS Hansa visit (subject to permission)", type: 'activity', icon: '✈️' },
+            { id: self.crypto.randomUUID(), time: "13:00", activity: "Lunch", type: 'food', icon: '🍛' },
+            { id: self.crypto.randomUUID(), time: "15:00", activity: "Hansa Beach", type: 'activity', icon: '🏖️' },
+            { id: self.crypto.randomUUID(), time: "20:00", activity: "Dinner", type: 'food', icon: '🍲' },
+            { id: self.crypto.randomUUID(), time: "21:00", activity: "Return Journey to Mangaluru (Overnight)", type: 'travel', icon: '🚌' }
+        ]
+    },
+    {
+        id: self.crypto.randomUUID(),
+        date: getStartDate(4),
+        title: "Day 4: Return Journey",
+        items: [
+            { id: self.crypto.randomUUID(), time: "06:00", activity: "Arrival at Mangaluru", type: 'travel', icon: '🌇' },
+            { id: self.crypto.randomUUID(), time: "06:45", activity: "Train to Coimbatore (INTERCITY SF EX)", type: 'travel', icon: '🚂' },
+            { id: self.crypto.randomUUID(), time: "15:32", activity: "Arrival at Coimbatore", type: 'travel', icon: '🏠' }
+        ]
+    }
+];
+
+const DEFAULT_TRIP_PARTICIPANTS: TripParticipant[] = [
+    { contactId: USER_SELF_ID, name: 'You' },
+    ...DEFAULT_CONTACTS.map(contact => ({ contactId: contact.id, name: contact.name }))
+];
+
+const DEFAULT_TRIPS: Trip[] = [
+    {
+        id: DEFAULT_TRIP_ID,
+        name: "Goa College Trip",
+        date: getStartDate(0),
+        participants: DEFAULT_TRIP_PARTICIPANTS,
+        currency: "INR",
+        budget: 258400, // 6800 * 38
+        plan: DEFAULT_TRIP_PLAN
+    }
+];
+
+const DEFAULT_NOTE_CONTENT = `
+### Inclusions
+- Accommodation as mentioned (Quad sharing)
+- Train Tickets (Sleeper onwards and second sitting return)
+- Local Transportation in private vehicle
+- Entry Tickets as per the itinerary
+- Tour Manager
+- Meals (3 Breakfast, 3 Lunch & 3 Dinner)
+- GST
+
+### Exclusions
+- Optional Trips (e.g., Dolphin Point)
+- Shopping, Video/camera/Mobile fee
+- Travel Insurance/Medical expense
+- Peak Charges/Holiday charges
+- Adventure Activities
+- Train Food
+
+### Terms & Conditions
+- Booking will be processed only after 30% of Advance Payment.
+- Balance payment requested prior to 25 Days from departure.
+- No Changes/modifications will be applicable on the program once the final summary has been released.
+`;
+
+const DEFAULT_NOTES: Note[] = [
+    {
+        id: self.crypto.randomUUID(),
+        title: "Goa Trip Details",
+        content: DEFAULT_NOTE_CONTENT.trim(),
+        type: 'note',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        tripId: DEFAULT_TRIP_ID
+    }
+];
+
+// --- END OF DEFAULT DATA ---
+
 interface SettingsContextType {
     settings: Settings;
     setSettings: (value: Settings | ((val: Settings) => Settings)) => Promise<void>;
@@ -65,13 +219,11 @@ interface AppDataContextType {
     shopProducts: ShopProduct[];
     setShopProducts: (value: ShopProduct[] | ((val: ShopProduct[]) => ShopProduct[])) => Promise<void>;
     shopSales: ShopSale[];
-    // Fix: Corrected the type for the `setShopSales` setter function to match the implementation.
     setShopSales: (value: ShopSale[] | ((val: ShopSale[]) => ShopSale[])) => Promise<void>;
     shopEmployees: ShopEmployee[];
     setShopEmployees: (value: ShopEmployee[] | ((val: ShopEmployee[]) => ShopEmployee[])) => Promise<void>;
     shopShifts: ShopShift[];
     setShopShifts: (value: ShopShift[] | ((val: ShopShift[]) => ShopShift[])) => Promise<void>;
-    // Fix: Renamed 'shoppingLists' to 'notes' to align with the 'Note' type and fix downstream errors.
     notes: Note[];
     setNotes: (value: Note[] | ((val: Note[]) => Note[])) => Promise<void>;
     glossaryEntries: GlossaryEntry[];
@@ -94,9 +246,9 @@ interface AppDataContextType {
     onDeleteAccount: (id: string) => void;
     saveInvoice: (invoiceData: Omit<Invoice, 'id'>, id?: string) => void;
     recordPaymentForInvoice: (invoice: Invoice, payment: { accountId: string; amount: number; date: string }) => void;
+    onSaveProduct: (shopId: string, productData: Omit<ShopProduct, 'id' | 'shopId'>, id?: string) => void;
 }
 
-// Create contexts with a default value of null
 export const SettingsContext = createContext<SettingsContextType | null>(null);
 export const AppDataContext = createContext<AppDataContextType | null>(null);
 
@@ -120,7 +272,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         currency: 'USD',
         theme: 'dark',
         footerActions: ['dashboard', 'reports', 'budgets', 'more'] as ActiveScreen[],
-        // Fix: Renamed 'shoppingLists' to 'notes' to match the ToggleableTool type.
         enabledTools: {
             investments: true, tripManagement: true, shop: true, refunds: true, achievements: true, challenges: true,
             learn: true, calendar: true, notes: true, calculator: true, scheduledPayments: true,
@@ -134,8 +285,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [categories, setCategories] = useLocalStorage<Category[]>('categories', DEFAULT_CATEGORIES);
     const [payees, setPayees] = useLocalStorage<Payee[]>('payees', []);
     const [senders, setSenders] = useLocalStorage<Sender[]>('senders', []);
-    const [contacts, setContacts] = useLocalStorage<Contact[]>('contacts', []);
-    const [contactGroups, setContactGroups] = useLocalStorage<ContactGroup[]>('contactGroups', []);
+    const [contacts, setContacts] = useLocalStorage<Contact[]>('contacts', DEFAULT_CONTACTS);
+    const [contactGroups, setContactGroups] = useLocalStorage<ContactGroup[]>('contactGroups', DEFAULT_CONTACT_GROUP);
     const [financialProfile, setFinancialProfile] = useLocalStorage<FinancialProfile>('financialProfile', { monthlySalary: 0, monthlyRent: 0, monthlyEmi: 0, emergencyFundGoal: 0 });
 
     // App Data State
@@ -148,7 +299,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [streaks, setStreaks] = useLocalStorage<UserStreak>('streaks', { currentStreak: 0, longestStreak: 0, streakFreezes: 3, lastActivityDate: '' });
     const [unlockedAchievements, setUnlockedAchievements] = useLocalStorage<UnlockedAchievement[]>('unlockedAchievements', []);
     const [challenges, setChallenges] = useLocalStorage<Challenge[]>('challenges', []);
-    const [trips, setTrips] = useLocalStorage<Trip[]>('trips', []);
+    const [trips, setTrips] = useLocalStorage<Trip[]>('trips', DEFAULT_TRIPS);
     const [tripExpenses, setTripExpenses] = useLocalStorage<TripExpense[]>('tripExpenses', []);
     const [refunds, setRefunds] = useLocalStorage<Refund[]>('refunds', []);
     const [settlements, setSettlements] = useLocalStorage<Settlement[]>('settlements', []);
@@ -157,8 +308,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [shopSales, setShopSales] = useLocalStorage<ShopSale[]>('shopSales', []);
     const [shopEmployees, setShopEmployees] = useLocalStorage<ShopEmployee[]>('shopEmployees', []);
     const [shopShifts, setShopShifts] = useLocalStorage<ShopShift[]>('shopShifts', []);
-    // Fix: Renamed state from 'shoppingLists' to 'notes' to align with the 'Note' type.
-    const [notes, setNotes] = useLocalStorage<Note[]>('notes', []);
+    const [notes, setNotes] = useLocalStorage<Note[]>('notes', DEFAULT_NOTES);
     const [glossaryEntries, setGlossaryEntries] = useLocalStorage<GlossaryEntry[]>('glossaryEntries', DEFAULT_GLOSSARY_ENTRIES);
     const [debts, setDebts] = useLocalStorage<Debt[]>('debts', []);
     const [invoices, setInvoices] = useLocalStorage<Invoice[]>('invoices', []);
@@ -169,7 +319,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Computed/Helper functions
     const deleteItem = useCallback((id: string, itemType: ItemType) => {
-        // Fix: Renamed 'shoppingList' to 'note' to match the ItemType definition.
         const stateSetters: Record<ItemType, React.Dispatch<any>> = {
             transaction: setTransactions, account: setAccounts, category: setCategories,
             recurringTransaction: setRecurringTransactions, goal: setGoals, investmentHolding: setInvestmentHoldings,
@@ -180,7 +329,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             glossaryEntry: setGlossaryEntries, debt: setDebts, invoice: setInvoices
         };
 
-        // Fix: Renamed 'shoppingList' to 'note' to match the ItemType definition.
         const states: Record<ItemType, any[]> = {
             transaction: transactions, account: accounts, category: categories,
             recurringTransaction: recurringTransactions, goal: goals, investmentHolding: investmentHoldings,
@@ -295,12 +443,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [setInvoices]);
 
     const recordPaymentForInvoice = useCallback((invoice: Invoice, payment: { accountId: string; amount: number; date: string }) => {
-        // 1. Update invoice status
         const newStatus = payment.amount >= invoice.totalAmount ? InvoiceStatus.PAID : invoice.status;
         const updatedInvoice: Invoice = { ...invoice, status: newStatus };
         saveInvoice(updatedInvoice, invoice.id);
 
-        // 2. Create income transaction
         const incomeCategory = findOrCreateCategory('Business / Sales', TransactionType.INCOME);
         const incomeTransaction: Transaction = {
             id: self.crypto.randomUUID(),
@@ -314,7 +460,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
         setTransactions(prev => [incomeTransaction, ...prev]);
 
-        // 3. Create ShopSale record
         const sale: ShopSale = {
             id: self.crypto.randomUUID(),
             shopId: invoice.shopId,
@@ -327,11 +472,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 };
             }),
             totalAmount: invoice.totalAmount,
-            profit: 0, // Note: Profit calculation would require product cost data, which is not available yet.
+            profit: 0, 
             date: payment.date
         };
         setShopSales(prev => [sale, ...prev]);
     }, [saveInvoice, findOrCreateCategory, setTransactions, setShopSales, shopProducts]);
+
+    const onSaveProduct = useCallback((shopId: string, productData: Omit<ShopProduct, 'id' | 'shopId'>, id?: string) => {
+        if (id) {
+            setShopProducts(prev => prev.map(p => (p.id === id ? { ...p, shopId, ...productData } : p)));
+        } else {
+            setShopProducts(prev => [...prev, { id: self.crypto.randomUUID(), shopId, ...productData }]);
+        }
+    }, [setShopProducts]);
 
     const settingsContextValue: SettingsContextType = {
         settings, setSettings, categories, setCategories, payees, setPayees, senders, setSenders,
@@ -350,7 +503,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         invoices, setInvoices, trustBinItems, setTrustBinItems,
         selectedAccountIds, setSelectedAccountIds,
         deleteItem, findOrCreateCategory, updateStreak, onUpdateTransaction, onAddAccount, onDeleteAccount,
-        saveInvoice, recordPaymentForInvoice
+        saveInvoice, recordPaymentForInvoice, onSaveProduct
     };
 
     return (

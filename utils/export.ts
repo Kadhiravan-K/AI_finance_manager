@@ -1,3 +1,4 @@
+
 import { Transaction, Account, Category, Sender, AppState } from '../types';
 
 const getCategoryPath = (categoryId: string, categories: Category[]): string => {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { IdentifiedSubscription, RecurringTransaction, TransactionType } from '../types';
@@ -39,6 +40,7 @@ const SubscriptionsScreen: React.FC<SubscriptionsScreenProps> = ({ onAddRecurrin
     
     useEffect(() => {
         analyzeTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleCreateBill = (sub: IdentifiedSubscription) => {

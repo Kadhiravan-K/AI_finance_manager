@@ -1,10 +1,10 @@
 
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shop, ShopSale, ShopProduct } from '../../types';
-import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
-import { getShopInsights } from '../../services/geminiService';
-import LoadingSpinner from '../LoadingSpinner';
+import { Shop, ShopSale, ShopProduct } from '../types';
+import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import { getShopInsights } from '../services/geminiService';
+import LoadingSpinner from './LoadingSpinner';
 
 interface ShopAnalyticsScreenProps {
     shop: Shop;
@@ -50,7 +50,6 @@ const ShopAnalyticsScreen: React.FC<ShopAnalyticsScreenProps> = ({ shop, sales, 
 
     useEffect(() => {
         fetchInsights();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sales, products]);
 
     return (

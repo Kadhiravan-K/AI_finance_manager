@@ -3,13 +3,12 @@
 
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { Contact, SplitDetail } from '../types';
-import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import ModalHeader from './ModalHeader';
-// Fix: Corrected import path for context
-import { SettingsContext } from '../contexts/SettingsContext';
-import { USER_SELF_ID } from '../constants';
-import CustomCheckbox from './CustomCheckbox';
+import { Contact, SplitDetail } from '../../types';
+import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
+import ModalHeader from '../ModalHeader';
+import { SettingsContext } from '../../contexts/SettingsContext';
+import { USER_SELF_ID } from '../../constants';
+import CustomCheckbox from '../CustomCheckbox';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -61,7 +60,6 @@ const DebouncedNumericInput: React.FC<{
 };
 
 const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetails, onSave, onClose, participants, currency }) => {
-  // Fix: Added a null check for the context to prevent runtime errors.
   const settingsContext = useContext(SettingsContext);
   if (!settingsContext) throw new Error("SettingsContext not found");
   const { contacts } = settingsContext;

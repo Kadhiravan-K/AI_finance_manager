@@ -1,3 +1,6 @@
+
+
+
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category, TransactionType, ReportPeriod, CustomDateRange, Account, ActiveModal, AppState } from '../types';
 import CategoryPieChart from './CategoryPieChart';
@@ -399,6 +402,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ appState, openModal, ...r
                 <h2 className="text-2xl font-bold text-primary text-center">Analysis</h2>
             </div>
             <div className="flex border-b border-divider flex-shrink-0">
+                {/* Fix: Added missing children to TabButton components */}
                 <TabButton active={activeTab === 'reports'} onClick={() => setActiveTab('reports')}>Reports</TabButton>
                 <TabButton active={activeTab === 'live'} onClick={() => setActiveTab('live')}>Live Feed</TabButton>
             </div>

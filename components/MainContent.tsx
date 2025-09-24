@@ -1,13 +1,13 @@
 
 
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
-import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note } from '../types';
-import FinanceDisplay from './StoryDisplay';
+import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail } from '../types';
+import FinanceDisplay from './FinanceDisplay';
 import ReportsScreen from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
 import GoalsScreen from './GoalsModal';
-import InvestmentsScreen from './InvestmentsScreen';
-import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
+import InvestmentsScreen from './InvestmentsModal';
+import ScheduledPaymentsScreen from './ScheduledPaymentsModal';
 import MoreScreen from './More';
 import TripManagementScreen from './TripManagementScreen';
 import TripDetailsScreen from './TripDetailsScreen';
@@ -19,11 +19,11 @@ import { ShopScreen } from './ShopScreen';
 import ChallengesScreen from './ChallengesScreen';
 import LearnScreen from './LearnScreen';
 import CalendarScreen from './CalendarScreen';
-// Fix: Corrected import to use the actual exported component name 'NotesScreen'.
-import { NotesScreen } from './ShoppingListScreen';
+import { NotesScreen } from './NotesScreen';
 import SubscriptionsScreen from './SubscriptionsScreen';
 import GlossaryScreen from './GlossaryScreen';
 import ManualScreen from './ManualScreen';
+// Fix: Corrected import path for AppDataContext.
 import { AppDataContext } from '../contexts/SettingsContext';
 import { parseNaturalLanguageQuery } from '../services/geminiService';
 import { calculateNextDueDate } from '../utils/date';
@@ -46,7 +46,6 @@ interface MainContentProps {
   onGoalComplete: () => void;
   appState: AppState;
   tripDetailsId: string | null;
-  // Fix: Renamed prop to 'noteId' to match usage in App.tsx and align with data structures.
   noteId: string | null;
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
@@ -69,6 +68,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     return null; // Or a loading spinner
   }
   
+  // Fix: Destructure all necessary values and functions from dataContext after the null check.
   const { 
     selectedAccountIds, 
     setSelectedAccountIds, 
@@ -91,6 +91,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     updateStreak,
     onUpdateTransaction,
     setDebts,
+    setBudgets,
   } = dataContext;
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
@@ -169,6 +170,32 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     !isResponsive ? 'pb-[68px]' : ''
   }`;
 
+  const handleCreateExpenseFromList = (list: Note) => {
+    if (list.type !== 'checklist' || !Array.isArray(list.content)) return;
+
+    const purchasedItems = list.content.filter(item => item.isPurchased);
+    if (purchasedItems.length === 0) return;
+    
+    const itemizedDetails: ItemizedDetail[] = purchasedItems.map(item => ({
+      description: item.name,
+      amount: item.rate,
+      categoryId: findOrCreateCategory('Shopping / General', TransactionType.EXPENSE), // Default category
+    }));
+    
+    const total = itemizedDetails.reduce((sum, item) => sum + item.amount, 0);
+
+    const transaction: Partial<Transaction> = {
+      description: `Shopping from list: ${list.title}`,
+      amount: total,
+      type: TransactionType.EXPENSE,
+      itemizedDetails: itemizedDetails,
+      categoryId: itemizedDetails[0]?.categoryId, // Use first item's category
+    };
+
+    openModal('addTransaction', { initialTransaction: transaction, isItemized: true });
+  };
+
+
   // A fully implemented router to pass correct props to each screen
   switch (activeScreen) {
     case 'dashboard':
@@ -188,7 +215,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     case 'budgets':
       return <BudgetsScreen categories={appState.categories} transactions={appState.transactions} budgets={appState.budgets} onSaveBudget={(categoryId: string, amount: number) => {
         const currentMonth = new Date().toISOString().slice(0, 7);
-        dataContext.setBudgets(prev => {
+        // Fix: Use the destructured `setBudgets` function instead of accessing it directly from the context object, which can cause type-narrowing issues in callbacks.
+        setBudgets(prev => {
             const existing = prev.find(b => b.categoryId === categoryId && b.month === currentMonth);
             if(existing) {
                 return prev.map(b => b.id === existing.id ? {...b, amount} : b);
@@ -242,9 +270,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         }} onDeleteEmployee={(id)=>deleteItem(id, 'shopEmployee')} onSaveShift={(shopId, shift, id) => {
             if(id) setShopShifts(p => p.map(s => s.id === id ? {...s, ...shift} : s)); else setShopShifts(p => [...p, {id: self.crypto.randomUUID(), shopId, ...shift}]);
         }} onDeleteShift={(id)=>deleteItem(id, 'shopShift')} openModal={openModal} />;
-    // Fix: Corrected case from 'shoppingLists' to 'notes' and passed the correct prop 'noteId'.
     case 'notes':
-        return <NotesScreen noteId={noteId} onCreateExpense={() => {}} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} onNavigate={onNavigate} />;
+        return <NotesScreen noteId={noteId} onCreateExpense={handleCreateExpenseFromList} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} onNavigate={onNavigate} />;
     case 'subscriptions':
       return <SubscriptionsScreen onAddRecurring={(data) => openModal('editRecurring', { recurringTransaction: data })} />;
     case 'debtManager':

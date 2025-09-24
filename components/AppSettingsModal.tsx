@@ -1,3 +1,5 @@
+
+
 import React, { useContext, useRef } from 'react';
 import ReactDOM from 'react-dom';
 // Fix: Corrected import path for context
@@ -135,6 +137,7 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
             <div className="pt-4 border-t border-divider">
                 <label className="block text-sm font-medium text-secondary mb-2">Appearance</label>
                 <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
+                        {/* Fix: Added missing children to TabButton components */}
                         <TabButton active={settings.theme === 'dark'} onClick={() => handleThemeChange('dark')}>Dark</TabButton>
                         <TabButton active={settings.theme === 'light'} onClick={() => handleThemeChange('light')}>Light</TabButton>
                 </div>

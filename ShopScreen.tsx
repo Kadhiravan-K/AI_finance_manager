@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useContext } from 'react';
 import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, Contact } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -122,7 +121,6 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
         <div className="h-full flex flex-col">
             <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
                 <div className="flex items-center gap-1">
-                    {/* Fix: Added missing children to TabButton components */}
                     <TabButton active={activeTab === 'billing'} onClick={() => setActiveTab('billing')}>Billing</TabButton>
                     <TabButton active={activeTab === 'products'} onClick={() => setActiveTab('products')}>Products</TabButton>
                     <TabButton active={activeTab === 'invoices'} onClick={() => setActiveTab('invoices')}>Invoices</TabButton>

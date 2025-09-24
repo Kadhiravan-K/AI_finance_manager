@@ -1,12 +1,11 @@
 
-
 import React, { useState, useContext } from 'react';
-import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import { AppState } from '../types';
-import { parseNaturalLanguageCalculation, getCurrencyConversionRate } from '../services/geminiService';
-import LoadingSpinner from './LoadingSpinner';
-import { currencies, getCurrencyFormatter } from '../utils/currency';
-import CustomSelect from './CustomSelect';
+import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
+import { AppState } from '../../types';
+import { parseNaturalLanguageCalculation, getCurrencyConversionRate } from '../../services/geminiService';
+import LoadingSpinner from '../LoadingSpinner';
+import { currencies, getCurrencyFormatter } from '../../utils/currency';
+import CustomSelect from '../CustomSelect';
 
 type CalculatorType = 'basic' | 'ai' | 'currency' | 'emi' | 'sip' | 'goal' | 'swp';
 

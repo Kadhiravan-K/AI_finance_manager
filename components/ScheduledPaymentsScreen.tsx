@@ -1,4 +1,5 @@
 
+
 import React, { useMemo, useState } from 'react';
 import { RecurringTransaction, Category, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -66,7 +67,6 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
   }, [viewOptions]);
 
 
-  // Fix: Use Priority enum members instead of string literals.
   const priorities: Priority[] = [Priority.NONE, Priority.LOW, Priority.MEDIUM, Priority.HIGH];
   const priorityStyles: Record<Priority, { buttonClass: string; }> = {
     [Priority.HIGH]: { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
@@ -76,7 +76,6 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
   };
 
   const handlePriorityChange = (item: RecurringTransaction) => {
-    // Fix: Use Priority enum member for default value.
     const currentPriority = item.priority || Priority.NONE;
     const currentIndex = priorities.indexOf(currentPriority);
     const nextIndex = (currentIndex + 1) % priorities.length;

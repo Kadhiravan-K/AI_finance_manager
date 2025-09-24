@@ -1,3 +1,4 @@
+
 import React, { useContext, useState } from 'react';
 import { ActiveModal, ActiveScreen } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -57,7 +58,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
         { key: 'refunds', screen: 'refunds', icon: '↩️', label: 'Refunds' },
         { key: 'scheduledPayments', screen: 'scheduled', icon: '📅', label: 'Scheduled' },
         { key: 'shop', screen: 'shop', icon: '🏪', label: 'Shop Hub' },
-        { key: 'shoppingLists', screen: 'shoppingLists', icon: '🛒', label: 'Shopping Lists' },
+        { key: 'notes', screen: 'notes', icon: '📝', label: 'Notes & Lists' },
         { key: 'subscriptions', screen: 'subscriptions', icon: '🔁', label: 'Subscriptions' },
         { key: 'tripManagement', screen: 'tripManagement', icon: '✈️', label: 'Trips' },
         { key: 'accountTransfer', modal: 'transfer', icon: '↔️', label: 'Transfer' },

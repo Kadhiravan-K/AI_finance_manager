@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { ActiveModal, ActiveScreen, AppState } from '../types';
@@ -31,7 +29,6 @@ const ALL_NAVIGABLE_ITEMS: { name: string; screen: ActiveScreen; modal?: ActiveM
     { name: 'Streaks & Challenges', screen: 'challenges', icon: '🔥' },
     { name: 'Learn Finance', screen: 'learn', icon: '📚', keywords: 'education tips' },
     { name: 'Calendar', screen: 'calendar', icon: '🗓️', keywords: 'schedule events bills' },
-    // Fix: Renamed 'shoppingLists' to 'notes' to align with ActiveScreen type.
     { name: 'Notes & Lists', screen: 'notes', icon: '📝', keywords: 'writing documents groceries' },
     { name: 'Customize Dashboard', screen: 'more', modal: 'dashboardSettings', icon: '🎨', keywords: 'widgets layout' },
     { name: 'Notification Settings', screen: 'more', modal: 'notificationSettings', icon: '🔔', keywords: 'alerts reminders' },
@@ -73,7 +70,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       contactGroups: settingsContext.contactGroups,
       contacts: settingsContext.contacts,
       settings: settingsContext.settings,
-      // Fix: Corrected property name from 'achievements' to 'unlockedAchievements' to match the AppState type.
       unlockedAchievements: dataContext.unlockedAchievements,
       streaks: dataContext.streaks,
       challenges: dataContext.challenges,
@@ -87,7 +83,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       shopSales: dataContext.shopSales,
       shopEmployees: dataContext.shopEmployees,
       shopShifts: dataContext.shopShifts,
-      // Fix: Corrected property name from 'shoppingLists' to 'notes' to align with AppState.
       notes: dataContext.notes,
       glossaryEntries: dataContext.glossaryEntries,
       debts: dataContext.debts,
@@ -130,7 +125,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
       .filter(g => g.name.toLowerCase().includes(q))
       .slice(0, 5);
 
-    // Fix: Search through 'notes' instead of the non-existent 'shoppingLists'.
     const notes = (appState.notes || [])
       .filter(p => p.title?.toLowerCase().includes(q) || (p.type === 'checklist' && Array.isArray(p.content) && p.content.some(i => i.name.toLowerCase().includes(q))))
       .slice(0, 5);
@@ -218,7 +212,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onClose, onNaviga
              {searchResults.notes.length > 0 && (
                 <SearchResultSection title="Notes & Lists">
                     {searchResults.notes.map(p => (
-                        // Fix: Navigate to 'notes' screen and pass 'noteId' prop.
                         <button key={p.id} onClick={() => handleNavigate('notes', undefined, { noteId: p.id })} className="w-full flex items-center gap-4 p-3 text-left rounded-lg hover-bg-stronger transition-colors">
                            <span className="text-xl">{p.type === 'checklist' ? '🛒' : '📝'}</span>
                            <p className="font-medium text-primary truncate">{p.title || 'Untitled'}</p>

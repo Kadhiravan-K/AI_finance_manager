@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ActiveModal, ActiveScreen } from '../types';
 
@@ -13,7 +12,6 @@ export const ALL_FAB_ACTIONS: FabAction[] = [
     // Core Actions
     { key: 'addTransaction', label: 'Add Transaction', icon: '➕', target: { modal: 'addTransaction' } },
     { key: 'openCalendar', label: 'Calendar', icon: '🗓️', target: { screen: 'calendar' } },
-    // Fix: Changed screen target from 'shoppingLists' to 'notes'.
     { key: 'addNote', label: 'Add List', icon: '🗒️', target: { screen: 'notes' } },
     { key: 'openTrip', label: 'Trips', icon: '✈️', target: { screen: 'tripManagement' } },
     { key: 'openSearch', label: 'Search', icon: '🔍', target: { modal: 'globalSearch' } },

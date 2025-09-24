@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { ShopProduct } from '../../types';
-import ModalHeader from '../ModalHeader';
+import { ShopProduct } from '../types';
+import ModalHeader from './ModalHeader';
 
 const modalRoot = document.getElementById('modal-root')!;
 

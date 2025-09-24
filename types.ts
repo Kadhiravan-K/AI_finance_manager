@@ -1,3 +1,4 @@
+
 // This file defines the core data structures and types used throughout the application.
 
 // Enums
@@ -359,11 +360,9 @@ export interface CalendarEvent {
 
 
 // Add missing types that are referenced throughout the application
-// Fix: Renamed 'shoppingLists' to 'notes' for consistency with data structures.
 export type ActiveScreen = 'dashboard' | 'reports' | 'budgets' | 'more' | 'investments' | 'goals' | 'tripManagement' | 'scheduled' | 'calculator' | 'achievements' | 'tripDetails' | 'refunds' | 'dataHub' | 'shop' | 'challenges' | 'learn' | 'calendar' | 'notes' | 'manual' | 'subscriptions' | 'glossary' | 'debtManager' | 'faq' | 'live';
 
-// Fix: Add 'miniCalculator' to ActiveModal type.
-export type ActiveModal = 'addTransaction' | 'editTransaction' | 'accountsManager' | 'editAccount' | 'categories' | 'editCategory' | 'transfer' | 'settings' | 'appSettings' | 'senderManager' | 'payees' | 'editGoal' | 'editRecurring' | 'buyInvestment' | 'sellInvestment' | 'updateInvestment' | 'privacyConsent' | 'onboarding' | 'financialHealth' | 'dashboardSettings' | 'notificationSettings' | 'importExport' | 'aiHub' | 'globalSearch' | 'aiChat' | 'editTrip' | 'addTripExpense' | 'tripSummary' | 'splitTransaction' | 'contacts' | 'editContact' | 'editContactGroup' | 'editShop' | 'editNote' | 'refund' | 'addCalendarEvent' | 'timePicker' | 'camera' | 'editDebt' | 'viewOptions' | 'footerCustomization' | 'manageTools' | 'shareGuide' | 'integrations' | 'editInvoice' | 'recordPayment' | 'trustBin' | 'feedback' | 'editGlossaryEntry' | 'splitItem' | 'aiCommand' | 'miniCalculator' | 'Note' | 'TrustBinItem';
+export type ActiveModal = 'addTransaction' | 'editTransaction' | 'accountsManager' | 'editAccount' | 'categories' | 'editCategory' | 'transfer' | 'settings' | 'appSettings' | 'senderManager' | 'payees' | 'editGoal' | 'editRecurring' | 'buyInvestment' | 'sellInvestment' | 'updateInvestment' | 'privacyConsent' | 'onboarding' | 'financialHealth' | 'dashboardSettings' | 'notificationSettings' | 'importExport' | 'aiHub' | 'globalSearch' | 'aiChat' | 'editTrip' | 'addTripExpense' | 'tripSummary' | 'splitTransaction' | 'contacts' | 'editContact' | 'editContactGroup' | 'editShop' | 'editNote' | 'refund' | 'addCalendarEvent' | 'timePicker' | 'camera' | 'editDebt' | 'viewOptions' | 'footerCustomization' | 'manageTools' | 'shareGuide' | 'integrations' | 'editInvoice' | 'recordPayment' | 'trustBin' | 'feedback' | 'editGlossaryEntry' | 'splitItem' | 'aiCommand' | 'miniCalculator' | 'editProduct' | 'addNoteType' | 'linkToTrip';
 
 
 export interface DashboardWidget {
@@ -406,7 +405,6 @@ export interface NotificationSettings {
   goals: { enabled: boolean };
 }
 
-// Fix: Renamed 'shoppingLists' to 'notes' to align with the rest of the application's types.
 export type ToggleableTool = 
   | 'investments' | 'tripManagement' | 'shop' | 'refunds' | 'achievements' 
   | 'challenges' | 'learn' | 'calendar' | 'notes' | 'calculator' 
@@ -456,7 +454,6 @@ export interface Challenge {
   isCompleted: boolean;
 }
 
-// Fix: Renamed 'shoppingList' to 'note' to align with data structures and prevent type errors.
 export type ItemType = 'transaction' | 'account' | 'category' | 'recurringTransaction' | 'goal' | 'investmentHolding' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'trip' | 'tripExpense' | 'shop' | 'shopProduct' | 'shopSale' | 'shopEmployee' | 'shopShift' | 'refund' | 'settlement' | 'note' | 'glossaryEntry' | 'debt' | 'invoice';
 
 export interface TrustBinItem {

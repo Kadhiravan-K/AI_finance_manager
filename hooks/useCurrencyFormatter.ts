@@ -1,5 +1,4 @@
 import { useContext, useMemo } from 'react';
-// Fix: Corrected import path for context
 import { SettingsContext } from '../contexts/SettingsContext';
 import { getCurrencyFormatter } from '../utils/currency';
 

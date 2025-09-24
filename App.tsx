@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { AppProvider, SettingsContext, AppDataContext } from './contexts/SettingsContext';
-import { ActiveScreen, ModalState, ActiveModal, Transaction, Category, Account, Payee, Sender, Contact, ContactGroup, Goal, RecurringTransaction, InvestmentHolding, AppState, UnlockedAchievement, Challenge, Trip, TripExpense, Refund, Settlement, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Note, GlossaryEntry, Debt, Invoice } from './types';
+import { ActiveScreen, ModalState, ActiveModal, Transaction, Category, Account, Payee, Sender, Contact, ContactGroup, Goal, RecurringTransaction, InvestmentHolding, AppState, UnlockedAchievement, Challenge, Trip, TripExpense, Refund, Settlement, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Note, GlossaryEntry, Debt, Invoice, TransactionType, ItemizedDetail } from './types';
 import { checkAchievements, ALL_ACHIEVEMENTS } from './utils/achievements';
 import { checkAndSendNotifications, requestNotificationPermission } from './utils/notifications';
 
@@ -63,6 +63,10 @@ const OnboardingGuide = lazy(() => import('./components/OnboardingGuide'));
 const UndoToast = lazy(() => import('./components/UndoToast'));
 const EditInvoiceModal = lazy(() => import('./components/EditInvoiceModal'));
 const RecordPaymentModal = lazy(() => import('./components/RecordPaymentModal'));
+const EditProductModal = lazy(() => import('./components/EditProductModal'));
+const AddNoteTypeModal = lazy(() => import('./components/AddNoteTypeModal'));
+const LinkNoteToTripModal = lazy(() => import('./components/LinkNoteToTripModal'));
+
 
 import { parseTransactionText, parseReceiptImage } from './services/geminiService';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -137,10 +141,9 @@ const AppContent: React.FC = () => {
     // ... many more handlers for saving, updating, deleting data
     // These will call functions from the dataContext
     
-    // Fix: Correctly construct appState and cast to satisfy TypeScript.
     const appState = { 
-        ...dataContext, 
-        ...settingsContext,
+        ...(dataContext || {}), 
+        ...(settingsContext || {}),
     } as AppState;
 
     if (isLoading || hasConsented === null || isOnboarded === null || !dataContext || !settingsContext) {
@@ -153,16 +156,54 @@ const AppContent: React.FC = () => {
     const currentModal = modalStack[modalStack.length - 1];
 
     const renderModal = () => {
-        if (!currentModal) return null;
+        if (!currentModal || !settingsContext || !dataContext) return null;
         switch(currentModal.name) {
             // Add cases for all modals here...
             case 'addTransaction': return <AddTransactionModal onCancel={closeModal} onSaveAuto={handleSaveTransactionAuto} onSaveManual={(t) => dataContext.setTransactions(p => [t, ...p])} accounts={dataContext.accounts} contacts={settingsContext.contacts} openModal={openModal} onOpenCalculator={(cb) => openModal('miniCalculator', {onResult: cb})} initialText={sharedText} onInitialTextConsumed={() => setSharedText(null)} {...currentModal.props} />;
-            // Fix: Added a check for the required 'transaction' prop to satisfy TypeScript and prevent runtime errors.
-            case 'editTransaction': return currentModal.props?.transaction ? <EditTransactionModal transaction={currentModal.props.transaction} onCancel={closeModal} onSave={(t) => dataContext.onUpdateTransaction(t)} accounts={dataContext.accounts} contacts={settingsContext.contacts} openModal={openModal} onOpenCalculator={(cb) => openModal('miniCalculator', { onResult: cb })} {...currentModal.props} /> : null;
-            // Fix: Added a check for the required 'shop' prop to satisfy TypeScript and prevent runtime errors.
+            case 'editTransaction': return currentModal.props?.transaction ? <EditTransactionModal transaction={currentModal.props.transaction} onClose={closeModal} onSave={(t) => dataContext.onUpdateTransaction(t)} accounts={dataContext.accounts} contacts={settingsContext.contacts} openModal={openModal} onOpenCalculator={(cb) => openModal('miniCalculator', { onResult: cb })} {...currentModal.props} /> : null;
             case 'editInvoice': return currentModal.props?.shop ? <EditInvoiceModal shop={currentModal.props.shop} onCancel={closeModal} onSave={dataContext.saveInvoice} contacts={settingsContext.contacts} products={dataContext.shopProducts} {...currentModal.props} /> : null;
-            // Fix: Added a check for the required 'invoice' prop to satisfy TypeScript and prevent runtime errors.
             case 'recordPayment': return currentModal.props?.invoice ? <RecordPaymentModal invoice={currentModal.props.invoice} onClose={closeModal} onSave={dataContext.recordPaymentForInvoice} accounts={dataContext.accounts} {...currentModal.props} /> : null;
+            case 'editTrip': return <EditTripModal onClose={closeModal} onSave={(tripData, id) => {
+                if(id) {
+                    dataContext.setTrips(p => p.map(t => t.id === id ? {...t, ...tripData, date: tripData.plan && tripData.plan.length > 0 ? tripData.plan[0].date : t.date } : t));
+                } else {
+                    const newTrip: Trip = {id: self.crypto.randomUUID(), date: new Date().toISOString(), ...tripData};
+                    dataContext.setTrips(p => [newTrip, ...p]);
+                    // Navigate to the new trip's details page
+                    onNavigate('tripDetails', undefined, {tripId: newTrip.id});
+                }
+            }} onSaveContact={(contactData, id) => {
+                let newContact: Contact;
+                if(id) {
+                    let updatedContact: Contact | undefined;
+                    settingsContext.setContacts(p => p.map(c => {
+                        if (c.id === id) {
+                            updatedContact = {...c, ...contactData};
+                            return updatedContact;
+                        }
+                        return c;
+                    }));
+                    newContact = updatedContact!;
+                } else {
+                    newContact = {id: self.crypto.randomUUID(), ...contactData};
+                    settingsContext.setContacts(p => [...p, newContact]);
+                }
+                return newContact;
+            }} onOpenContactsManager={() => openModal('contacts')} {...currentModal.props} />;
+            case 'editProduct': return currentModal.props?.shopId ? <EditProductModal onClose={closeModal} onSave={(productData, id) => {
+                 dataContext.onSaveProduct(currentModal.props.shopId, productData, id);
+            }} {...currentModal.props} /> : null;
+
+            case 'addNoteType': return <AddNoteTypeModal onClose={closeModal} onSelect={(type, tripId) => {
+                closeModal();
+                currentModal.props.onAdd(type, tripId);
+            }} {...currentModal.props} />;
+
+            case 'linkToTrip': return <LinkNoteToTripModal onClose={closeModal} note={currentModal.props.note} trips={dataContext.trips} onSave={(note) => {
+                closeModal();
+                currentModal.props.onSave(note);
+            }} {...currentModal.props} />;
+
             // ... other modals
             default: return null;
         }
@@ -194,7 +235,6 @@ const AppContent: React.FC = () => {
                         onGoalComplete={() => setShowConfetti(true)}
                         appState={appState}
                         tripDetailsId={tripDetailsId}
-                        // Fix: Pass noteId instead of non-existent shoppingListId
                         noteId={noteId}
                         openModal={openModal}
                     />

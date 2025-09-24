@@ -1,5 +1,4 @@
 
-
 import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
 import { Trip, Contact, TripParticipant, ContactGroup, TripDayPlan } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -146,7 +145,6 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
     e.preventDefault();
     if (name.trim() && participants.length > 0) {
       onSave({ name: name.trim(), participants, currency, plan: planResult, budget: parseFloat(budget) || undefined }, trip?.id);
-      onClose();
     }
   };
   
@@ -246,7 +244,6 @@ const EditTripModal: React.FC<EditTripModalProps> = ({
         <ModalHeader title={isCreating ? 'Create New Trip' : 'Edit Trip'} onClose={onClose} />
         {isCreating && (
              <div className="flex border-b border-divider flex-shrink-0">
-                {/* Fix: Added missing children to TabButton components */}
                 <TabButton active={addMode === 'auto'} onClick={() => setAddMode('auto')}>🤖 AI Planner</TabButton>
                 <TabButton active={addMode === 'manual'} onClick={() => setAddMode('manual')}>✍️ Manual</TabButton>
              </div>

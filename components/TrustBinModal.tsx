@@ -10,7 +10,8 @@ import {
   Refund,
   Settlement,
   Goal,
-  ShoppingList,
+  // Fix: Replaced deprecated ShoppingList with Note type.
+  Note,
   GlossaryEntry,
   Account,
   Category,
@@ -140,8 +141,9 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
         const goal = item.item as Goal;
         return `${goal.name} (${formatCurrency(goal.targetAmount)})`;
       }
-      case 'shoppingList':
-        return (item.item as ShoppingList).title;
+      // Fix: Replaced 'shoppingList' with 'note' to match ItemType.
+      case 'note':
+        return (item.item as Note).title;
       case 'glossaryEntry':
         return (item.item as GlossaryEntry).term;
       case 'debt':
@@ -189,50 +191,47 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
             />
         </div>
         
-        <div className="flex-grow overflow-y-auto p-4 space-y-4">
-          {trustBinItems.length === 0 ? (
-            <p className="text-center text-secondary py-8">The Trust Bin is empty.</p>
+        <div className="flex-grow overflow-y-auto p-6 space-y-4">
+          {Object.keys(groupedItems).length === 0 ? (
+            <p className="text-center text-secondary py-8">Trust Bin is empty.</p>
           ) : (
-            // Fix: Cast Object.entries result to resolve type inference issue.
-            (Object.entries(groupedItems) as [string, TrustBinItem[]][]).map(([groupName, items]) => (
-                <div key={groupName}>
-                    <h3 className="font-semibold text-secondary text-sm mb-2">{groupName}</h3>
-                    <div className="space-y-2">
-                    {items.map(item => (
-                        <div key={item.id} className={`p-2 bg-subtle rounded-lg flex items-center justify-between group ${selectedIds.has(item.id) ? 'ring-1 ring-emerald-500' : ''}`}>
-                            <CustomCheckbox
-                                id={`bin-item-${item.id}`}
-                                label={getItemDescription(item)}
-                                checked={selectedIds.has(item.id)}
-                                onChange={(isChecked) => handleSelect(item.id, isChecked)}
-                            />
-                            <p className="text-xs text-tertiary">{timeAgo(item.deletedAt)}</p>
-                        </div>
-                    ))}
+            Object.entries(groupedItems).map(([type, items]) => (
+              <div key={type}>
+                <h3 className="font-semibold text-primary mb-2">{type}</h3>
+                {items.map(item => (
+                  <div key={item.id} className="p-2 bg-subtle rounded-lg flex items-center gap-2">
+                    <CustomCheckbox
+                      id={`bin-${item.id}`}
+                      label=""
+                      checked={selectedIds.has(item.id)}
+                      onChange={(isChecked) => handleSelect(item.id, isChecked)}
+                    />
+                    <div className="flex-grow">
+                      <p className="text-sm text-primary truncate">{getItemDescription(item)}</p>
+                      <p className="text-xs text-secondary">Deleted: {timeAgo(item.deletedAt)}</p>
                     </div>
-                </div>
+                  </div>
+                ))}
+              </div>
             ))
           )}
         </div>
-        
+
         {selectedIds.size > 0 && (
-          <div className="flex-shrink-0 p-4 border-t border-divider flex justify-end gap-3 animate-fadeInUp">
-            <button
-                onClick={handlePermanentDeleteSelected}
-                disabled={countdown > 0}
-                className="button-primary px-4 py-2 text-sm bg-rose-600 hover:bg-rose-500 disabled:bg-slate-500 disabled:cursor-wait"
-            >
-                Delete ({countdown > 0 ? countdown : selectedIds.size})
-            </button>
-            <button onClick={handleRestoreSelected} className="button-primary px-4 py-2 text-sm">
-                Restore ({selectedIds.size})
-            </button>
+          <div className="p-4 border-t border-divider bg-subtle rounded-b-xl flex justify-between items-center animate-fadeInUp">
+              <p className="text-sm text-secondary">{selectedIds.size} items selected</p>
+              <div className="flex gap-2">
+                  <button onClick={handleRestoreSelected} className="button-secondary px-4 py-2">Restore</button>
+                  <button onClick={handlePermanentDeleteSelected} disabled={countdown > 0} className="button-primary bg-rose-600 hover:bg-rose-500 disabled:bg-slate-500 disabled:cursor-not-allowed px-4 py-2">
+                    Delete {countdown > 0 ? `(${countdown})` : ''}
+                  </button>
+              </div>
           </div>
         )}
       </div>
     </div>
   );
-
+  
   return ReactDOM.createPortal(modalContent, modalRoot);
 };
 

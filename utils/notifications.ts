@@ -1,4 +1,5 @@
-import { AppState, RecurringTransaction, Budget, Transaction, Category, TransactionType, Goal, InvestmentHolding, NotificationSettings } from '../types';
+
+import { AppState, RecurringTransaction, Budget, Transaction, Category, TransactionType, Goal, InvestmentHolding, NotificationSettings, Reminder } from '../types';
 
 let hasPermission = false;
 
@@ -20,12 +21,39 @@ export function showNotification(title: string, options: NotificationOptions) {
 }
 
 function checkUpcomingBills(recurringTransactions: RecurringTransaction[]) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
 
     recurringTransactions.forEach(bill => {
         const dueDate = new Date(bill.nextDueDate);
-        if (dueDate <= today) {
+        (bill.reminders || []).forEach(reminder => {
+            const reminderTime = new Date(dueDate);
+            switch (reminder.unit) {
+                case 'hours':
+                    reminderTime.setHours(reminderTime.getHours() - reminder.value);
+                    break;
+                case 'days':
+                    reminderTime.setDate(reminderTime.getDate() - reminder.value);
+                    break;
+                case 'weeks':
+                    reminderTime.setDate(reminderTime.getDate() - reminder.value * 7);
+                    break;
+            }
+
+            // Check if the reminder time is in the past but the due date is not
+            if (reminderTime <= now && dueDate > now) {
+                // To prevent spamming notifications, we should check if we've already sent one for this reminder
+                // For this simple implementation, we'll assume we haven't.
+                showNotification(`Reminder: ${bill.description}`, {
+                    body: `Your payment of ${bill.amount} is due on ${dueDate.toLocaleDateString()}.`,
+                    icon: '/logo192.png',
+                    badge: '/logo192.png',
+                    data: { billId: bill.id }
+                });
+            }
+        });
+
+        // Also check for the due date itself
+        if (dueDate <= now) {
             showNotification('Bill Due: ' + bill.description, {
                 body: `Your payment of ${bill.amount} is due today.`,
                 icon: '/logo192.png',

@@ -1,11 +1,7 @@
 
 
-
-
-
 // Fix: Add necessary imports from @google/genai.
 import { GoogleGenAI, Type } from "@google/genai";
-// Fix: Import types from the correct types file.
 // Fix: 'TransactionType' is an enum used as a value, so it must be imported directly, not as a type.
 import { TransactionType } from "../types";
 import type { Transaction, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan, GlossaryEntry } from "../types";
@@ -56,7 +52,7 @@ export async function parseTransactionText(text: string): Promise<ParsedTransact
 Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: transactionSchema },
     });
-    // Fix: Access the .text property directly to get the string output.
+    
     const result = JSON.parse(response.text);
     if (result && result.isTransaction && result.amount > 0) {
       const date = result.date && !isNaN(new Date(result.date).getTime()) ? new Date(result.date).toISOString() : new Date().toISOString();
@@ -108,7 +104,6 @@ export async function parseReceiptImage(base64Image: string, mimeType: string): 
             config: { responseMimeType: "application/json", responseSchema: receiptSchema },
         });
 
-        // Fix: Access the .text property directly to get the string output.
         const result = JSON.parse(response.text);
         if (result && result.totalAmount > 0) {
             const date = result.transactionDate && !isNaN(new Date(result.transactionDate).getTime()) ? new Date(result.transactionDate).toISOString() : new Date().toISOString();
@@ -145,9 +140,8 @@ export async function getCurrencyConversionRate(fromCurrency: string, toCurrency
       contents: `Provide the current exchange rate for converting 1 ${fromCurrency} into ${toCurrency}. Return only the numeric value.`,
       config: { responseMimeType: "application/json", responseSchema: currencyConversionSchema },
     });
-    // Fix: Access the .text property directly to get the string output.
+
     const result = JSON.parse(response.text);
-    // Fix: Ensure rate is greater than 0 to avoid division by zero issues.
     if (result && typeof result.rate === 'number' && result.rate > 0) {
       return result.rate;
     }
@@ -176,7 +170,7 @@ export async function parseNaturalLanguageQuery(query: string): Promise<{ search
         contents: prompt,
         config: { responseMimeType: "application/json", responseSchema: nlpQuerySchema }
     });
-    // Fix: Access the .text property directly to get the string output.
+    
     const result = JSON.parse(response.text);
     return {
         searchQuery: result.searchQuery || result.category || query,
@@ -211,7 +205,7 @@ export async function getAIBudgetSuggestion(profile: AppState['financialProfile'
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: budgetSuggestionSchema }
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error getting AI budget suggestion:", error);
@@ -223,7 +217,7 @@ export async function getAIFinancialTips(healthScore: number, scoreBreakdown: an
     const prompt = `A user's financial health score is ${healthScore}/100. The breakdown is: ${JSON.stringify(scoreBreakdown)}. Provide 2-3 short, actionable, and encouraging tips to help them improve their score, focusing on their weakest areas. Do not use markdown.`;
     try {
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        // Fix: Access the .text property directly to get the string output.
+        
         return response.text;
     } catch (error) {
         console.error("Error getting AI financial tips:", error);
@@ -259,7 +253,7 @@ export async function getDashboardInsights(transactions: Transaction[], categori
 
     try {
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        // Fix: Access the .text property directly to get the string output.
+        
         return response.text;
     } catch (error) {
         console.error("Error getting dashboard insights:", error);
@@ -336,7 +330,7 @@ export async function getAICoachAction(command: string, appState: AppState, chat
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: aiCoachActionSchema }
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error parsing AI Coach action:", error);
@@ -365,7 +359,7 @@ export async function getAIChatResponse(appState: AppState, message: string, cha
     
     try {
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        // Fix: Access the .text property directly to get the string output.
+        
         return response.text;
     } catch (error) {
         console.error("Error getting AI chat response:", error);
@@ -396,7 +390,7 @@ export async function parseTripExpenseText(text: string, participants: string[])
 Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: tripExpenseSchema },
     });
-    // Fix: Access the .text property directly to get the string output.
+    
     const result = JSON.parse(response.text);
     if (result && result.isValid && result.amount > 0) {
       return {
@@ -467,7 +461,7 @@ export async function parseTripCreationText(text: string): Promise<{ tripName: s
 Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema },
     });
-    // Fix: Access the .text property directly to get the string output.
+    
     const result = JSON.parse(response.text);
     if (result && result.tripName) {
         const plan = result.plan ? result.plan.map((day: any) => ({
@@ -502,7 +496,7 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
             contents: fullPrompt,
             config: { responseMimeType: "application/json", responseSchema: structuredPlanSchema },
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         const result = JSON.parse(response.text);
         
         // Add unique IDs to the generated plan
@@ -545,7 +539,7 @@ export async function getFinancialTopicExplanation(topic: string): Promise<{ exp
             contents: `You are a friendly and knowledgeable financial educator. Explain the topic "${topic}" in a simple and easy-to-understand way for a beginner. Provide a main explanation and a few actionable tips.`,
             config: { responseMimeType: "application/json", responseSchema: financialTopicSchema },
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error getting financial topic explanation from Gemini API:", error);
@@ -593,7 +587,7 @@ export async function getShopInsights(sales: ShopSale[] | undefined, products: S
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: shopInsightsSchema },
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         const result = JSON.parse(response.text);
         return result.insights || ["Could not generate insights at this time."];
     } catch (error) {
@@ -631,7 +625,7 @@ export async function getAIGoalSuggestion(transactions: AppState['transactions']
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: goalSuggestionSchema }
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error getting AI goal suggestion:", error);
@@ -673,7 +667,7 @@ export async function parseNaturalLanguageCalculation(appState: AppState, query:
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: nlpCalcSchema }
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error with natural language calculation:", error);
@@ -757,7 +751,6 @@ export async function runFinancialScenario(appState: AppState, query: string): P
             config: { responseMimeType: "application/json", responseSchema: scenarioSchema }
         });
         
-        // Fix: Access the .text property directly to get the string output.
         const result: FinancialScenarioResult = JSON.parse(response.text);
 
         return result;
@@ -818,7 +811,7 @@ export async function identifySubscriptions(transactions: Transaction[], categor
       contents: prompt,
       config: { responseMimeType: "application/json", responseSchema: subscriptionSchema },
     });
-    // Fix: Access the .text property directly to get the string output.
+    
     return JSON.parse(response.text);
   } catch (error) {
     console.error("Error identifying subscriptions from Gemini API:", error);
@@ -849,7 +842,7 @@ export async function generatePersonalizedChallenge(transactions: Transaction[])
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: personalizedChallengeSchema }
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error generating personalized challenge:", error);
@@ -892,7 +885,7 @@ export async function getProactiveInsights(appState: AppState): Promise<Proactiv
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: proactiveInsightSchema }
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error getting proactive insights:", error);
@@ -929,7 +922,7 @@ export async function generateGlossaryEntry(term: string): Promise<Omit<Glossary
             Provide a relevant emoji, a simple example, and a few tags.`,
             config: { responseMimeType: "application/json", responseSchema: glossaryEntrySchema },
         });
-        // Fix: Access the .text property directly to get the string output.
+        
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Error generating glossary entry from Gemini API:", error);

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useRef, useContext } from 'react';
 import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem, ActiveModal, ActiveScreen, Note } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -23,7 +22,7 @@ interface TripDetailsScreenProps {
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void;
 }
-type TripDetailsTab = 'dashboard' | 'expenses' | 'planner' | 'shopping';
+type TripDetailsTab = 'dashboard' | 'expenses' | 'planner' | 'notes';
 
 const ItineraryTimeline: React.FC<{
     plan: TripDayPlan[];
@@ -256,41 +255,49 @@ const TripBudgetSummary: React.FC<{ budget: number; totalSpent: number; currency
     );
 };
 
-const TripShoppingLists: React.FC<{ tripId: string, onNavigate: TripDetailsScreenProps['onNavigate'] }> = ({ tripId, onNavigate }) => {
+const TripNotesList: React.FC<{ trip: Trip; onNavigate: TripDetailsScreenProps['onNavigate']; openModal: TripDetailsScreenProps['openModal'] }> = ({ trip, onNavigate, openModal }) => {
     const dataContext = useContext(AppDataContext);
     if (!dataContext) return null;
 
     const { notes, setNotes } = dataContext;
 
-    const tripLists = useMemo(() => {
-        return (notes || []).filter(list => list.tripId === tripId && list.type === 'checklist');
-    }, [notes, tripId]);
+    const tripNotes = useMemo(() => {
+        return (notes || []).filter(note => note.tripId === trip.id);
+    }, [notes, trip.id]);
 
-    const handleCreateList = () => {
+    const handleCreateNote = (type: 'note' | 'checklist') => {
         const now = new Date().toISOString();
-        const newList: Note = {
+        const newNote: Note = {
             id: self.crypto.randomUUID(),
-            title: 'New Trip Shopping List',
-            content: [],
-            type: 'checklist',
+            title: `New ${type === 'note' ? 'Note' : 'List'} for ${trip.name}`,
+            content: type === 'note' ? '' : [],
+            type: type,
             createdAt: now,
             updatedAt: now,
-            tripId: tripId,
+            tripId: trip.id,
         };
-        setNotes(prev => [...(prev || []), newList]);
-        onNavigate('notes', undefined, { noteId: newList.id });
+        setNotes(prev => [...(prev || []), newNote]);
+        onNavigate('notes', undefined, { noteId: newNote.id });
     };
 
     return (
         <div className="space-y-3">
-            {tripLists.map(list => (
-                <button key={list.id} onClick={() => onNavigate('notes', undefined, { noteId: list.id })} className="w-full text-left p-3 bg-subtle rounded-lg hover-bg-stronger transition-colors">
-                    <p className="font-semibold text-primary">{list.title}</p>
-                    <p className="text-xs text-secondary">{Array.isArray(list.content) ? list.content.length : 0} items</p>
+            {tripNotes.map(note => (
+                <button key={note.id} onClick={() => onNavigate('notes', undefined, { noteId: note.id })} className="w-full text-left p-3 bg-subtle rounded-lg hover-bg-stronger transition-colors flex items-center gap-3">
+                    <span className="text-2xl">{note.type === 'checklist' ? '✅' : '📝'}</span>
+                    <div>
+                        <p className="font-semibold text-primary">{note.title}</p>
+                        <p className="text-xs text-secondary">
+                            {Array.isArray(note.content) 
+                                ? `${note.content.length} items`
+                                : `${(note.content as string).split(' ').filter(Boolean).length} words`
+                            }
+                        </p>
+                    </div>
                 </button>
             ))}
-             <button onClick={handleCreateList} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
-                + Create Shopping List
+             <button onClick={() => openModal('addNoteType', { onAdd: handleCreateNote, tripId: trip.id })} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
+                + Add Note or List
             </button>
         </div>
     );
@@ -369,7 +376,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
           <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')}>Dashboard</TabButton>
           <TabButton active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')}>Expenses</TabButton>
           <TabButton active={activeTab === 'planner'} onClick={() => setActiveTab('planner')}>Planner</TabButton>
-          <TabButton active={activeTab === 'shopping'} onClick={() => setActiveTab('shopping')}>Notes</TabButton>
+          <TabButton active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>Notes</TabButton>
       </div>
 
       <div className="flex-grow overflow-y-auto p-6 space-y-6">
@@ -468,9 +475,9 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, o
             </div>
         )}
 
-        {activeTab === 'shopping' && (
+        {activeTab === 'notes' && (
             <div className="animate-fadeInUp">
-                <TripShoppingLists tripId={trip.id} onNavigate={onNavigate} />
+                <TripNotesList trip={trip} onNavigate={onNavigate} openModal={openModal} />
             </div>
         )}
       </div>

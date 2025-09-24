@@ -19,7 +19,7 @@ interface Item {
 interface EditTransactionModalProps {
     transaction: Transaction;
     onSave: (data: Transaction) => void;
-    onCancel: () => void;
+    onClose: () => void;
     accounts: Account[];
     contacts: Contact[];
     openModal: (name: ActiveModal, props?: Record<string, any>) => void;
@@ -27,7 +27,7 @@ interface EditTransactionModalProps {
 }
 
 const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
-    transaction, onSave, onCancel, accounts, contacts, openModal, onOpenCalculator
+    transaction, onSave, onClose, accounts, contacts, openModal, onOpenCalculator
 }) => {
     // Fix: Correctly access context values
     const settingsContext = useContext(SettingsContext);
@@ -99,7 +99,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     };
     
     const handleDuplicate = () => {
-        onCancel(); // Close current modal
+        onClose(); // Close current modal
         openModal('addTransaction', { transactionToDuplicate: transaction });
     };
 
@@ -132,9 +132,9 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     };
 
     return (
-       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
+       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                <ModalHeader title="Edit Transaction" onClose={onCancel} />
+                <ModalHeader title="Edit Transaction" onClose={onClose} />
                  <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
                     <div className="flex-grow overflow-y-auto p-4 space-y-4">
                         {!isItemized ? (
@@ -188,7 +188,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                     <div className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-3 bg-subtle rounded-b-xl">
                         <button type="button" onClick={handleDuplicate} className="button-secondary px-4 py-2">Duplicate</button>
                         <div className="flex-grow"></div>
-                        <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+                        <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
                         <button type="submit" className="button-primary px-4 py-2">Save Changes</button>
                     </div>
                 </form>

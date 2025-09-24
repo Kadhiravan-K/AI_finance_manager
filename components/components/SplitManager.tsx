@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { SplitDetail, TripParticipant } from '../types';
-import CustomSelect from './CustomSelect';
-import CustomCheckbox from './CustomCheckbox';
-import { USER_SELF_ID } from '../constants';
+import { SplitDetail, TripParticipant } from '../../types';
+import CustomSelect from '../CustomSelect';
+import CustomCheckbox from '../CustomCheckbox';
+import { USER_SELF_ID } from '../../constants';
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 

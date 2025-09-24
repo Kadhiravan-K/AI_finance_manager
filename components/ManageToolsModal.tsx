@@ -1,4 +1,3 @@
-
 import React, { useContext } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
@@ -24,7 +23,6 @@ const TOOL_CATEGORIES: { title: string; tools: { key: ToggleableTool; name: stri
             { key: 'challenges', name: 'Challenges', icon: '🔥' },
             { key: 'learn', name: 'Learn', icon: '📚' },
             { key: 'calendar', name: 'Calendar', icon: '🗓️' },
-            // Fix: Changed key from 'shoppingLists' to 'notes' to match ToggleableTool type.
             { key: 'notes', name: 'Notes & Lists', icon: '📝' },
             { key: 'calculator', name: 'Calculator', icon: '🧮' },
             { key: 'scheduledPayments', name: 'Scheduled Payments', icon: '📅' },

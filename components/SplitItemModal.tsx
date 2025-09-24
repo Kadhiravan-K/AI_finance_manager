@@ -118,7 +118,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     if (mode !== 'manual') {
       setSplitDetails(updatedSplits);
     }
-  }, [mode, item.amount, splitDetails.length, splitDetails.map(p => p.id).join(',')]);
+  }, [mode, item.amount, splitDetails]);
 
 
   const handleDetailChange = (id: string, field: 'amount' | 'percentage' | 'shares', value: string) => {
@@ -178,7 +178,6 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
           <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">Split Between</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* Fix: Added missing children to TabButton components */}
                 <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
                 <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>
                 <TabButton active={mode === 'shares'} onClick={() => setMode('shares')}>Shares</TabButton>

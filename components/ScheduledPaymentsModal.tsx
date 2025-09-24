@@ -1,5 +1,5 @@
 import React from 'react';
-import { RecurringTransaction, Category, Account } from '../types';
+import { RecurringTransaction, Category, Account, ActiveModal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface ScheduledPaymentsScreenProps {
@@ -9,6 +9,9 @@ interface ScheduledPaymentsScreenProps {
   onAdd: () => void;
   onEdit: (item: RecurringTransaction) => void;
   onDelete: (id: string) => void;
+  // Fix: Add missing 'onUpdate' and 'openModal' props to the interface.
+  onUpdate: (item: RecurringTransaction) => void;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
 const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recurringTransactions, onAdd, onEdit, onDelete }) => {

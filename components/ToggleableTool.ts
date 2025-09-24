@@ -1,3 +1,4 @@
+
 // types/ToggleableTool.ts
 export type ToggleableTool = 
   | 'investments' | 'tripManagement' | 'shop' | 'refunds' | 'achievements' 

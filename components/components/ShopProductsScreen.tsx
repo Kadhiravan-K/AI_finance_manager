@@ -1,8 +1,9 @@
 
+
 import React, { useState } from 'react';
-import { Shop, ShopProduct, ActiveModal } from '../types';
-import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import EmptyState from './EmptyState';
+import { Shop, ShopProduct, ActiveModal } from '../../types';
+import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
+import EmptyState from '../EmptyState';
 
 interface ShopProductsScreenProps {
     shop: Shop;
@@ -26,24 +27,23 @@ const ShopProductsScreen: React.FC<ShopProductsScreenProps> = ({ shop, products,
                         <div className="flex items-center gap-4">
                             <p className="font-semibold text-primary">{formatCurrency(product.price)}</p>
                             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => openModal('editProduct', { product })} className="text-xs px-2 py-1 text-sky-300">Edit</button>
+                                <button onClick={() => openModal('editProduct', { product, shopId: shop.id })} className="text-xs px-2 py-1 text-sky-300">Edit</button>
                                 <button onClick={() => onDelete(product.id)} className="text-xs px-2 py-1 text-rose-400">Delete</button>
                             </div>
                         </div>
                     </div>
                 </div>
             )) : (
-                // Fix: Added missing actionText and onAction props to the EmptyState component.
                 <EmptyState
                     icon="📦"
                     title="No Products Yet"
                     message="Add your first product to start tracking inventory and sales."
                     actionText="Add Product"
-                    onAction={() => openModal('editProduct')}
+                    onAction={() => openModal('editProduct', { shopId: shop.id })}
                 />
             )}
             {products.length > 0 && (
-                <button onClick={() => openModal('editProduct')} className="w-full button-secondary py-2 mt-4">+ Add New Product</button>
+                <button onClick={() => openModal('editProduct', { shopId: shop.id })} className="w-full button-secondary py-2 mt-4">+ Add New Product</button>
             )}
         </div>
     );

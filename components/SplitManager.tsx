@@ -109,7 +109,6 @@ const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, 
         <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">{title}</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* Fix: Added missing children to TabButton components */}
                 {!isPayerManager && <TabButton active={mode === 'equally'} onClick={() => onModeChange('equally')}>Equally</TabButton>}
                 {!isPayerManager && <TabButton active={mode === 'percentage'} onClick={() => onModeChange('percentage')}>%</TabButton>}
                 {!isPayerManager && <TabButton active={mode === 'shares'} onClick={() => onModeChange('shares')}>Shares</TabButton>}
