@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { SplitDetail, TripParticipant } from '../../types';
+import { SplitDetail, TripParticipant, USER_SELF_ID } from '../../types';
 import CustomSelect from '../CustomSelect';
 import CustomCheckbox from '../CustomCheckbox';
-import { USER_SELF_ID } from '../../constants';
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 
@@ -55,10 +53,14 @@ interface SplitManagerProps {
     isPayerManager?: boolean;
 }
 
-const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, participants, onParticipantsChange, totalAmount, allParticipants, formatCurrency, isPayerManager }) => {
+export const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, participants, onParticipantsChange, totalAmount, allParticipants, formatCurrency, isPayerManager }) => {
     
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [tempSelected, setTempSelected] = useState(new Set<string>(participants.map(p=>p.id)));
+    
+    useEffect(() => {
+        setTempSelected(new Set(participants.map(p=>p.id)))
+    }, [participants]);
 
     const handleDetailChange = (id: string, field: 'amount' | 'percentage' | 'shares', value: string) => {
       const newParticipants = participants.map(p => {
@@ -96,7 +98,14 @@ const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, 
         onParticipantsChange([...participants, ...newParticipants]);
         setIsPickerOpen(false);
     };
-    const handleRemovePerson = (id: string) => onParticipantsChange(participants.filter(p => p.id !== id));
+    const handleRemovePerson = (id: string) => {
+        onParticipantsChange(participants.filter(p => p.id !== id));
+        setTempSelected(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+        });
+    };
     
     const totalAssigned = useMemo(() => participants.reduce((sum, p) => sum + p.amount, 0), [participants]);
     const remainder = totalAmount - totalAssigned;
@@ -110,7 +119,7 @@ const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, 
         <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">{title}</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* Fix: Added missing children to TabButton components */}
+                {/* FIX: Add children to TabButton components */}
                 {!isPayerManager && <TabButton active={mode === 'equally'} onClick={() => onModeChange('equally')}>Equally</TabButton>}
                 {!isPayerManager && <TabButton active={mode === 'percentage'} onClick={() => onModeChange('percentage')}>%</TabButton>}
                 {!isPayerManager && <TabButton active={mode === 'shares'} onClick={() => onModeChange('shares')}>Shares</TabButton>}
@@ -146,5 +155,3 @@ const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, 
         </div>
     );
 };
-
-export default SplitManager;

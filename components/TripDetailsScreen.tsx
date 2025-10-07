@@ -1,493 +1,308 @@
 
-import React, { useState, useMemo, useRef, useContext } from 'react';
-import { Trip, TripExpense, TransactionType, Transaction, Category, TripDayPlan, TripItineraryItem, ActiveModal, ActiveScreen, Note } from '../types';
+
+import React, { useState, useMemo, useContext, useRef } from 'react';
+import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
+import ModalHeader from './ModalHeader';
 import { calculateTripSummary } from '../utils/calculations';
-import CategoryPieChart from './CategoryPieChart';
-import { generateAITripPlan } from '../services/geminiService';
-import LoadingSpinner from './LoadingSpinner';
-import CustomCheckbox from './CustomCheckbox';
 import { AppDataContext } from '../contexts/SettingsContext';
+import TripChat from './TripChat';
+import TripHistory from './TripHistory';
+import CategoryPieChart from './CategoryPieChart';
+import CustomCheckbox from './CustomCheckbox';
 
 interface TripDetailsScreenProps {
   trip: Trip;
   expenses: TripExpense[];
+  categories: Category[];
   onAddExpense: () => void;
   onEditExpense: (expense: TripExpense) => void;
-  onDeleteExpense: (expenseId: string) => void;
+  onDeleteExpense: (id: string) => void;
   onBack: () => void;
-  categories: Category[];
   onUpdateTrip: (trip: Trip) => void;
-  initialTab?: TripDetailsTab;
-  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+  openModal: (name: ActiveModal, props?: any) => void;
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void;
 }
-type TripDetailsTab = 'dashboard' | 'expenses' | 'planner' | 'notes';
 
-const ItineraryTimeline: React.FC<{
-    plan: TripDayPlan[];
-    setPlan: React.Dispatch<React.SetStateAction<TripDayPlan[]>>;
-    openModal: (name: ActiveModal, props?: Record<string, any>) => void;
-}> = ({ plan, setPlan, openModal }) => {
-    
-    const [draggedItemInfo, setDraggedItemInfo] = useState<{ dayId: string; itemId: string } | null>(null);
-    const [dropTarget, setDropTarget] = useState<{ dayId: string; beforeItemId: string | null } | null>(null);
-    const draggedItemNodeRef = useRef<HTMLDivElement | null>(null);
-
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, dayId: string, itemId: string) => {
-        setDraggedItemInfo({ dayId, itemId });
-        draggedItemNodeRef.current = e.currentTarget;
-        e.dataTransfer.effectAllowed = 'move';
-        setTimeout(() => {
-            draggedItemNodeRef.current?.classList.add('dragging');
-        }, 0);
-    };
-
-    const handleDragEnd = () => {
-        draggedItemNodeRef.current?.classList.remove('dragging');
-        setDraggedItemInfo(null);
-        setDropTarget(null);
-        draggedItemNodeRef.current = null;
-    };
-    
-    const handleDragOverItem = (e: React.DragEvent<HTMLDivElement>, dayId: string, itemId: string) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!draggedItemInfo || (draggedItemInfo.dayId === dayId && draggedItemInfo.itemId === itemId)) {
-             setDropTarget(null);
-             return;
-        }
-
-        const targetElement = e.currentTarget;
-        const rect = targetElement.getBoundingClientRect();
-        const isAfter = e.clientY > rect.top + rect.height / 2;
-
-        let newTarget;
-        if (isAfter) {
-            const day = plan.find(d => d.id === dayId);
-            if (!day) return;
-            const itemIndex = day.items.findIndex(i => i.id === itemId);
-            const nextItem = day.items[itemIndex + 1];
-            newTarget = { dayId, beforeItemId: nextItem ? nextItem.id : null };
-        } else {
-            newTarget = { dayId, beforeItemId: itemId };
-        }
-
-        if (JSON.stringify(newTarget) !== JSON.stringify(dropTarget)) {
-            setDropTarget(newTarget);
-        }
-    };
-    
-    const handleDragOverDay = (e: React.DragEvent<HTMLDivElement>, dayId: string) => {
-        e.preventDefault();
-        const day = plan.find(d => d.id === dayId);
-        if (day && day.items.length === 0 && (!dropTarget || dropTarget.dayId !== dayId)) {
-            setDropTarget({ dayId, beforeItemId: null });
-        }
-    }
-
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!draggedItemInfo || !dropTarget) {
-            handleDragEnd();
-            return;
-        };
-
-        setPlan(currentPlan => {
-            const planClone = JSON.parse(JSON.stringify(currentPlan));
-            const sourceDay = planClone.find((d: TripDayPlan) => d.id === draggedItemInfo.dayId);
-            if (!sourceDay) return currentPlan;
-            
-            const itemIndex = sourceDay.items.findIndex((i: TripItineraryItem) => i.id === draggedItemInfo.itemId);
-            if (itemIndex === -1) return currentPlan;
-            
-            const [draggedItem] = sourceDay.items.splice(itemIndex, 1);
-            
-            const targetDay = planClone.find((d: TripDayPlan) => d.id === dropTarget.dayId);
-            if (!targetDay) return currentPlan;
-            
-            if (dropTarget.beforeItemId === null) {
-                targetDay.items.push(draggedItem);
-            } else {
-                const targetIndex = targetDay.items.findIndex((i: TripItineraryItem) => i.id === dropTarget.beforeItemId);
-                targetDay.items.splice(targetIndex !== -1 ? targetIndex : targetDay.items.length, 0, draggedItem);
-            }
-            return planClone;
-        });
-
-        handleDragEnd();
-    };
+type TripTab = 'dashboard' | 'expenses' | 'plan' | 'settle' | 'notes' | 'chat' | 'history';
 
 
-    const handleDayChange = (dayId: string, field: 'title' | 'date', value: string) => {
-        setPlan(prev => prev.map(day => day.id === dayId ? { ...day, [field]: value } : day));
-    };
-
-    const handleItemChange = (dayId: string, itemId: string, field: keyof TripItineraryItem, value: string | boolean) => {
-        setPlan(prev => prev.map(day => {
-            if (day.id === dayId) {
-                return { ...day, items: day.items.map(item => item.id === itemId ? { ...item, [field]: value } : item) };
-            }
-            return day;
-        }));
-    };
-    
-    const itemIcons: Record<TripItineraryItem['type'], string> = {
-        food: '🍴', travel: '✈️', activity: '🏞️', lodging: '🏨', other: '📌'
-    };
-    
-    const handleAddItem = (dayId: string) => {
-        const newItem: TripItineraryItem = { 
-            id: self.crypto.randomUUID(), 
-            time: '12:00', 
-            activity: 'New Activity', 
-            type: 'activity', 
-            notes: '', 
-            isCompleted: false,
-            icon: itemIcons['activity']
-        };
-        setPlan(prev => prev.map(day => day.id === dayId ? { ...day, items: [...day.items, newItem] } : day));
-    };
-
-    const handleAddDay = () => {
-        const lastDay = plan[plan.length - 1];
-        const newDate = new Date(lastDay ? lastDay.date : new Date());
-        newDate.setDate(newDate.getDate() + 2); // To avoid timezone issues with just +1
-        const newDay: TripDayPlan = {
-            id: self.crypto.randomUUID(),
-            date: newDate.toISOString().split('T')[0],
-            title: `Day ${plan.length + 1}`,
-            items: []
-        };
-        setPlan(prev => [...prev, newDay]);
-    };
-
-    return (
-        <div className="timeline-container">
-            {plan.map(day => (
-                <div 
-                  key={day.id}
-                  onDrop={handleDrop}
-                  onDragOver={(e) => handleDragOverDay(e, day.id)}
-                  onDragLeave={() => setDropTarget(null)}
-                >
-                    <div className="timeline-day-header">
-                        <input value={day.title} onChange={e => handleDayChange(day.id, 'title', e.target.value)} className="timeline-editable-input font-bold text-lg text-slate-100" />
-                    </div>
-                    {day.items.map(item => (
-                        <React.Fragment key={item.id}>
-                            {dropTarget?.dayId === day.id && dropTarget.beforeItemId === item.id && <div className="drop-indicator"></div>}
-                            <div
-                                className="timeline-item"
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, day.id, item.id)}
-                                onDragEnd={handleDragEnd}
-                                onDragOver={(e) => handleDragOverItem(e, day.id, item.id)}
-                            >
-                                <div className="timeline-drag-handle" title="Drag to reorder">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                                </div>
-                                <div className="timeline-item-icon">
-                                    <input
-                                        value={item.icon || itemIcons[item.type]}
-                                        onChange={e => handleItemChange(day.id, item.id, 'icon', e.target.value.slice(0, 2))}
-                                        className="bg-transparent text-center w-full h-full text-sm focus:outline-none p-0 border-0"
-                                        maxLength={2}
-                                    />
-                                </div>
-                                <div className={`timeline-item-content ${item.isCompleted ? 'opacity-60' : ''}`}>
-                                    <div className="flex justify-between items-start gap-2">
-                                        <div className="pt-1">
-                                            <CustomCheckbox
-                                                id={`item-complete-${item.id}`}
-                                                checked={!!item.isCompleted}
-                                                onChange={(checked) => handleItemChange(day.id, item.id, 'isCompleted', checked)}
-                                                label=""
-                                            />
-                                        </div>
-                                        <div className="flex-grow">
-                                            <div className="flex items-center gap-2">
-                                                <button type="button" onClick={() => openModal('timePicker', { initialTime: item.time, onSave: (newTime: string) => handleItemChange(day.id, item.id, 'time', newTime) })} className={`timeline-editable-input font-semibold text-slate-300 w-20 text-center ${item.isCompleted ? 'line-through' : ''}`}>
-                                                    {item.time}
-                                                </button>
-                                                <input value={item.activity} onChange={e => handleItemChange(day.id, item.id, 'activity', e.target.value)} className={`timeline-editable-input font-semibold text-slate-100 ${item.isCompleted ? 'line-through' : ''}`} />
-                                            </div>
-                                            <textarea value={item.notes || ''} onChange={e => handleItemChange(day.id, item.id, 'notes', e.target.value)} placeholder="Add notes..." className={`timeline-editable-input text-sm text-slate-400 mt-1 w-full resize-none ${item.isCompleted ? 'line-through' : ''}`} rows={1}></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </React.Fragment>
-                    ))}
-                    {dropTarget?.dayId === day.id && dropTarget.beforeItemId === null && <div className="drop-indicator"></div>}
-                    <button onClick={() => handleAddItem(day.id)} className="text-sm text-sky-400 hover:text-sky-300 ml-2 mb-4">+ Add Activity</button>
-                </div>
-            ))}
-            <button onClick={handleAddDay} className="w-full button-secondary py-2 mt-4">+ Add Day</button>
-        </div>
-    );
-};
-
-const TripBudgetSummary: React.FC<{ budget: number; totalSpent: number; currency: string }> = ({ budget, totalSpent, currency }) => {
-    const formatCurrency = useCurrencyFormatter(undefined, currency);
-    const percentage = budget > 0 ? (totalSpent / budget) * 100 : 0;
-    const remaining = budget - totalSpent;
-    
-    let progressBarColor = 'var(--color-accent-emerald)';
-    if (percentage > 75) progressBarColor = 'var(--color-accent-yellow)';
-    if (percentage > 100) progressBarColor = 'var(--color-accent-rose)';
-
-    return (
-        <div className="p-4 bg-subtle rounded-lg">
-            <h3 className="font-semibold text-lg text-primary mb-2">Budget Status</h3>
-            <div className="flex justify-between text-sm mb-1">
-                <span className="text-secondary">Spent: <strong className="text-primary">{formatCurrency(totalSpent)}</strong></span>
-                <span className="text-secondary">Total: <strong className="text-primary">{formatCurrency(budget)}</strong></span>
-            </div>
-            <div className="w-full rounded-full h-2.5 bg-subtle border border-divider">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: progressBarColor }}></div>
-            </div>
-            <p className={`text-center text-sm mt-2 font-semibold ${remaining >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {remaining >= 0 ? `${formatCurrency(remaining)} Remaining` : `${formatCurrency(Math.abs(remaining))} Overspent`}
-            </p>
-        </div>
-    );
-};
-
-const TripNotesList: React.FC<{ trip: Trip; onNavigate: TripDetailsScreenProps['onNavigate']; openModal: TripDetailsScreenProps['openModal'] }> = ({ trip, onNavigate, openModal }) => {
-    const dataContext = useContext(AppDataContext);
-    if (!dataContext) return null;
-
-    const { notes, setNotes } = dataContext;
-
-    const tripNotes = useMemo(() => {
-        return (notes || []).filter(note => note.tripId === trip.id);
-    }, [notes, trip.id]);
-
-    const handleCreateNote = (type: 'note' | 'checklist') => {
-        const now = new Date().toISOString();
-        const newNote: Note = {
-            id: self.crypto.randomUUID(),
-            title: `New ${type === 'note' ? 'Note' : 'List'} for ${trip.name}`,
-            content: type === 'note' ? '' : [],
-            type: type,
-            createdAt: now,
-            updatedAt: now,
-            tripId: trip.id,
-        };
-        setNotes(prev => [...(prev || []), newNote]);
-        onNavigate('notes', undefined, { noteId: newNote.id });
-    };
-
-    return (
-        <div className="space-y-3">
-            {tripNotes.map(note => (
-                <button key={note.id} onClick={() => onNavigate('notes', undefined, { noteId: note.id })} className="w-full text-left p-3 bg-subtle rounded-lg hover-bg-stronger transition-colors flex items-center gap-3">
-                    <span className="text-2xl">{note.type === 'checklist' ? '✅' : '📝'}</span>
-                    <div>
-                        <p className="font-semibold text-primary">{note.title}</p>
-                        <p className="text-xs text-secondary">
-                            {Array.isArray(note.content) 
-                                ? `${note.content.length} items`
-                                : `${(note.content as string).split(' ').filter(Boolean).length} words`
-                            }
-                        </p>
-                    </div>
-                </button>
-            ))}
-             <button onClick={() => openModal('addNoteType', { onAdd: handleCreateNote, tripId: trip.id })} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">
-                + Add Note or List
-            </button>
-        </div>
-    );
-};
-
-
-const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, onAddExpense, onEditExpense, onDeleteExpense, onBack, categories, onUpdateTrip, initialTab, openModal, onNavigate }) => {
-  const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
-  const [activeTab, setActiveTab] = useState<TripDetailsTab>(initialTab || 'dashboard');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [plan, setPlan] = useState<TripDayPlan[]>(trip.plan || []);
+const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, categories, onAddExpense, onEditExpense, onDeleteExpense, onBack, onUpdateTrip, openModal, onNavigate }) => {
+  const [activeTab, setActiveTab] = useState<TripTab>('plan');
+  const dataContext = useContext(AppDataContext);
   
-  const validParticipants = useMemo(() => (trip.participants || []).filter(Boolean), [trip.participants]);
-
-  const settlementSummary = useMemo(() => calculateTripSummary(expenses, [trip])[trip.currency] || [], [expenses, trip]);
-  const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-  const getPayerNames = (expense: TripExpense): string => {
-    if (!expense.payers || expense.payers.length === 0) return 'Unknown';
-    return expense.payers
-      .map(payer => validParticipants.find(p => p.contactId === payer.contactId)?.name || 'Unknown')
-      .join(', ');
-  };
-  
-  const transactionsForChart = useMemo((): Transaction[] => {
-    return expenses.map(e => ({
-        id: e.id,
-        accountId: '', // Not needed for chart
-        description: e.description,
-        amount: e.amount,
-        type: TransactionType.EXPENSE,
-        categoryId: e.categoryId,
-        date: e.date,
-    }));
-  }, [expenses]);
-
-  const handleGeneratePlan = async () => {
-    if (!aiPrompt.trim()) return;
-    setIsGenerating(true);
-    try {
-        const newPlan = await generateAITripPlan(aiPrompt, trip.plan);
-        setPlan(newPlan);
-        onUpdateTrip({ ...trip, plan: newPlan });
-        setAiPrompt('');
-    } catch (error) {
-        alert(error instanceof Error ? error.message : "Failed to generate plan.");
-    } finally {
-        setIsGenerating(false);
-    }
-  };
-
-  const handleBackWithSave = () => {
-      if (JSON.stringify(plan) !== JSON.stringify(trip.plan)) {
-        onUpdateTrip({ ...trip, plan });
-      }
-      onBack();
-  };
-
-  const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
-    <button type="button" onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
-        {children}
+  const TabButton = ({ tab, label }: { tab: TripTab; label: string }) => (
+    <button onClick={() => setActiveTab(tab)} className={`trip-details-tab px-4 font-semibold text-sm ${activeTab === tab ? 'active' : ''}`}>
+      {label}
     </button>
   );
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard': return <TripDashboard trip={trip} expenses={expenses} categories={categories} openModal={openModal} />;
+      case 'expenses': return <TripExpensesList expenses={expenses} categories={categories} onEditExpense={onEditExpense} currency={trip.currency} />;
+      case 'plan': return <TripPlanView trip={trip} onUpdateTrip={onUpdateTrip} />;
+      case 'settle': return <TripSettleView trip={trip} expenses={expenses} />;
+      case 'notes': return <TripNotesView trip={trip} onNavigate={onNavigate} />;
+      case 'chat': return <TripChat />;
+      case 'history': return <TripHistory />;
+      default: return null;
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-divider flex-shrink-0 flex items-center gap-2">
-         <button onClick={handleBackWithSave} className="p-2 -ml-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-        </button>
-        <h2 className="text-xl font-bold text-primary truncate">{trip.name}</h2>
+      <ModalHeader title={trip.name} onBack={onBack} onClose={onBack} icon="✈️" onSettingsClick={() => openModal('editTrip', { trip })} />
+      <div className="flex-shrink-0 border-b border-divider overflow-x-auto">
+        <div className="flex">
+          <TabButton tab="dashboard" label="Dashboard" />
+          <TabButton tab="expenses" label="Expenses" />
+          <TabButton tab="plan" label="Plan" />
+          <TabButton tab="settle" label="Settle" />
+          <TabButton tab="notes" label="Notes" />
+          <TabButton tab="chat" label="Chat" />
+          <TabButton tab="history" label="History" />
+        </div>
       </div>
-
-       <div className="flex border-b border-divider flex-shrink-0">
-          <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')}>Dashboard</TabButton>
-          <TabButton active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')}>Expenses</TabButton>
-          <TabButton active={activeTab === 'planner'} onClick={() => setActiveTab('planner')}>Planner</TabButton>
-          <TabButton active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>Notes</TabButton>
-      </div>
-
-      <div className="flex-grow overflow-y-auto p-6 space-y-6">
-        {activeTab === 'dashboard' && (
-             <div className="space-y-6 animate-fadeInUp">
-                {trip.budget && trip.budget > 0 && (
-                    <TripBudgetSummary budget={trip.budget} totalSpent={totalSpent} currency={trip.currency} />
-                )}
-                <div className="grid grid-cols-2 gap-4 text-center">
-                    <div className="p-3 bg-subtle rounded-lg">
-                        <p className="text-sm text-secondary">Total Spent</p>
-                        <p className="text-xl font-bold text-primary">{formatCurrency(totalSpent)}</p>
-                    </div>
-                    <div className="p-3 bg-subtle rounded-lg">
-                        <p className="text-sm text-secondary">Participants</p>
-                        <p className="text-xl font-bold text-primary">{validParticipants.length}</p>
-                    </div>
-                </div>
-
-                <CategoryPieChart 
-                    title="Spending Breakdown" 
-                    transactions={transactionsForChart} 
-                    categories={categories} 
-                    type={TransactionType.EXPENSE} 
-                    isVisible={true}
-                    currency={trip.currency}
-                />
-
-                <div>
-                  <h3 className="font-semibold text-lg text-primary mb-2">Who Owes Whom</h3>
-                  <div className="space-y-2 p-3 bg-subtle rounded-lg">
-                    {settlementSummary.length > 0 ? settlementSummary.map((s, i) => (
-                      <div key={i} className="flex items-center justify-center text-center text-sm">
-                        <span className="font-semibold text-primary">{s.fromName}</span>
-                        <span className="mx-2 text-secondary">&rarr;</span>
-                        <span className="font-semibold text-primary">{s.toName}</span>
-                        <span className="ml-2 font-mono text-emerald-400">{formatCurrency(s.amount)}</span>
-                      </div>
-                    )) : <p className="text-center text-sm text-secondary">All settled up!</p>}
-                  </div>
-                </div>
-             </div>
-        )}
-
-        {activeTab === 'expenses' && (
-             <div className="space-y-2 animate-fadeInUp">
-                {expenses.map(expense => (
-                  <div key={expense.id} className="p-3 bg-subtle rounded-lg group">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium text-primary">{expense.description}</p>
-                        <p className="text-xs text-secondary">Paid by {getPayerNames(expense)}</p>
-                      </div>
-                      <p className="font-semibold text-rose-400">{formatCurrency(expense.amount)}</p>
-                    </div>
-                     <div className="flex justify-end gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => onEditExpense(expense)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
-                        <button onClick={() => onDeleteExpense(expense.id)} className="text-xs px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors">Delete</button>
-                    </div>
-                  </div>
-                ))}
-                 {expenses.length === 0 && <p className="text-center text-secondary py-8">No expenses recorded for this trip yet.</p>}
-              </div>
-        )}
-
-        {activeTab === 'planner' && (
-            <div className="space-y-4 animate-fadeInUp">
-                <div className="p-4 bg-violet-900/30 rounded-lg border border-violet-700/50">
-                    <h3 className="font-bold text-primary mb-2 flex items-center gap-2"><span className="text-2xl">✨</span> AI Itinerary Planner</h3>
-                    <p className="text-sm text-secondary mb-4">Describe your ideal trip, and the AI will generate a plan for you. You can also ask it to modify your existing plan.</p>
-                    <div className="relative">
-                        <textarea 
-                            value={aiPrompt}
-                            onChange={e => setAiPrompt(e.target.value)}
-                            placeholder="e.g., 'Plan a 3-day relaxed beach trip with some good seafood restaurants'"
-                            className="w-full h-24 themed-textarea p-3 pr-24"
-                            disabled={isGenerating}
-                        />
-                        <button 
-                            onClick={handleGeneratePlan} 
-                            disabled={isGenerating || !aiPrompt.trim()} 
-                            className="absolute right-2 bottom-2 button-primary px-3 py-2 flex items-center justify-center text-sm"
-                        >
-                            {isGenerating ? <LoadingSpinner /> : 'Generate'}
-                        </button>
-                    </div>
-                </div>
-                <div className="p-4 bg-subtle rounded-lg border border-divider">
-                    <h3 className="font-semibold text-lg text-primary mb-3">Trip Itinerary</h3>
-                    {plan && plan.length > 0 ? (
-                        <ItineraryTimeline plan={plan} setPlan={setPlan} openModal={openModal} />
-                    ) : (
-                        <p className="text-sm text-secondary text-center py-8">No plan has been generated yet. Use the prompt above to create one!</p>
-                    )}
-                </div>
-            </div>
-        )}
-
-        {activeTab === 'notes' && (
-            <div className="animate-fadeInUp">
-                <TripNotesList trip={trip} onNavigate={onNavigate} openModal={openModal} />
-            </div>
-        )}
-      </div>
-       <div className="flex-shrink-0 p-6 border-t border-divider bg-subtle">
-        <button onClick={onAddExpense} className="button-primary w-full py-2 font-semibold">
-          + Add Expense
-        </button>
+      <div className="flex-grow overflow-y-auto">
+        {renderContent()}
       </div>
     </div>
   );
 };
+
+
+const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories: Category[]; openModal: (name: ActiveModal, props?: any) => void; }> = ({ trip, expenses, categories, openModal }) => {
+    const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
+    const totalSpent = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
+    const budgetRemaining = trip.budget ? trip.budget - totalSpent : null;
+    const budgetProgress = trip.budget ? (totalSpent / trip.budget) * 100 : 0;
+    
+    return (
+        <div className="p-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Total Spent</p><p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p></div>
+                <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Trip Budget</p><p className="text-lg font-bold text-primary">{trip.budget ? formatCurrency(trip.budget) : 'Not Set'}</p></div>
+                <div className="p-3 bg-subtle rounded-lg text-center"><p className={`text-lg font-bold ${budgetRemaining !== null && budgetRemaining < 0 ? 'text-rose-400' : 'text-primary'}`}>{budgetRemaining !== null ? formatCurrency(budgetRemaining) : 'N/A'}</p></div>
+            </div>
+            {trip.budget && (
+                <div>
+                    <div className="w-full bg-subtle rounded-full h-2.5 border border-divider"><div className="h-full rounded-full bg-emerald-500" style={{width: `${Math.min(budgetProgress, 100)}%`}}></div></div>
+                </div>
+            )}
+             <CategoryPieChart title="Spending by Category" transactions={expenses.map(e => ({...e, type: TransactionType.EXPENSE})) as any} categories={categories} type={TransactionType.EXPENSE} isVisible={true} currency={trip.currency} />
+
+            <div className="p-3 bg-subtle rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                     <h4 className="font-semibold text-primary">Participants ({trip.participants.length})</h4>
+                     <button onClick={() => openModal('manageTripMembers', { trip })} className="button-secondary text-xs px-3 py-1">Manage</button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {trip.participants.map(p => <span key={p.contactId} className="px-2 py-1 bg-subtle border border-divider rounded-full text-sm text-secondary">{p.name}</span>)}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const TripExpensesList: React.FC<{ expenses: TripExpense[]; categories: Category[]; onEditExpense: (e: TripExpense) => void; currency: string; }> = ({ expenses, categories, onEditExpense, currency }) => {
+    const formatCurrency = useCurrencyFormatter(undefined, currency);
+    return (
+        <div className="p-4 space-y-2">
+            {expenses.map(expense => {
+                const category = categories.find(c => c.id === expense.categoryId);
+                return (
+                    <div key={expense.id} onClick={() => onEditExpense(expense)} className="p-3 bg-subtle rounded-lg group cursor-pointer hover-bg-stronger">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold text-primary">{expense.description}</p>
+                                <p className="text-xs text-secondary">{category?.name || 'Uncategorized'}</p>
+                            </div>
+                            <p className="font-mono text-primary">{formatCurrency(expense.amount)}</p>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }> = ({ trip, onUpdateTrip }) => {
+    const [planState, setPlanState] = useState<TripDayPlan[]>(trip.plan || []);
+    const [isDirty, setIsDirty] = useState(false);
+    const [editingField, setEditingField] = useState<{ dayId: string; itemId: string; field: 'time' | 'activity' | 'icon' } | null>(null);
+
+    const dragItem = useRef<{ dayId: string; itemIndex: number } | null>(null);
+    const dragOverItem = useRef<{ dayId: string; itemIndex: number } | null>(null);
+    const [dropIndicator, setDropIndicator] = useState<{ dayId: string; index: number } | null>(null);
+
+    const updatePlan = (newPlan: TripDayPlan[]) => {
+        setPlanState(newPlan);
+        setIsDirty(true);
+    };
+    
+    const handleFieldChange = (dayId: string, itemId: string, field: keyof TripDayPlanItem, value: any) => {
+        const newPlan = planState.map(day => 
+            day.id === dayId ? { ...day, items: day.items.map(item => item.id === itemId ? { ...item, [field]: value } : item) } : day
+        );
+        updatePlan(newPlan);
+    };
+
+    const handleSaveChanges = () => {
+        onUpdateTrip({ ...trip, plan: planState });
+        setIsDirty(false);
+    };
+
+    const handleDragStart = (e: React.DragEvent, dayId: string, itemIndex: number) => {
+        dragItem.current = { dayId, itemIndex };
+        e.currentTarget.classList.add('dragging');
+    };
+
+    const handleDragEnter = (dayId: string, itemIndex: number) => {
+        if (dragItem.current && dragItem.current.dayId === dayId) {
+            dragOverItem.current = { dayId, itemIndex };
+            setDropIndicator({ dayId, index: itemIndex });
+        }
+    };
+    
+    const handleDrop = () => {
+        if (dragItem.current && dragOverItem.current && dragItem.current.dayId === dragOverItem.current.dayId) {
+            const { dayId, itemIndex: fromIndex } = dragItem.current;
+            const { itemIndex: toIndex } = dragOverItem.current;
+            
+            const newPlan = [...planState];
+            const dayToUpdate = newPlan.find(d => d.id === dayId);
+            if (dayToUpdate) {
+                const movedItem = dayToUpdate.items.splice(fromIndex, 1)[0];
+                dayToUpdate.items.splice(toIndex, 0, movedItem);
+                updatePlan(newPlan);
+            }
+        }
+        dragItem.current = null;
+        dragOverItem.current = null;
+        setDropIndicator(null);
+    };
+    
+    const handleDragEnd = (e: React.DragEvent) => {
+        e.currentTarget.classList.remove('dragging');
+        dragItem.current = null;
+        dragOverItem.current = null;
+        setDropIndicator(null);
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent, dayId: string, itemId: string, field: 'time'|'activity'|'icon') => {
+        if (e.key === 'Enter') {
+            handleFieldChange(dayId, itemId, field, (e.target as HTMLInputElement).value);
+            setEditingField(null);
+        } else if (e.key === 'Escape') {
+            setEditingField(null);
+        }
+    };
+
+    return (
+        <div className="p-4 space-y-4">
+            {isDirty && (
+                <div className="sticky top-2 z-20 p-2 flex justify-center">
+                    <button onClick={handleSaveChanges} className="button-primary px-4 py-2 shadow-lg">Save Plan Changes</button>
+                </div>
+            )}
+            {planState.map(day => (
+                <div key={day.id} className="timeline-container">
+                    <h4 className="timeline-day-header">{day.title} <span className="font-normal text-sm text-secondary">- {new Date(day.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span></h4>
+                    <div onDrop={() => handleDrop()} onDragOver={(e) => e.preventDefault()}>
+                        {day.items.map((item, index) => (
+                            <React.Fragment key={item.id}>
+                                {dropIndicator?.dayId === day.id && dropIndicator.index === index && <div className="drop-indicator" style={{marginLeft: '1.25rem'}} />}
+                                <div
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, day.id, index)}
+                                    onDragEnter={() => handleDragEnter(day.id, index)}
+                                    onDragEnd={handleDragEnd}
+                                    className={`timeline-item ${item.completed ? 'completed' : ''}`}
+                                >
+                                    <div className="timeline-item-icon">
+                                        {editingField?.itemId === item.id && editingField.field === 'icon' ? (
+                                             <input type="text" defaultValue={item.icon} onKeyDown={e => handleKeyDown(e, day.id, item.id, 'icon')} onBlur={() => setEditingField(null)} autoFocus className="timeline-icon-input" />
+                                        ) : ( <span onClick={() => setEditingField({dayId: day.id, itemId: item.id, field: 'icon'})}>{item.icon || '📌'}</span> )}
+                                    </div>
+                                    <div className="timeline-item-content flex items-start gap-3">
+                                        <div className="pt-2"><CustomCheckbox id={`item-${item.id}`} checked={!!item.completed} onChange={c => handleFieldChange(day.id, item.id, 'completed', c)} label="" /></div>
+                                        <div className="flex-grow">
+                                            <div className="flex items-center gap-2">
+                                                {editingField?.itemId === item.id && editingField.field === 'time' ? (
+                                                    <input type="text" defaultValue={item.time} onKeyDown={e => handleKeyDown(e, day.id, item.id, 'time')} onBlur={() => setEditingField(null)} autoFocus className="timeline-editable-input font-semibold w-16" />
+                                                ) : ( <span onClick={() => setEditingField({dayId: day.id, itemId: item.id, field: 'time'})} className="font-semibold text-primary">{item.time}</span> )}
+                                                - 
+                                                {editingField?.itemId === item.id && editingField.field === 'activity' ? (
+                                                    <input type="text" defaultValue={item.activity} onKeyDown={e => handleKeyDown(e, day.id, item.id, 'activity')} onBlur={() => setEditingField(null)} autoFocus className="timeline-editable-input timeline-activity flex-grow" />
+                                                ) : ( <span onClick={() => setEditingField({dayId: day.id, itemId: item.id, field: 'activity'})} className="timeline-activity text-primary">{item.activity}</span> )}
+                                            </div>
+                                            {item.notes && <p className="text-xs text-secondary pl-1 mt-1">{item.notes}</p>}
+                                        </div>
+                                        <div className="timeline-drag-handle" title="Drag to reorder"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" /></svg></div>
+                                    </div>
+                                </div>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+
+const TripSettleView: React.FC<{ trip: Trip, expenses: TripExpense[] }> = ({ trip, expenses }) => {
+    const { settlements } = useContext(AppDataContext);
+    const tripSettlements = useMemo(() => (settlements || []).filter(s => s.tripId === trip.id), [settlements, trip.id]);
+    const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
+
+    const settlementSuggestions = useMemo(() => {
+        const result = calculateTripSummary(expenses, [trip], tripSettlements);
+        return result[trip.currency] || [];
+    }, [expenses, trip, tripSettlements]);
+
+    return (
+        <div className="p-4 space-y-3">
+            <h3 className="font-semibold text-lg text-primary">Who Owes Whom</h3>
+            <div className="p-3 bg-subtle rounded-lg space-y-3">
+                {settlementSuggestions.length > 0 ? settlementSuggestions.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center text-center">
+                            <span className="font-semibold text-primary">{s.fromName}</span>
+                            <span className="mx-2 text-secondary">&rarr;</span>
+                            <span className="font-semibold text-primary">{s.toName}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono text-emerald-400">{formatCurrency(s.amount)}</span>
+                        </div>
+                    </div>
+                )) : <p className="text-center text-sm text-secondary">Everyone is settled up!</p>}
+            </div>
+        </div>
+    );
+};
+
+const TripNotesView: React.FC<{ trip: Trip, onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void }> = ({ trip, onNavigate }) => {
+    const { notes } = useContext(AppDataContext);
+    const tripNotes = useMemo(() => (notes || []).filter(n => n.tripId === trip.id), [notes, trip.id]);
+    
+    return (
+        <div className="p-4 space-y-2">
+             {tripNotes.map(note => (
+                <div key={note.id} onClick={() => onNavigate('notes', undefined, { noteId: note.id })} className="p-3 bg-subtle rounded-lg group cursor-pointer hover-bg-stronger">
+                     <div className="flex items-center gap-3">
+                        <span className="text-2xl">{note.type === 'checklist' ? '✅' : '📝'}</span>
+                        <div>
+                            <p className="font-semibold text-primary">{note.title}</p>
+                            <p className="text-xs text-secondary">Updated: {new Date(note.updatedAt).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                </div>
+             ))}
+        </div>
+    );
+}
 
 export default TripDetailsScreen;

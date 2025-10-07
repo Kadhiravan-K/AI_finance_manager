@@ -1,13 +1,10 @@
-
-
-
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Contact, SplitDetail } from '../../types';
 import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
 import ModalHeader from '../ModalHeader';
 import { SettingsContext } from '../../contexts/SettingsContext';
-import { USER_SELF_ID } from '../../constants';
+import { USER_SELF_ID } from '../../types';
 import CustomCheckbox from '../CustomCheckbox';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -60,9 +57,7 @@ const DebouncedNumericInput: React.FC<{
 };
 
 const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetails, onSave, onClose, participants, currency }) => {
-  const settingsContext = useContext(SettingsContext);
-  if (!settingsContext) throw new Error("SettingsContext not found");
-  const { contacts } = settingsContext;
+  const { contacts } = useContext(SettingsContext);
   const formatCurrency = useCurrencyFormatter(undefined, currency);
 
   const [mode, setMode] = useState<SplitMode>('equally');
@@ -123,7 +118,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     if (mode !== 'manual') {
       setSplitDetails(updatedSplits);
     }
-  }, [mode, item.amount, splitDetails]);
+  }, [mode, item.amount, splitDetails.length]);
 
 
   const handleDetailChange = (id: string, field: 'amount' | 'percentage' | 'shares', value: string) => {
@@ -183,7 +178,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
           <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">Split Between</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* Fix: Added missing children to TabButton components */}
+                {/* FIX: Add children to TabButton components */}
                 <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
                 <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>
                 <TabButton active={mode === 'shares'} onClick={() => setMode('shares')}>Shares</TabButton>

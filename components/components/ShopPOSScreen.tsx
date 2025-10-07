@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { Shop, ShopProduct, ShopSale } from '../../types';
 import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
@@ -14,11 +12,23 @@ const ShopPOSScreen: React.FC<ShopPOSScreenProps> = ({ shop, products, onRecordS
     const formatCurrency = useCurrencyFormatter(undefined, shop.currency);
     const [cart, setCart] = useState<Map<string, { quantity: number, price: number }>>(new Map());
     const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+    const categories = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))], [products]);
+
+    const filteredProducts = useMemo(() => {
+        return products.filter(p => {
+            const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+            const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesCategory && matchesSearch;
+        });
+    }, [products, searchQuery, selectedCategory]);
 
     const handleAddToCart = (product: ShopProduct) => {
         setCart(prev => {
             const newCart = new Map(prev);
-            const existing = newCart.get(product.id);
+            const existing = newCart.get(product.id) as { quantity: number, price: number } | undefined;
             newCart.set(product.id, {
                 quantity: (existing?.quantity || 0) + 1,
                 price: product.price
@@ -38,7 +48,7 @@ const ShopPOSScreen: React.FC<ShopPOSScreenProps> = ({ shop, products, onRecordS
     const handleQuantityChange = (productId: string, delta: number) => {
         setCart(prev => {
             const newCart = new Map(prev);
-            const existing = newCart.get(productId);
+            const existing = newCart.get(productId) as { quantity: number, price: number } | undefined;
             if (existing) {
                 const newQuantity = existing.quantity + delta;
                 if (newQuantity > 0) {
@@ -57,11 +67,18 @@ const ShopPOSScreen: React.FC<ShopPOSScreenProps> = ({ shop, products, onRecordS
 
     const handleCheckout = () => {
         if (cart.size === 0) return;
+        
+        const saleItems = Array.from(cart.entries()).map(([productId, data]) => ({ productId, ...data }));
+        const saleProfit = saleItems.reduce((sum, item) => {
+            const product = products.find(p => p.id === item.productId);
+            const cost = product?.costPrice || item.price; // fallback to selling price for 0 profit
+            return sum + (item.quantity * (item.price - cost));
+        }, 0);
 
         const sale: Omit<ShopSale, 'id'|'shopId'> = {
-            items: Array.from(cart.entries()).map(([productId, data]) => ({ productId, ...data })),
+            items: saleItems,
             totalAmount: cartTotal,
-            profit: 0, // Profit calculation requires cost of goods
+            profit: saleProfit,
             date: new Date().toISOString()
         };
         onRecordSale(shop.id, sale);
@@ -69,21 +86,29 @@ const ShopPOSScreen: React.FC<ShopPOSScreenProps> = ({ shop, products, onRecordS
     };
 
     const cartTotal = useMemo(() => {
-        return Array.from(cart.values()).reduce((sum, item) => sum + item.quantity * item.price, 0);
+        return Array.from(cart.values()).reduce((sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price, 0);
     }, [cart]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {/* Product Selection */}
             <div className="md:col-span-2 flex flex-col h-full">
-                <h3 className="font-semibold text-lg text-primary mb-3">Products</h3>
+                <div className="flex-shrink-0 mb-3 space-y-3">
+                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search products..." className="input-base w-full rounded-full py-2 px-4" />
+                    <div className="pos-category-tabs">
+                        {categories.map(cat => (
+                            <button key={cat} onClick={() => setSelectedCategory(cat)} className={`pos-category-tab ${selectedCategory === cat ? 'active' : ''}`}>{cat}</button>
+                        ))}
+                    </div>
+                </div>
                 <div className="pos-product-grid flex-grow overflow-y-auto pr-2">
-                    {products.map(p => (
+                    {filteredProducts.map(p => (
                         <button key={p.id} onClick={() => handleAddToCart(p)} disabled={p.stock <= 0} className="pos-product-card">
                             <span className="text-sm font-semibold text-primary">{p.name}</span>
                             <span className="text-xs text-secondary">{formatCurrency(p.price)}</span>
                         </button>
                     ))}
+                     {filteredProducts.length === 0 && <p className="col-span-full text-center text-secondary py-8">No products match your search.</p>}
                 </div>
             </div>
 

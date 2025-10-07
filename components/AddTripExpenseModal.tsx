@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useContext } from 'react';
-import { Trip, TripExpense, Category, Contact, ParsedTripExpense, SplitDetail, TransactionType, ItemizedDetail } from '../types';
+import { Trip, TripExpense, Category, Contact, ParsedTripExpense, SplitDetail, TransactionType, ItemizedDetail, USER_SELF_ID } from '../types';
 import { parseTripExpenseText } from '../services/geminiService';
 import ModalHeader from './ModalHeader';
 import LoadingSpinner from './LoadingSpinner';
-import SplitManager from './SplitManager';
+// Fix: Corrected import path for SplitManager.
+import { SplitManager } from './SplitManager';
 import CustomSelect from './CustomSelect';
-import { USER_SELF_ID } from '../constants';
+// Fix: Corrected import path for SplitItemModal.
 import SplitItemModal from './SplitItemModal';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
@@ -20,8 +21,8 @@ interface Item {
 interface AddTripExpenseModalProps {
     trip: Trip;
     expenseToEdit?: TripExpense;
+    initialExpenseData?: Partial<Omit<TripExpense, 'id'>>;
     onClose: () => void;
-    // Fix: Strengthened the 'onSave' prop type to ensure all required fields are passed.
     onSave: (expense: Omit<TripExpense, 'id' | 'tripId' | 'date'>) => void;
     onUpdate: (expense: TripExpense) => void;
     categories: Category[];
@@ -29,23 +30,24 @@ interface AddTripExpenseModalProps {
 }
 
 const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
-    trip, expenseToEdit, onClose, onSave, onUpdate, categories, findOrCreateCategory
+    trip, expenseToEdit, initialExpenseData, onClose, onSave, onUpdate, categories, findOrCreateCategory
 }) => {
     const isEditing = !!expenseToEdit;
+    const initialData = expenseToEdit || initialExpenseData;
     const allParticipants = useMemo(() => [{ contactId: USER_SELF_ID, name: 'You' }, ...(trip.participants || [])], [trip.participants]);
     const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
     
     const [text, setText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const [description, setDescription] = useState(expenseToEdit?.description || '');
-    const [payers, setPayers] = useState<SplitDetail[]>(expenseToEdit?.payers.map(p => ({ id: p.contactId, personName: allParticipants.find(ap => ap.contactId === p.contactId)?.name || '', amount: p.amount, isSettled: false })) || [{ id: USER_SELF_ID, personName: 'You', amount: expenseToEdit?.amount || 0, isSettled: true }]);
+    const [description, setDescription] = useState(initialData?.description || '');
+    const [payers, setPayers] = useState<SplitDetail[]>(initialData?.payers?.map(p => ({ id: p.contactId, personName: allParticipants.find(ap => ap.contactId === p.contactId)?.name || '', amount: p.amount, isSettled: false })) || [{ id: USER_SELF_ID, personName: 'You', amount: initialData?.amount || 0, isSettled: true }]);
     const [payerMode, setPayerMode] = useState<"manual" | "equally">('manual');
     const [itemToSplit, setItemToSplit] = useState<Item | null>(null);
 
     const initialItems = useMemo(() => {
-        if (expenseToEdit?.itemizedDetails && expenseToEdit.itemizedDetails.length > 0) {
-            return expenseToEdit.itemizedDetails.map(d => ({
+        if (initialData?.itemizedDetails && initialData.itemizedDetails.length > 0) {
+            return initialData.itemizedDetails.map(d => ({
                 id: self.crypto.randomUUID(),
                 description: d.description,
                 amount: String(d.amount),
@@ -53,8 +55,8 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
                 splitDetails: d.splitDetails || [],
             }));
         }
-        return [{ id: self.crypto.randomUUID(), description: expenseToEdit?.description || '', amount: expenseToEdit?.amount.toString() || '', categoryId: expenseToEdit?.categoryId || '', splitDetails: expenseToEdit?.splitDetails || [] }];
-    }, [expenseToEdit]);
+        return [{ id: self.crypto.randomUUID(), description: initialData?.description || '', amount: initialData?.amount?.toString() || '', categoryId: initialData?.categoryId || '', splitDetails: initialData?.splitDetails || [] }];
+    }, [initialData]);
 
     const [items, setItems] = useState<Item[]>(initialItems);
 
@@ -85,7 +87,6 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             return;
         }
         
-        // Calculate top-level split from itemized splits
         const finalSplitDetailsMap = new Map<string, {name: string, amount: number}>();
         finalItemizedDetails.forEach(item => {
             (item.splitDetails || []).forEach(split => {
@@ -99,7 +100,6 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             id, personName: data.name, amount: data.amount, isSettled: id === USER_SELF_ID
         }));
 
-        // Fix: Use a more specific type for expenseData to match the onSave prop.
         const expenseData: Omit<TripExpense, 'id' | 'tripId' | 'date'> = {
             description,
             amount: expenseAmount,

@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { ShopProduct } from '../types';
@@ -19,6 +21,8 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onSave, on
         name: product?.name || '',
         price: product?.price.toString() || '',
         stock: product?.stock.toString() || '',
+        costPrice: product?.costPrice?.toString() || '',
+        category: product?.category || '',
     });
 
     const handleChange = (field: keyof typeof formData, value: string) => {
@@ -29,11 +33,15 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onSave, on
         e.preventDefault();
         const price = parseFloat(formData.price);
         const stock = parseInt(formData.stock, 10);
+        const costPrice = parseFloat(formData.costPrice);
+
         if (formData.name && price > 0 && stock >= 0) {
             onSave({
                 name: formData.name,
                 price,
                 stock,
+                costPrice: isNaN(costPrice) ? undefined : costPrice,
+                category: formData.category.trim() || undefined,
             }, product?.id);
             onClose();
         } else {
@@ -50,13 +58,21 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onSave, on
                         <label htmlFor="name" className={labelStyle}>Product Name</label>
                         <input id="name" type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} placeholder="e.g., Organic Coffee Beans" className="input-base w-full p-2 rounded-lg" required autoFocus />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="category" className={labelStyle}>Category</label>
+                        <input id="category" type="text" value={formData.category} onChange={e => handleChange('category', e.target.value)} placeholder="e.g., Beverages" className="input-base w-full p-2 rounded-lg" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
                         <div>
-                            <label htmlFor="price" className={labelStyle}>Price</label>
+                            <label htmlFor="costPrice" className={labelStyle}>Cost Price</label>
+                            <input id="costPrice" type="number" step="0.01" value={formData.costPrice} onChange={e => handleChange('costPrice', e.target.value)} placeholder="0.00" className="input-base w-full p-2 rounded-lg no-spinner" />
+                        </div>
+                        <div>
+                            <label htmlFor="price" className={labelStyle}>Selling Price</label>
                             <input id="price" type="number" step="0.01" value={formData.price} onChange={e => handleChange('price', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
                         </div>
                         <div>
-                            <label htmlFor="stock" className={labelStyle}>Stock Quantity</label>
+                            <label htmlFor="stock" className={labelStyle}>Stock</label>
                             <input id="stock" type="number" step="1" value={formData.stock} onChange={e => handleChange('stock', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
                         </div>
                     </div>

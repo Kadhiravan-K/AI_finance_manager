@@ -1,13 +1,12 @@
-
-
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
-import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail } from '../types';
+import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense } from '../types';
 import FinanceDisplay from './FinanceDisplay';
-import ReportsScreen from './ReportsScreen';
+// Fix: Corrected import path for ReportsScreen
+import { ReportsScreen } from './ReportsScreen';
 import BudgetsScreen from './BudgetsModal';
 import GoalsScreen from './GoalsModal';
-import InvestmentsScreen from './InvestmentsModal';
-import ScheduledPaymentsScreen from './ScheduledPaymentsModal';
+import InvestmentsScreen from './InvestmentsScreen';
+import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
 import MoreScreen from './More';
 import TripManagementScreen from './TripManagementScreen';
 import TripDetailsScreen from './TripDetailsScreen';
@@ -23,13 +22,13 @@ import { NotesScreen } from './NotesScreen';
 import SubscriptionsScreen from './SubscriptionsScreen';
 import GlossaryScreen from './GlossaryScreen';
 import ManualScreen from './ManualScreen';
-// Fix: Corrected import path for AppDataContext.
 import { AppDataContext } from '../contexts/SettingsContext';
 import { parseNaturalLanguageQuery } from '../services/geminiService';
 import { calculateNextDueDate } from '../utils/date';
 import DebtManagerScreen from './DebtManagerScreen';
 import FaqScreen from './FaqScreen';
 import LiveFeedScreen from './LiveFeedScreen';
+import { USER_SELF_ID } from '../types';
 
 
 interface MainContentProps {
@@ -68,7 +67,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     return null; // Or a loading spinner
   }
   
-  // Fix: Destructure all necessary values and functions from dataContext after the null check.
   const { 
     selectedAccountIds, 
     setSelectedAccountIds, 
@@ -92,6 +90,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     onUpdateTransaction,
     setDebts,
     setBudgets,
+    onSaveProduct,
   } = dataContext;
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
@@ -173,26 +172,48 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   const handleCreateExpenseFromList = (list: Note) => {
     if (list.type !== 'checklist' || !Array.isArray(list.content)) return;
 
-    const purchasedItems = list.content.filter(item => item.isPurchased);
-    if (purchasedItems.length === 0) return;
+    const purchasedItems = list.content.filter(item => item.isPurchased && item.rate > 0);
+    if (purchasedItems.length === 0) {
+        alert("No purchased items found in the list.");
+        return;
+    }
     
     const itemizedDetails: ItemizedDetail[] = purchasedItems.map(item => ({
       description: item.name,
-      amount: item.rate,
-      categoryId: findOrCreateCategory('Shopping / General', TransactionType.EXPENSE), // Default category
+      amount: item.rate * (parseFloat(item.quantity) || 1),
+      categoryId: findOrCreateCategory('Shopping / General', TransactionType.EXPENSE),
+      splitDetails: [],
     }));
     
     const total = itemizedDetails.reduce((sum, item) => sum + item.amount, 0);
 
-    const transaction: Partial<Transaction> = {
-      description: `Shopping from list: ${list.title}`,
+    if (list.tripId) {
+        const trip = appState.trips.find(t => t.id === list.tripId);
+        if (!trip) {
+            alert("Could not find the associated trip. Creating a regular expense instead.");
+        } else {
+            const initialExpenseData: Partial<Omit<TripExpense, 'id'>> = {
+                description: `Purchases from "${list.title}"`,
+                amount: total,
+                categoryId: itemizedDetails[0]?.categoryId,
+                itemizedDetails: itemizedDetails,
+                payers: [{ contactId: USER_SELF_ID, amount: total }],
+                splitDetails: [],
+            };
+            openModal('addTripExpense', { trip, initialExpenseData });
+            return;
+        }
+    }
+    
+    const partialTransaction: Partial<Transaction> = {
+      description: `Purchases from "${list.title}"`,
       amount: total,
       type: TransactionType.EXPENSE,
       itemizedDetails: itemizedDetails,
-      categoryId: itemizedDetails[0]?.categoryId, // Use first item's category
+      categoryId: itemizedDetails[0]?.categoryId,
     };
 
-    openModal('addTransaction', { initialTransaction: transaction, isItemized: true });
+    openModal('addTransaction', { initialTransaction: partialTransaction, isItemized: true });
   };
 
 
@@ -215,81 +236,65 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     case 'budgets':
       return <BudgetsScreen categories={appState.categories} transactions={appState.transactions} budgets={appState.budgets} onSaveBudget={(categoryId: string, amount: number) => {
         const currentMonth = new Date().toISOString().slice(0, 7);
-        // Fix: Use the destructured `setBudgets` function instead of accessing it directly from the context object, which can cause type-narrowing issues in callbacks.
         setBudgets(prev => {
             const existing = prev.find(b => b.categoryId === categoryId && b.month === currentMonth);
             if(existing) {
-                return prev.map(b => b.id === existing.id ? {...b, amount} : b);
+                return prev.map(b => b.id === existing.id ? { ...b, amount } : b);
             }
-            return [...prev, {id: self.crypto.randomUUID(), categoryId, amount, month: currentMonth}];
-        })
+            return [...prev, { id: self.crypto.randomUUID(), categoryId, amount, month: currentMonth }];
+        });
       }} onAddBudget={() => {}} financialProfile={appState.financialProfile} findOrCreateCategory={findOrCreateCategory} />;
     case 'goals':
       return <GoalsScreen goals={appState.goals} onSaveGoal={(goal, id) => {
-        if(id) {
-            setGoals(prev => prev.map(g => g.id === id ? {...g, ...goal} : g));
-        } else {
-            setGoals(prev => [...prev, {...goal, id: self.crypto.randomUUID(), currentAmount: 0}]);
-        }
-      }} accounts={appState.accounts} onContribute={handleContributeToGoal} onDelete={(id) => deleteItem(id, 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} onUpdateGoal={(goal) => setGoals(prev => prev.map(g => g.id === goal.id ? goal : g))} openModal={openModal} />;
+        if(id) setGoals(prev => prev.map(g => g.id === id ? {...g, ...goal} : g));
+        else setGoals(prev => [...prev, {id: self.crypto.randomUUID(), currentAmount: 0, ...goal}]);
+      }} accounts={appState.accounts} onContribute={handleContributeToGoal} onDelete={(id) => deleteItem(id, 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} onUpdateGoal={(goal) => setGoals(p => p.map(g => g.id === goal.id ? goal : g))} openModal={openModal} />;
     case 'investments':
       return <InvestmentsScreen accounts={appState.accounts} holdings={appState.investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={(holding) => openModal('sellInvestment', { holding })} onUpdateValue={(holding) => openModal('updateInvestment', { holding })} onRefresh={() => {}} />;
     case 'scheduled':
-      return <ScheduledPaymentsScreen recurringTransactions={appState.recurringTransactions} categories={appState.categories} accounts={appState.accounts} onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} onDelete={(id) => deleteItem(id, 'recurringTransaction')} onUpdate={(item) => setRecurringTransactions(p => p.map(rt => rt.id === item.id ? item : rt))} openModal={openModal} />;
+        return <ScheduledPaymentsScreen recurringTransactions={appState.recurringTransactions} categories={appState.categories} accounts={appState.accounts} onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} onDelete={(id) => deleteItem(id, 'recurringTransaction')} onUpdate={(item) => setRecurringTransactions(p => p.map(rt => rt.id === item.id ? item : rt))} openModal={openModal} />;
     case 'more':
-      return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={(modal, props) => openModal(modal, props)} onResetApp={() => console.log('Reset App')} />;
+      return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={openModal} onResetApp={() => {}} />;
     case 'tripManagement':
-      return <TripManagementScreen trips={appState.trips} tripExpenses={appState.tripExpenses} onTripSelect={(tripId) => onNavigate('tripDetails', undefined, {tripId})} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => deleteItem(id, 'trip')} onShowSummary={() => openModal('tripSummary')} />;
-    case 'achievements':
-      return <AchievementsScreen unlockedAchievements={appState.unlockedAchievements} />;
-    case 'calculator':
-        return <CalculatorScreen appState={appState} />;
-    case 'calendar':
-        return <CalendarScreen onNavigate={onNavigate} setActiveScreen={setActiveScreen} setTripDetailsId={(id) => onNavigate('tripDetails', undefined, {tripId: id})} openModal={openModal} />;
-    case 'challenges':
-        return <ChallengesScreen appState={appState} setChallenges={setChallenges} />;
-    case 'dataHub':
-        return <DataHubScreen {...appState} onAddTransaction={()=>openModal('addTransaction')} onEditTransaction={(t)=>openModal('editTransaction', {transaction: t})} onDeleteTransaction={(id)=>deleteItem(id, 'transaction')} onAddAccount={()=>openModal('editAccount')} onEditAccount={(a)=>openModal('editAccount', {account: a})} onDeleteAccount={(id)=>deleteItem(id, 'account')} onAddCategory={()=>openModal('editCategory')} onEditCategory={(c)=>openModal('editCategory', {category: c})} onDeleteCategory={(id)=>deleteItem(id, 'category')} onAddGoal={()=>openModal('editGoal')} onEditGoal={(g)=>openModal('editGoal', {goal: g})} onDeleteGoal={(id)=>deleteItem(id, 'goal')} onAddShop={()=>openModal('editShop')} onEditShop={(s)=>openModal('editShop', {shop: s})} onDeleteShop={(id)=>deleteItem(id, 'shop')} onAddTrip={()=>openModal('editTrip')} onEditTrip={(t)=>openModal('editTrip', {trip: t})} onDeleteTrip={(id)=>deleteItem(id, 'trip')} onAddContact={()=>openModal('editContact')} onEditContact={(c)=>openModal('editContact', {contact: c})} onDeleteContact={(id)=>deleteItem(id, 'contact')} />;
-    case 'glossary':
-        return <GlossaryScreen onAdd={() => openModal('editGlossaryEntry')} onEdit={(entry) => openModal('editGlossaryEntry', { entry })} />;
-    case 'learn':
-        return <LearnScreen onOpenChat={() => openModal('aiChat')} onOpenGlossary={() => setActiveScreen('glossary')} />;
-    case 'manual':
-        return <ManualScreen />;
-    case 'faq':
-        return <FaqScreen />;
-    case 'refunds':
-        return <RefundsScreen refunds={appState.refunds} contacts={appState.contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={(id) => setRefunds(p => p.map(r => r.id === id ? {...r, isClaimed: true, claimedDate: new Date().toISOString()} : r))} onDeleteRefund={(id) => deleteItem(id, 'refund')} openModal={openModal} />;
-    case 'shop':
-        return <ShopScreen shops={appState.shops} products={appState.shopProducts} sales={appState.shopSales} employees={appState.shopEmployees} shifts={appState.shopShifts} onSaveShop={(shop, id) => {
-            if(id) setShops(p => p.map(s => s.id === id ? {...s, ...shop} : s)); else setShops(p => [...p, {id: self.crypto.randomUUID(), ...shop}]);
-        }} onDeleteShop={(id)=>deleteItem(id, 'shop')} onSaveProduct={(shopId, prod, id) => {
-            if(id) setShopProducts(p => p.map(s => s.id === id ? {...s, ...prod} : s)); else setShopProducts(p => [...p, {id: self.crypto.randomUUID(), shopId, ...prod}]);
-        }} onDeleteProduct={(id)=>deleteItem(id, 'shopProduct')} onRecordSale={(shopId, sale) => setShopSales(p => [...p, {id: self.crypto.randomUUID(), shopId, ...sale}])} onSaveEmployee={(shopId, emp, id) => {
-            if(id) setShopEmployees(p => p.map(e => e.id === id ? {...e, ...emp} : e)); else setShopEmployees(p => [...p, {id: self.crypto.randomUUID(), shopId, ...emp}]);
-        }} onDeleteEmployee={(id)=>deleteItem(id, 'shopEmployee')} onSaveShift={(shopId, shift, id) => {
-            if(id) setShopShifts(p => p.map(s => s.id === id ? {...s, ...shift} : s)); else setShopShifts(p => [...p, {id: self.crypto.randomUUID(), shopId, ...shift}]);
-        }} onDeleteShift={(id)=>deleteItem(id, 'shopShift')} openModal={openModal} />;
-    case 'notes':
-        return <NotesScreen noteId={noteId} onCreateExpense={handleCreateExpenseFromList} openModal={openModal} onDeleteItem={(id, type) => deleteItem(id, type)} onNavigate={onNavigate} />;
-    case 'subscriptions':
-      return <SubscriptionsScreen onAddRecurring={(data) => openModal('editRecurring', { recurringTransaction: data })} />;
-    case 'debtManager':
-      return <DebtManagerScreen debts={appState.debts} onAddDebt={() => openModal('editDebt')} onEditDebt={(debt) => openModal('editDebt', { debt })} onDeleteDebt={(id) => deleteItem(id, 'debt')} onSaveDebt={(debt, id) => {
-          if (id) {
-              setDebts((p: Debt[]) => p.map(d => d.id === id ? { ...d, ...debt } : d));
-          } else {
-              setDebts((p: Debt[]) => [...p, { ...debt, id: self.crypto.randomUUID(), currentBalance: debt.totalAmount }]);
-          }
-      }} />;
+        return <TripManagementScreen trips={appState.trips} tripExpenses={appState.tripExpenses} onTripSelect={(tripId) => onNavigate('tripDetails', undefined, { tripId })} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => deleteItem(id, 'trip')} onShowSummary={() => openModal('tripSummary')} />;
     case 'tripDetails':
       const trip = appState.trips.find(t => t.id === tripDetailsId);
-      if(trip) {
-          return <TripDetailsScreen trip={trip} expenses={appState.tripExpenses.filter(e => e.tripId === trip.id)} onAddExpense={() => openModal('addTripExpense', {trip})} onEditExpense={(expense) => openModal('addTripExpense', {trip, expenseToEdit: expense})} onDeleteExpense={(id) => deleteItem(id, 'tripExpense')} onBack={() => { onNavigate('tripManagement'); }} categories={appState.categories} onUpdateTrip={(updatedTrip) => setTrips(p => p.map(t => t.id === updatedTrip.id ? updatedTrip : t))} openModal={openModal} onNavigate={onNavigate} />;
-      }
-      return <div className="p-4">Trip not found. Go back to <button className="text-sky-400" onClick={() => setActiveScreen('tripManagement')}>Trip Management</button>.</div>;
+      if (!trip) return <div>Trip not found.</div>;
+      return <TripDetailsScreen trip={trip} expenses={appState.tripExpenses.filter(e => e.tripId === tripDetailsId)} categories={appState.categories} onAddExpense={() => openModal('addTripExpense', { trip })} onEditExpense={(expense) => openModal('addTripExpense', { trip, expenseToEdit: expense })} onDeleteExpense={(id) => deleteItem(id, 'tripExpense')} onBack={() => onNavigate('tripManagement')} onUpdateTrip={(updatedTrip) => setTrips(prev => prev.map(t => t.id === updatedTrip.id ? updatedTrip : t))} openModal={openModal} onNavigate={onNavigate} />;
+    case 'calculator':
+        return <CalculatorScreen appState={appState} />;
+    case 'achievements':
+        return <AchievementsScreen unlockedAchievements={appState.unlockedAchievements} />;
+    case 'refunds':
+        return <RefundsScreen refunds={appState.refunds} contacts={appState.contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={(id) => setRefunds(prev => prev.map(r => r.id === id ? {...r, isClaimed: true, claimedDate: new Date().toISOString()} : r))} onDeleteRefund={(id) => deleteItem(id, 'refund')} openModal={openModal} />;
+    case 'dataHub':
+        return <DataHubScreen {...appState} onAddTransaction={() => openModal('addTransaction')} onEditTransaction={(t) => openModal('editTransaction', {transaction:t})} onDeleteTransaction={(id) => deleteItem(id, 'transaction')} onAddAccount={()=>openModal('accounts')} onEditAccount={(a)=>openModal('editAccount',{account: a})} onDeleteAccount={(id)=>deleteItem(id,'account')} onAddCategory={()=>openModal('categories')} onEditCategory={(c)=>openModal('editCategory',{category:c})} onDeleteCategory={(id)=>deleteItem(id,'category')} onAddGoal={()=>openModal('editGoal')} onEditGoal={(g)=>openModal('editGoal',{goal:g})} onDeleteGoal={(id)=>deleteItem(id,'goal')} onAddShop={()=>openModal('editShop')} onEditShop={(s)=>openModal('editShop',{shop:s})} onDeleteShop={(id)=>deleteItem(id,'shop')} onAddTrip={()=>openModal('editTrip')} onEditTrip={(t)=>openModal('editTrip',{trip:t})} onDeleteTrip={(id)=>deleteItem(id,'trip')} onAddContact={()=>openModal('contacts')} onEditContact={(c)=>openModal('editContact',{contact:c})} onDeleteContact={(id)=>deleteItem(id,'contact')} />;
+    case 'shop':
+        return <ShopScreen shops={appState.shops} products={appState.shopProducts} sales={appState.shopSales} employees={appState.shopEmployees} shifts={appState.shopShifts} onSaveShop={(shop,id)=> id ? setShops(p=>p.map(s=>s.id===id ? {...s,...shop}:s)) : setShops(p=>[...p,{id:self.crypto.randomUUID(),...shop}])} onDeleteShop={(id)=>deleteItem(id,'shop')} onSaveProduct={onSaveProduct} onDeleteProduct={(id)=>deleteItem(id,'shopProduct')} onRecordSale={(shopId,sale)=>setShopSales(p=>[...p,{id:self.crypto.randomUUID(),shopId,...sale}])} onSaveEmployee={(shopId,emp,id)=>id?setShopEmployees(p=>p.map(e=>e.id===id?{...e,...emp}:e)):setShopEmployees(p=>[...p,{id:self.crypto.randomUUID(),shopId,...emp}])} onDeleteEmployee={(id)=>deleteItem(id,'shopEmployee')} onSaveShift={(shopId,shift,id)=>id?setShopShifts(p=>p.map(s=>s.id===id?{...s,...shift}:s)):setShopShifts(p=>[...p,{id:self.crypto.randomUUID(),shopId,...shift}])} onDeleteShift={(id)=>deleteItem(id,'shopShift')} openModal={openModal} />;
+    case 'challenges':
+        return <ChallengesScreen appState={appState} setChallenges={setChallenges} />;
+    case 'learn':
+        return <LearnScreen onOpenChat={() => openModal('aiChat')} onOpenGlossary={() => onNavigate('glossary')} />;
+    case 'calendar':
+        return <CalendarScreen onNavigate={onNavigate} setActiveScreen={setActiveScreen} setTripDetailsId={(id) => onNavigate('tripDetails', undefined, { tripId: id })} openModal={openModal} />;
+    case 'notes':
+        return <NotesScreen noteId={noteId} onCreateExpense={handleCreateExpenseFromList} openModal={openModal} onDeleteItem={deleteItem} onNavigate={onNavigate} />;
+    case 'subscriptions':
+        return <SubscriptionsScreen onAddRecurring={(data) => openModal('editRecurring', { recurringTransaction: data })} />;
+    case 'glossary':
+        return <GlossaryScreen onAdd={() => openModal('editGlossaryEntry')} onEdit={(entry) => openModal('editGlossaryEntry', { entry })} />;
+    case 'manual':
+        return <ManualScreen />;
+    case 'debtManager':
+        return <DebtManagerScreen debts={appState.debts} onAddDebt={() => openModal('editDebt')} onEditDebt={(debt) => openModal('editDebt', { debt })} onDeleteDebt={(id) => deleteItem(id, 'debt')} onSaveDebt={(debt, id) => {
+            if(id) setDebts(p => p.map(d => d.id === id ? {...d, ...debt} : d));
+            else setDebts(p => [...p, {id:self.crypto.randomUUID(), ...debt, currentBalance: debt.totalAmount}]);
+        }} />;
+    case 'faq':
+        return <FaqScreen />;
     default:
       return <FinanceDisplay {...financeDisplayProps} />;
   }
 };
+
 export default MainContent;

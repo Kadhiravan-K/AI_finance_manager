@@ -1,9 +1,8 @@
 
-
-// Fix: Add necessary imports from @google/genai.
 import { GoogleGenAI, Type } from "@google/genai";
-// Fix: 'TransactionType' is an enum used as a value, so it must be imported directly, not as a type.
+// Fix: Corrected import path for types.
 import { TransactionType } from "../types";
+// Fix: Corrected import path for types.
 import type { Transaction, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan, GlossaryEntry } from "../types";
 
 if (!process.env.API_KEY) {
@@ -53,7 +52,14 @@ Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: transactionSchema },
     });
     
-    const result = JSON.parse(response.text);
+    let result;
+    try {
+        result = JSON.parse(response.text);
+    } catch (jsonError) {
+        console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+        throw new Error("AI returned an invalid response format.");
+    }
+
     if (result && result.isTransaction && result.amount > 0) {
       const date = result.date && !isNaN(new Date(result.date).getTime()) ? new Date(result.date).toISOString() : new Date().toISOString();
       return {
@@ -104,7 +110,14 @@ export async function parseReceiptImage(base64Image: string, mimeType: string): 
             config: { responseMimeType: "application/json", responseSchema: receiptSchema },
         });
 
-        const result = JSON.parse(response.text);
+        let result;
+        try {
+            result = JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format from the receipt.");
+        }
+
         if (result && result.totalAmount > 0) {
             const date = result.transactionDate && !isNaN(new Date(result.transactionDate).getTime()) ? new Date(result.transactionDate).toISOString() : new Date().toISOString();
             return {
@@ -141,7 +154,14 @@ export async function getCurrencyConversionRate(fromCurrency: string, toCurrency
       config: { responseMimeType: "application/json", responseSchema: currencyConversionSchema },
     });
 
-    const result = JSON.parse(response.text);
+    let result;
+    try {
+        result = JSON.parse(response.text);
+    } catch (jsonError) {
+        console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+        throw new Error("AI returned an invalid number format for currency conversion.");
+    }
+    
     if (result && typeof result.rate === 'number' && result.rate > 0) {
       return result.rate;
     }
@@ -171,7 +191,15 @@ export async function parseNaturalLanguageQuery(query: string): Promise<{ search
         config: { responseMimeType: "application/json", responseSchema: nlpQuerySchema }
     });
     
-    const result = JSON.parse(response.text);
+    let result;
+    try {
+        result = JSON.parse(response.text);
+    } catch (jsonError) {
+        console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+        // Fallback gracefully
+        return { searchQuery: query, dateFilter: 'all' };
+    }
+
     return {
         searchQuery: result.searchQuery || result.category || query,
         dateFilter: result.dateFilter || 'all'
@@ -206,7 +234,12 @@ export async function getAIBudgetSuggestion(profile: AppState['financialProfile'
             config: { responseMimeType: "application/json", responseSchema: budgetSuggestionSchema }
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for budget suggestions.");
+        }
     } catch (error) {
         console.error("Error getting AI budget suggestion:", error);
         throw new Error("Could not generate an AI budget. Please try again.");
@@ -217,7 +250,6 @@ export async function getAIFinancialTips(healthScore: number, scoreBreakdown: an
     const prompt = `A user's financial health score is ${healthScore}/100. The breakdown is: ${JSON.stringify(scoreBreakdown)}. Provide 2-3 short, actionable, and encouraging tips to help them improve their score, focusing on their weakest areas. Do not use markdown.`;
     try {
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        
         return response.text;
     } catch (error) {
         console.error("Error getting AI financial tips:", error);
@@ -228,7 +260,6 @@ export async function getAIFinancialTips(healthScore: number, scoreBreakdown: an
 export async function getDashboardInsights(transactions: Transaction[], categories: AppState['categories'], dateFilterLabel: string): Promise<string> {
     if (transactions.length < 3) return "Log a few more transactions to start getting personalized insights.";
     
-    // Summarize data to keep the prompt concise
     const totalSpent = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     const topSpendingCategories = transactions
         .filter(t => t.type === 'expense')
@@ -253,7 +284,6 @@ export async function getDashboardInsights(transactions: Transaction[], categori
 
     try {
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        
         return response.text;
     } catch (error) {
         console.error("Error getting dashboard insights:", error);
@@ -297,7 +327,6 @@ export async function getAICoachAction(command: string, appState: AppState, chat
     const { categories, accounts, financialProfile } = appState;
     const accountList = accounts.map(a => a.name).join(', ') || 'none';
     
-    // Condensed context
     const context = `
       User's Financial Profile: ${JSON.stringify(financialProfile)}
       Available Accounts: ${accountList}
@@ -331,7 +360,12 @@ export async function getAICoachAction(command: string, appState: AppState, chat
             config: { responseMimeType: "application/json", responseSchema: aiCoachActionSchema }
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+             console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+             return { action: 'chat', payload: { response: "I had trouble processing that action. Can you try rephrasing?" } };
+        }
     } catch (error) {
         console.error("Error parsing AI Coach action:", error);
         return { action: 'chat', payload: { response: "I had trouble understanding that. Please try rephrasing." } };
@@ -342,7 +376,6 @@ export async function getAIChatResponse(appState: AppState, message: string, cha
     const { financialProfile, accounts, categories } = appState;
     const accountList = accounts.map(a => a.name).join(', ') || 'none';
     
-    // Condensed context
     const context = `
       User's Financial Profile: ${JSON.stringify(financialProfile)}
       Available Accounts: ${accountList}
@@ -391,7 +424,13 @@ Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: tripExpenseSchema },
     });
     
-    const result = JSON.parse(response.text);
+    let result;
+    try {
+        result = JSON.parse(response.text);
+    } catch (jsonError) {
+        console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+        throw new Error("AI returned an invalid response format for trip expense.");
+    }
     if (result && result.isValid && result.amount > 0) {
       return {
         description: result.description, amount: result.amount, categoryName: result.category, payerName: result.payerName || undefined,
@@ -462,7 +501,14 @@ Text: "${text}"`,
       config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema },
     });
     
-    const result = JSON.parse(response.text);
+    let result;
+    try {
+        result = JSON.parse(response.text);
+    } catch (jsonError) {
+        console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+        throw new Error("AI returned an invalid response format for trip creation.");
+    }
+
     if (result && result.tripName) {
         const plan = result.plan ? result.plan.map((day: any) => ({
             ...day,
@@ -497,9 +543,14 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
             config: { responseMimeType: "application/json", responseSchema: structuredPlanSchema },
         });
         
-        const result = JSON.parse(response.text);
+        let result;
+        try {
+            result = JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for trip plan generation.");
+        }
         
-        // Add unique IDs to the generated plan
         return result.map((day: any) => ({
             ...day,
             id: self.crypto.randomUUID(),
@@ -540,7 +591,12 @@ export async function getFinancialTopicExplanation(topic: string): Promise<{ exp
             config: { responseMimeType: "application/json", responseSchema: financialTopicSchema },
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for financial topic.");
+        }
     } catch (error) {
         console.error("Error getting financial topic explanation from Gemini API:", error);
         throw new Error(error instanceof Error ? `Failed to get explanation: ${error.message}` : "An unknown error occurred.");
@@ -562,7 +618,6 @@ const shopInsightsSchema = {
 export async function getShopInsights(sales: ShopSale[] | undefined, products: ShopProduct[] | undefined): Promise<string[]> {
     if (!sales || sales.length === 0) return ["No sales data available to analyze yet."];
     
-    // Summarize data to avoid hitting token limits
     const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
     const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
     const productSales = sales.flatMap(s => s.items).reduce((acc, item) => {
@@ -588,7 +643,13 @@ export async function getShopInsights(sales: ShopSale[] | undefined, products: S
             config: { responseMimeType: "application/json", responseSchema: shopInsightsSchema },
         });
         
-        const result = JSON.parse(response.text);
+        let result;
+        try {
+            result = JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for shop insights.");
+        }
         return result.insights || ["Could not generate insights at this time."];
     } catch (error) {
         console.error("Error getting shop insights:", error);
@@ -609,7 +670,7 @@ const goalSuggestionSchema = {
 export async function getAIGoalSuggestion(transactions: AppState['transactions'], profile: AppState['financialProfile']): Promise<{ name: string; targetAmount: number; reasoning: string }> {
     const recentExpenses = transactions
         ?.filter(t => t.type === 'expense')
-        .slice(0, 50) // Limit to last 50 for brevity
+        .slice(0, 50) 
         .map(t => ({ d: t.description, a: t.amount }));
 
     const context = {
@@ -626,7 +687,12 @@ export async function getAIGoalSuggestion(transactions: AppState['transactions']
             config: { responseMimeType: "application/json", responseSchema: goalSuggestionSchema }
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for goal suggestion.");
+        }
     } catch (error) {
         console.error("Error getting AI goal suggestion:", error);
         throw new Error("Could not generate an AI goal suggestion.");
@@ -644,7 +710,6 @@ const nlpCalcSchema = {
 
 export async function parseNaturalLanguageCalculation(appState: AppState, query: string): Promise<{ answer: number; explanation: string }> {
     const { transactions, financialProfile } = appState;
-    // Create a simplified summary to send to the AI to save tokens
     const context = {
         monthlySalary: financialProfile.monthlySalary,
         transactionCount: transactions.length,
@@ -668,7 +733,12 @@ export async function parseNaturalLanguageCalculation(appState: AppState, query:
             config: { responseMimeType: "application/json", responseSchema: nlpCalcSchema }
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for calculation.");
+        }
     } catch (error) {
         console.error("Error with natural language calculation:", error);
         throw new Error("I couldn't calculate that. Please try rephrasing your question.");
@@ -751,9 +821,12 @@ export async function runFinancialScenario(appState: AppState, query: string): P
             config: { responseMimeType: "application/json", responseSchema: scenarioSchema }
         });
         
-        const result: FinancialScenarioResult = JSON.parse(response.text);
-
-        return result;
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for financial scenario.");
+        }
 
     } catch (error) {
         console.error("Error running financial scenario from Gemini API:", error);
@@ -781,13 +854,12 @@ export async function identifySubscriptions(transactions: Transaction[], categor
     throw new Error("Not enough transaction data to analyze for subscriptions.");
   }
   
-  // Create a simplified summary for the AI to process, saving tokens.
   const transactionSummary = transactions.map(t => {
     const category = categories.find(c => c.id === t.categoryId);
     return {
       d: t.description,
       a: t.amount,
-      dt: t.date.split('T')[0], // Just the date part
+      dt: t.date.split('T')[0],
       c: category?.name || 'Uncategorized'
     };
   });
@@ -812,7 +884,12 @@ export async function identifySubscriptions(transactions: Transaction[], categor
       config: { responseMimeType: "application/json", responseSchema: subscriptionSchema },
     });
     
-    return JSON.parse(response.text);
+    try {
+        return JSON.parse(response.text);
+    } catch (jsonError) {
+        console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+        throw new Error("AI returned an invalid response format for subscription identification.");
+    }
   } catch (error) {
     console.error("Error identifying subscriptions from Gemini API:", error);
     throw new Error(error instanceof Error ? `Failed to identify subscriptions: ${error.message}` : "An unknown error occurred during subscription analysis.");
@@ -843,7 +920,12 @@ export async function generatePersonalizedChallenge(transactions: Transaction[])
             config: { responseMimeType: "application/json", responseSchema: personalizedChallengeSchema }
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for personalized challenge.");
+        }
     } catch (error) {
         console.error("Error generating personalized challenge:", error);
         throw new Error("Could not generate a personalized challenge.");
@@ -861,7 +943,6 @@ const proactiveInsightSchema = {
 };
 
 export async function getProactiveInsights(appState: AppState): Promise<ProactiveInsight> {
-    // Summarize app state to be concise for the prompt
     const { transactions, budgets, goals, financialProfile } = appState;
     const context = {
         transactionCount: transactions.length,
@@ -886,7 +967,12 @@ export async function getProactiveInsights(appState: AppState): Promise<Proactiv
             config: { responseMimeType: "application/json", responseSchema: proactiveInsightSchema }
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for proactive insights.");
+        }
     } catch (error) {
         console.error("Error getting proactive insights:", error);
         throw new Error("Could not generate AI insights at this time.");
@@ -923,7 +1009,12 @@ export async function generateGlossaryEntry(term: string): Promise<Omit<Glossary
             config: { responseMimeType: "application/json", responseSchema: glossaryEntrySchema },
         });
         
-        return JSON.parse(response.text);
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
+            throw new Error("AI returned an invalid response format for glossary entry.");
+        }
     } catch (error) {
         console.error("Error generating glossary entry from Gemini API:", error);
         throw new Error(error instanceof Error ? `Failed to generate definition: ${error.message}` : "An unknown error occurred.");

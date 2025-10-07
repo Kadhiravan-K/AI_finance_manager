@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Goal, Priority } from '../types';
@@ -19,10 +18,8 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({ goal, onSave, onClose }) 
   const [icon, setIcon] = useState(goal?.icon || '🏆');
   const [targetAmount, setTargetAmount] = useState(goal?.targetAmount ? String(goal.targetAmount) : '');
   const [productLink, setProductLink] = useState(goal?.productLink || '');
-  // Fix: Initialize priority state with the enum member, not a string literal.
   const [priority, setPriority] = useState<Priority>(goal?.priority || Priority.NONE);
 
-  // Fix: Use Priority enum members instead of string literals.
   const priorities: Priority[] = [Priority.NONE, Priority.LOW, Priority.MEDIUM, Priority.HIGH];
   const priorityStyles: Record<Priority, { buttonClass: string; }> = {
     [Priority.HIGH]: { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },

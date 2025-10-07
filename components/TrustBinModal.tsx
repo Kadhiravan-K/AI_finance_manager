@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
@@ -10,7 +8,6 @@ import {
   Refund,
   Settlement,
   Goal,
-  // Fix: Replaced deprecated ShoppingList with Note type.
   Note,
   GlossaryEntry,
   Account,
@@ -74,7 +71,8 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
 
   const handleSelectAll = (isChecked: boolean) => {
     if (isChecked) {
-      setSelectedIds(new Set(trustBinItems.map(item => item.id)));
+      // Fix: Ensure trustBinItems is an array before calling map
+      setSelectedIds(new Set((Array.isArray(trustBinItems) ? trustBinItems : []).map(item => item.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -133,7 +131,6 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
       case 'shopEmployee':
         return (item.item as ShopEmployee).name;
       case 'shopShift': {
-        // Fix: Correctly generate a description for a ShopShift item, as it does not have a 'name' property.
         const shift = item.item as ShopShift;
         return `Shift from ${new Date(shift.startTime).toLocaleTimeString()} to ${new Date(shift.endTime).toLocaleTimeString()}`;
       }
@@ -141,7 +138,6 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
         const goal = item.item as Goal;
         return `${goal.name} (${formatCurrency(goal.targetAmount)})`;
       }
-      // Fix: Replaced 'shoppingList' with 'note' to match ItemType.
       case 'note':
         return (item.item as Note).title;
       case 'glossaryEntry':
@@ -164,10 +160,12 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
     return `${seconds}s ago`;
   };
   
-  const allSelected = trustBinItems.length > 0 && selectedIds.size === trustBinItems.length;
+  // Fix: Ensure trustBinItems is an array before accessing length
+  const allSelected = Array.isArray(trustBinItems) && trustBinItems.length > 0 && selectedIds.size === trustBinItems.length;
   
   const groupedItems = useMemo(() => {
-    return trustBinItems.reduce((acc, item) => {
+    // Fix: Ensure trustBinItems is an array before calling reduce
+    return (Array.isArray(trustBinItems) ? trustBinItems : []).reduce((acc, item) => {
         const type = item.itemType.charAt(0).toUpperCase() + item.itemType.slice(1) + 's';
         if (!acc[type]) {
             acc[type] = [];

@@ -1,7 +1,24 @@
+
+
+
+
 import React, { useContext, useMemo } from 'react';
 import { ActiveScreen } from '../types';
-// Fix: Corrected import path for context
 import { SettingsContext } from '../contexts/SettingsContext';
+
+// Definitions for the footer icons and labels
+export const NAV_ITEM_DEFINITIONS: Record<string, { label: string, icon: React.ReactNode }> = {
+    dashboard: { label: 'Dashboard', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h7.5" /></svg> },
+    reports: { label: 'Reports', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg> },
+    budgets: { label: 'Budgets', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 019 9v.375M10.125 2.25A3.375 3.375 0 0113.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 013.375 3.375M9 15l2.25 2.25L15 12" /></svg> },
+    goals: { label: 'Goals', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9a9.75 9.75 0 100-13.5h9a9.75 9.75 0 100 13.5zM16.5 18.75a9.75 9.75 0 00-9-13.5" /></svg> },
+    investments: { label: 'Invest', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg> },
+    tripManagement: { label: 'Trips', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg> },
+    shop: { label: 'Shop', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-2.849z" /></svg> },
+    calendar: { label: 'Calendar', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18" /></svg> },
+    notes: { label: 'Notes', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg> },
+    more: { label: 'More', icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" strokeWidth={1.5} stroke="currentColor" className="icon"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg> }
+};
 
 interface FooterProps {
   activeScreen: ActiveScreen;
@@ -9,143 +26,42 @@ interface FooterProps {
   onAddClick: () => void;
 }
 
-export const NAV_ITEM_DEFINITIONS: Record<ActiveScreen, { label: string, icon: React.ReactNode }> = {
-    dashboard: { 
-      label: 'Dashboard', 
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-    },
-    live: { 
-      label: 'Live', 
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-    },
-    reports: { 
-      label: 'Reports', 
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-    },
-    budgets: { 
-      label: 'Budgets', 
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
-    },
-    more: { 
-      label: 'Hub', 
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
-    },
-    investments: {
-      label: 'Investments',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-    },
-    goals: {
-      label: 'Goals',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>
-    },
-    tripManagement: {
-        label: 'Trips',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-    },
-    scheduled: { 
-        label: 'Scheduled', 
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-    },
-    calculator: { 
-        label: 'Calculator', 
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m-6 4h6m-6 4h6m2 4H7a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v11a2 2 0 01-2 2z" /></svg>
-    },
-    achievements: { 
-        label: 'Achievements', 
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H4a1 1 0 00-1 1v6a1 1 0 001 1h1v4a1 1 0 001 1h8a1 1 0 001-1v-4h1a1 1 0 001-1v-6a1 1 0 00-1-1h-1V6a3 3 0 00-3-3H8a3 3 0 00-3 3v3z" /></svg>
-    },
-    tripDetails: {
-        label: 'Trip Details',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 16.382V5.618a1 1 0 00-1.447-.894L15 7m-6 13v-3" /></svg>
-    },
-    refunds: {
-        label: 'Refunds',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-    },
-    dataHub: {
-        label: 'Data Hub',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4M4 7l8 5 8-5" /></svg>
-    },
-    shop: {
-        label: 'Shop',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-    },
-    challenges: {
-        label: 'Challenges',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.657 7.343A8 8 0 0117.657 18.657z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" /></svg>
-    },
-    learn: {
-        label: 'Learn',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-    },
-    calendar: { 
-        label: 'Calendar', 
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-    },
-    notes: {
-        label: 'Notes',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-    },
-    manual: {
-        label: 'Manual',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-    },
-    subscriptions: {
-        label: 'Subscriptions',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-    },
-    glossary: {
-        label: 'Glossary',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-    },
-    debtManager: {
-        label: 'Debt Manager',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-    },
-    faq: {
-        label: 'FAQ',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="icon" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-    },
-};
-
-
 const Footer: React.FC<FooterProps> = ({ activeScreen, setActiveScreen, onAddClick }) => {
   const settingsContext = useContext(SettingsContext);
-  if (!settingsContext) return null;
-  const { settings } = settingsContext;
 
-  const navItems = useMemo(() => {
-    const actions = settings.footerActions?.length === 4 
-      ? settings.footerActions 
-      : ['dashboard', 'reports', 'budgets', 'more'];
-      
-    return actions.map(screen => ({
-      screen,
-      ...(NAV_ITEM_DEFINITIONS[screen] || NAV_ITEM_DEFINITIONS.dashboard) // Fallback for safety
-    }));
-  }, [settings.footerActions]);
+  const footerActions = useMemo(() => {
+    // FIX: Explicitly cast fallback array to ActiveScreen[] to prevent type error.
+    return settingsContext?.settings.footerActions.slice(0, 4) || (['dashboard', 'reports', 'budgets', 'more'] as ActiveScreen[]);
+  }, [settingsContext?.settings.footerActions]);
+
+  const Tab = ({ screen }: { screen: ActiveScreen }) => {
+    const def = NAV_ITEM_DEFINITIONS[screen] || { label: 'Unknown', icon: <p>?</p> };
+    return (
+      <button
+        key={screen}
+        onClick={() => setActiveScreen(screen)}
+        className={`footer-tab ${activeScreen === screen ? 'active' : ''}`}
+        aria-label={def.label}
+      >
+        {def.icon}
+        <span className="label">{def.label}</span>
+      </button>
+    );
+  };
 
   return (
-    <footer className="footer-nav z-20">
-      {navItems.slice(0, 2).map(item => (
-        <button key={item.screen} onClick={() => setActiveScreen(item.screen)} className={`footer-button ${activeScreen === item.screen ? 'active' : ''}`}>
-          {item.icon}
-          <span className="label">{item.label}</span>
-        </button>
-      ))}
-      <div className="flex justify-center">
-        <button onClick={onAddClick} className="footer-add-button" aria-label="Add Transaction">
+    <footer className="app-footer">
+      <nav className="footer-nav">
+        <Tab screen={footerActions[0]} />
+        <Tab screen={footerActions[1]} />
+        <button onClick={onAddClick} className="footer-action-button" aria-label="Add Transaction">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
         </button>
-      </div>
-      {navItems.slice(2).map(item => (
-        <button key={item.screen} onClick={() => setActiveScreen(item.screen)} className={`footer-button ${activeScreen === item.screen ? 'active' : ''}`}>
-          {item.icon}
-          <span className="label">{item.label}</span>
-        </button>
-      ))}
+        <Tab screen={footerActions[2]} />
+        <Tab screen={footerActions[3]} />
+      </nav>
     </footer>
   );
 };

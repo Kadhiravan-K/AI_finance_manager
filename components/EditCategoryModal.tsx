@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
+// Fix: Corrected import path for types.
 import { Category, TransactionType } from '../types';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
@@ -12,7 +13,7 @@ interface EditCategoryModalProps {
   initialType?: TransactionType;
   categories: Category[];
   onSave: (category: Omit<Category, 'id'>, id?: string) => void;
-  onCancel: () => void;
+  onClose: () => void;
 }
 
 const labelStyle = "block text-sm font-medium text-secondary mb-1";
@@ -23,7 +24,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
   initialType, 
   categories, 
   onSave, 
-  onCancel 
+  onClose 
 }) => {
   const isCreating = !category;
   
@@ -51,7 +52,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData, category?.id);
-    onCancel();
+    onClose();
   };
 
   const parentOptions = useMemo(() => {
@@ -71,7 +72,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
   const modalContent = (
     <div
       className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4"
-      onClick={onCancel}
+      onClick={onClose}
       aria-modal="true"
       role="dialog"
     >
@@ -79,7 +80,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
         className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 border border-divider opacity-0 animate-scaleIn"
         onClick={e => e.stopPropagation()}
       >
-        <ModalHeader title={isCreating ? "Add Category" : "Edit Category"} onClose={onCancel} />
+        <ModalHeader title={isCreating ? "Add Category" : "Edit Category"} onClose={onClose} />
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div className="grid grid-cols-6 gap-3">
              <div className="col-span-1">
@@ -102,32 +103,34 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
                 name="name"
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
-                className="input-base w-full rounded-full py-2 px-3"
+                className="input-base w-full rounded-lg py-2 px-3"
+                required
+                autoFocus
               />
             </div>
           </div>
           <div>
-            <label className={labelStyle}>Type</label>
+            <label className={labelStyle}>Parent Category</label>
             <CustomSelect
-                value={formData.type}
-                onChange={(v) => handleChange('type', v as TransactionType)}
-                options={typeOptions}
-                disabled={!!initialParentId}
+              options={parentOptions}
+              value={formData.parentId || ''}
+              onChange={(value) => handleChange('parentId', value)}
+              disabled={!!initialParentId}
             />
           </div>
           <div>
-            <label className={labelStyle}>Parent Category</label>
+            <label className={labelStyle}>Type</label>
             <CustomSelect
-                value={formData.parentId || ''}
-                onChange={(v) => handleChange('parentId', v)}
-                options={parentOptions}
-                disabled={!!initialParentId}
+                options={typeOptions}
+                value={formData.type}
+                onChange={(value) => handleChange('type', value as TransactionType)}
+                disabled={!!initialType || !!formData.parentId}
             />
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button
               type="button"
-              onClick={onCancel}
+              onClick={onClose}
               className="button-secondary px-4 py-2"
             >
               Cancel
@@ -143,7 +146,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
       </div>
     </div>
   );
-  
+
   return ReactDOM.createPortal(modalContent, modalRoot);
 };
 

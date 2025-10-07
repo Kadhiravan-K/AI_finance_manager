@@ -1,4 +1,3 @@
-
 import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Goal, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
@@ -105,7 +104,6 @@ const GoalCard: React.FC<{
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (percentage / 100) * circumference;
 
-    // Fix: Use Priority enum members instead of string literals.
     const priorities: Priority[] = [Priority.NONE, Priority.LOW, Priority.MEDIUM, Priority.HIGH];
     const priorityStyles: Record<Priority, { buttonClass: string; }> = {
         [Priority.HIGH]: { buttonClass: 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30' },
@@ -115,7 +113,6 @@ const GoalCard: React.FC<{
     };
 
     const handlePriorityChange = () => {
-        // Fix: Use Priority enum member for default value.
         const currentPriority = goal.priority || Priority.NONE;
         const currentIndex = priorities.indexOf(currentPriority);
         const nextIndex = (currentIndex + 1) % priorities.length;
@@ -228,8 +225,8 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
       onEditGoal({
           name: aiSuggestion.name,
           icon: '🎯',
-          targetAmount: aiSuggestion.targetAmount.toString(),
-      } as any);
+          targetAmount: aiSuggestion.targetAmount,
+      } as Goal);
       setAiSuggestion(null);
   };
   

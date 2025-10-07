@@ -1,11 +1,9 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
 import LoadingSpinner from './LoadingSpinner';
-import { ActiveModal, ActiveScreen, AppState, FinancialScenarioResult } from '../types';
-import { runFinancialScenario, getAICoachAction } from '../services/geminiService';
+import { ActiveModal, ActiveScreen, AppState, FinancialScenarioResult, ParsedReceiptData, Transaction, TransactionType, ItemizedDetail } from '../types';
+import { runFinancialScenario, getAICoachAction, parseReceiptImage } from '../services/geminiService';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -49,17 +47,18 @@ const SimulationResultCard: React.FC<{ result: FinancialScenarioResult }> = ({ r
     );
 };
 
-
 const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNavigate, appState }) => {
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<{ role: 'user' | 'model', text?: string, component?: React.ReactNode }[]>([
-      { role: 'model', text: "Hello! I'm your AI Financial Coach. Ask me to add transactions, run simulations, or analyze your spending." }
+      { role: 'model', text: "Hello! I'm your AI Financial Coach. Ask me to add transactions, run simulations, or analyze your spending. You can also upload a receipt image." }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const [isListening, setIsListening] = useState(false);
+  const [file, setFile] = useState<{name: string, type: string, data: string, preview: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
   useEffect(() => { if (!isLoading) inputRef.current?.focus(); }, [isLoading]);
@@ -100,41 +99,97 @@ const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNa
     }
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            const base64Data = dataUrl.split(',')[1];
+            if (base64Data) {
+                setFile({ name: selectedFile.name, type: selectedFile.type, data: base64Data, preview: dataUrl });
+                setQuery(`Analyze this receipt for ${selectedFile.name}`);
+                inputRef.current?.focus();
+            }
+        };
+        reader.onerror = (error) => console.error("Error reading file:", error);
+        reader.readAsDataURL(selectedFile);
+    }
+    if (event.target) event.target.value = '';
+  };
+
+  const handleSendCommand = async (command: string, attachedFile?: {name: string, type: string, data: string}) => {
+    if (attachedFile) {
+        try {
+            const receiptData = await parseReceiptImage(attachedFile.data, attachedFile.type);
+            if (receiptData) {
+                const itemizedDetails: ItemizedDetail[] = receiptData.lineItems.map(item => ({
+                    description: item.description,
+                    amount: item.amount,
+                    categoryId: '', // User will categorize this
+                }));
+
+                const partialTransaction: Partial<Transaction> = {
+                    description: receiptData.merchantName,
+                    amount: receiptData.totalAmount,
+                    date: receiptData.transactionDate,
+                    type: TransactionType.EXPENSE,
+                    itemizedDetails: itemizedDetails.length > 0 ? itemizedDetails : undefined,
+                };
+                
+                onNavigate('dashboard', 'addTransaction', { initialTransaction: partialTransaction, isItemized: true });
+                return `I've analyzed the receipt from ${receiptData.merchantName}. Please review and categorize the details.`;
+            } else {
+                return "I couldn't read that receipt clearly. Please try again with a clearer image.";
+            }
+        } catch(e) {
+            console.error(e);
+            return `Sorry, I had trouble analyzing that image. ${e instanceof Error ? e.message : ''}`;
+        }
+    }
+
+    // If no file, proceed with normal coach action
+    const chatHistoryForModel = history.map(h => ({ role: h.role, text: h.text || 'Component Response' }));
+    const action = await getAICoachAction(command, appState, chatHistoryForModel);
+    
+    if (action.clarification) {
+        return action.clarification;
+    }
+
+    switch (action.action) {
+        case 'run_simulation':
+            const simulationResult = await runFinancialScenario(appState, action.payload.query);
+            setHistory(prev => [...prev, { role: 'model', component: <SimulationResultCard result={simulationResult} /> }]);
+            return ""; // Component handles its own display
+        case 'navigate':
+            onNavigate(action.payload.screen);
+            return `Navigating you to ${action.payload.screen}...`;
+        case 'create_transaction':
+            return await onExecuteCommand(action.payload);
+        case 'chat':
+        default:
+            return action.payload.response;
+    }
+  };
+
+
   const handleSubmit = async (e: React.FormEvent, prompt?: string) => {
     e.preventDefault();
     const userQuery = prompt || query;
     if (!userQuery.trim() || isLoading) return;
 
+    const attachedFile = file ? { name: file.name, type: file.type, data: file.data } : undefined;
+
     setHistory(prev => [...prev, { role: 'user', text: userQuery }]);
     setQuery('');
+    setFile(null);
     setIsLoading(true);
 
     try {
-      const chatHistoryForModel = history.map(h => ({ role: h.role, text: h.text || 'Component Response' }));
-      const action = await getAICoachAction(userQuery, appState, chatHistoryForModel);
-
-      if (action.clarification) {
-          setHistory(prev => [...prev, { role: 'model', text: action.clarification }]);
-      } else {
-          switch (action.action) {
-              case 'run_simulation':
-                  const simulationResult = await runFinancialScenario(appState, action.payload.query);
-                  setHistory(prev => [...prev, { role: 'model', component: <SimulationResultCard result={simulationResult} /> }]);
-                  break;
-              case 'navigate':
-                  onNavigate(action.payload.screen);
-                  setHistory(prev => [...prev, { role: 'model', text: `Navigating you to ${action.payload.screen}...` }]);
-                  break;
-              case 'create_transaction':
-                  const commandResponse = await onExecuteCommand(action.payload);
-                  setHistory(prev => [...prev, { role: 'model', text: commandResponse }]);
-                  break;
-              case 'chat':
-              default:
-                  setHistory(prev => [...prev, { role: 'model', text: action.payload.response }]);
-                  break;
-          }
-      }
+        const responseText = await handleSendCommand(userQuery, attachedFile);
+        if (responseText) { // handleSendCommand may have already updated history with a component
+            setHistory(prev => [...prev, { role: 'model', text: responseText }]);
+        }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setHistory(prev => [...prev, { role: 'model', text: `Error: ${errorMessage}` }]);
@@ -162,7 +217,7 @@ const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNa
           <div ref={chatEndRef} />
         </div>
 
-        {history.length <= 1 && (
+        {history.length <= 1 && !file && (
             <div className="p-4 border-t border-divider flex-shrink-0">
                 <div className="grid grid-cols-2 gap-2">
                     {suggestedPrompts.map(p => (
@@ -174,7 +229,24 @@ const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNa
             </div>
         )}
 
+        {file && (
+            <div className="p-2 border-t border-divider flex-shrink-0">
+                <div className="bg-subtle p-2 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <img src={file.preview} alt="upload preview" className="w-10 h-10 rounded object-cover"/>
+                        <span className="text-xs text-secondary">{file.name}</span>
+                    </div>
+                    <button onClick={() => setFile(null)} className="p-1 text-rose-400">&times;</button>
+                </div>
+            </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex-shrink-0 p-4 border-t border-divider flex items-end gap-2">
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0" aria-label="Attach file">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+            </button>
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*"/>
+
             <button type="button" onClick={handleListen} className={`button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0 ${isListening ? 'bg-rose-500/80 text-white animate-pulse' : ''}`} aria-label="Use voice command"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" /></svg></button>
             <textarea 
                 ref={inputRef}
@@ -186,12 +258,12 @@ const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNa
                     handleSubmit(e);
                   }
                 }}
-                placeholder="Type or speak..."
+                placeholder="Type, speak, or attach receipt..."
                 className="w-full input-base rounded-2xl py-2 px-4 resize-none h-12"
                 rows={1}
                 disabled={isLoading}
             />
-            <button type="submit" disabled={isLoading || !query.trim()} className="button-primary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0">
+            <button type="submit" disabled={isLoading || (!query.trim() && !file)} className="button-primary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
             </button>
         </form>

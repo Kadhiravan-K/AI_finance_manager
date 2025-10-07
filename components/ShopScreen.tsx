@@ -1,13 +1,11 @@
-
-
 import React, { useState, useMemo, useContext } from 'react';
-import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, Contact } from '../types';
+import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, InvoiceStatus } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import EmptyState from './EmptyState';
-import ShopPOSScreen from './components/ShopPOSScreen';
-import ShopProductsScreen from './components/ShopProductsScreen';
-import ShopAnalyticsScreen from './components/ShopAnalyticsScreen';
+import ShopPOSScreen from './ShopPOSScreen';
+import ShopProductsScreen from './ShopProductsScreen';
+import ShopAnalyticsScreen from './ShopAnalyticsScreen';
 
 interface ShopScreenProps {
   shops: Shop[];
@@ -29,42 +27,6 @@ interface ShopScreenProps {
 
 type ShopDetailsTab = 'billing' | 'products' | 'invoices' | 'analytics' | 'employees';
 
-export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...rest }) => {
-    const [selectedShopId, setSelectedShopId] = useState<string | null>(shops[0]?.id || null);
-
-    if (shops.length === 0) {
-        return (
-            <div className="h-full flex flex-col items-center justify-center p-4">
-                 <EmptyState
-                    icon="🏪"
-                    title="Welcome to the Shop Hub"
-                    message="Create your first shop to start managing sales, products, and invoices."
-                    actionText="Create First Shop"
-                    onAction={() => openModal('editShop')}
-                />
-            </div>
-        )
-    }
-
-    if (!selectedShopId && shops.length > 0) {
-        setSelectedShopId(shops[0].id);
-    }
-    
-    const selectedShop = shops.find(s => s.id === selectedShopId);
-
-    return (
-        <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-primary">{selectedShop?.name || 'Shop'}</h2>
-                <button onClick={() => openModal('editShop', { shop: selectedShop })} className="button-secondary text-sm p-2 rounded-full aspect-square">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
-            </div>
-            {selectedShop && <ShopDetails shop={selectedShop} openModal={openModal} {...rest} />}
-        </div>
-    )
-}
-
 const InvoicesList: React.FC<{ shop: Shop; openModal: (name: ActiveModal, props?: any) => void }> = ({ shop, openModal }) => {
     const { invoices } = useContext(AppDataContext);
     const { contacts } = useContext(SettingsContext);
@@ -74,7 +36,10 @@ const InvoicesList: React.FC<{ shop: Shop; openModal: (name: ActiveModal, props?
     const contactMap = useMemo(() => new Map(contacts.map(c => [c.id, c.name])), [contacts]);
 
     const statusColors: Record<Invoice['status'], string> = {
-        'Draft': 'bg-slate-500', 'Sent': 'bg-sky-500', 'Paid': 'bg-emerald-500', 'Overdue': 'bg-rose-500'
+        [InvoiceStatus.DRAFT]: 'bg-slate-500', 
+        [InvoiceStatus.SENT]: 'bg-sky-500', 
+        [InvoiceStatus.PAID]: 'bg-emerald-500', 
+        [InvoiceStatus.OVERDUE]: 'bg-rose-500'
     };
     
     return (
@@ -105,7 +70,6 @@ const InvoicesList: React.FC<{ shop: Shop; openModal: (name: ActiveModal, props?
     );
 };
 
-
 const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDeleteShop'> & {shop: Shop}> = ({ shop, openModal, products, sales, onDeleteProduct, onRecordSale }) => {
     const [activeTab, setActiveTab] = useState<ShopDetailsTab>('billing');
 
@@ -122,7 +86,7 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
         <div className="h-full flex flex-col">
             <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
                 <div className="flex items-center gap-1">
-                    {/* Fix: Added missing children to TabButton components */}
+                    {/* FIX: Add children to TabButton components */}
                     <TabButton active={activeTab === 'billing'} onClick={() => setActiveTab('billing')}>Billing</TabButton>
                     <TabButton active={activeTab === 'products'} onClick={() => setActiveTab('products')}>Products</TabButton>
                     <TabButton active={activeTab === 'invoices'} onClick={() => setActiveTab('invoices')}>Invoices</TabButton>
@@ -142,4 +106,40 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
              )}
         </div>
     )
-}
+};
+
+export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...rest }) => {
+    const [selectedShopId, setSelectedShopId] = useState<string | null>(shops[0]?.id || null);
+
+    if (shops.length === 0) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-4">
+                 <EmptyState
+                    icon="🏪"
+                    title="Welcome to the Shop Hub"
+                    message="Create your first shop to start managing sales, products, and invoices."
+                    actionText="Create First Shop"
+                    onAction={() => openModal('editShop')}
+                />
+            </div>
+        )
+    }
+
+    if (!selectedShopId && shops.length > 0) {
+        setSelectedShopId(shops[0].id);
+    }
+    
+    const selectedShop = shops.find(s => s.id === selectedShopId);
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-primary">{selectedShop?.name || 'Shop'}</h2>
+                <button onClick={() => openModal('editShop', { shop: selectedShop })} className="button-secondary text-sm p-2 rounded-full aspect-square">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </button>
+            </div>
+            {selectedShop && <ShopDetails shop={selectedShop} openModal={openModal} {...rest} />}
+        </div>
+    )
+};

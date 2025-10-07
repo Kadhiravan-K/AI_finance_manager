@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { SplitDetail, TripParticipant } from '../types';
+import { SplitDetail, TripParticipant, USER_SELF_ID } from '../types';
 import CustomSelect from './CustomSelect';
 import CustomCheckbox from './CustomCheckbox';
-import { USER_SELF_ID } from '../constants';
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 
@@ -54,10 +53,14 @@ interface SplitManagerProps {
     isPayerManager?: boolean;
 }
 
-const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, participants, onParticipantsChange, totalAmount, allParticipants, formatCurrency, isPayerManager }) => {
+export const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, participants, onParticipantsChange, totalAmount, allParticipants, formatCurrency, isPayerManager }) => {
     
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [tempSelected, setTempSelected] = useState(new Set<string>(participants.map(p=>p.id)));
+    
+    useEffect(() => {
+        setTempSelected(new Set(participants.map(p=>p.id)))
+    }, [participants]);
 
     const handleDetailChange = (id: string, field: 'amount' | 'percentage' | 'shares', value: string) => {
       const newParticipants = participants.map(p => {
@@ -95,7 +98,14 @@ const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, 
         onParticipantsChange([...participants, ...newParticipants]);
         setIsPickerOpen(false);
     };
-    const handleRemovePerson = (id: string) => onParticipantsChange(participants.filter(p => p.id !== id));
+    const handleRemovePerson = (id: string) => {
+        onParticipantsChange(participants.filter(p => p.id !== id));
+        setTempSelected(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+        });
+    };
     
     const totalAssigned = useMemo(() => participants.reduce((sum, p) => sum + p.amount, 0), [participants]);
     const remainder = totalAmount - totalAssigned;
@@ -144,5 +154,3 @@ const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeChange, 
         </div>
     );
 };
-
-export default SplitManager;

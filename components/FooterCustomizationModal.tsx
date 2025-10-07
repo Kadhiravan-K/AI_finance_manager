@@ -1,5 +1,4 @@
-
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { SettingsContext } from '../contexts/SettingsContext';
 import { ActiveScreen } from '../types';

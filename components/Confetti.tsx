@@ -1,21 +1,58 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
-const Confetti: React.FC = () => {
+interface ConfettiProps {
+    onFinish: () => void;
+}
+
+const Confetti: React.FC<ConfettiProps> = ({ onFinish }) => {
   const confettiCount = 150;
   const colors = ['#10b981', '#8b5cf6', '#38bdf8', '#f43f5e', '#eab308'];
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFinish();
+    }, 5000); // Should match the longest animation duration
+    return () => clearTimeout(timer);
+  }, [onFinish]);
 
   return (
     <div className="confetti-container" aria-hidden="true">
       {Array.from({ length: confettiCount }).map((_, i) => (
         <div key={i} className="confetti-piece" style={{
           left: `${Math.random() * 100}%`,
-          animation: `drop ${2 + Math.random() * 3}s ${Math.random() * 2}s linear infinite`,
+          animation: `drop ${2 + Math.random() * 3}s ${Math.random() * 2}s linear forwards`,
           transform: `rotate(${Math.random() * 360}deg)`,
           backgroundColor: colors[i % colors.length],
           width: `${5 + Math.random() * 5}px`,
           height: `${10 + Math.random() * 10}px`,
         }}></div>
       ))}
+       <style>{`
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+        }
+        .confetti-piece {
+            position: absolute;
+            top: -20px;
+        }
+        @keyframes drop {
+            0% {
+                transform: translateY(0) rotate(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(110vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+      `}</style>
     </div>
   );
 };

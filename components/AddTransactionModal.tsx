@@ -1,18 +1,17 @@
-
 import React, { useState, useEffect, useContext, useMemo } from 'react';
-import { Account, Contact, Transaction, TransactionType, ActiveModal, SpamWarning, ItemizedDetail, SplitDetail, ParsedTransactionData, Category, Sender, SenderType } from '../types';
+import { Account, Contact, Transaction, TransactionType, ActiveModal, SpamWarning, ItemizedDetail, SplitDetail, ParsedTransactionData, Category, Sender, SenderType, USER_SELF_ID } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
 import { parseTransactionText } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-// Fix: Use a named import for SpamWarningCard as it does not have a default export.
 import { SpamWarningCard } from './SpamWarningCard';
 import ModalHeader from './ModalHeader';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import SplitManager from './SplitManager';
-import { USER_SELF_ID } from '../constants';
+// FIX: Corrected import paths for SplitManager.
+import { SplitManager } from './SplitManager';
+// FIX: Corrected import paths for SplitItemModal.
 import SplitItemModal from './SplitItemModal';
 
 interface Item {
@@ -25,8 +24,8 @@ interface Item {
 }
 
 interface AddTransactionModalProps {
-  onCancel: () => void;
-  onSaveAuto: (text: string, accountId?: string) => Promise<void>;
+  onClose: () => void;
+  onSaveAuto: (data: ParsedTransactionData, accountId: string) => Promise<void>;
   onSaveManual: (transaction: Transaction) => void;
   accounts: Account[];
   contacts: Contact[];
@@ -36,10 +35,12 @@ interface AddTransactionModalProps {
   onInitialTextConsumed: () => void;
   initialTab?: 'auto' | 'manual';
   transactionToDuplicate?: Transaction;
+  initialTransaction?: Partial<Transaction>;
+  isItemized?: boolean;
 }
 
 const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
-  onCancel, onSaveAuto, onSaveManual, accounts, contacts, openModal, onOpenCalculator, initialText, onInitialTextConsumed, initialTab, transactionToDuplicate
+  onClose, onSaveAuto, onSaveManual, accounts, contacts, openModal, onOpenCalculator, initialText, onInitialTextConsumed, initialTab, transactionToDuplicate, initialTransaction, isItemized: isItemizedProp
 }) => {
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(initialTab || 'manual');
   const settingsContext = useContext(SettingsContext);
@@ -58,7 +59,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || '');
 
   // Manual Tab State
-  const [isItemized, setIsItemized] = useState(false);
+  const [isItemized, setIsItemized] = useState(isItemizedProp || false);
   const [manualDescription, setManualDescription] = useState('');
   const [manualAmount, setManualAmount] = useState('');
   const [manualType, setManualType] = useState<TransactionType>(TransactionType.EXPENSE);
@@ -121,6 +122,42 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     }
   }, [isItemized, itemizedTotal]);
   
+  useEffect(() => {
+    if (initialTransaction) {
+        setActiveTab('manual');
+        if (initialTransaction.itemizedDetails || isItemizedProp) {
+            setIsItemized(true);
+        }
+        setManualDescription(initialTransaction.description || '');
+        setManualAmount(String(initialTransaction.amount || ''));
+        setManualType(initialTransaction.type || TransactionType.EXPENSE);
+        setManualAccountId(initialTransaction.accountId || accounts[0]?.id || '');
+        if (initialTransaction.date) {
+            setManualDate(new Date(initialTransaction.date));
+        }
+        if (initialTransaction.itemizedDetails) {
+            setItems(initialTransaction.itemizedDetails.map(d => {
+                const category = categories.find(c => c.id === d.categoryId);
+                return {
+                    id: self.crypto.randomUUID(),
+                    description: d.description,
+                    amount: String(d.amount),
+                    categoryId: d.categoryId,
+                    parentId: category?.parentId || (category ? category.id : ''),
+                    splitDetails: d.splitDetails || [],
+                };
+            }));
+        } else {
+            const category = categories.find(c => c.id === initialTransaction.categoryId);
+            if (category) {
+                setManualCategoryId(category.parentId || category.id);
+                setManualSubCategoryId(category.parentId ? category.id : '');
+            }
+        }
+    }
+}, [initialTransaction, isItemizedProp, categories, accounts]);
+
+
   const handleItemChange = (id: string, field: keyof Item, value: any) => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
@@ -137,8 +174,8 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         if (parsedData.isSpam) {
           setSpamWarning({ rawText: autoText, parsedData });
         } else {
-          await onSaveAuto(autoText, selectedAccountId);
-          onCancel();
+          await onSaveAuto(parsedData, selectedAccountId);
+          onClose();
         }
       } else {
         alert("Could not understand the transaction from the text provided.");
@@ -166,8 +203,8 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         }
     }
     
-    onSaveAuto(spamWarning.rawText, selectedAccountId);
-    onCancel();
+    onSaveAuto(spamWarning.parsedData, selectedAccountId);
+    onClose();
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -208,7 +245,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         };
     }
     onSaveManual(transactionData);
-    onCancel();
+    onClose();
   };
 
   const handleSaveItemSplit = (splits: SplitDetail[]) => {
@@ -242,9 +279,9 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           currency={selectedAccount?.currency || settings.currency}
         />
       )}
-      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg border border-divider opacity-0 animate-scaleIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-          <ModalHeader title="Add Transaction" onClose={onCancel} />
+          <ModalHeader title="Add Transaction" onClose={onClose} />
           <div className="flex border-b border-divider flex-shrink-0">
             <button onClick={() => setActiveTab('auto')} className={`add-tx-tab w-full py-3 px-4 ${activeTab === 'auto' ? 'active' : ''}`}>AI Parse</button>
             <button onClick={() => setActiveTab('manual')} className={`add-tx-tab w-full py-3 px-4 ${activeTab === 'manual' ? 'active' : ''}`}>Manual</button>
@@ -359,7 +396,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (Optional)" className="input-base w-full p-2 rounded-lg" rows={2} />
 
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+                <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
                 <button type="submit" className="button-primary px-4 py-2">Save Transaction</button>
               </div>
             </form>

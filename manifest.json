@@ -21,5 +21,15 @@
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#0f172a",
-  "background_color": "#020617"
+  "background_color": "#020617",
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "name",
+      "text": "shared_text",
+      "url": "url"
+    }
+  }
 }

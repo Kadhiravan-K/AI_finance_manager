@@ -1,12 +1,13 @@
-const CACHE_NAME = 'finance-hub-cache-v1';
+const CACHE_NAME = 'finance-hub-cache-v3';
 const urlsToCache = [
   '/',
   '/index.html',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
-  'https://esm.sh/react@^19.1.1',
-  'https://esm.sh/react-dom@^19.1.1/client',
-  'https://esm.sh/@google/genai@^1.15.0'
+  'https://aistudiocdn.com/react@19.1.1',
+  'https://aistudiocdn.com/react-dom@19.1.1/client',
+  'https://aistudiocdn.com/@google/genai@1.17.0',
+  'https://aistudiocdn.com/@supabase/supabase-js@2.58.0'
 ];
 
 self.addEventListener('install', event => {

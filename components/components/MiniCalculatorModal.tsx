@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from '../ModalHeader';
@@ -78,8 +77,8 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
                 <div className="text-secondary text-sm h-5 truncate" aria-live="polite">{expression || '0'}</div>
                 <div className="text-primary text-2xl font-bold h-8 truncate" aria-live="polite">{result}</div>
             </div>
+            {/* FIX: Add children to CalcButton components */}
             <div className="grid grid-cols-4 gap-1.5">
-                {/* Fix: Added missing children to CalcButton components */}
                 <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('DEL')} className="calc-btn-special">DEL</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('%')} className="calc-btn-operator">%</CalcButton>

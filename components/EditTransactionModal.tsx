@@ -1,7 +1,12 @@
+
+
+
+
 import React, { useState, useMemo, useContext, useEffect } from 'react';
+// Fix: Corrected import path for types.
 import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '../types';
 // Fix: Corrected import path for context
-import { SettingsContext, AppDataContext } from '../contexts/SettingsContext';
+import { SettingsContext } from '../contexts/SettingsContext';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
 import ToggleSwitch from './ToggleSwitch';
@@ -129,6 +134,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
              transactionData = { ...transaction, description, amount: finalAmount, type, categoryId: subCategoryId || categoryId, notes, itemizedDetails: undefined, splitDetails };
         }
         onSave(transactionData);
+        onClose();
     };
 
     return (

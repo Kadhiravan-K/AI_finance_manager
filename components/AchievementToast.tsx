@@ -7,25 +7,28 @@ interface AchievementToastProps {
 }
 
 const AchievementToast: React.FC<AchievementToastProps> = ({ achievement, onDismiss }) => {
-  const [exiting, setExiting] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setExiting(true);
-    }, 4000); // Wait 4 seconds
+    const enterTimer = setTimeout(() => setVisible(true), 100); // Animate in after mount
 
     const exitTimer = setTimeout(() => {
+      setVisible(false); // Animate out
+    }, 4000); // Wait 4 seconds
+
+    const dismissTimer = setTimeout(() => {
         onDismiss();
     }, 4500); // Dismiss after animation
 
     return () => {
-        clearTimeout(timer);
+        clearTimeout(enterTimer);
         clearTimeout(exitTimer);
+        clearTimeout(dismissTimer);
     };
   }, [onDismiss]);
 
   return (
-    <div className={`achievement-toast ${exiting ? 'toast-exit' : 'toast-enter'}`}>
+    <div className={`achievement-toast ${visible ? 'visible' : ''}`}>
       <div className="glass-card flex items-center gap-4 p-4 rounded-xl shadow-lg border border-emerald-500/50">
         <div className="text-4xl">{achievement.icon}</div>
         <div>

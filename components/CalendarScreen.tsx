@@ -1,3 +1,8 @@
+
+
+
+
+
 import React, { useState, useMemo, useContext } from 'react';
 import { CalendarEvent, ActiveScreen, ActiveModal } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
@@ -140,6 +145,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
                     title="Connect Your Calendar"
                     message="Enable the Google Calendar integration to see your financial events here."
                     actionText="Go to Integrations"
+// Fix: Use 'integrations' which is a valid ActiveModal type
                     onAction={() => onNavigate('more', 'integrations')}
                 />
             </div>
@@ -178,7 +184,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
                     const eventsOnDay = calendarEvents.filter(e => e.date.toDateString() === date.toDateString());
                     
                     return (
-                        <div key={day} onClick={() => handleAddEvent(date)} className={`p-1 text-center rounded-lg cursor-pointer aspect-square flex flex-col items-center justify-start transition-colors ${isSelected ? 'bg-emerald-500/30' : 'hover:bg-subtle'}`}>
+                        <div key={day} onClick={() => setSelectedDate(date)} className={`p-1 text-center rounded-lg cursor-pointer aspect-square flex flex-col items-center justify-start transition-colors ${isSelected ? 'bg-emerald-500/30' : 'hover:bg-subtle'}`}>
                             <span className={`w-7 h-7 flex items-center justify-center rounded-full text-sm ${isToday ? 'bg-emerald-500 text-white' : 'text-primary'}`}>{day}</span>
                             <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap px-1">
                                 {eventsOnDay.slice(0, 3).map(e => <div key={e.id} className={`w-2 h-2 rounded-full ${colorMap[e.color]}`}></div>)}

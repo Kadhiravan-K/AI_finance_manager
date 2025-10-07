@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+// Fix: Corrected import path for types.
 import { Transaction, TransactionType, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import { getTopLevelCategory } from '../utils/categories';

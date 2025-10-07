@@ -1,5 +1,6 @@
 
-import React, { useContext, useState } from 'react';
+
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import { ActiveModal, ActiveScreen } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
 import ConfirmationDialog from './ConfirmationDialog';
@@ -33,13 +34,51 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
     }
   }
 
-  const ToolButton: React.FC<{ screen?: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>, icon: string, label: string }> = ({ screen, modal, modalProps, icon, label }) => (
-    <button onClick={() => handleNav(screen, modal, modalProps)} className={`${layout === 'grid' ? "management-tool-button" : "management-list-item"} interactive-card`}>
-      <div className="glow-effect"></div>
-      <span className={layout === 'grid' ? "text-3xl" : "text-2xl"}>{icon}</span>
-      <span className={layout === 'grid' ? "text-xs font-semibold" : "font-semibold"}>{label}</span>
-    </button>
-  );
+  const ToolButton: React.FC<{ screen?: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>, icon: string, label: string }> = ({ screen, modal, modalProps, icon, label }) => {
+    const cardRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        const card = cardRef.current;
+        if (!card || !settings.hubCursorGlowEffect) return;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const rotateX = (y - centerY) / 10;
+            const rotateY = (centerX - x) / 10;
+            
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`;
+            
+            const glow = card.querySelector('.glow-effect') as HTMLElement;
+            if(glow) {
+                glow.style.transform = `translate(${x - 75}px, ${y - 75}px)`;
+            }
+        };
+        
+        const handleMouseLeave = () => {
+            card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+        };
+        
+        card.addEventListener('mousemove', handleMouseMove);
+        card.addEventListener('mouseleave', handleMouseLeave);
+        
+        return () => {
+            card.removeEventListener('mousemove', handleMouseMove);
+            card.removeEventListener('mouseleave', handleMouseLeave);
+        };
+    }, [settings.hubCursorGlowEffect]);
+      
+      return (
+        <button ref={cardRef} onClick={() => handleNav(screen, modal, modalProps)} className={`${layout === 'grid' ? "management-tool-button" : "management-list-item"} interactive-card`}>
+          <div className="glow-effect"></div>
+          <span className={`${layout === 'grid' ? "text-3xl" : "text-2xl"} transition-transform duration-300 tool-icon text-secondary`}>{icon}</span>
+          <span className={`${layout === 'grid' ? "text-xs font-semibold" : "font-semibold"} transition-transform duration-300 tool-label text-primary`}>{label}</span>
+        </button>
+      )
+  };
   
   const toolSections = [
     {
@@ -68,7 +107,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
     {
       title: 'Management & Customization',
       tools: [
-        { modal: 'accountsManager', icon: '🏦', label: 'Accounts' },
+        { modal: 'accounts', icon: '🏦', label: 'Accounts' },
         { modal: 'categories', icon: '🏷️', label: 'Categories' },
         { modal: 'contacts', icon: '👥', label: 'Contacts' },
         { modal: 'dashboardSettings', icon: '🎨', label: 'Dashboard' },
@@ -93,6 +132,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
         { modal: 'trustBin', icon: '🗑️', label: 'Trust Bin' },
         { key: 'faq', screen: 'faq', icon: '❓', label: 'FAQ' },
         { key: 'feedback', modal: 'feedback', icon: '📨', label: 'Send Feedback' },
+        { key: 'dataHub', screen: 'dataHub', icon: '🗄️', label: 'Data Hub' },
       ].filter(tool => !tool.key || settings.enabledTools[tool.key as keyof typeof settings.enabledTools])
     }
   ];

@@ -1,10 +1,10 @@
 
+
 import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import { Transaction, Contact, SplitDetail } from '../types';
+import { Transaction, Contact, SplitDetail, USER_SELF_ID } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import { SettingsContext } from '../contexts/SettingsContext';
-import { USER_SELF_ID } from '../constants';
 import CustomCheckbox from './CustomCheckbox';
 
 type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
@@ -52,7 +52,7 @@ const DebouncedNumericInput: React.FC<{
     );
 };
 
-const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transaction, onSave, onCancel, items }) => {
+export const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transaction, onSave, onCancel, items }) => {
   const { contacts } = useContext(SettingsContext);
   const formatCurrency = useCurrencyFormatter(undefined, transaction?.accountId ? transaction.accountId : undefined);
 
@@ -123,7 +123,7 @@ const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transacti
     const newVal = Math.max(0, currentVal + delta);
     handleDetailChange(id, field, String(newVal));
   };
-
+  
   const handleAddPeople = () => {
     const peopleToAdd = allAvailableParticipants
         .filter(p => tempSelected.has(p.id) && !participants.some(pp => pp.id === p.id));
@@ -168,7 +168,7 @@ const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transacti
     );
   }
 
-  const availableToSelect = allAvailableParticipants.filter(p => !participants.some(pp => pp.id === p.id));
+  const availableToSelect = allAvailableParticipants.filter(p => !participants.some(pp => pp.id === p.contactId));
   const TabButton = (props: { active: boolean; children: React.ReactNode; onClick: () => void; }) => <button type="button" {...props} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${props.active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`} />;
 
   return (
@@ -183,8 +183,8 @@ const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transacti
         <div className="p-4 flex-grow overflow-y-auto">
           <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">Split Between</h3>
-            {/* Fix: Added missing children to TabButton components */}
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
+                {/* Fix: Added children to TabButton components */}
                 <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
                 <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>
                 <TabButton active={mode === 'shares'} onClick={() => setMode('shares')}>Shares</TabButton>
@@ -231,5 +231,3 @@ const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ transacti
     </div>
   );
 };
-
-export default SplitTransactionModal;

@@ -50,6 +50,7 @@ const ShopAnalyticsScreen: React.FC<ShopAnalyticsScreenProps> = ({ shop, sales, 
 
     useEffect(() => {
         fetchInsights();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sales, products]);
 
     return (

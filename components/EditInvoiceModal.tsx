@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Invoice, Shop, Contact, InvoiceLineItem, ShopProduct, InvoiceStatus } from '../types';
@@ -15,10 +16,10 @@ interface EditInvoiceModalProps {
   contacts: Contact[];
   products: ShopProduct[];
   onSave: (invoiceData: Omit<Invoice, 'id'>, id?: string) => void;
-  onCancel: () => void;
+  onClose: () => void;
 }
 
-const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, shop, contacts, products, onSave, onCancel }) => {
+const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, shop, contacts, products, onSave, onClose }) => {
     const isEditing = !!invoice;
     const formatCurrency = useCurrencyFormatter(undefined, shop.currency);
     const shopProducts = useMemo(() => products.filter(p => p.shopId === shop.id), [products, shop.id]);
@@ -73,16 +74,16 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, shop, cont
             notes: formState.notes,
         };
         onSave(invoiceData, invoice?.id);
-        onCancel();
+        onClose();
     };
     
     const contactOptions = contacts.map(c => ({ value: c.id, label: c.name }));
     const productOptions = [{value: '', label: 'Select a product'}, ...shopProducts.map(p => ({value: p.id, label: `${p.name} - ${formatCurrency(p.price)}`}))];
 
     const modalContent = (
-         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onCancel}>
+         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onClose}>
             <div className="glass-card rounded-xl shadow-2xl w-full max-w-2xl p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-                <ModalHeader title={isEditing ? 'Edit Invoice' : 'Create Invoice'} onClose={onCancel} />
+                <ModalHeader title={isEditing ? 'Edit Invoice' : 'Create Invoice'} onClose={onClose} />
                 <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="md:col-span-2"><label className="text-sm font-medium text-secondary mb-1">Customer</label><CustomSelect options={contactOptions} value={formState.contactId} onChange={val => setFormState(p => ({...p, contactId: val}))} placeholder="Select a customer..." /></div>
@@ -118,7 +119,7 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, shop, cont
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-4">
-                        <button type="button" onClick={onCancel} className="button-secondary px-4 py-2">Cancel</button>
+                        <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
                         <button type="submit" className="button-primary px-4 py-2">Save Invoice</button>
                     </div>
                 </form>

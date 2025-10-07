@@ -1,5 +1,6 @@
+
 import { TripExpense, Trip, Settlement } from '../types';
-import { USER_SELF_ID } from '../constants';
+import { USER_SELF_ID } from '../types';
 
 interface Balance {
     contactId: string;

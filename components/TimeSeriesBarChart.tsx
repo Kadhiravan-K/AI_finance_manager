@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Transaction, ReportPeriod, TransactionType } from '../types';
+// Fix: Use 'DateRange' as 'ReportPeriod' is not an exported member.
+import { Transaction, DateRange, TransactionType, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 
 interface TimeSeriesBarChartProps {
   title: string;
   transactions: Transaction[];
-  period: ReportPeriod;
+  period: DateRange;
   type: TransactionType;
   currency?: string;
 }

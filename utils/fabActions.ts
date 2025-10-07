@@ -23,6 +23,7 @@ export const ALL_FAB_ACTIONS: FabAction[] = [
     { key: 'openCalculator', label: 'Calculator', icon: '🧮', target: { screen: 'calculator' } },
     
     // Management
-    { key: 'manageAccounts', label: 'Accounts', icon: '🏦', target: { modal: 'accountsManager' } },
+// Fix: Corrected modal name 'accountsManager' to 'accounts' to align with ActiveModal type.
+    { key: 'manageAccounts', label: 'Accounts', icon: '🏦', target: { modal: 'accounts' } },
     { key: 'manageCategories', label: 'Categories', icon: '🏷️', target: { modal: 'categories' } },
 ];

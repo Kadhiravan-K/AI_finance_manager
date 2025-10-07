@@ -1,8 +1,7 @@
 
 
-
 import React, { useState, useMemo } from 'react';
-import { Transaction, Category, TransactionType, ReportPeriod, CustomDateRange, Account, ActiveModal, AppState } from '../types';
+import { Transaction, Category, TransactionType, DateRange, CustomDateRange, Account, ActiveModal, AppState } from '../types';
 import CategoryPieChart from './CategoryPieChart';
 import CategoryBarChart from './CategoryBarChart';
 import TimeSeriesBarChart from './TimeSeriesBarChart';
@@ -26,7 +25,6 @@ interface ReportsScreenProps {
 type ComparePeriodType = 'previous' | 'last_year' | 'last_month' | 'last_quarter' | 'custom';
 type ReportType = 'breakdown' | 'trend';
 
-// ... (Existing helper components like ReportAccountSelector and CategorySelector remain unchanged)
 const ReportAccountSelector: React.FC<{ accounts: Account[], selectedIds: string[], onChange: (ids: string[]) => void }> = ({ accounts, selectedIds, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = React.useRef<HTMLDivElement>(null);
@@ -135,7 +133,6 @@ const CategorySelector: React.FC<{ categories: Category[], selectedIds: string[]
 };
 
 
-// ... (filterTransactions function remains unchanged)
 const filterTransactions = (
     transactions: Transaction[], 
     accounts: Account[],
@@ -143,7 +140,7 @@ const filterTransactions = (
     accountIds: string[],
     categoryIds: string[],
     reportCurrency: string,
-    period: ReportPeriod, 
+    period: DateRange, 
     customDateRange: CustomDateRange,
 ) => {
     let startDate: Date | null = new Date();
@@ -167,16 +164,18 @@ const filterTransactions = (
             startDate = customDateRange.start;
             endDate = customDateRange.end;
             break;
+        case 'all':
+            startDate = null;
+            endDate = null;
+            break;
     }
 
     if (startDate) startDate.setHours(0, 0, 0, 0);
     if (endDate) endDate.setHours(23, 59, 59, 999);
 
-    // Primary currency filter
     const accountsInCurrency = new Set(accounts.filter(a => a.currency === reportCurrency).map(a => a.id));
     let filtered = transactions.filter(t => accountsInCurrency.has(t.accountId));
 
-    // Secondary account filter (within the selected currency)
     if (!accountIds.includes('all')) {
         filtered = filtered.filter(t => accountIds.includes(t.accountId));
     }
@@ -202,18 +201,16 @@ const filterTransactions = (
     return filtered;
 };
 
-// Extracted original content into a sub-component
 const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>> = ({ transactions, categories, accounts, selectedAccountIds, baseCurrency }) => {
   const [transactionType, setTransactionType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [reportType, setReportType] = useState<ReportType>('breakdown');
-  const [period, setPeriod] = useState<ReportPeriod>('month');
+  const [period, setPeriod] = useState<DateRange>('month');
   const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: new Date(), end: new Date() });
   const [reportAccountIds, setReportAccountIds] = useState(selectedAccountIds);
   const [categoryIds, setCategoryIds] = useState(['all']);
   const [reportCurrency, setReportCurrency] = useState(baseCurrency);
   const formatCurrency = useCurrencyFormatter(undefined, reportCurrency);
 
-  // Comparison state
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [comparePeriodType, setComparePeriodType] = useState<ComparePeriodType>('previous');
   const [compareCustomDateRange, setCompareCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
@@ -243,6 +240,7 @@ const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>
               case 'month': return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
               case 'year': return { start: new Date(now.getFullYear(), 0, 1), end: now };
               case 'custom': return { start: customDateRange.start, end: customDateRange.end };
+              default: return { start: null, end: null };
           }
       };
 
@@ -335,7 +333,7 @@ const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>
         <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
         <CustomSelect 
             options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
-            value={period} onChange={(val) => setPeriod(val as ReportPeriod)}
+            value={period} onChange={(val) => setPeriod(val as DateRange)}
         />
         {period === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-fadeInUp"><CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} /></div>)}
         <div className="pt-2 border-t border-divider"><ToggleSwitch checked={isCompareMode} onChange={setIsCompareMode} label="Compare Periods" /></div>
@@ -344,74 +342,83 @@ const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>
             <CustomSelect
               options={[
                   {value: 'previous', label: 'Previous Period'},
-                  {value: 'last_month', label: 'Last Month'},
-                  {value: 'last_quarter', label: 'Last Quarter'},
+                  {value: 'last_month', label: 'Previous Month'},
+                  {value: 'last_quarter', label: 'Previous Quarter'},
                   {value: 'last_year', label: 'Same Period Last Year'},
-                  {value: 'custom', label: 'Custom'}
+                  {value: 'custom', label: 'Custom Compare Range'}
               ]}
-              value={comparePeriodType} onChange={(v) => setComparePeriodType(v as ComparePeriodType)}
+              value={comparePeriodType}
+              onChange={v => setComparePeriodType(v as ComparePeriodType)}
             />
-            {comparePeriodType === 'custom' && (<div className="grid grid-cols-2 gap-4"><CustomDatePicker value={compareCustomDateRange.start} onChange={d => setCompareCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={compareCustomDateRange.end} onChange={d => setCompareCustomDateRange(p => ({...p, end: d}))} /></div>)}
+            {comparePeriodType === 'custom' && (
+              <div className="grid grid-cols-2 gap-4 animate-fadeInUp">
+                <CustomDatePicker value={compareCustomDateRange.start} onChange={d => setCompareCustomDateRange(p => ({...p, start: d}))} />
+                <CustomDatePicker value={compareCustomDateRange.end} onChange={d => setCompareCustomDateRange(p => ({...p, end: d}))} />
+              </div>
+            )}
           </div>
         )}
       </div>
       
-      {isCompareMode && (
-          <div className="p-4 rounded-xl glass-card text-center mb-6 animate-fadeInUp">
-              <h3 className="font-semibold text-lg text-primary">Comparison Summary</h3>
-              <div className="grid grid-cols-3 gap-2 items-center mt-2">
-                  <div><p className="text-sm text-secondary">Current</p><p className="font-bold text-xl text-primary">{formatCurrency(totalPrimary)}</p></div>
-                  <div><p className="text-sm text-secondary">vs. Previous</p><p className="font-bold text-xl text-primary">{formatCurrency(totalCompare)}</p></div>
-                  <div><p className="text-sm text-secondary">Change</p><p className={`font-bold text-xl ${percentageChange >= 0 ? (transactionType === 'income' ? 'text-emerald-400' : 'text-rose-400') : (transactionType === 'income' ? 'text-rose-400' : 'text-emerald-400')}`}>{percentageChange >= 0 ? '▲' : '▼'}{Math.abs(percentageChange).toFixed(1)}%</p></div>
-              </div>
-          </div>
-      )}
-      
-      <div className="grid grid-cols-2 gap-2 p-1 rounded-full bg-subtle border border-divider">
-        <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
-        <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2 flex justify-center p-1 rounded-full bg-subtle border border-divider">
+          <TabButton active={reportType === 'breakdown'} onClick={() => setReportType('breakdown')}>Breakdown</TabButton>
+          <TabButton active={reportType === 'trend'} onClick={() => setReportType('trend')}>Trend</TabButton>
+        </div>
+
+        <div className={`p-4 rounded-xl glass-card text-center ${isCompareMode ? 'md:col-span-1' : 'md:col-span-2'}`}>
+            <p className="text-sm text-secondary">Total {transactionType}</p>
+            <p className="text-3xl font-bold text-primary">{formatCurrency(totalPrimary)}</p>
+            {isCompareMode && (
+                <p className={`text-sm font-semibold mt-1 ${percentageChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {percentageChange >= 0 ? '↑' : '↓'} {Math.abs(percentageChange).toFixed(1)}% vs. {formatCurrency(totalCompare)}
+                </p>
+            )}
+        </div>
+        
+        {isCompareMode && (
+            <div className="p-4 rounded-xl glass-card text-center">
+                <p className="text-sm text-secondary">Comparison Total</p>
+                <p className="text-3xl font-bold text-primary">{formatCurrency(totalCompare)}</p>
+            </div>
+        )}
+
       </div>
       
-      <div className={`grid grid-cols-1 ${isCompareMode ? 'md:grid-cols-2' : ''} gap-4`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartContainer>
+          <ReportDataView txs={filteredTransactions} title={isCompareMode ? "Current Period" : ""} />
+        </ChartContainer>
+        {isCompareMode && (
           <ChartContainer>
-            <ReportDataView txs={transactionType === 'expense' ? expenseTransactions : incomeTransactions} title={isCompareMode ? "Current Period" : ""} />
+            <ReportDataView txs={compareTransactions} title="Comparison Period" />
           </ChartContainer>
-          {isCompareMode && (
-              <ChartContainer>
-                <ReportDataView txs={transactionType === 'expense' ? compareExpenseTxs : compareIncomeTxs} title="Comparison Period" />
-              </ChartContainer>
-          )}
+        )}
       </div>
     </div>
   );
-}
+};
 
-// New main component for the screen
-const ReportsScreen: React.FC<ReportsScreenProps> = ({ appState, openModal, ...rest }) => {
-    const [activeTab, setActiveTab] = useState<'reports' | 'live'>('reports');
+export const ReportsScreen: React.FC<ReportsScreenProps> = (props) => {
+    const [view, setView] = useState<'reports' | 'live'>('reports');
 
-    const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+    const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
         <button onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
             {children}
         </button>
     );
-
+    
     return (
         <div className="h-full flex flex-col">
             <div className="p-4 border-b border-divider flex-shrink-0">
-                <h2 className="text-2xl font-bold text-primary text-center">Analysis</h2>
+                <h2 className="text-2xl font-bold text-primary text-center">Insights 📈</h2>
             </div>
             <div className="flex border-b border-divider flex-shrink-0">
-                {/* Fix: Added missing children to TabButton components */}
-                <TabButton active={activeTab === 'reports'} onClick={() => setActiveTab('reports')}>Reports</TabButton>
-                <TabButton active={activeTab === 'live'} onClick={() => setActiveTab('live')}>Live Feed</TabButton>
+                <TabButton active={view === 'reports'} onClick={() => setView('reports')}>Reports</TabButton>
+                <TabButton active={view === 'live'} onClick={() => setView('live')}>Live Feed</TabButton>
             </div>
             <div className="flex-grow overflow-y-auto">
-                {activeTab === 'reports' ? (
-                    <ReportContent {...rest} />
-                ) : (
-                    <LiveFeedScreen appState={appState} openModal={openModal} />
-                )}
+                {view === 'reports' ? <ReportContent {...props} /> : <LiveFeedScreen appState={props.appState} openModal={props.openModal} />}
             </div>
         </div>
     );

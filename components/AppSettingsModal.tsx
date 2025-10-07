@@ -1,17 +1,15 @@
 
 
-import React, { useContext, useRef } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-// Fix: Corrected import path for context
-import { SettingsContext } from '../contexts/SettingsContext';
+import { SettingsContext, DEFAULT_SETTINGS } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
-// Fix: Import missing types
 import { AppState, Theme, TrustBinDeletionPeriodUnit, ActiveScreen } from '../types';
 import { createBackup, restoreBackup } from '../utils/backup';
-import { NAV_ITEM_DEFINITIONS } from './Footer';
 import ToggleSwitch from './ToggleSwitch';
+import ConfirmationDialog from './ConfirmationDialog';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -21,11 +19,12 @@ interface AppSettingsModalProps {
   onRestore: (state: AppState) => void;
 }
 
-const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, onRestore }) => {
+export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, onRestore }) => {
   const settingsContext = useContext(SettingsContext);
   if (!settingsContext) throw new Error("SettingsContext not found");
   const { settings, setSettings } = settingsContext;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   const handleCurrencyChange = (currencyCode: string) => {
     setSettings(prev => ({ ...prev, currency: currencyCode }));
@@ -86,6 +85,12 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
       if(fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleConfirmReset = () => {
+    setSettings(DEFAULT_SETTINGS);
+    setIsResetDialogOpen(false);
+    alert("Settings have been reset to default values.");
+  };
+
   const currencyOptions = currencies.map(c => ({
     value: c.code,
     label: `${c.name} (${c.symbol})`
@@ -114,105 +119,73 @@ const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, appState, 
   );
 
   const modalContent = (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <>
+      <ConfirmationDialog
+        isOpen={isResetDialogOpen}
+        title="Confirm Reset Settings"
+        message="Are you sure you want to reset all app settings to their default values? This will not affect your financial data like transactions or accounts."
+        onConfirm={handleConfirmReset}
+        onCancel={() => setIsResetDialogOpen(false)}
+        confirmLabel="Reset"
+      />
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="App Settings" onClose={onClose} icon="⚙️" />
-        <div className="p-6 space-y-4 flex-grow overflow-y-auto">
-            <div>
-                <label className="block text-sm font-medium text-secondary mb-1">Language</label>
-                <CustomSelect
-                    value={settings.language || 'en'}
-                    onChange={handleLanguageChange}
-                    options={languageOptions}
-                />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-secondary mb-1">Currency</label>
-                <CustomSelect
-                    value={settings.currency}
-                    onChange={handleCurrencyChange}
-                    options={currencyOptions}
-                />
-            </div>
-            <div className="pt-4 border-t border-divider">
-                <label className="block text-sm font-medium text-secondary mb-2">Appearance</label>
-                <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-                        {/* Fix: Added missing children to TabButton components */}
+          <ModalHeader title="App Settings" onClose={onClose} icon="⚙️" />
+          <div className="p-6 space-y-6 overflow-y-auto">
+            {/* Appearance Section */}
+            <div className="p-4 bg-subtle rounded-lg">
+                <h4 className="font-semibold text-primary mb-3">Appearance</h4>
+                <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-secondary">Theme</span>
+                    <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
+                        {/* Fix: Added children to TabButton component */}
                         <TabButton active={settings.theme === 'dark'} onClick={() => handleThemeChange('dark')}>Dark</TabButton>
+                        {/* Fix: Added children to TabButton component */}
                         <TabButton active={settings.theme === 'light'} onClick={() => handleThemeChange('light')}>Light</TabButton>
-                </div>
-                <div className="mt-4 space-y-2">
-                    <div className="p-3 bg-subtle rounded-lg flex items-center justify-between">
-                        <span className="font-medium text-primary">FAB Glow Effect</span>
-                        <ToggleSwitch 
-                            checked={settings.fabGlowEffect ?? false} 
-                            onChange={checked => setSettings(prev => ({...prev, fabGlowEffect: checked}))} 
-                        />
-                    </div>
-                    <div className="p-3 bg-subtle rounded-lg flex items-center justify-between">
-                        <span className="font-medium text-primary">Hub Cursor Glow</span>
-                        <ToggleSwitch 
-                            checked={settings.hubCursorGlowEffect ?? false} 
-                            onChange={checked => setSettings(prev => ({...prev, hubCursorGlowEffect: checked}))} 
-                        />
                     </div>
                 </div>
+                <div className="mt-4"><ToggleSwitch label="FAB Glow Effect" checked={settings.fabGlowEffect ?? false} onChange={c => setSettings(p=>({...p, fabGlowEffect: c}))} /></div>
+                <div className="mt-2"><ToggleSwitch label="Hub Cursor Glow" checked={settings.hubCursorGlowEffect ?? false} onChange={c => setSettings(p=>({...p, hubCursorGlowEffect: c}))} /></div>
             </div>
-             <div className="pt-4 border-t border-divider">
-                <label className="block text-sm font-medium text-secondary mb-2">Trust Bin Auto-Deletion</label>
-                <div className="flex gap-2">
-                    <input 
-                        type="number" 
-                        value={settings.trustBinDeletionPeriod.value} 
-                        onChange={e => handleTrustBinPeriodChange('value', e.target.value)}
-                        className="input-base w-24 rounded-lg py-2 px-3 no-spinner"
-                    />
-                    <div className="flex-grow">
-                        <CustomSelect
-                            value={settings.trustBinDeletionPeriod.unit}
-                            onChange={(v) => handleTrustBinPeriodChange('unit', v as TrustBinDeletionPeriodUnit)}
-                            options={trustBinUnitOptions}
-                        />
-                    </div>
-                </div>
+            
+            {/* Regional Section */}
+             <div className="p-4 bg-subtle rounded-lg space-y-3">
+                <h4 className="font-semibold text-primary mb-3">Regional</h4>
+                <div><label className="text-sm font-medium text-secondary mb-1">Default Currency</label><CustomSelect options={currencyOptions} value={settings.currency} onChange={handleCurrencyChange} /></div>
+                <div><label className="text-sm font-medium text-secondary mb-1">Language</label><CustomSelect options={languageOptions} value={settings.language || 'en'} onChange={handleLanguageChange} /></div>
             </div>
-
-            <div className="pt-4 border-t border-divider">
-                <h3 className="font-semibold text-primary mb-2">Data Management</h3>
-                <div className="flex gap-2">
-                    <button onClick={handleCreateBackup} className="button-secondary w-full text-center p-2 text-sm">Create Backup</button>
-                    <button onClick={handleRestoreClick} className="button-secondary w-full text-center p-2 text-sm">Restore from Backup</button>
+            
+            {/* Data Management Section */}
+            <div className="p-4 bg-subtle rounded-lg space-y-3">
+                <h4 className="font-semibold text-primary mb-3">Data Management</h4>
+                <div className="grid grid-cols-2 gap-3">
+                    <button onClick={handleCreateBackup} className="button-secondary w-full py-2">Create Encrypted Backup</button>
+                    <button onClick={handleRestoreClick} className="button-secondary w-full py-2">Restore from Backup</button>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pfh" className="hidden" />
                 </div>
+                <div>
+                    <label className="text-sm font-medium text-secondary mb-1">Auto-delete from Trust Bin after:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <input type="number" onWheel={e => e.currentTarget.blur()} value={settings.trustBinDeletionPeriod.value} onChange={e => handleTrustBinPeriodChange('value', e.target.value)} className="input-base w-full p-2 rounded-lg" />
+                        <CustomSelect options={trustBinUnitOptions} value={settings.trustBinDeletionPeriod.unit} onChange={v => handleTrustBinPeriodChange('unit', v)} />
+                    </div>
+                </div>
             </div>
-
-            <div className="pt-4 border-t border-divider">
-            <h3 className="font-semibold text-primary mb-2">Privacy Policy</h3>
-            <div className="text-xs text-secondary space-y-2">
-                <p><strong>Local, Encrypted Storage:</strong> Your privacy is paramount. All of your financial data (transactions, accounts, budgets, etc.) is stored exclusively on your local device. We never see or have access to it. This data is also encrypted on your device for an added layer of security.</p>
-                <p><strong>External Services:</strong> To provide smart features, certain non-identifiable data is sent to external services:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Transaction Parsing:</strong> When you use the "Quick Add" feature, the text you enter is sent to the Google Gemini API for analysis and categorization.</li>
-                    <li><strong>Feedback:</strong> If you choose to send feedback, the content of your message will be sent to the app developer to help improve the service.</li>
-                </ul>
-                <p>By using this app, you consent to this data handling. We are committed to not collecting any personally identifiable information.</p>
+            {/* Danger Zone */}
+            <div className="p-4 rounded-lg bg-rose-900/50 border border-rose-500/50 space-y-2">
+                <h4 className="font-semibold text-rose-300">Reset to Default</h4>
+                <p className="text-xs text-rose-300/80">This will restore all appearance, regional, and tool settings to their original defaults. Your financial data will NOT be affected.</p>
+                <div className="text-right pt-2">
+                    <button type="button" onClick={() => setIsResetDialogOpen(true)} className="button-secondary bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/40">
+                        Reset Settings
+                    </button>
+                </div>
             </div>
-            </div>
+          </div>
         </div>
-        <div className="p-4 text-center text-xs text-tertiary border-t border-divider">
-            <p>Version 1.6.0 (Final Confirm)</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--color-accent-sky)' }}>Developed by kadhiravan</p>
-        </div>
-        <div className="flex justify-end p-6 pt-4 border-t border-divider">
-            <button onClick={onClose} className="button-secondary px-4 py-2">
-                Done
-            </button>
-            </div>
-        </div>
-    </div>
+      </div>
+    </>
   );
-
+  
   return ReactDOM.createPortal(modalContent, modalRoot);
 };
-
-export default AppSettingsModal;

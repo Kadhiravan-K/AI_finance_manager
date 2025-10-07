@@ -16,7 +16,7 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
   const [command, setCommand] = useState('');
   const [history, setHistory] = useState<{ role: 'user' | 'model', text: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [file, setFile] = useState<{name: string, type: string, data: string} | null>(null);
+  const [file, setFile] = useState<{name: string, type: string, data: string, preview: string} | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +59,7 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
     try {
         const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
         if (permissionStatus.state === 'denied') {
-            alert("Microphone access is denied. Please enable it in your browser settings.");
+            alert("Microphone access is denied. Please enable it in your browser settings to use voice input.");
             return;
         }
         if (isListening) {
@@ -79,9 +79,10 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
         setHistory(prev => [...prev, { role: 'model', text: `Selected file: ${selectedFile.name}. What would you like to know or do with it?` }]);
         const reader = new FileReader();
         reader.onload = (e) => {
-            const base64Data = (e.target?.result as string).split(',')[1];
+            const dataUrl = e.target?.result as string;
+            const base64Data = dataUrl.split(',')[1];
             if (base64Data) {
-                setFile({ name: selectedFile.name, type: selectedFile.type, data: base64Data });
+                setFile({ name: selectedFile.name, type: selectedFile.type, data: base64Data, preview: dataUrl });
                 inputRef.current?.focus();
             }
         };
@@ -93,10 +94,10 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!command.trim() || isLoading) return;
+    if ((!command.trim() && !file) || isLoading) return;
 
-    const userCommand = command;
-    const attachedFile = file;
+    const userCommand = command || (file ? "Analyze this receipt" : "");
+    const attachedFile = file ? { name: file.name, type: file.type, data: file.data } : undefined;
     
     setHistory(prev => [...prev, { role: 'user', text: userCommand }]);
     setCommand('');
@@ -155,11 +156,23 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
           <div ref={chatEndRef} />
         </div>
 
+        {file && (
+            <div className="p-2 border-t border-divider">
+                <div className="bg-subtle p-2 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <img src={file.preview} alt="upload preview" className="w-10 h-10 rounded object-cover"/>
+                        <span className="text-xs text-secondary">{file.name}</span>
+                    </div>
+                    <button onClick={() => setFile(null)} className="p-1 text-rose-400">&times;</button>
+                </div>
+            </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-2">
             <button type="button" onClick={() => fileInputRef.current?.click()} className="button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0" aria-label="Attach file">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
             </button>
-            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*"/>
 
             <button type="button" onClick={handleListen} className={`button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0 ${isListening ? 'bg-rose-500/80 text-white animate-pulse' : ''}`} aria-label="Use voice command">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" /></svg>
@@ -175,12 +188,12 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
                     handleSubmit(e);
                   }
                 }}
-                placeholder="Type or speak..."
+                placeholder="Type, speak, or attach receipt..."
                 className="w-full input-base rounded-2xl py-2 px-4 resize-none h-12"
                 rows={1}
                 disabled={isLoading}
             />
-            <button type="submit" disabled={isLoading || !command.trim()} className="button-primary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0">
+            <button type="submit" disabled={isLoading || (!command.trim() && !file)} className="button-primary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
             </button>
         </form>

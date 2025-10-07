@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
+// Fix: Corrected import path for types.
 import { Category, TransactionType } from '../types';
 import ModalHeader from './ModalHeader';
 

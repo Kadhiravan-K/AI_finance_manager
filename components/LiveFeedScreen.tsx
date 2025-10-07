@@ -114,7 +114,6 @@ const LiveFeedScreen: React.FC<LiveFeedScreenProps> = ({ appState, openModal }) 
         });
 
         // 4. Achievements (last 5 unlocked)
-        // Fix: Corrected property name from 'achievements' to 'unlockedAchievements' to match the AppState type.
         appState.unlockedAchievements.slice(-5).forEach(ua => {
             const achievement = ALL_ACHIEVEMENTS.find(a => a.id === ua.achievementId);
             if (achievement) {

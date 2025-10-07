@@ -1,57 +1,56 @@
-import React, { useContext } from 'react';
-// Fix: Corrected import path for context
-import { AppDataContext } from '../contexts/SettingsContext';
-import { UserStreak } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Profile } from '../types';
+import { supabase } from '../utils/supabase';
 
 interface HeaderProps {
-  onOpenAccounts: () => void;
-  onOpenSearch: () => void;
-  onOpenAIHub: () => void;
+  profile: Profile | null;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
-  onOpenAccounts,
-  onOpenSearch,
-  onOpenAIHub,
-}) => {
-  const dataContext = useContext(AppDataContext);
-  // Fix: Correctly access streaks from the typed context
-  const currentStreak = dataContext?.streaks.currentStreak || 0;
+const Header: React.FC<HeaderProps> = ({ profile }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
-    <header className="relative p-4 flex-shrink-0 themed-header shadow-lg h-[69px]">
-      <div className="flex items-center justify-between h-full">
-        <div className={`flex items-center space-x-2`}>
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-xl shadow-lg shadow-emerald-500/20">
-              <svg width="24" height="24" viewBox="0 0 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white">
-                <path d="M21 7.25C21 6.00736 20.0126 5 18.8 5H5.2C3.98741 5 3 6.00736 3 7.25V16.75C3 17.9926 3.98741 19 5.2 19H18.8C20.0126 19 21 17.9926 21 16.75V7.25Z" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M16 12C16 12.5523 15.5523 13 15 13C14.4477 13 14 12.5523 14 12C14 11.4477 14.4477 11 15 11C15.5523 11 16 11.4477 16 12Z" fill="currentColor"/>
-                <path d="M3 10.5H21" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-bold tracking-tight truncate text-primary leading-tight">Finance Hub</h1>
-              {currentStreak > 0 && (
-                <div className="flex items-center gap-1 text-xs font-bold text-amber-400 animate-fadeInUp" style={{ animationDelay: '300ms' }}>
-                  <span>🔥</span>
-                  <span>{currentStreak} Day Streak</span>
-                </div>
-              )}
-            </div>
+    <header className="themed-header flex items-center justify-between p-4 flex-shrink-0">
+      <h1 className="text-xl font-bold">Finance Hub</h1>
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setIsMenuOpen(prev => !prev)}
+          className="flex items-center gap-2"
+        >
+          <span className="font-semibold">{profile?.full_name || 'User'}</span>
+          <img
+            src={profile?.avatar_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile?.full_name || 'U'}`}
+            alt="User avatar"
+            className="w-8 h-8 rounded-full bg-slate-700"
+          />
+        </button>
+        {isMenuOpen && (
+          <div className="absolute right-0 top-full mt-2 w-48 bg-card-strong rounded-lg shadow-xl z-50 border border-divider animate-scaleIn">
+            <button
+              onClick={handleLogout}
+              className="w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-card-hover rounded-b-lg"
+            >
+              Log Out
+            </button>
           </div>
-        </div>
-        <div className={`flex items-center space-x-1`}>
-            <button onClick={onOpenAIHub} className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 text-secondary hover:text-primary" aria-label="Open AI Hub">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-6.857 2.143L12 21l-2.143-6.857L3 12l6.857-2.143L12 3z" /></svg>
-            </button>
-            <button onClick={onOpenSearch} className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 text-secondary hover:text-primary" aria-label="Open search">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </button>
-            <button onClick={onOpenAccounts} className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 text-secondary hover:text-primary" aria-label="Open accounts">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-            </button>
-        </div>
+        )}
       </div>
     </header>
   );
