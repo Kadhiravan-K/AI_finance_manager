@@ -1,5 +1,4 @@
 
-
 import React, { useMemo, useState } from 'react';
 import { RecurringTransaction, Category, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';

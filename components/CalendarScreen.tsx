@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useMemo, useContext } from 'react';
 import { CalendarEvent, ActiveScreen, ActiveModal } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
@@ -26,7 +21,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
 
     const calendarEvents = useMemo((): CalendarEvent[] => {
         if (!dataContext) return [];
-        const { recurringTransactions, goals, refunds, trips } = dataContext;
+        const { recurringTransactions, refunds, trips, customCalendarEvents } = dataContext;
         const events: CalendarEvent[] = [];
 
         recurringTransactions.forEach(rt => {
@@ -64,6 +59,13 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
             });
         });
 
+        (customCalendarEvents || []).forEach(ce => {
+            events.push({
+                ...ce,
+                date: new Date(ce.date)
+            });
+        });
+
         return events;
     }, [dataContext]);
 
@@ -71,6 +73,15 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
         setCurrentDate(prev => {
             const newDate = new Date(prev);
             newDate.setMonth(newDate.getMonth() + offset);
+            return newDate;
+        });
+        setSelectedDate(null);
+    };
+
+    const changeYear = (offset: number) => {
+        setCurrentDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setFullYear(newDate.getFullYear() + offset);
             return newDate;
         });
         setSelectedDate(null);
@@ -83,7 +94,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
     }
     
     const handleAddEvent = (date: Date) => {
-        openModal('addCalendarEvent', { initialDate: date });
+        openModal('addCalendarEvent', { initialDate: date, onAddCustomEvent: dataContext.onAddCustomEvent });
     };
 
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -110,7 +121,10 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
             violet: 'border-violet-500',
         };
 
+        const isClickable = event.type !== 'custom' && event.type !== 'goal';
+
         const handleClick = () => {
+            if (!isClickable) return;
             switch (event.type) {
                 case 'bill':
                     onNavigate('scheduled', 'editRecurring', { recurringTransaction: event.data });
@@ -122,12 +136,11 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
                     setTripDetailsId(event.data.id);
                     setActiveScreen('tripDetails');
                     break;
-                // 'goal' type exists but is not implemented for calendar events.
             }
         };
 
         return (
-            <div onClick={handleClick} className={`p-3 bg-subtle rounded-lg border-l-4 ${colorClasses[event.color]} cursor-pointer hover-bg-stronger transition-colors`}>
+            <div onClick={handleClick} className={`p-3 bg-subtle rounded-lg border-l-4 ${colorClasses[event.color]} ${isClickable ? 'cursor-pointer hover-bg-stronger transition-colors' : ''}`}>
                 <div className="flex justify-between items-center">
                     <p className="font-semibold text-primary">{event.title}</p>
                     <p className="text-sm font-mono text-secondary">{details}</p>
@@ -138,26 +151,12 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
     
     const colorMap = { rose: 'bg-rose-500', sky: 'bg-sky-500', amber: 'bg-amber-400', violet: 'bg-violet-500' };
 
-    if (!settings.googleCalendar?.connected) {
-        return (
-            <div className="h-full flex flex-col items-center justify-center p-4">
-                <EmptyState
-                    icon="🗓️"
-                    title="Connect Your Calendar"
-                    message="Enable the Google Calendar integration to see your financial events here."
-                    actionText="Go to Integrations"
-// Fix: Use 'integrations' which is a valid ActiveModal type
-                    onAction={() => onNavigate('more', 'integrations')}
-                />
-            </div>
-        );
-    }
-
     return (
         <div className="h-full flex flex-col">
             <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
                  <button onClick={goToToday} className="button-secondary text-sm px-3 py-1">Today</button>
                  <div className="flex items-center gap-2">
+                    <button onClick={() => changeYear(-1)} className="p-2 rounded-full hover-bg-stronger text-primary">{'«'}</button>
                     <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover-bg-stronger text-primary">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
@@ -167,6 +166,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigate, setActiveSc
                     <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover-bg-stronger text-primary">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path></svg>
                     </button>
+                     <button onClick={() => changeYear(1)} className="p-2 rounded-full hover-bg-stronger text-primary">{'»'}</button>
                 </div>
                 <button onClick={() => handleAddEvent(selectedDate || new Date())} className="button-secondary text-sm px-3 py-1">+ Add Event</button>
             </div>

@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppDataProvider, useAppContext } from './hooks/useAppContext';
 import MainContent from './components/MainContent';
@@ -5,7 +7,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import { supabase } from './utils/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { ActiveScreen, ModalState, ActiveModal, AppState, Transaction, RecurringTransaction, Account, Category, Goal, Budget, Trip, Contact, ContactGroup, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Refund, Debt, Note, GlossaryEntry, TransactionType } from './types';
+import { ActiveScreen, ModalState, ActiveModal, AppState, Transaction, RecurringTransaction, Account, Category, Goal, Budget, Trip, Contact, ContactGroup, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Refund, Debt, Note, GlossaryEntry, TransactionType, CalendarEvent } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import WelcomeScreen from './components/WelcomeScreen';
 import OnboardingModal from './components/OnboardingModal';
@@ -73,11 +75,11 @@ import ManageToolsModal from './components/ManageToolsModal';
 const AppContainer: React.FC = () => {
   const dataContext = useAppContext();
   const { 
-      settings, isLoading, profile, transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, contacts, contactGroups, trips, tripExpenses, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, debts, notes, glossaryEntries, unlockedAchievements, challenges, streaks, financialProfile, invoices, payees, senders, trustBin 
+      settings, isLoading, profile, transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, contacts, contactGroups, trips, tripExpenses, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, debts, notes, glossaryEntries, unlockedAchievements, challenges, streaks, financialProfile, invoices, payees, senders, trustBin, customCalendarEvents 
   } = dataContext;
 
   const appState: AppState = { 
-      settings, transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, contacts, contactGroups, trips, tripExpenses, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, debts, notes, glossaryEntries, unlockedAchievements, challenges, streaks, financialProfile, invoices, payees, senders, trustBin 
+      settings, transactions, accounts, categories, budgets, recurringTransactions, goals, investmentHoldings, contacts, contactGroups, trips, tripExpenses, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, debts, notes, glossaryEntries, unlockedAchievements, challenges, streaks, financialProfile, invoices, payees, senders, trustBin, customCalendarEvents
   };
 
   // UI State
@@ -128,14 +130,11 @@ const AppContainer: React.FC = () => {
 
   const onNavigate = useCallback((screen: ActiveScreen, modal?: ActiveModal, props: Record<string, any> = {}) => {
     setActiveScreen(screen);
-    if (props.tripId) setTripDetailsId(props.tripId);
-    if (props.noteId) setNoteId(props.noteId);
+    setTripDetailsId(props.tripId || null);
+    setNoteId(props.noteId || null);
     
     if (modal) {
       openModal(modal, props);
-    } else {
-      // Clear modals when navigating to a new screen without one
-      // setModalStack([]);
     }
   }, []);
   
@@ -235,7 +234,7 @@ const AppContainer: React.FC = () => {
       case 'refund': return <RefundModal onClose={closeModal} onSave={dataContext.onSaveRefund} allTransactions={appState.transactions} accounts={appState.accounts} contacts={appState.contacts} refunds={appState.refunds} openModal={openModal} {...props} />;
       case 'editDebt': return <EditDebtModal onClose={closeModal} onSave={(debt, id) => dataContext.setDebts(p => id ? p.map(d=>d.id===id?{...d, ...debt}:d) : [...p, {id:self.crypto.randomUUID(), ...debt, currentBalance: debt.totalAmount}])} {...props} />;
       case 'viewOptions': return <ViewOptionsModal onClose={closeModal} {...props} />;
-      case 'addCalendarEvent': return <AddCalendarEventModal onClose={closeModal} onNavigate={onNavigate} {...props} />;
+      case 'addCalendarEvent': return <AddCalendarEventModal onClose={closeModal} onNavigate={onNavigate} onAddCustomEvent={(event) => dataContext.setCustomCalendarEvents((prev: CalendarEvent[]) => [...prev, event])} {...props} />;
       case 'timePicker': return <TimePickerModal onClose={closeModal} {...props} />;
       case 'camera': return <CameraModal onClose={closeModal} onCapture={props.onCapture || dataContext.onImageCapture} />;
       case 'addNoteType': return <AddNoteTypeModal onClose={closeModal} onSelect={(type, tripId) => { dataContext.onAddNote(type, tripId); closeModal(); }} {...props} />;
@@ -280,7 +279,7 @@ const AppContainer: React.FC = () => {
       {showWelcomeGuide && <OnboardingGuide onFinish={() => setShowWelcomeGuide(false)} />}
 
       <Header profile={profile} openModal={openModal} />
-      <main ref={mainContentRef} className="flex-grow overflow-y-auto relative pb-24">
+      <main ref={mainContentRef} className="flex-grow overflow-y-auto relative">
          <MainContent
             activeScreen={activeScreen}
             setActiveScreen={setActiveScreen}

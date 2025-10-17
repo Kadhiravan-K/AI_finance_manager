@@ -9,25 +9,19 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setMessage('');
     
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    });
-
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage('Check your email for the magic link!');
-    }
-    setLoading(false);
+    // Simulate API call for demo purposes as credentials are placeholders
+    setTimeout(() => {
+      setMessage("Magic link sent! (In a real app, you'd now check your email). For this demo, please use 'Continue as Guest' or go back.");
+      setLoading(false);
+      setIsSubmitted(true);
+    }, 1000);
   };
 
   return (
@@ -47,12 +41,12 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
             className="w-full input-base px-4 py-2 rounded-full"
             placeholder="your@email.com"
             required
-            disabled={loading}
+            disabled={loading || isSubmitted}
           />
         </div>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || isSubmitted}
           className="w-full button-primary px-4 py-2 font-semibold"
         >
           {loading ? 'Sending...' : 'Send Magic Link'}

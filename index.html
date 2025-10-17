@@ -119,13 +119,11 @@
 
     /* New Integrated Footer */
     .app-footer {
-      position: fixed;
-      bottom: 1rem;
-      left: 0;
-      right: 0;
+      flex-shrink: 0;
       display: flex;
       justify-content: center;
       z-index: 40;
+      padding-bottom: 1rem;
     }
     .footer-nav {
       display: flex;
@@ -383,6 +381,13 @@
     .shopping-list-item-input { background: transparent; border: none; padding: 0.25rem; width: 100%; border-radius: 4px; }
     .shopping-list-item-input:focus { outline: none; background: var(--color-subtle); }
     .shopping-list-item-input.rate { text-align: right; }
+    .checklist-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem;
+        border-bottom: 1px solid var(--color-border-divider);
+    }
     
     /* Notes Tool Enhancements */
     .note-list-item { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background-color: var(--color-subtle); border-radius: 0.75rem; cursor: pointer; transition: all 0.2s; border-left: 4px solid transparent; }

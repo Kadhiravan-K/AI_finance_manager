@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Shop, ShopSale, ShopProduct } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';

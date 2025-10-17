@@ -1,6 +1,7 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { ActiveModal, ActiveScreen } from '../types';
+import { ActiveModal, ActiveScreen, CalendarEvent } from '../types';
 import ModalHeader from './ModalHeader';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -8,10 +9,11 @@ const modalRoot = document.getElementById('modal-root')!;
 interface AddCalendarEventModalProps {
   onClose: () => void;
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void;
+  onAddCustomEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   initialDate?: Date;
 }
 
-const AddCalendarEventModal: React.FC<AddCalendarEventModalProps> = ({ onClose, onNavigate, initialDate }) => {
+const AddCalendarEventModal: React.FC<AddCalendarEventModalProps> = ({ onClose, onNavigate, onAddCustomEvent, initialDate }) => {
 
   const handleSelect = (screen: ActiveScreen, modal?: ActiveModal) => {
     let props = {};
@@ -23,6 +25,21 @@ const AddCalendarEventModal: React.FC<AddCalendarEventModalProps> = ({ onClose, 
         props = { trip: { date: initialDate.toISOString() }};
     }
     onNavigate(screen, modal, props);
+    onClose();
+  };
+
+  const handleAddCustom = () => {
+    const title = prompt("Enter event title:");
+    if (title && initialDate) {
+        onAddCustomEvent({
+            date: initialDate,
+            title,
+            type: 'custom',
+            color: 'violet',
+            data: { title }
+        });
+        onClose();
+    }
   };
   
   const modalContent = (
@@ -31,6 +48,10 @@ const AddCalendarEventModal: React.FC<AddCalendarEventModalProps> = ({ onClose, 
             <ModalHeader title="Add Event" onClose={onClose} />
             <div className="p-6 space-y-3">
                 <p className="text-center text-sm text-secondary">What would you like to add for {initialDate ? initialDate.toLocaleDateString() : 'this date'}?</p>
+                <button onClick={handleAddCustom} className="w-full text-left p-3 bg-subtle rounded-lg flex items-center gap-3 hover-bg-stronger transition-colors">
+                    <span className="text-2xl">✨</span>
+                    <span className="font-semibold text-primary">New Custom Event</span>
+                </button>
                 <button onClick={() => handleSelect('scheduled', 'editRecurring')} className="w-full text-left p-3 bg-subtle rounded-lg flex items-center gap-3 hover-bg-stronger transition-colors">
                     <span className="text-2xl">📅</span>
                     <span className="font-semibold text-primary">New Scheduled Bill</span>

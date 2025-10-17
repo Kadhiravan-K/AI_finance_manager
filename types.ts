@@ -341,6 +341,7 @@ export interface AppState {
   payees: Payee[];
   senders: Sender[];
   trustBin: TrustBinItem[];
+  customCalendarEvents: CalendarEvent[];
 }
 
 export type ActiveScreen = 'dashboard' | 'reports' | 'budgets' | 'goals' | 'investments' | 'more' | 'scheduled' | 'tripManagement' | 'tripDetails' | 'calculator' | 'achievements' | 'shop' | 'refunds' | 'dataHub' | 'challenges' | 'learn' | 'calendar' | 'notes' | 'subscriptions' | 'glossary' | 'manual' | 'debtManager' | 'faq' | 'live';
@@ -547,7 +548,7 @@ export interface CalendarEvent {
     id: string;
     date: Date;
     title: string;
-    type: 'bill' | 'refund' | 'trip' | 'goal';
+    type: 'bill' | 'refund' | 'trip' | 'goal' | 'custom';
     color: 'rose' | 'sky' | 'amber' | 'violet';
     data: any;
 }

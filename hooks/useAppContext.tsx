@@ -3,7 +3,8 @@ import useLocalStorage from './useLocalStorage';
 import { 
   AppState, Profile, Settings, Account, Transaction, TransactionType, Category, Goal, Budget, RecurringTransaction, InvestmentHolding, Contact, ContactGroup, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Refund, Debt, Note, ItemType, TrustBinItem, GlossaryEntry, Challenge, UserStreak, ParsedTransactionData, Sender, SenderType, Invoice, InvoiceStatus,
   AccountType,
-  FinancialProfile
+  FinancialProfile,
+  CalendarEvent
 } from '../types';
 import { AppDataContext, DEFAULT_SETTINGS } from '../contexts/SettingsContext';
 import { DEFAULT_CATEGORIES } from '../utils/categories';
@@ -26,8 +27,16 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [goals, setGoals] = useLocalStorage<Goal[]>('goals', []);
   const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
   const [investmentHoldings, setInvestmentHoldings] = useLocalStorage<InvestmentHolding[]>('investmentHoldings', []);
-  const [contacts, setContacts] = useLocalStorage<Contact[]>('contacts', []);
-  const [contactGroups, setContactGroups] = useLocalStorage<ContactGroup[]>('contactGroups', [{ id: 'default', name: 'General', icon: '👥' }]);
+  const [contacts, setContacts] = useLocalStorage<Contact[]>('contacts', [
+      { id: 'contact-1', name: 'Mom', groupId: 'group-family' },
+      { id: 'contact-2', name: 'John Doe', groupId: 'group-work' },
+      { id: 'contact-3', name: 'Pizza Place', groupId: 'group-general' },
+  ]);
+  const [contactGroups, setContactGroups] = useLocalStorage<ContactGroup[]>('contactGroups', [
+      { id: 'group-family', name: 'Family', icon: '👨‍👩‍👧' },
+      { id: 'group-work', name: 'Work', icon: '💼' },
+      { id: 'group-general', name: 'General', icon: '👥' }
+  ]);
   const [trips, setTrips] = useLocalStorage<Trip[]>('trips', []);
   const [tripExpenses, setTripExpenses] = useLocalStorage<TripExpense[]>('tripExpenses', []);
   const [shops, setShops] = useLocalStorage<Shop[]>('shops', []);
@@ -46,6 +55,8 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [invoices, setInvoices] = useLocalStorage<Invoice[]>('invoices', []);
   const [payees, setPayees] = useLocalStorage<any[]>('payees', []);
   const [senders, setSenders] = useLocalStorage<Sender[]>('senders', []);
+  const [customCalendarEvents, setCustomCalendarEvents] = useLocalStorage<CalendarEvent[]>('customCalendarEvents', []);
+
 
   // UI State managed here for simplicity
   const [selectedAccountIds, setSelectedAccountIds] = useState(['all']);
@@ -251,10 +262,11 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
     profile,
     // Full AppState
     settings, transactions, accounts, categories, budgets, goals, recurringTransactions, investmentHoldings, contacts, contactGroups, trips, tripExpenses, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, debts, notes, glossaryEntries, unlockedAchievements, challenges, streaks, invoices, payees, senders,
+    customCalendarEvents,
     financialProfile,
     trustBin,
     // Setters
-    setSettings, setFinancialProfile, setTransactions, setAccounts, setCategories, setBudgets, setGoals, setRecurringTransactions, setInvestmentHoldings, setContacts, setContactGroups, setTrips, setTripExpenses, setShops, setShopProducts, setShopSales, setShopEmployees, setShopShifts, setRefunds, setSettlements, setDebts, setNotes, setGlossaryEntries, setUnlockedAchievements, setChallenges, setStreaks, setInvoices, setPayees, setSenders,
+    setSettings, setFinancialProfile, setTransactions, setAccounts, setCategories, setBudgets, setGoals, setRecurringTransactions, setInvestmentHoldings, setContacts, setContactGroups, setTrips, setTripExpenses, setShops, setShopProducts, setShopSales, setShopEmployees, setShopShifts, setRefunds, setSettlements, setDebts, setNotes, setGlossaryEntries, setUnlockedAchievements, setChallenges, setStreaks, setInvoices, setPayees, setSenders, setCustomCalendarEvents,
     // Business Logic
     saveSettings,
     saveAccount,

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category, TransactionType, DateRange, CustomDateRange, Account, ActiveModal, AppState } from '../types';
 import CategoryPieChart from './CategoryPieChart';

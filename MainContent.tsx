@@ -1,11 +1,10 @@
 
-
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
 import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange } from './types';
 import FinanceDisplay from './components/FinanceDisplay';
 import { ReportsScreen } from './components/ReportsScreen';
-import BudgetsScreen from './components/BudgetsModal';
-import GoalsScreen from './components/GoalsModal';
+import BudgetsScreen from './components/BudgetsScreen';
+import GoalsScreen from './components/GoalsScreen';
 import InvestmentsScreen from './components/InvestmentsScreen';
 import ScheduledPaymentsScreen from './components/ScheduledPaymentsScreen';
 import MoreScreen from './components/More';
@@ -92,6 +91,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     setDebts,
     setBudgets,
     onSaveProduct,
+    onRefreshPrices,
   } = dataContext;
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
@@ -251,11 +251,10 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         else setGoals(prev => [...prev, {id: self.crypto.randomUUID(), currentAmount: 0, ...goal}]);
       }} accounts={appState.accounts} onContribute={handleContributeToGoal} onDelete={(id) => deleteItem(id, 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} onUpdateGoal={(goal) => setGoals(p => p.map(g => g.id === goal.id ? goal : g))} openModal={openModal} />;
     case 'investments':
-      return <InvestmentsScreen accounts={appState.accounts} holdings={appState.investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={(holding) => openModal('sellInvestment', { holding })} onUpdateValue={(holding) => openModal('updateInvestment', { holding })} onRefresh={() => {}} />;
+      return <InvestmentsScreen accounts={appState.accounts} holdings={appState.investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={(holding) => openModal('sellInvestment', { holding })} onUpdateValue={(holding) => openModal('updateInvestment', { holding })} onRefresh={onRefreshPrices} />;
     case 'scheduled':
         return <ScheduledPaymentsScreen recurringTransactions={appState.recurringTransactions} categories={appState.categories} accounts={appState.accounts} onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} onDelete={(id) => deleteItem(id, 'recurringTransaction')} onUpdate={(item) => setRecurringTransactions(p => p.map(rt => rt.id === item.id ? item : rt))} openModal={openModal} />;
     case 'more':
-// FIX: The MoreScreen component expects an onNavigate prop, not setActiveScreen or setActiveModal.
       return <MoreScreen onNavigate={onNavigate} onResetApp={() => {}} />;
     case 'tripManagement':
         return <TripManagementScreen trips={appState.trips} tripExpenses={appState.tripExpenses} onTripSelect={(tripId) => onNavigate('tripDetails', undefined, { tripId })} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => deleteItem(id, 'trip')} onShowSummary={() => openModal('tripSummary')} />;

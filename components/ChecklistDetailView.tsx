@@ -111,14 +111,16 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
       </div>
       <div className="flex-grow overflow-y-auto p-6 space-y-2">
         {checklistItems.map(item => (
-            <div key={item.id} className={`shopping-list-item-grid gap-3 p-2 rounded-lg border-l-4 ${priorityStyles[item.priority || Priority.NONE].border} ${priorityStyles[item.priority || Priority.NONE].bg}`}>
-                <button onClick={() => handlePriorityChange(item.id)} className="w-4 h-4 rounded-full" style={{backgroundColor: priorityStyles[item.priority || Priority.NONE].colorName ? `var(--color-accent-${priorityStyles[item.priority || Priority.NONE].colorName})` : 'var(--color-border-divider)'}}></button>
-                <CustomCheckbox id={item.id} checked={item.isPurchased} onChange={checked => handleItemChange(item.id, 'isPurchased', checked)} label="" />
-                <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} placeholder="Item name" className={`shopping-list-item-input ${item.isPurchased ? 'line-through text-secondary' : ''}`} />
-                <input type="text" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="shopping-list-item-input text-center" placeholder="Qty" />
+            <div key={item.id} className={`checklist-item ${priorityStyles[item.priority || Priority.NONE].bg} border-l-4 ${priorityStyles[item.priority || Priority.NONE].border}`}>
+              <button onClick={() => handlePriorityChange(item.id)} className="w-4 h-4 rounded-full flex-shrink-0" style={{backgroundColor: priorityStyles[item.priority || Priority.NONE].colorName ? `var(--color-accent-${priorityStyles[item.priority || Priority.NONE].colorName})` : 'var(--color-border-divider)'}}></button>
+              <CustomCheckbox id={item.id} checked={item.isPurchased} onChange={checked => handleItemChange(item.id, 'isPurchased', checked)} label="" />
+              <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} placeholder="Item name" className={`shopping-list-item-input flex-grow ${item.isPurchased ? 'line-through text-secondary' : ''}`} />
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <input type="text" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="shopping-list-item-input text-center w-12" placeholder="Qty" />
                 <span>x</span>
-                <input type="number" value={item.rate} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)} className="shopping-list-item-input rate" placeholder="Rate" />
-                <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 p-1 text-xl leading-none">&times;</button>
+                <input type="number" value={item.rate} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)} className="shopping-list-item-input rate w-20" placeholder="Rate" />
+              </div>
+              <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 p-1 text-xl leading-none flex-shrink-0">&times;</button>
             </div>
         ))}
         <button onClick={handleAddItem} className="w-full text-center p-2 mt-2 text-sm bg-subtle rounded-full border border-dashed border-divider hover-bg-stronger text-sky-400">+ Add Item</button>
