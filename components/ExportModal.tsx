@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { Transaction, Account, Category, Sender, AppState } from '../types';
+import { Transaction, Account, Category, Sender, AppState, TransactionType } from '../types';
 import ModalHeader from './ModalHeader';
 import { exportTransactionsToCsv, exportSelectedDataToJson } from '../utils/export';
 import CustomDatePicker from './CustomDatePicker';
 import CustomCheckbox from './CustomCheckbox';
+import { AppDataContext } from '../contexts/SettingsContext';
+import LoadingSpinner from './LoadingSpinner';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -21,8 +23,11 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
   const [activeTab, setActiveTab] = useState<Tab>('simple');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const [selectedDataKeys, setSelectedDataKeys] = useState<Set<keyof AppState>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { accounts, findOrCreateCategory, setTransactions } = useContext(AppDataContext);
 
   const handleExportCsv = () => {
     const { transactions, accounts, categories, senders } = appState;
@@ -75,6 +80,84 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
       setSelectedDataKeys(new Set()); // Deselect all
     } else {
       setSelectedDataKeys(new Set(dataModules.map(m => m.key))); // Select all
+    }
+  };
+
+  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+
+    try {
+        const text = await file.text();
+        const rows = text.split('\n').slice(1);
+        const newTransactions: Transaction[] = [];
+        const requiredAccounts = new Set<string>();
+
+        rows.forEach(row => {
+            if (row.trim()) {
+                const accountName = row.split(',')[1]?.trim();
+                if (accountName) {
+                    requiredAccounts.add(accountName.toLowerCase());
+                }
+            }
+        });
+
+        const existingAccounts = new Set(accounts.map((a: Account) => a.name.toLowerCase()));
+        const missingAccounts = Array.from(requiredAccounts).filter(name => !existingAccounts.has(name));
+
+        if (missingAccounts.length > 0) {
+            alert(`The following accounts are not found: ${missingAccounts.join(', ')}. Please create them before importing.`);
+            setIsImporting(false);
+            return;
+        }
+
+        for (const row of rows) {
+            if (!row.trim()) continue;
+            const [dateStr, accountName, description, incomeStr, expenseStr, categoryName] = row.split(',');
+            
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) continue;
+
+                const account = accounts.find((a: Account) => a.name.toLowerCase() === accountName.trim().toLowerCase())!;
+                const income = parseFloat(incomeStr);
+                const expense = parseFloat(expenseStr);
+                
+                const type = !isNaN(income) && income > 0 ? TransactionType.INCOME : TransactionType.EXPENSE;
+                const amount = type === TransactionType.INCOME ? income : expense;
+                if (isNaN(amount) || amount <= 0) continue;
+
+                const categoryId = findOrCreateCategory(categoryName.trim(), type);
+
+                newTransactions.push({
+                    id: self.crypto.randomUUID(),
+                    date: date.toISOString(),
+                    accountId: account.id,
+                    description: description.trim(),
+                    amount,
+                    type,
+                    categoryId,
+                });
+            } catch (e) {
+                console.error("Failed to parse row:", row, e);
+            }
+        }
+        
+        if (newTransactions.length > 0) {
+            if (window.confirm(`Found ${newTransactions.length} transactions to import. This will add them to your existing data. Continue?`)) {
+                await setTransactions((prev: Transaction[]) => [...prev, ...newTransactions]);
+                alert('Import successful!');
+                onClose();
+            }
+        } else {
+            alert('No valid transactions found to import.');
+        }
+    } catch (err) {
+        alert("Failed to read or process the file.");
+    } finally {
+        setIsImporting(false);
+        if(fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -162,12 +245,15 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
              )}
             
             <div className="pt-6 border-t border-divider">
-                <h3 className="font-semibold text-lg text-primary mb-2">Import Data</h3>
-                 <p className="text-sm text-secondary mb-4">Select a CSV or JSON file to import data. This feature is coming soon.</p>
+                <h3 className="font-semibold text-lg text-primary mb-2">Import Transactions (CSV)</h3>
+                 <p className="text-sm text-secondary mb-4">Select a CSV file to import. Format must be: Date, Account, Description, Income, Expense, Category. Ensure all accounts in the file already exist in the app.</p>
                  <div className="mt-4">
                      <input 
                         type="file" 
-                        disabled 
+                        ref={fileInputRef}
+                        accept=".csv"
+                        onChange={handleImportCsv}
+                        disabled={isImporting} 
                         className="w-full text-sm text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-subtle file:text-primary hover:file:bg-card-hover disabled:opacity-50"
                      />
                  </div>

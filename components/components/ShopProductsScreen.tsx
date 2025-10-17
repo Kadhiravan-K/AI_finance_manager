@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Shop, ShopProduct, ActiveModal } from '../../types';
 import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';

@@ -79,7 +79,7 @@ const BasicCalculator: React.FC<BasicCalculatorProps> = () => {
         }
     };
     
-    const CalcButton = ({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) => (
+    const CalcButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
         <button type="button" onClick={onClick} className={`calc-btn ${className}`}>
             {children}
         </button>
@@ -379,7 +379,7 @@ const GoalCalculator = () => {
 const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
   const [activeTab, setActiveTab] = useState<CalculatorType>('basic');
 
-  const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void }) => (
+  const TabButton: React.FC<{ active: boolean, children: React.ReactNode, onClick: () => void }> = ({ active, children, onClick }) => (
     <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
     </button>

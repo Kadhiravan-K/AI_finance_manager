@@ -230,7 +230,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   }));
   const isGroupSelected = (group: { members: Contact[] } & ContactGroup) => group.members.length > 0 && group.members.every(m => tempSelectedContacts.has(m.id));
 
-  const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+  const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
     <button type="button" onClick={onClick} className={`w-full py-3 px-4 text-sm font-semibold transition-colors focus:outline-none ${ active ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-secondary hover:text-primary' }`}>
         {children}
     </button>
@@ -248,9 +248,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
         <ModalHeader title={isCreating ? 'Create New Trip' : 'Edit Trip'} onClose={onClose} />
         {isCreating && (
              <div className="flex border-b border-divider flex-shrink-0">
-                {/* Fix: Added children to TabButton component */}
                 <TabButton active={addMode === 'auto'} onClick={() => setAddMode('auto')}>AI Planner</TabButton>
-                {/* Fix: Added children to TabButton component */}
                 <TabButton active={addMode === 'manual'} onClick={() => setAddMode('manual')}>Manual</TabButton>
              </div>
         )}
@@ -331,71 +329,52 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
                 </button>
             </div>
             {showParticipantPicker && (
-                <div className="p-3 bg-subtle rounded-lg border border---- START OF FILE components/EditContactModal.tsx ---
-
-import React, { useState, useContext, useEffect } from 'react';
-import ReactDOM from 'react-dom';
-import { Contact } from '../types';
-import { SettingsContext } from '../contexts/SettingsContext';
-import ModalHeader from './ModalHeader';
-import CustomSelect from './CustomSelect';
-
-const modalRoot = document.getElementById('modal-root')!;
-
-interface EditContactModalProps {
-  contact?: Contact;
-  initialGroupId?: string;
-  onSave: (contact: Omit<Contact, 'id'>, id?: string) => void;
-  onClose: () => void;
-}
-
-const EditContactModal: React.FC<EditContactModalProps> = ({ contact, initialGroupId, onSave, onClose }) => {
-  const { contactGroups } = useContext(SettingsContext);
-  const isCreating = !contact;
-  
-  const [name, setName] = useState(contact?.name || '');
-  const [groupId, setGroupId] = useState(contact?.groupId || initialGroupId || contactGroups[0]?.id || '');
-
-  useEffect(() => {
-      // Ensure groupId is set if contact is provided after initial render
-      if (contact?.groupId) {
-          setGroupId(contact.groupId);
-      }
-  }, [contact]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim() && groupId) {
-      onSave({ name: name.trim(), groupId }, contact?.id);
-      onClose();
-    }
-  };
-  
-  const groupOptions = contactGroups.map(g => ({ value: g.id, label: g.name }));
-
-  const modalContent = (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[600] p-4" onClick={onClose}>
-      <div className="glass-card rounded-xl shadow-2xl w-full max-w-sm p-0 border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title={isCreating ? "Add New Contact" : "Edit Contact"} onClose={onClose} />
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="text-sm text-secondary mb-1 block">Name</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full input-base p-2 rounded-md" required autoFocus />
-          </div>
-          <div>
-            <label className="text-sm text-secondary mb-1 block">Group</label>
-            <CustomSelect options={groupOptions} value={groupId} onChange={setGroupId} />
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>
-            <button type="submit" className="button-primary px-4 py-2">Save</button>
-          </div>
-        </form>
+                <div className="p-3 bg-subtle rounded-lg border border-divider space-y-3 animate-fadeInUp">
+                  {unmatchedNames.length > 0 && (
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-semibold text-secondary">Unmatched Participants</h4>
+                        {unmatchedNames.map(uname => (
+                            editingUnmatchedName === uname ? (
+                                <div key={uname} className="p-2 bg-subtle border border-divider rounded-lg space-y-2">
+                                    <input type="text" value={inlineContactName} onChange={e => setInlineContactName(e.target.value)} className="input-base w-full p-2 rounded-lg" />
+                                    <CustomSelect options={contactGroups.map(g => ({value: g.id, label: g.name}))} value={inlineContactGroupId} onChange={setInlineContactGroupId} />
+                                    <div className="flex justify-end gap-2"><button type="button" onClick={handleCancelInlineAdd} className="button-secondary text-xs px-2 py-1">Cancel</button><button type="button" onClick={handleSaveInlineContact} className="button-primary text-xs px-2 py-1">Save Contact</button></div>
+                                </div>
+                            ) : (
+                                <div key={uname} className="flex justify-between items-center p-2 bg-subtle rounded-lg">
+                                    <span className="text-sm text-secondary">{uname}</span>
+                                    <button type="button" onClick={() => handleStartInlineAdd(uname)} className="button-secondary text-xs px-2 py-1">Add as New Contact</button>
+                                </div>
+                            )
+                        ))}
+                    </div>
+                  )}
+                  {contactsByGroup.map(group => (
+                    <div key={group.id}>
+                      <div className="p-1"><CustomCheckbox id={`group-${group.id}`} label={group.name} checked={isGroupSelected(group)} onChange={c => handleGroupToggle(group, c)} /></div>
+                      <div className="pl-6 space-y-1">
+                          {group.members.map(contact => <div key={contact.id}><CustomCheckbox id={contact.id} label={contact.name} checked={tempSelectedContacts.has(contact.id)} onChange={c => handleContactToggle(contact.id, c)}/></div>)}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-end gap-2 pt-2 border-t border-divider">
+                      <button type="button" onClick={onOpenContactsManager} className="button-secondary text-xs px-3 py-1.5">Manage Contacts</button>
+                      <button type="button" onClick={handleAddParticipants} className="button-primary px-4 py-2">Confirm Selection</button>
+                  </div>
+                </div>
+            )}
+            
+            <div className="flex justify-end gap-3 pt-4 border-t border-divider">
+              <button type="button" onClick={onClose} className="button-secondary px-4 py-2">
+                Cancel
+              </button>
+              <button type="submit" className="button-primary px-4 py-2">
+                {isCreating ? 'Create Trip' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
-
-  return ReactDOM.createPortal(modalContent, modalRoot);
 };
-
-export default EditContactModal;

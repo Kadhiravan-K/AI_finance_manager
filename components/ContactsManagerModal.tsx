@@ -8,7 +8,7 @@ interface ContactsManagerModalProps {
   onAddGroup: () => void;
   onEditGroup: (group: ContactGroup) => void;
   onDeleteGroup: (groupId: string) => void;
-  onAddContact: (group: ContactGroup) => void;
+  onSaveContact: (contactData: Omit<Contact, 'id'>) => void;
   onEditContact: (contact: Contact) => void;
   onDeleteContact: (contactId: string) => void;
 }
@@ -18,7 +18,7 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({
   onAddGroup,
   onEditGroup,
   onDeleteGroup,
-  onAddContact,
+  onSaveContact,
   onEditContact,
   onDeleteContact,
 }) => {
@@ -26,15 +26,27 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({
   
   const [view, setView] = useState<'groups' | 'contacts'>('groups');
   const [selectedGroup, setSelectedGroup] = useState<ContactGroup | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
 
   const handleGroupClick = (group: ContactGroup) => {
     setSelectedGroup(group);
     setView('contacts');
+    setShowAddForm(false);
   };
 
   const handleBack = () => {
     setSelectedGroup(null);
     setView('groups');
+  };
+
+  const handleSaveNewContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newContactName.trim() && selectedGroup) {
+      onSaveContact({ name: newContactName.trim(), groupId: selectedGroup.id });
+      setNewContactName('');
+      setShowAddForm(false);
+    }
   };
 
   return (
@@ -65,27 +77,42 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({
                 ))
             )}
              {view === 'contacts' && selectedGroup && (
-                 contacts.filter(c => c.groupId === selectedGroup.id).map(contact => (
-                    <div key={contact.id} className="flex items-center justify-between p-2 bg-subtle rounded-lg group">
-                        <span className="font-medium text-primary">{contact.name}</span>
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity space-x-2">
-                            <button onClick={() => onEditContact(contact)} className="text-xs text-secondary hover:text-primary px-2">Edit</button>
-                            <button onClick={() => onDeleteContact(contact.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2">Delete</button>
+                 <>
+                    {contacts.filter(c => c.groupId === selectedGroup.id).map(contact => (
+                        <div key={contact.id} className="flex items-center justify-between p-2 bg-subtle rounded-lg group">
+                            <span className="font-medium text-primary">{contact.name}</span>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity space-x-2">
+                                <button onClick={() => onEditContact(contact)} className="text-xs text-secondary hover:text-primary px-2">Edit</button>
+                                <button onClick={() => onDeleteContact(contact.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2">Delete</button>
+                            </div>
                         </div>
-                    </div>
-                ))
+                    ))}
+                    {showAddForm && (
+                        <form onSubmit={handleSaveNewContact} className="p-2 bg-subtle rounded-lg flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={newContactName}
+                                onChange={e => setNewContactName(e.target.value)}
+                                placeholder="New contact name..."
+                                className="input-base w-full p-2 rounded-lg"
+                                autoFocus
+                            />
+                            <button type="submit" className="button-primary px-3 py-2">Save</button>
+                            <button type="button" onClick={() => setShowAddForm(false)} className="button-secondary px-3 py-2">X</button>
+                        </form>
+                    )}
+                 </>
             )}
         </div>
 
         {/* Action Button Section */}
         <div className="flex-shrink-0 p-4 border-t border-divider bg-subtle rounded-b-xl">
-           {view === 'groups' && (
+           {view === 'groups' ? (
                <button onClick={onAddGroup} className="button-primary w-full py-2">
                    + Add New Group
                </button>
-           )}
-            {view === 'contacts' && selectedGroup && (
-               <button onClick={() => onAddContact(selectedGroup)} className="button-primary w-full py-2">
+           ) : (
+               <button onClick={() => setShowAddForm(true)} className="button-primary w-full py-2" disabled={showAddForm}>
                    + Add New Contact
                </button>
            )}

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
@@ -64,7 +65,7 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
     }
   };
 
-  const CalcButton = ({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) => (
+  const CalcButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
     <button type="button" onClick={onClick} className={`calc-btn ${className}`}>{children}</button>
   );
 
@@ -77,7 +78,6 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
                 <div className="text-secondary text-sm h-5 truncate" aria-live="polite">{expression || '0'}</div>
                 <div className="text-primary text-2xl font-bold h-8 truncate" aria-live="polite">{result}</div>
             </div>
-            {/* FIX: Add children to CalcButton components */}
             <div className="grid grid-cols-4 gap-1.5">
                 <CalcButton onClick={() => handleButtonClick('C')} className="calc-btn-special">C</CalcButton>
                 <CalcButton onClick={() => handleButtonClick('DEL')} className="calc-btn-special">DEL</CalcButton>

@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from '../ModalHeader';
@@ -64,7 +66,7 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
     }
   };
 
-  const CalcButton = ({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) => (
+  const CalcButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
     <button type="button" onClick={onClick} className={`calc-btn ${className}`}>{children}</button>
   );
 

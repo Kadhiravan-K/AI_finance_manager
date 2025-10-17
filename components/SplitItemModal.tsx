@@ -139,6 +139,15 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     const newVal = Math.max(0, currentVal + delta);
     handleDetailChange(id, field, String(newVal));
   };
+  
+  const handleRemovePerson = (id: string) => {
+    setSplitDetails(prev => prev.filter(p => p.id !== id));
+    setTempSelected(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+    });
+  };
 
   const handleConfirmSelection = () => {
     const newSelection = new Set(tempSelected);
@@ -164,7 +173,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     onClose();
   };
 
-  const TabButton = (props: { active: boolean; children: React.ReactNode; onClick: () => void; }) => <button type="button" {...props} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${props.active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`} />;
+  const TabButton: React.FC<{ active: boolean; children: React.ReactNode; onClick: () => void; }> = ({ active, children, onClick }) => <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>{children}</button>;
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onClose}>
@@ -178,7 +187,6 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
           <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">Split Between</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* FIX: Add children to TabButton components */}
                 <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
                 <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>
                 <TabButton active={mode === 'shares'} onClick={() => setMode('shares')}>Shares</TabButton>
@@ -191,6 +199,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
                 {mode === 'percentage' && <div className="relative w-24"><DebouncedNumericInput type="text" inputMode="decimal" value={p.percentage || ''} onCommit={(val: string) => handleDetailChange(p.id, 'percentage', val)} className="w-full text-right bg-transparent no-spinner pr-4 text-primary input-base" /><span className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary text-sm">%</span></div>}
                 {mode === 'shares' && <div className="flex items-center gap-1"><button type="button" onClick={() => handleNumericChange(p.id, 'shares', -0.5)} className="control-button control-button-minus">-</button><DebouncedNumericInput type="text" inputMode="decimal" value={p.shares || ''} onCommit={(val: string) => handleDetailChange(p.id, 'shares', val)} className="w-12 text-center bg-transparent no-spinner text-primary" /><button type="button" onClick={() => handleNumericChange(p.id, 'shares', 0.5)} className="control-button control-button-plus">+</button></div>}
                 <DebouncedNumericInput type="text" inputMode="decimal" value={mode === 'manual' ? p.amount || '' : (Number(p.amount) || 0).toFixed(2)} readOnly={mode !== 'manual'} onCommit={(val: string) => handleDetailChange(p.id, 'amount', val)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
+                <button type="button" onClick={() => handleRemovePerson(p.id)} className="text-rose-400 font-bold text-xl leading-none px-1 flex-shrink-0">&times;</button>
               </div>
             ))}
             </div>

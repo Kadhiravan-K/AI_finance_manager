@@ -1,3 +1,4 @@
+
 import { createContext } from 'react';
 import { AppState, Settings } from '../types';
 
@@ -18,26 +19,26 @@ export const DEFAULT_SETTINGS: Settings = {
   dashboardWidgets: [],
   footerActions: ['dashboard', 'reports', 'budgets', 'more'],
   enabledTools: {
-    investments: true,
-    tripManagement: true,
+    investments: false,
+    tripManagement: false,
     shop: false,
     refunds: true,
-    achievements: true,
+    achievements: false,
     challenges: true,
-    learn: true,
+    learn: false,
     calendar: true,
     notes: true,
     calculator: true,
     scheduledPayments: true,
     accountTransfer: true,
     budgets: true,
-    goals: true,
+    goals: false,
     payees: false,
     senders: false,
     aiHub: true,
-    dataHub: true,
+    dataHub: false,
     feedback: true,
-    faq: true,
+    faq: false,
     subscriptions: false,
     debtManager: true,
   },

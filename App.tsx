@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppDataProvider, useAppContext } from './hooks/useAppContext';
 import MainContent from './components/MainContent';
@@ -11,7 +5,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import { supabase } from './utils/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { ActiveScreen, ModalState, ActiveModal, AppState, Transaction, RecurringTransaction, Account, Category, Goal, Budget, Trip, Contact, ContactGroup, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Refund, Debt, Note, GlossaryEntry } from './types';
+import { ActiveScreen, ModalState, ActiveModal, AppState, Transaction, RecurringTransaction, Account, Category, Goal, Budget, Trip, Contact, ContactGroup, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Refund, Debt, Note, GlossaryEntry, TransactionType } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import WelcomeScreen from './components/WelcomeScreen';
 import OnboardingModal from './components/OnboardingModal';
@@ -39,7 +33,6 @@ import ImportExportModal from './components/ExportModal';
 import DashboardSettingsModal from './components/DashboardSettingsModal';
 import FooterCustomizationModal from './components/FooterCustomizationModal';
 import NotificationSettingsModal from './components/NotificationSettingsModal';
-import AICommandModal from './components/AICommandModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { EditTripModal } from './components/EditTripModal';
 import AddTripExpenseModal from './components/AddTripExpenseModal';
@@ -170,6 +163,41 @@ const AppContainer: React.FC = () => {
     }
   }, [dataContext.newlyUnlockedAchievementId, dataContext]);
 
+  const handleAiCommand = useCallback(async (payload: any): Promise<string> => {
+    const { description, amount, type, category, accountName } = payload;
+    
+    let accountId = '';
+    if (accountName) {
+        const foundAccount = appState.accounts.find(a => a.name.toLowerCase() === accountName.toLowerCase());
+        if (foundAccount) {
+            accountId = foundAccount.id;
+        } else {
+            return `I couldn't find an account named "${accountName}". Please be more specific.`;
+        }
+    } else if (appState.accounts.length === 1) {
+        accountId = appState.accounts[0].id;
+    } else {
+        return `You have multiple accounts. Which one should I use for this transaction? Your options are: ${appState.accounts.map(a => a.name).join(', ')}.`;
+    }
+    
+    const categoryId = dataContext.findOrCreateCategory(category, type);
+
+    const newTransaction: Transaction = {
+      id: self.crypto.randomUUID(),
+      accountId,
+      description,
+      amount,
+      type,
+      categoryId,
+      date: new Date().toISOString(),
+    };
+    
+    await dataContext.setTransactions((prev: Transaction[]) => [newTransaction, ...prev]);
+    dataContext.updateStreak();
+
+    return `Done! I've added a ${type} of ${amount} for "${description}".`;
+  }, [appState.accounts, dataContext]);
+
   const renderModal = () => {
     if (modalStack.length === 0) return null;
     const { name, props } = modalStack[modalStack.length - 1];
@@ -194,7 +222,7 @@ const AppContainer: React.FC = () => {
       case 'dashboardSettings': return <DashboardSettingsModal onClose={closeModal} />;
       case 'footerCustomization': return <FooterCustomizationModal onClose={closeModal} />;
       case 'notificationSettings': return <NotificationSettingsModal onClose={closeModal} budgets={appState.budgets} categories={appState.categories} />;
-      case 'aiHub': return <AIHubModal onClose={closeModal} onExecuteCommand={() => Promise.resolve("")} onNavigate={onNavigate} appState={appState} />;
+      case 'aiHub': return <AIHubModal onClose={closeModal} onExecuteCommand={handleAiCommand} onNavigate={onNavigate} appState={appState} />;
       case 'globalSearch': return <GlobalSearchModal onClose={closeModal} onNavigate={onNavigate} />;
       case 'editTrip': return <EditTripModal onClose={closeModal} onSave={dataContext.onSaveTrip} {...props} onSaveContact={dataContext.onSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
       case 'addTripExpense': return <AddTripExpenseModal onClose={closeModal} onSave={dataContext.onSaveTripExpense} onUpdate={dataContext.onUpdateTripExpense} categories={appState.categories} findOrCreateCategory={dataContext.findOrCreateCategory} {...props} />;
@@ -218,7 +246,7 @@ const AppContainer: React.FC = () => {
       case 'integrations': return <IntegrationsModal onClose={closeModal} />;
       case 'miniCalculator': return <MiniCalculatorModal onClose={closeModal} {...props} />;
       case 'trustBin': return <TrustBinModal onClose={closeModal} trustBinItems={appState.trustBin} onRestore={dataContext.onRestoreItems} onPermanentDelete={dataContext.onPermanentDeleteItems} />;
-      case 'contacts': return <ContactsManagerModal onClose={closeModal} onAddGroup={() => openModal('editContactGroup')} onEditGroup={(g) => openModal('editContactGroup', {group: g})} onDeleteGroup={(id) => dataContext.deleteItem(id, 'contactGroup')} onAddContact={(g) => openModal('editContact', {initialGroupId: g.id})} onEditContact={(c) => openModal('editContact', {contact: c})} onDeleteContact={(id) => dataContext.deleteItem(id, 'contact')} />;
+      case 'contacts': return <ContactsManagerModal onClose={closeModal} onAddGroup={() => openModal('editContactGroup')} onEditGroup={(g) => openModal('editContactGroup', {group: g})} onDeleteGroup={(id) => dataContext.deleteItem(id, 'contactGroup')} onSaveContact={dataContext.onSaveContact} onEditContact={(c) => openModal('editContact', {contact: c})} onDeleteContact={(id) => dataContext.deleteItem(id, 'contact')} />;
       case 'editContactGroup': return <EditContactGroupModal onClose={closeModal} onSave={dataContext.onSaveContactGroup} {...props} />;
       case 'editContact': return <EditContactModal onClose={closeModal} onSave={dataContext.onSaveContact} {...props} />;
       case 'editGlossaryEntry': return <EditGlossaryEntryModal onClose={closeModal} onSave={dataContext.onSaveGlossaryEntry} {...props} />;
@@ -251,8 +279,8 @@ const AppContainer: React.FC = () => {
       {showConfetti && <Confetti onFinish={() => setShowConfetti(false)} />}
       {showWelcomeGuide && <OnboardingGuide onFinish={() => setShowWelcomeGuide(false)} />}
 
-      <Header profile={profile} />
-      <main ref={mainContentRef} className="flex-grow overflow-y-auto relative">
+      <Header profile={profile} openModal={openModal} />
+      <main ref={mainContentRef} className="flex-grow overflow-y-auto relative pb-24">
          <MainContent
             activeScreen={activeScreen}
             setActiveScreen={setActiveScreen}

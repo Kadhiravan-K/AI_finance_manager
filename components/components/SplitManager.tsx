@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SplitDetail, TripParticipant, USER_SELF_ID } from '../../types';
 import CustomSelect from '../CustomSelect';
@@ -109,7 +111,7 @@ export const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeC
     
     const totalAssigned = useMemo(() => participants.reduce((sum, p) => sum + p.amount, 0), [participants]);
     const remainder = totalAmount - totalAssigned;
-    const TabButton = (props: { active: boolean; children: React.ReactNode; onClick: () => void; }) => <button type="button" {...props} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${props.active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`} />;
+    const TabButton: React.FC<{ active: boolean; children: React.ReactNode; onClick: () => void; }> = ({ active, children, onClick }) => <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>{children}</button>;
     
     const availableParticipants = allParticipants.filter(tp => !participants.some(p => p.id === tp.contactId));
 

@@ -112,7 +112,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
       {value: 'years', label: 'Years'},
   ];
 
-  const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
+  const TabButton: React.FC<{ active: boolean, children: React.ReactNode, onClick: () => void}> = ({ active, children, onClick }) => (
     <button type="button" onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
     </button>
@@ -138,9 +138,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-secondary">Theme</span>
                     <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-                        {/* Fix: Added children to TabButton component */}
                         <TabButton active={settings.theme === 'dark'} onClick={() => handleThemeChange('dark')}>Dark</TabButton>
-                        {/* Fix: Added children to TabButton component */}
                         <TabButton active={settings.theme === 'light'} onClick={() => handleThemeChange('light')}>Light</TabButton>
                     </div>
                 </div>

@@ -3,10 +3,8 @@ import { Trip, TripExpense, Category, Contact, ParsedTripExpense, SplitDetail, T
 import { parseTripExpenseText } from '../services/geminiService';
 import ModalHeader from './ModalHeader';
 import LoadingSpinner from './LoadingSpinner';
-// Fix: Corrected import path for SplitManager.
 import { SplitManager } from './SplitManager';
 import CustomSelect from './CustomSelect';
-// Fix: Corrected import path for SplitItemModal.
 import SplitItemModal from './SplitItemModal';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 

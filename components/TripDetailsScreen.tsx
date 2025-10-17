@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useContext, useRef } from 'react';
 import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -10,6 +9,9 @@ import TripChat from './TripChat';
 import TripHistory from './TripHistory';
 import CategoryPieChart from './CategoryPieChart';
 import CustomCheckbox from './CustomCheckbox';
+import EmptyState from './EmptyState';
+import LoadingSpinner from './LoadingSpinner';
+import { generateAITripPlan } from '../services/geminiService';
 
 interface TripDetailsScreenProps {
   trip: Trip;
@@ -39,13 +41,13 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, c
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <TripDashboard trip={trip} expenses={expenses} categories={categories} openModal={openModal} />;
+      case 'dashboard': return <TripDashboard trip={trip} expenses={expenses} categories={categories} openModal={openModal} onUpdateTrip={onUpdateTrip} />;
       case 'expenses': return <TripExpensesList expenses={expenses} categories={categories} onEditExpense={onEditExpense} currency={trip.currency} />;
       case 'plan': return <TripPlanView trip={trip} onUpdateTrip={onUpdateTrip} />;
       case 'settle': return <TripSettleView trip={trip} expenses={expenses} />;
       case 'notes': return <TripNotesView trip={trip} onNavigate={onNavigate} />;
       case 'chat': return <TripChat />;
-      case 'history': return <TripHistory />;
+      case 'history': return <TripHistory trip={trip} expenses={expenses} />;
       default: return null;
     }
   };
@@ -67,12 +69,15 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, c
       <div className="flex-grow overflow-y-auto">
         {renderContent()}
       </div>
+      <div className="p-4 border-t border-divider flex-shrink-0">
+          <button onClick={onAddExpense} className="button-primary w-full py-2">+ Add Expense</button>
+      </div>
     </div>
   );
 };
 
 
-const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories: Category[]; openModal: (name: ActiveModal, props?: any) => void; }> = ({ trip, expenses, categories, openModal }) => {
+const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories: Category[]; openModal: (name: ActiveModal, props?: any) => void; onUpdateTrip: (trip: Trip) => void; }> = ({ trip, expenses, categories, openModal, onUpdateTrip }) => {
     const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
     const totalSpent = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
     const budgetRemaining = trip.budget ? trip.budget - totalSpent : null;
@@ -95,7 +100,7 @@ const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories:
             <div className="p-3 bg-subtle rounded-lg">
                 <div className="flex justify-between items-center mb-2">
                      <h4 className="font-semibold text-primary">Participants ({trip.participants.length})</h4>
-                     <button onClick={() => openModal('manageTripMembers', { trip })} className="button-secondary text-xs px-3 py-1">Manage</button>
+                     <button onClick={() => openModal('manageTripMembers', { trip, onUpdateTrip })} className="button-secondary text-xs px-3 py-1">Manage</button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {trip.participants.map(p => <span key={p.contactId} className="px-2 py-1 bg-subtle border border-divider rounded-full text-sm text-secondary">{p.name}</span>)}
@@ -132,6 +137,8 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
     const [planState, setPlanState] = useState<TripDayPlan[]>(trip.plan || []);
     const [isDirty, setIsDirty] = useState(false);
     const [editingField, setEditingField] = useState<{ dayId: string; itemId: string; field: 'time' | 'activity' | 'icon' } | null>(null);
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const dragItem = useRef<{ dayId: string; itemIndex: number } | null>(null);
     const dragOverItem = useRef<{ dayId: string; itemIndex: number } | null>(null);
@@ -140,6 +147,47 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
     const updatePlan = (newPlan: TripDayPlan[]) => {
         setPlanState(newPlan);
         setIsDirty(true);
+    };
+
+    const handleGeneratePlan = async () => {
+        if (!aiPrompt.trim()) return;
+        setIsGenerating(true);
+        try {
+            const newPlan = await generateAITripPlan(aiPrompt, planState);
+            updatePlan(newPlan);
+        } catch (e) {
+            console.error(e);
+            alert("Failed to generate plan. Please try again.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+    
+    const handleAddDay = () => {
+        const lastDate = planState.length > 0 ? new Date(planState[planState.length - 1].date) : new Date(trip.date);
+        lastDate.setDate(lastDate.getDate() + 1);
+
+        const newDay: TripDayPlan = {
+            id: self.crypto.randomUUID(),
+            date: lastDate.toISOString(),
+            title: `Day ${planState.length + 1}`,
+            items: [],
+        };
+        updatePlan([...planState, newDay]);
+    };
+    
+    const handleAddItem = (dayId: string) => {
+        const newItem: TripDayPlanItem = {
+            id: self.crypto.randomUUID(),
+            time: '09:00',
+            activity: 'New Activity',
+            type: 'other',
+            completed: false,
+        };
+        const newPlan = planState.map(day => 
+            day.id === dayId ? { ...day, items: [...day.items, newItem] } : day
+        );
+        updatePlan(newPlan);
     };
     
     const handleFieldChange = (dayId: string, itemId: string, field: keyof TripDayPlanItem, value: any) => {
@@ -200,6 +248,42 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
         }
     };
 
+    if (planState.length === 0) {
+        return (
+            <div className="p-6 flex flex-col items-center justify-center h-full">
+                { isGenerating ? (
+                    <div className="flex flex-col items-center justify-center h-full">
+                        <LoadingSpinner />
+                        <p className="mt-4 text-secondary">Generating your itinerary...</p>
+                    </div>
+                ) : (
+                    <>
+                        <EmptyState
+                            icon="🗺️"
+                            title="No Itinerary Yet"
+                            message="Generate a plan with AI or add your first day manually."
+                        />
+                        <div className="w-full max-w-md mt-6 space-y-4">
+                            <textarea 
+                                value={aiPrompt}
+                                onChange={e => setAiPrompt(e.target.value)}
+                                placeholder="e.g., A relaxed 3-day beach vacation in Goa with a focus on good food."
+                                className="themed-textarea w-full h-24 p-2"
+                                disabled={isGenerating}
+                            />
+                            <button onClick={handleGeneratePlan} className="button-primary w-full py-2 flex items-center justify-center gap-2" disabled={isGenerating}>
+                                ✨ Generate Plan with AI
+                            </button>
+                            <button onClick={handleAddDay} className="button-secondary w-full py-2">
+                                + Add First Day Manually
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 space-y-4">
             {isDirty && (
@@ -245,9 +329,13 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
                                 </div>
                             </React.Fragment>
                         ))}
+                        <button onClick={() => handleAddItem(day.id)} className="w-full text-center p-2 text-sm text-sky-400 hover:text-sky-300 ml-5 mt-2">+ Add Activity</button>
                     </div>
                 </div>
             ))}
+            <button onClick={handleAddDay} className="button-secondary w-full py-2 mt-4">
+                + Add Another Day
+            </button>
         </div>
     );
 };

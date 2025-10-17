@@ -6,12 +6,11 @@ import { SettingsContext } from '../contexts/SettingsContext';
 import ConfirmationDialog from './ConfirmationDialog';
 
 interface MoreScreenProps {
-  setActiveScreen: (screen: ActiveScreen) => void;
-  setActiveModal: (modal: ActiveModal, props?: Record<string, any>) => void;
+  onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void;
   onResetApp: () => void;
 }
 
-const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen }) => {
+const MoreScreen: React.FC<MoreScreenProps> = ({ onNavigate, onResetApp }) => {
   const { settings } = useContext(SettingsContext);
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -28,9 +27,9 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ setActiveModal, setActiveScreen
 
   const handleNav = (screen?: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => {
     if (modal) {
-        setActiveModal(modal, props);
+        onNavigate('more', modal, props);
     } else if (screen) {
-        setActiveScreen(screen);
+        onNavigate(screen);
     }
   }
 

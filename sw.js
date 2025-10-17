@@ -37,13 +37,8 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // We only want to cache GET requests.
-  if (event.request.method !== 'GET') {
-    return;
-  }
-  
   // Handle share target fetch
-  if (event.request.url.includes('?shared_text=')) {
+  if (event.request.method === 'GET' && event.request.url.includes('?shared_text=')) {
     event.respondWith(Response.redirect('/'));
     event.waitUntil(async function() {
       const client = await self.clients.get(event.clientId);
@@ -55,35 +50,57 @@ self.addEventListener('fetch', event => {
     }());
     return;
   }
-  
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
 
-        return fetch(event.request).then(
-          response => {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
-              return response;
-            }
-
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
+  // Strategy: Cache first for GET requests, Network only for others.
+  // Both strategies include an offline fallback error response.
+  if (event.request.method === 'GET') {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cachedResponse => {
+          // Cache hit - return response
+          if (cachedResponse) {
+            return cachedResponse;
           }
+
+          // Not in cache, fetch from network
+          return fetch(event.request).then(
+            networkResponse => {
+              // Check if we received a valid response to cache
+              if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME)
+                  .then(cache => {
+                    cache.put(event.request, responseToCache);
+                  });
+              }
+              return networkResponse;
+            }
+          ).catch(error => {
+            console.error("GET request fetch failed:", event.request.url, error);
+            // Return a structured error response for offline GET requests
+            return new Response(
+              JSON.stringify({ error: "The resource could not be fetched. You might be offline." }),
+              { status: 503, statusText: "Service Unavailable", headers: new Headers({ "Content-Type": "application/json" }) }
+            );
+          });
+        })
+    );
+  } else {
+    // For non-GET requests (POST, PATCH, etc.), always try the network.
+    // This prevents stale data and issues with caching mutations.
+    // If the network fails, respond with a specific offline error.
+    event.respondWith(
+      fetch(event.request).catch(error => {
+        console.error("Non-GET request fetch failed (likely offline):", event.request.url, error);
+        return new Response(
+          JSON.stringify({ error: "The action could not be completed while offline." }),
+          { status: 503, statusText: "Service Unavailable", headers: new Headers({ "Content-Type": "application/json" }) }
         );
       })
     );
+  }
 });
+
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();

@@ -3,11 +3,8 @@ import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invo
 import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
 import { AppDataContext, SettingsContext } from '../../contexts/SettingsContext';
 import EmptyState from '../EmptyState';
-// FIX: Corrected import path
 import ShopPOSScreen from '../ShopPOSScreen';
-// FIX: Corrected import path
 import ShopProductsScreen from '../ShopProductsScreen';
-// FIX: Corrected import path
 import ShopAnalyticsScreen from '../ShopAnalyticsScreen';
 import CustomSelect from '../CustomSelect';
 
@@ -142,7 +139,7 @@ const ShopEmployeesScreen: React.FC<{
 const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDeleteShop'> & {shop: Shop}> = ({ shop, openModal, products, sales, employees, shifts, onDeleteProduct, onRecordSale, onDeleteEmployee, onDeleteShift }) => {
     const [activeTab, setActiveTab] = useState<ShopDetailsTab>('billing');
 
-    const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+    const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
         <button type="button" onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
             {children}
         </button>
@@ -155,7 +152,6 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
         <div className="h-full flex flex-col">
             <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
                 <div className="flex items-center gap-1 pos-category-tabs">
-                    {/* FIX: Add children to TabButton components */}
                     <TabButton active={activeTab === 'billing'} onClick={() => setActiveTab('billing')}>Billing</TabButton>
                     <TabButton active={activeTab === 'products'} onClick={() => setActiveTab('products')}>Products</TabButton>
                     <TabButton active={activeTab === 'invoices'} onClick={() => setActiveTab('invoices')}>Invoices</TabButton>

@@ -1,3 +1,5 @@
+
+
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
 import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense } from '../types';
 import FinanceDisplay from './FinanceDisplay';
@@ -254,7 +256,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     case 'scheduled':
         return <ScheduledPaymentsScreen recurringTransactions={appState.recurringTransactions} categories={appState.categories} accounts={appState.accounts} onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} onDelete={(id) => deleteItem(id, 'recurringTransaction')} onUpdate={(item) => setRecurringTransactions(p => p.map(rt => rt.id === item.id ? item : rt))} openModal={openModal} />;
     case 'more':
-      return <MoreScreen setActiveScreen={setActiveScreen} setActiveModal={openModal} onResetApp={() => {}} />;
+      return <MoreScreen onNavigate={onNavigate} onResetApp={() => {}} />;
     case 'tripManagement':
         return <TripManagementScreen trips={appState.trips} tripExpenses={appState.tripExpenses} onTripSelect={(tripId) => onNavigate('tripDetails', undefined, { tripId })} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => deleteItem(id, 'trip')} onShowSummary={() => openModal('tripSummary')} />;
     case 'tripDetails':

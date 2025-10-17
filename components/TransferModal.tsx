@@ -115,7 +115,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTran
     onTransfer(fromAccountId, toAccountId, finalFromAmount, isCrossCurrency ? finalToAmount : finalFromAmount, notes.trim() || undefined);
   };
   
-  const TabButton = ({ active, children, onClick }: { active: boolean, children: React.ReactNode, onClick: () => void}) => (
+  const TabButton: React.FC<{ active: boolean, children: React.ReactNode, onClick: () => void}> = ({ active, children, onClick }) => (
     <button type="button" onClick={onClick} className={`px-4 py-2 text-xs font-semibold rounded-full transition-colors w-full ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
       {children}
     </button>
@@ -141,9 +141,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTran
             {isCrossCurrency && (
                 <div className="p-3 bg-subtle rounded-lg space-y-3 animate-fadeInUp">
                     <div className="flex items-center gap-2 bg-subtle p-1 rounded-full border border-divider">
-                        {/* Fix: Added children to TabButton component */}
                         <TabButton active={rateMode === 'auto'} onClick={() => setRateMode('auto')}>Auto Rate</TabButton>
-                        {/* Fix: Added children to TabButton component */}
                         <TabButton active={rateMode === 'manual'} onClick={() => setRateMode('manual')}>Manual Rate</TabButton>
                     </div>
                     <div className="flex items-center gap-2">

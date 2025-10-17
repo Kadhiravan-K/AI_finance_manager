@@ -169,7 +169,13 @@ export const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ tr
   }
 
   const availableToSelect = allAvailableParticipants.filter(p => !participants.some(pp => pp.id === p.contactId));
-  const TabButton = (props: { active: boolean; children: React.ReactNode; onClick: () => void; }) => <button type="button" {...props} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${props.active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`} />;
+  // Fix: The TabButton component was defined in a way that caused TypeScript errors.
+  // Replaced with a standard functional component definition that explicitly handles children.
+  const TabButton: React.FC<{ active: boolean; children: React.ReactNode; onClick: () => void; }> = ({ active, children, onClick }) => (
+    <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
+        {children}
+    </button>
+  );
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onCancel}>
@@ -184,7 +190,6 @@ export const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ tr
           <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">Split Between</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* Fix: Added children to TabButton components */}
                 <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
                 <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>
                 <TabButton active={mode === 'shares'} onClick={() => setMode('shares')}>Shares</TabButton>

@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Contact, SplitDetail } from '../../types';
@@ -164,7 +166,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     onClose();
   };
 
-  const TabButton = (props: { active: boolean; children: React.ReactNode; onClick: () => void; }) => <button type="button" {...props} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${props.active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`} />;
+  const TabButton: React.FC<{ active: boolean; children: React.ReactNode; onClick: () => void; }> = ({ active, children, onClick }) => <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>{children}</button>;
 
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onClose}>

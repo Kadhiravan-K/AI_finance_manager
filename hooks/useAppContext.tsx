@@ -1,5 +1,3 @@
-
-
 import React, { useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import useLocalStorage from './useLocalStorage';
 import { 
@@ -99,6 +97,20 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
           };
       });
   }, [setStreaks]);
+
+  const onAddNote = useCallback((type: 'note' | 'checklist', tripId?: string) => {
+    const now = new Date().toISOString();
+    const newNote: Note = {
+      id: self.crypto.randomUUID(),
+      title: `Untitled ${type === 'note' ? 'Note' : 'Checklist'}`,
+      content: type === 'note' ? '' : [],
+      type: type,
+      createdAt: now,
+      updatedAt: now,
+      tripId: tripId,
+    };
+    setNotes(prev => [...(prev || []), newNote]);
+  }, [setNotes]);
 
 
   const onSaveAuto = useCallback(async (data: ParsedTransactionData, accountId: string): Promise<void> => {
@@ -259,9 +271,12 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
     onSaveContactGroup,
     findOrCreateCategory,
     updateStreak,
+    onAddNote,
     // UI State
     selectedAccountIds,
     setSelectedAccountIds,
+    newlyUnlockedAchievementId,
+    setNewlyUnlockedAchievementId,
   };
   
   // Fake loading
