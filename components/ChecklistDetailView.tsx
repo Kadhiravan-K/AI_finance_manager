@@ -60,7 +60,7 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
     const totalItems = checklistItems.length;
     if (totalItems === 0) return { purchasedTotal: 0, progress: 0 };
     const purchasedItems = checklistItems.filter(item => item.isPurchased);
-    const purchasedTotal = purchasedItems.reduce((sum, item) => sum + item.rate * (parseFloat(item.quantity) || 1), 0);
+    const purchasedTotal = purchasedItems.reduce((sum, item) => sum + (item.rate || 0) * (parseFloat(item.quantity) || 1), 0);
     const progress = (purchasedItems.length / totalItems) * 100;
     return { purchasedTotal, progress };
   }, [checklistItems]);
@@ -101,8 +101,8 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
           />
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
-            <button onClick={togglePin} className={`pin-button ${currentList.isPinned ? 'pinned' : ''}`} title={currentList.isPinned ? 'Unpin' : 'Pin'}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v12.586l3.293-3.293a1 1 0 111.414 1.414l-5 5a1 1 0 01-1.414 0l-5-5a1 1 0 111.414-1.414L9 16.586V4a1 1 0 011-1z" clipRule="evenodd" transform="rotate(-45 10 10)" /></svg>
+            <button onClick={togglePin} className={`pin-button text-xl ${currentList.isPinned ? 'pinned' : ''}`} title={currentList.isPinned ? 'Unpin' : 'Pin'}>
+              📌
             </button>
             <button onClick={() => openModal('linkToTrip', { note: currentList, onSave })} className="button-secondary p-2 rounded-full aspect-square" title="Link to Trip">
                 ✈️
@@ -118,7 +118,7 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
               <div className="flex items-center gap-2 flex-shrink-0">
                 <input type="text" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="shopping-list-item-input text-center w-12" placeholder="Qty" />
                 <span>x</span>
-                <input type="number" value={item.rate} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)} className="shopping-list-item-input rate w-20" placeholder="Rate" />
+                <input type="text" inputMode="decimal" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value))} className="shopping-list-item-input rate w-20" placeholder="Rate" />
               </div>
               <button onClick={() => handleRemoveItem(item.id)} className="text-rose-400 p-1 text-xl leading-none flex-shrink-0">&times;</button>
             </div>

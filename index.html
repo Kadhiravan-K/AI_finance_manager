@@ -72,7 +72,7 @@
       --glow-color-secondary-strong: transparent;
       --color-fab-border: rgba(16, 185, 129, 0.2);
     }
-    html, body, #root { height: 100%; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    html, body, #root { height: 100%; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
     body { background: var(--color-bg-app); color: var(--color-text-primary); }
     .app-container { backdrop-filter: blur(40px); background-color: var(--color-bg-card); border: 1px solid var(--color-border-divider); }
     .glass-card { background-color: var(--color-bg-card); border: 1px solid var(--color-border-divider); }
@@ -186,10 +186,14 @@
     .fab-glow-enabled .footer-action-button { animation: pulse-glow-fab 2.5s infinite ease-in-out; }
 
     /* Scrollbar */
-    main::-webkit-scrollbar, .overflow-y-auto::-webkit-scrollbar, .pos-category-tabs::-webkit-scrollbar { width: 4px; height: 4px; }
-    main::-webkit-scrollbar-track, .overflow-y-auto::-webkit-scrollbar-track, .pos-category-tabs::-webkit-scrollbar-track { background: transparent; }
-    main::-webkit-scrollbar-thumb, .overflow-y-auto::-webkit-scrollbar-thumb, .pos-category-tabs::-webkit-scrollbar-thumb { background-color: var(--color-border-divider); border-radius: 4px; transition: background-color .2s; }
-    main:hover::-webkit-scrollbar-thumb, .overflow-y-auto:hover::-webkit-scrollbar-thumb, .pos-category-tabs:hover::-webkit-scrollbar-thumb { background-color: var(--color-text-tertiary); }
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background-color: var(--color-accent-emerald); border-radius: 3px; }
+    .light ::-webkit-scrollbar-thumb { background-color: #a3b8b1; }
+    
+    /* Hide scrollbars on specific horizontal containers */
+    .pos-category-tabs::-webkit-scrollbar, .trip-details-tabs-container::-webkit-scrollbar { display: none; }
+    .pos-category-tabs, .trip-details-tabs-container { scrollbar-width: none; -ms-overflow-style: none; }
     
     /* Animation Keyframes */
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -399,7 +403,7 @@
     .note-list-item-actions { display: flex; align-items: center; }
     .pin-button { padding: 0.5rem; color: var(--color-text-tertiary); border-radius: 9999px; transition: color 0.2s; }
     .pin-button:hover { color: var(--color-accent-sky); }
-    .pin-button.pinned svg { fill: var(--color-accent-sky); color: var(--color-accent-sky); }
+    .pin-button.pinned { color: var(--color-accent-sky); }
     .markdown-toolbar { font-size: 1rem; font-weight: bold; }
     .markdown-toolbar button svg { width: 1.25rem; height: 1.25rem; }
 
@@ -508,14 +512,33 @@
     .faq-item.open .faq-answer { max-height: 500px; opacity: 1; }
     
     /* Add Transaction Modal & Trip Details Tabs */
-    .add-tx-tab, .trip-details-tab {
+    .add-tx-tab {
       position: relative;
       border: none; background: none; color: var(--color-text-secondary);
       transition: color 0.2s ease-in-out;
       padding-bottom: 0.75rem;
     }
-    .add-tx-tab.active, .trip-details-tab.active { color: var(--color-accent-emerald); }
-    .add-tx-tab.active::after, .trip-details-tab.active::after {
+    .add-tx-tab.active { color: var(--color-accent-emerald); }
+    .add-tx-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--color-accent-emerald);
+      animation: slideInUnderline 0.3s ease-out;
+    }
+    .trip-details-tabs-container { overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid var(--color-border-divider); }
+    .trip-details-tab {
+      position: relative;
+      border: none; background: none; color: var(--color-text-secondary);
+      transition: color 0.2s ease-in-out;
+      padding: 0.75rem 1rem;
+      flex-shrink: 0;
+    }
+    .trip-details-tab.active { color: var(--color-accent-emerald); }
+    .trip-details-tab.active::after {
       content: '';
       position: absolute;
       bottom: -1px;
@@ -538,7 +561,6 @@
       outline-color: var(--color-accent-emerald);
     }
     
-
     /* Responsive Design for Landscape */
     .dashboard-grid-container {
       display: flex;

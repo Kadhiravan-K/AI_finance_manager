@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useContext } from 'react';
 import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, InvoiceStatus } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -137,7 +136,7 @@ const ShopEmployeesScreen: React.FC<{
     );
 };
 
-const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDeleteShop'> & {shop: Shop}> = ({ shop, openModal, products, sales, employees, shifts, onDeleteProduct, onRecordSale, onDeleteEmployee, onDeleteShift }) => {
+const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDeleteShop'> & {shop: Shop; onBack: () => void;}> = ({ shop, openModal, products, sales, employees, shifts, onDeleteProduct, onRecordSale, onDeleteEmployee, onDeleteShift, onBack }) => {
     const [activeTab, setActiveTab] = useState<ShopDetailsTab>('billing');
 
     const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
@@ -151,6 +150,15 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
 
     return (
         <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between gap-4">
+                <button onClick={onBack} className="p-2 -ml-2 text-secondary hover:text-primary rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <h2 className="text-2xl font-bold text-primary truncate">{shop.name}</h2>
+                <button onClick={() => openModal('editShop', { shop: shop })} className="button-secondary text-sm p-2 rounded-full aspect-square">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </button>
+            </div>
             <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
                 <div className="flex items-center gap-1 pos-category-tabs">
                     <TabButton active={activeTab === 'billing'} onClick={() => setActiveTab('billing')}>Billing</TabButton>
@@ -177,7 +185,7 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
 };
 
 export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...rest }) => {
-    const [selectedShopId, setSelectedShopId] = useState<string | null>(shops[0]?.id || null);
+    const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
 
     if (shops.length === 0) {
         return (
@@ -193,34 +201,31 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...res
         )
     }
 
-    if (!selectedShopId && shops.length > 0) {
-        setSelectedShopId(shops[0].id);
-    }
-    
     const selectedShop = shops.find(s => s.id === selectedShopId);
-    
-    const shopOptions = shops.map(s => ({ value: s.id, label: s.name }));
+
+    if (selectedShop) {
+        return <ShopDetails shop={selectedShop} openModal={openModal} onBack={() => setSelectedShopId(null)} {...rest} />;
+    }
 
     return (
         <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between gap-4">
-                <div className="flex-grow">
-                 {shops.length > 1 ? (
-                    <CustomSelect options={shopOptions} value={selectedShopId || ''} onChange={(id) => setSelectedShopId(id)} />
-                 ) : (
-                    <h2 className="text-2xl font-bold text-primary">{selectedShop?.name || 'Shop'}</h2>
-                 )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => openModal('editShop', { shop: selectedShop })} className="button-secondary text-sm p-2 rounded-full aspect-square" disabled={!selectedShop}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    </button>
-                    <button onClick={() => openModal('editShop')} className="button-secondary text-sm p-2 rounded-full aspect-square font-bold">
-                        +
-                    </button>
-                </div>
+            <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-primary">Shop Hub</h2>
+                <button onClick={() => openModal('editShop')} className="button-primary text-sm px-4 py-2">
+                    + Add Shop
+                </button>
             </div>
-            {selectedShop && <ShopDetails shop={selectedShop} openModal={openModal} {...rest} />}
+            <div className="flex-grow overflow-y-auto p-6 space-y-3">
+                {shops.map(shop => (
+                    <button key={shop.id} onClick={() => setSelectedShopId(shop.id)} className="w-full text-left p-4 bg-subtle rounded-lg flex justify-between items-center hover-bg-stronger transition-colors">
+                        <div>
+                            <p className="font-semibold text-primary">{shop.name}</p>
+                            <p className="text-xs text-secondary">{shop.type}</p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                ))}
+            </div>
         </div>
     );
 };

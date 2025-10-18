@@ -139,7 +139,7 @@ const PeriodSummary: React.FC<{income: number, expense: number, net: number}> = 
             <div className="grid grid-cols-3 gap-4 text-center">
                 <div><p className="text-sm text-secondary">Income</p><p className="font-bold text-lg text-emerald-400">{formatCurrency(income)}</p></div>
                 <div><p className="text-sm text-secondary">Expenses</p><p className="font-bold text-lg text-rose-400">{formatCurrency(expense)}</p></div>
-                <div><p className={`font-bold text-lg ${net >= 0 ? 'text-primary' : 'text-rose-400'}`}>{formatCurrency(net)}</p></div>
+                <div><p className="font-bold text-lg text-primary">{formatCurrency(net)}</p></div>
             </div>
         </div>
     );
@@ -148,11 +148,15 @@ const PeriodSummary: React.FC<{income: number, expense: number, net: number}> = 
 const TransactionItem: React.FC<{transaction: Transaction, onEdit: (t: Transaction) => void, categories: Category[], accounts: Account[], style: React.CSSProperties}> = ({transaction: t, onEdit, categories, accounts, style}) => {
     const account = accounts.find(a => a.id === t.accountId);
     const formatCurrency = useCurrencyFormatter(undefined, account?.currency);
+    const category = categories.find(c => c.id === t.categoryId);
     return (
         <button onClick={() => onEdit(t)} style={style} className="w-full text-left p-3 glass-card rounded-lg stagger-delay flex justify-between items-center">
-            <div>
-                <p className="font-semibold text-primary">{t.description}</p>
-                <p className="text-xs text-secondary">{getCategoryPath(t.categoryId, categories)}</p>
+            <div className="flex items-center gap-3">
+                <span className="text-xl">{category?.icon || '📁'}</span>
+                <div>
+                    <p className="font-semibold text-primary">{t.description}</p>
+                    <p className="text-xs text-secondary">{getCategoryPath(t.categoryId, categories)}</p>
+                </div>
             </div>
             <span className={`font-semibold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>{formatCurrency(t.amount)}</span>
         </button>

@@ -61,11 +61,29 @@ const ManageTripMembersModal: React.FC<ManageTripMembersModalProps> = ({ onClose
         setParticipants(newParticipants);
         setIsPickerOpen(false);
     };
+    
+    const handleGroupToggle = (group: { members: Contact[] } & ContactGroup, isChecked: boolean) => {
+        const memberIds = group.members.map(c => c.id);
+        if (memberIds.length === 0) return;
+        setTempSelected(prev => {
+            const newSet = new Set(prev);
+            if (isChecked) {
+                memberIds.forEach(id => newSet.add(id));
+            } else {
+                memberIds.forEach(id => newSet.delete(id));
+            }
+            return newSet;
+        });
+    };
 
-    const contactsByGroup = contactGroups.map(group => ({
-      ...group,
-      members: contacts.filter(c => c.groupId === group.id)
-    }));
+    const isGroupSelected = (group: { members: Contact[] } & ContactGroup) => group.members.length > 0 && group.members.every(m => tempSelected.has(m.id));
+
+    const contactsByGroup = contactGroups
+        .map(group => ({
+            ...group,
+            members: contacts.filter(c => c.groupId === group.id).sort((a, b) => a.name.localeCompare(b.name))
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     const roleOptions = [{ value: 'admin', label: 'Admin' }, { value: 'member', label: 'Member' }];
 
@@ -99,8 +117,8 @@ const ManageTripMembersModal: React.FC<ManageTripMembersModalProps> = ({ onClose
                                 <div className="overflow-y-auto">
                                     {contactsByGroup.map(group => (
                                         <div key={group.id} className="mb-2">
-                                            <p className="font-semibold text-xs text-secondary px-1">{group.name}</p>
-                                            <div className="pl-2 space-y-1">
+                                            <div className="p-1"><CustomCheckbox id={`member-group-${group.id}`} label={group.name} checked={isGroupSelected(group)} onChange={c => handleGroupToggle(group, c)} /></div>
+                                            <div className="pl-6 space-y-1">
                                                 {group.members.map(contact => (
                                                     <CustomCheckbox key={contact.id} id={`member-${contact.id}`} label={contact.name} checked={tempSelected.has(contact.id)} onChange={checked => setTempSelected(prev => { const n = new Set(prev); if(checked) n.add(contact.id); else n.delete(contact.id); return n; })}/>
                                                 ))}

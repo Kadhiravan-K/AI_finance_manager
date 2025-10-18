@@ -23,9 +23,9 @@ const EditAccountModal: React.FC<EditAccountModalProps> = ({ account, onSave, on
   };
   
   const accountTypeOptions = [
-      { value: AccountType.DEPOSITORY, label: 'Depository (Bank, Cash)' },
-      { value: AccountType.CREDIT, label: 'Credit Card' },
-      { value: AccountType.INVESTMENT, label: 'Investment' },
+      { value: AccountType.DEPOSITORY, label: '🏦 Depository (Bank, Cash)' },
+      { value: AccountType.CREDIT, label: '💳 Credit Card' },
+      { value: AccountType.INVESTMENT, label: '📈 Investment' },
   ];
   
   const currencyOptions = useMemo(() => currencies.map(c => ({

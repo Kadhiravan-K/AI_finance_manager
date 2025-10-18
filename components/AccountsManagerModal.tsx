@@ -16,13 +16,18 @@ interface AccountsManagerModalProps {
   onDeleteAccount: (id: string) => void;
 }
 
+const ACCOUNT_ICONS: Record<AccountType, string> = {
+  [AccountType.DEPOSITORY]: '🏦',
+  [AccountType.CREDIT]: '💳',
+  [AccountType.INVESTMENT]: '📈',
+};
+
 const AccountsManagerModal: React.FC<AccountsManagerModalProps> = ({ onClose, accounts, onAddAccount, onEditAccount, onDeleteAccount }) => {
   const [isFormOpen, setIsFormOpen] = useState(accounts.length === 0);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   const handleEdit = (account: Account) => {
-    setEditingAccount(account);
-    setIsFormOpen(true);
+    onEditAccount(account);
   };
 
   const handleCancel = () => {
@@ -37,9 +42,12 @@ const AccountsManagerModal: React.FC<AccountsManagerModalProps> = ({ onClose, ac
         <div className="flex-grow overflow-y-auto p-6 space-y-2">
           {accounts.map(account => (
             <div key={account.id} className="p-3 bg-subtle rounded-lg flex items-center justify-between group">
-              <div>
-                <p className="font-semibold text-primary">{account.name}</p>
-                <p className="text-xs text-secondary">{account.accountType.charAt(0).toUpperCase() + account.accountType.slice(1)} - {account.currency}</p>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{ACCOUNT_ICONS[account.accountType]}</span>
+                <div>
+                  <p className="font-semibold text-primary">{account.name}</p>
+                  <p className="text-xs text-secondary">{account.accountType.charAt(0).toUpperCase() + account.accountType.slice(1)} - {account.currency}</p>
+                </div>
               </div>
               <div className="space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => handleEdit(account)} className="text-xs px-2 py-1 bg-sky-600/50 text-sky-200 rounded-full">Edit</button>
@@ -90,7 +98,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onAddAccount, onEdit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if(account) {
-        onEditAccount({ ...account, ...formData });
+        // This modal doesn't edit, it triggers another modal. This form is for adding only.
+        onAddAccount(formData.name, formData.accountType, formData.currency, formData.creditLimit, parseFloat(openingBalance) || undefined);
     } else {
         onAddAccount(formData.name, formData.accountType, formData.currency, formData.creditLimit, parseFloat(openingBalance) || undefined);
     }
@@ -98,9 +107,9 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onAddAccount, onEdit
   };
   
   const accountTypeOptions = [
-      { value: AccountType.DEPOSITORY, label: 'Depository (Bank, Cash)' },
-      { value: AccountType.CREDIT, label: 'Credit Card' },
-      { value: AccountType.INVESTMENT, label: 'Investment' },
+      { value: AccountType.DEPOSITORY, label: '🏦 Depository (Bank, Cash)' },
+      { value: AccountType.CREDIT, label: '💳 Credit Card' },
+      { value: AccountType.INVESTMENT, label: '📈 Investment' },
   ];
   
   const currencyOptions = useMemo(() => currencies.map(c => ({

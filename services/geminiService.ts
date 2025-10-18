@@ -1,8 +1,7 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
-// Fix: Corrected import path for types.
 import { TransactionType } from "../types";
-// Fix: Corrected import path for types.
 import type { Transaction, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan, GlossaryEntry } from "../types";
 
 if (!process.env.API_KEY) {

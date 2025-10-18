@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { Trip, TripExpense, Category, Contact, ParsedTripExpense, SplitDetail, TransactionType, ItemizedDetail, USER_SELF_ID } from '../types';
 import { parseTripExpenseText } from '../services/geminiService';
 import ModalHeader from './ModalHeader';
@@ -15,6 +15,8 @@ interface Item {
     categoryId: string;
     splitDetails: SplitDetail[];
 }
+
+type SplitMode = 'equally' | 'percentage' | 'shares' | 'manual';
 
 interface AddTripExpenseModalProps {
     trip: Trip;
@@ -39,8 +41,8 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
     const [isLoading, setIsLoading] = useState(false);
 
     const [description, setDescription] = useState(initialData?.description || '');
-    const [payers, setPayers] = useState<SplitDetail[]>(initialData?.payers?.map(p => ({ id: p.contactId, personName: allParticipants.find(ap => ap.contactId === p.contactId)?.name || '', amount: p.amount, isSettled: false })) || [{ id: USER_SELF_ID, personName: 'You', amount: initialData?.amount || 0, isSettled: true }]);
-    const [payerMode, setPayerMode] = useState<"manual" | "equally">('manual');
+    const [payers, setPayers] = useState<SplitDetail[]>(initialData?.payers?.map(p => ({ id: p.contactId, personName: allParticipants.find(ap => ap.contactId === p.contactId)?.name || '', amount: p.amount, isSettled: false, shares: '1', percentage: '0' })) || [{ id: USER_SELF_ID, personName: 'You', amount: initialData?.amount || 0, isSettled: true, shares: '1', percentage: '100' }]);
+    const [payerMode, setPayerMode] = useState<SplitMode>('manual');
     const [itemToSplit, setItemToSplit] = useState<Item | null>(null);
 
     const initialItems = useMemo(() => {
@@ -60,6 +62,33 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
 
     const itemizedTotal = useMemo(() => items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0), [items]);
     
+    useEffect(() => {
+        if (payerMode === 'manual') return;
+        const numPayers = payers.length;
+        if (numPayers === 0 || itemizedTotal === 0) return;
+
+        let updatedPayers: SplitDetail[];
+        switch (payerMode) {
+            case 'equally':
+                const splitAmount = itemizedTotal / numPayers;
+                updatedPayers = payers.map(p => ({ ...p, amount: splitAmount }));
+                break;
+            case 'percentage':
+                let totalPercentage = payers.reduce((sum, p) => sum + (parseFloat(p.percentage || '0') || 0), 0) || 100;
+                updatedPayers = payers.map(p => ({ ...p, amount: ((parseFloat(p.percentage || '0') || 0) / totalPercentage) * itemizedTotal }));
+                break;
+            case 'shares':
+                let totalShares = payers.reduce((sum, p) => sum + (parseFloat(p.shares || '0') || 0), 0) || numPayers;
+                updatedPayers = payers.map(p => ({ ...p, amount: ((parseFloat(p.shares || '0') || 0) / totalShares) * itemizedTotal }));
+                break;
+            default:
+                updatedPayers = [...payers];
+        }
+        setPayers(updatedPayers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [payerMode, itemizedTotal, payers.length]);
+
+
     const expenseCategories = useMemo(() => categories.filter(c => c.type === TransactionType.EXPENSE && !c.parentId), [categories]);
 
     const handleItemChange = (id: string, field: keyof Item, value: any) => {
@@ -170,7 +199,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
                         <SplitManager
                             title="Paid By"
                             mode={payerMode}
-                            onModeChange={(m) => setPayerMode(m as any)}
+                            onModeChange={setPayerMode}
                             participants={payers}
                             onParticipantsChange={setPayers}
                             totalAmount={itemizedTotal}

@@ -224,10 +224,13 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   };
 
   const currencyOptions = currencies.map(c => ({ value: c.code, label: `${c.code} - ${c.name}`}));
-  const contactsByGroup = contactGroups.map(group => ({
-      ...group,
-      members: contacts.filter(c => c.groupId === group.id)
-  }));
+  const contactsByGroup = contactGroups
+    .map(group => ({
+        ...group,
+        members: contacts.filter(c => c.groupId === group.id).sort((a, b) => a.name.localeCompare(b.name))
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+    
   const isGroupSelected = (group: { members: Contact[] } & ContactGroup) => group.members.length > 0 && group.members.every(m => tempSelectedContacts.has(m.id));
 
   const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (

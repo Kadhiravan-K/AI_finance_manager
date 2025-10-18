@@ -12,6 +12,7 @@ interface AIHubModalProps {
   onExecuteCommand: (command: any) => Promise<string>;
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;
   appState: AppState;
+  openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
 
 const SimulationResultCard: React.FC<{ result: FinancialScenarioResult }> = ({ result }) => {
@@ -47,7 +48,7 @@ const SimulationResultCard: React.FC<{ result: FinancialScenarioResult }> = ({ r
     );
 };
 
-const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNavigate, appState }) => {
+const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNavigate, appState, openModal }) => {
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<{ role: 'user' | 'model', text?: string, component?: React.ReactNode }[]>([
       { role: 'model', text: "Hello! I'm your AI Financial Coach. Ask me to add transactions, run simulations, or analyze your spending. You can also upload a receipt image." }
@@ -200,10 +201,21 @@ const AIHubModal: React.FC<AIHubModalProps> = ({ onClose, onExecuteCommand, onNa
   
   const suggestedPrompts = [ "What if I get a 15% raise?", "How much did I spend on food last month?", "Add 750 for groceries from my Main Bank account", "Show me my investment portfolio" ];
 
+  const handleCalcResult = (result: number) => {
+    setQuery(prev => `${prev}${result}`);
+    inputRef.current?.focus();
+  };
+  
+  const calcAction = {
+    icon: '🧮',
+    onClick: () => openModal('miniCalculator', { onResult: handleCalcResult }),
+    label: 'Open Calculator'
+  };
+
   const modalContent = (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="AI Financial Coach" onClose={onClose} icon="🧠" />
+        <ModalHeader title="AI Financial Coach" onClose={onClose} icon="🧠" secondaryAction={calcAction} />
         
         <div className="flex-grow overflow-y-auto p-4 space-y-4">
           {history.map((entry, index) => (

@@ -85,8 +85,8 @@ const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, on
                             {note.tripId && <span className="text-xs text-amber-400 bg-amber-900/50 px-2 py-0.5 rounded-full mt-2 inline-block">✈️ {tripMap.get(note.tripId)}</span>}
                         </div>
                         <div className="note-list-item-actions">
-                            <button onClick={(e) => { e.stopPropagation(); onPinNote(note); }} className={`pin-button ${note.isPinned ? 'pinned' : ''}`} title={note.isPinned ? 'Unpin' : 'Pin'}>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v12.586l3.293-3.293a1 1 0 111.414 1.414l-5 5a1 1 0 01-1.414 0l-5-5a1 1 0 111.414-1.414L9 16.586V4a1 1 0 011-1z" clipRule="evenodd" transform="rotate(-45 10 10)" /></svg>
+                            <button onClick={(e) => { e.stopPropagation(); onPinNote(note); }} className={`pin-button text-xl ${note.isPinned ? 'pinned' : ''}`} title={note.isPinned ? 'Unpin' : 'Pin'}>
+                                📌
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); }} className="p-2 text-rose-400/60 hover:text-rose-400 rounded-full" title="Delete">
                                 &times;

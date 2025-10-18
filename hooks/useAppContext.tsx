@@ -4,7 +4,9 @@ import {
   AppState, Profile, Settings, Account, Transaction, TransactionType, Category, Goal, Budget, RecurringTransaction, InvestmentHolding, Contact, ContactGroup, Trip, TripExpense, Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, Refund, Debt, Note, ItemType, TrustBinItem, GlossaryEntry, Challenge, UserStreak, ParsedTransactionData, Sender, SenderType, Invoice, InvoiceStatus,
   AccountType,
   FinancialProfile,
-  CalendarEvent
+  CalendarEvent,
+  Settlement,
+  Priority
 } from '../types';
 import { AppDataContext, DEFAULT_SETTINGS } from '../contexts/SettingsContext';
 import { DEFAULT_CATEGORIES } from '../utils/categories';
@@ -28,14 +30,74 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
   const [investmentHoldings, setInvestmentHoldings] = useLocalStorage<InvestmentHolding[]>('investmentHoldings', []);
   const [contacts, setContacts] = useLocalStorage<Contact[]>('contacts', [
-      { id: 'contact-1', name: 'Mom', groupId: 'group-family' },
-      { id: 'contact-2', name: 'John Doe', groupId: 'group-work' },
-      { id: 'contact-3', name: 'Pizza Place', groupId: 'group-general' },
+    // Family
+    { id: 'contact-fam-1', name: 'Amma (Mom)', groupId: 'group-family' },
+    { id: 'contact-fam-2', name: 'Appa (Dad)', groupId: 'group-family' },
+    { id: 'contact-fam-3', name: 'Thambi (Younger Brother)', groupId: 'group-family' },
+    { id: 'contact-fam-4', name: 'Akka (Elder Sister)', groupId: 'group-family' },
+    { id: 'contact-fam-5', name: 'Uncle Ramesh (Chennai)', groupId: 'group-family' },
+    { id: 'contact-fam-6', name: 'Aunt Meena (Coimbatore)', groupId: 'group-family' },
+    { id: 'contact-fam-7', name: 'Cousin Arjun (Student, ECE)', groupId: 'group-family' },
+    { id: 'contact-fam-8', name: 'Cousin Divya (Banker, Tiruppur)', groupId: 'group-family' },
+    { id: 'contact-fam-9', name: 'Grandfather Krishnan (Retired Teacher)', groupId: 'group-family' },
+    { id: 'contact-fam-10', name: 'Grandmother Lakshmi (Home Chef)', groupId: 'group-family' },
+
+    // Friends
+    { id: 'contact-frd-1', name: 'Ram (EEE, Hostel Mate)', groupId: 'group-friends' },
+    { id: 'contact-frd-2', name: 'John (Project Partner)', groupId: 'group-friends' },
+    { id: 'contact-frd-3', name: 'Priya (UI/UX Designer)', groupId: 'group-friends' },
+    { id: 'contact-frd-4', name: 'Karthik (Freelancer, React Dev)', groupId: 'group-friends' },
+    { id: 'contact-frd-5', name: 'Sneha (Finance Enthusiast)', groupId: 'group-friends' },
+    { id: 'contact-frd-6', name: 'Harish (IoT Hacker)', groupId: 'group-friends' },
+    { id: 'contact-frd-7', name: 'Anjali (Prompt Engineer)', groupId: 'group-friends' },
+    { id: 'contact-frd-8', name: 'Naveen (Gemini Tester)', groupId: 'group-friends' },
+    { id: 'contact-frd-9', name: 'Deepak (Startup Founder)', groupId: 'group-friends' },
+    { id: 'contact-frd-10', name: 'Swathi (College Cultural Lead)', groupId: 'group-friends' },
+
+    // Work / College / Mentors
+    { id: 'contact-wrk-1', name: 'Prof. Senthil (EEE Dept)', groupId: 'group-work' },
+    { id: 'contact-wrk-2', name: 'Divya (Internship Lead, Zoho)', groupId: 'group-work' },
+    { id: 'contact-wrk-3', name: 'Rahul (Hackathon Teammate)', groupId: 'group-work' },
+    { id: 'contact-wrk-4', name: 'Swathi (Lab Partner)', groupId: 'group-work' },
+    { id: 'contact-wrk-5', name: 'Anand (Career Mentor)', groupId: 'group-work' },
+    { id: 'contact-wrk-6', name: 'Vignesh (Plugin Architect)', groupId: 'group-work' },
+    { id: 'contact-wrk-7', name: 'Lavanya (Resume Reviewer)', groupId: 'group-work' },
+    { id: 'contact-wrk-8', name: 'Suresh (Placement Officer)', groupId: 'group-work' },
+
+    // Neighbors / Local Circle
+    { id: 'contact-nei-1', name: 'Mr. Krishnan (Next Door)', groupId: 'group-neighbors' },
+    { id: 'contact-nei-2', name: 'Mrs. Lakshmi (Groceries)', groupId: 'group-neighbors' },
+    { id: 'contact-nei-3', name: 'Auto Anna (Local Transport)', groupId: 'group-neighbors' },
+    { id: 'contact-nei-4', name: 'Watchman Ravi (Security)', groupId: 'group-neighbors' },
+    { id: 'contact-nei-5', name: 'Tailor Kumar (Uniform Stitching)', groupId: 'group-neighbors' },
+    { id: 'contact-nei-6', name: 'Electrician Mani (ESP32 Setup)', groupId: 'group-neighbors' },
+    { id: 'contact-nei-7', name: 'Pharmacist Rekha (Medical Help)', groupId: 'group-neighbors' },
+    
+    // Finance / Shared Accounts
+    { id: 'contact-fin-1', name: 'Hostel Split Group (Ram, Harish, Sneha)', groupId: 'group-finance' },
+    { id: 'contact-fin-2', name: 'Loan Contact: Uncle Suresh', groupId: 'group-finance' },
+    { id: 'contact-fin-3', name: 'Rent Partner: Gokul', groupId: 'group-finance' },
+    { id: 'contact-fin-4', name: 'Budget Buddy: Deepa', groupId: 'group-finance' },
+    { id: 'contact-fin-5', name: 'UPI Helper: Naveen', groupId: 'group-finance' },
+    { id: 'contact-fin-6', name: 'EMI Reminder: Priya', groupId: 'group-finance' },
+    { id: 'contact-fin-7', name: 'Shared Wallet: Karthik', groupId: 'group-finance' },
+    
+    // Others / Semantic Tags
+    { id: 'contact-oth-1', name: 'Emergency Contact: Dad', groupId: 'group-others' },
+    { id: 'contact-oth-2', name: 'Gemini Prompt Tester: Ramya', groupId: 'group-others' },
+    { id: 'contact-oth-3', name: 'Plugin Tester: Vignesh', groupId: 'group-others' },
+    { id: 'contact-oth-4', name: 'Career Referee: Prof. Senthil', groupId: 'group-others' },
+    { id: 'contact-oth-5', name: 'Agentic Trigger Contact: Anjali', groupId: 'group-others' },
+    { id: 'contact-oth-6', name: 'Family Tree Node: Grandfather Krishnan', groupId: 'group-others' },
+    { id: 'contact-oth-7', name: 'Finance Debug Partner: Sneha', groupId: 'group-others' },
   ]);
   const [contactGroups, setContactGroups] = useLocalStorage<ContactGroup[]>('contactGroups', [
-      { id: 'group-family', name: 'Family', icon: '👨‍👩‍👧' },
-      { id: 'group-work', name: 'Work', icon: '💼' },
-      { id: 'group-general', name: 'General', icon: '👥' }
+      { id: 'group-family', name: 'Family', icon: '👨‍👩‍👧‍👦' },
+      { id: 'group-friends', name: 'Friends', icon: '🧑‍🤝‍🧑' },
+      { id: 'group-work', name: 'Work / College / Mentors', icon: '💼' },
+      { id: 'group-neighbors', name: 'Neighbors / Local Circle', icon: '🏠' },
+      { id: 'group-finance', name: 'Finance / Shared Accounts', icon: '💳' },
+      { id: 'group-others', name: 'Others / Semantic Tags', icon: '🧘' },
   ]);
   const [trips, setTrips] = useLocalStorage<Trip[]>('trips', []);
   const [tripExpenses, setTripExpenses] = useLocalStorage<TripExpense[]>('tripExpenses', []);
@@ -45,7 +107,7 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [shopEmployees, setShopEmployees] = useLocalStorage<ShopEmployee[]>('shopEmployees', []);
   const [shopShifts, setShopShifts] = useLocalStorage<ShopShift[]>('shopShifts', []);
   const [refunds, setRefunds] = useLocalStorage<Refund[]>('refunds', []);
-  const [settlements, setSettlements] = useLocalStorage<any[]>('settlements', []);
+  const [settlements, setSettlements] = useLocalStorage<Settlement[]>('settlements', []);
   const [debts, setDebts] = useLocalStorage<Debt[]>('debts', []);
   const [notes, setNotes] = useLocalStorage<Note[]>('notes', []);
   const [glossaryEntries, setGlossaryEntries] = useLocalStorage<GlossaryEntry[]>('glossaryEntries', DEFAULT_GLOSSARY_ENTRIES);
@@ -229,7 +291,27 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
         setTrips(prev => prev.map(t => t.id === id ? { ...t, ...tripData } : t));
     } else {
         const newTripId = self.crypto.randomUUID();
+        const now = new Date().toISOString();
         setTrips(prev => [...prev, { id: newTripId, date: new Date().toISOString(), ...tripData }]);
+        
+        // Add a default packing list
+        const packingList: Note = {
+          id: self.crypto.randomUUID(),
+          title: "Packing List",
+          content: [
+            { id: self.crypto.randomUUID(), name: 'Clothes', isPurchased: false, rate: 0, quantity: '1', priority: Priority.HIGH },
+            { id: self.crypto.randomUUID(), name: 'Toiletries', isPurchased: false, rate: 0, quantity: '1', priority: Priority.HIGH },
+            { id: self.crypto.randomUUID(), name: 'Documents (Passport, ID)', isPurchased: false, rate: 0, quantity: '1', priority: Priority.HIGH },
+            { id: self.crypto.randomUUID(), name: 'Chargers & Electronics', isPurchased: false, rate: 0, quantity: '1', priority: Priority.MEDIUM },
+          ],
+          type: 'checklist',
+          createdAt: now,
+          updatedAt: now,
+          tripId: newTripId,
+          isPinned: true
+        };
+        setNotes(prev => [...(prev || []), packingList]);
+        
         if (tripData.name.toLowerCase().includes('survival')) {
           const survivalNotes = createSurvivalNotesForTrip(newTripId);
           setNotes(prev => [...prev, ...survivalNotes]);
@@ -256,6 +338,153 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
       return savedContact;
   };
+
+    const onSettle = useCallback(async (fromId: string, toId: string, amount: number, currency: string) => {
+    const newSettlement: Settlement = { id: self.crypto.randomUUID(), fromContactId: fromId, toContactId: toId, amount, currency, date: new Date().toISOString() };
+    await setSettlements(prev => [...prev, newSettlement]);
+  }, [setSettlements]);
+
+  const onSaveTripExpense = useCallback(async (expense: Omit<TripExpense, 'id'>) => {
+    const newExpense = { ...expense, id: self.crypto.randomUUID(), date: new Date().toISOString() };
+    await setTripExpenses(prev => [...prev, newExpense]);
+  }, [setTripExpenses]);
+
+  const onUpdateTripExpense = useCallback(async (expense: TripExpense) => {
+    await setTripExpenses(prev => prev.map(e => e.id === expense.id ? expense : e));
+  }, [setTripExpenses]);
+
+  const onSaveShop = useCallback(async (shopData: Omit<Shop, 'id'>, id?: string) => {
+    if (id) {
+        await setShops(prev => prev.map(s => s.id === id ? { ...s, ...shopData } : s));
+    } else {
+        await setShops(prev => [...prev, { id: self.crypto.randomUUID(), ...shopData }]);
+    }
+  }, [setShops]);
+  
+   const onSaveProduct = useCallback(async (shopId: string, productData: Omit<ShopProduct, 'id' | 'shopId'>, id?: string) => {
+    if (id) {
+        await setShopProducts(prev => prev.map(p => p.id === id ? { ...p, ...productData } : p));
+    } else {
+        await setShopProducts(prev => [...prev, { id: self.crypto.randomUUID(), shopId, ...productData }]);
+    }
+  }, [setShopProducts]);
+
+  const onSaveEmployee = useCallback(async (shopId: string, employeeData: Omit<ShopEmployee, 'id'|'shopId'>, id?: string) => {
+    if (id) {
+        await setShopEmployees(prev => prev.map(e => e.id === id ? { ...e, ...employeeData } : e));
+    } else {
+        await setShopEmployees(prev => [...prev, { id: self.crypto.randomUUID(), shopId, ...employeeData }]);
+    }
+  }, [setShopEmployees]);
+
+  const onSaveShift = useCallback(async (shopId: string, shiftData: Omit<ShopShift, 'id'|'shopId'>, id?: string) => {
+    if (id) {
+        await setShopShifts(prev => prev.map(s => s.id === id ? { ...s, ...shiftData } : s));
+    } else {
+        await setShopShifts(prev => [...prev, { id: self.crypto.randomUUID(), shopId, ...shiftData }]);
+    }
+  }, [setShopShifts]);
+
+  const onSaveRefund = useCallback(async (refundData: Omit<Refund, 'id' | 'isClaimed' | 'claimedDate'>, id?: string) => {
+    if (id) {
+        await setRefunds(prev => prev.map(r => r.id === id ? { ...r, ...refundData } : r));
+    } else {
+        await setRefunds(prev => [...prev, { id: self.crypto.randomUUID(), isClaimed: false, ...refundData }]);
+    }
+  }, [setRefunds]);
+
+  const onSaveGlossaryEntry = useCallback(async (entryData: Omit<GlossaryEntry, 'id'>, id?: string) => {
+    if (id) {
+        await setGlossaryEntries(prev => prev.map(e => e.id === id ? { ...e, ...entryData } : e));
+    } else {
+        await setGlossaryEntries(prev => [...prev, { id: self.crypto.randomUUID(), ...entryData }]);
+    }
+  }, [setGlossaryEntries]);
+
+  const onBuyInvestment = useCallback(async (investmentAccountId: string, name: string, quantity: number, price: number, fromAccountId: string) => {
+    const totalCost = quantity * price;
+    const existingHolding = investmentHoldings.find(h => h.accountId === investmentAccountId && h.name === name);
+    
+    if(existingHolding) {
+      const totalQuantity = existingHolding.quantity + quantity;
+      const totalInvestment = (existingHolding.quantity * existingHolding.averageCost) + totalCost;
+      const newAverageCost = totalInvestment / totalQuantity;
+      await setInvestmentHoldings(prev => prev.map(h => h.id === existingHolding.id ? {...h, quantity: totalQuantity, averageCost: newAverageCost, currentValue: h.currentValue + totalCost} : h));
+    } else {
+      const newHolding: InvestmentHolding = {
+          id: self.crypto.randomUUID(),
+          accountId: investmentAccountId,
+          name,
+          quantity,
+          averageCost: price,
+          currentValue: totalCost,
+      };
+      await setInvestmentHoldings(prev => [...prev, newHolding]);
+    }
+
+    const buyTx: Transaction = {
+        id: self.crypto.randomUUID(),
+        accountId: fromAccountId,
+        description: `Buy ${quantity} ${name}`,
+        amount: totalCost,
+        type: TransactionType.EXPENSE,
+        categoryId: findOrCreateCategory('Savings & Investment / Stock Purchases', TransactionType.EXPENSE),
+        date: new Date().toISOString(),
+    };
+    await setTransactions(prev => [buyTx, ...prev]);
+  }, [investmentHoldings, setInvestmentHoldings, setTransactions, findOrCreateCategory]);
+
+  const onSellInvestment = useCallback(async (holdingId: string, quantity: number, price: number, toAccountId: string) => {
+    const totalProceeds = quantity * price;
+    await setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? {...h, quantity: h.quantity - quantity, currentValue: (h.quantity - quantity) * (h.currentValue / h.quantity) } : h).filter(h => h.quantity > 0.0001));
+
+    const sellTx: Transaction = {
+        id: self.crypto.randomUUID(),
+        accountId: toAccountId,
+        description: `Sell ${quantity} of ${investmentHoldings.find(h=>h.id===holdingId)?.name}`,
+        amount: totalProceeds,
+        type: TransactionType.INCOME,
+        categoryId: findOrCreateCategory('Investments / Capital Gains', TransactionType.INCOME),
+        date: new Date().toISOString(),
+    };
+    await setTransactions(prev => [sellTx, ...prev]);
+  }, [setInvestmentHoldings, setTransactions, findOrCreateCategory, investmentHoldings]);
+
+  const onUpdateInvestmentValue = useCallback(async (holdingId: string, newCurrentValue: number) => {
+    await setInvestmentHoldings(prev => prev.map(h => h.id === holdingId ? {...h, currentValue: newCurrentValue } : h));
+  }, [setInvestmentHoldings]);
+  
+  const onSaveInvoice = useCallback(async (invoiceData: Omit<Invoice, 'id'>, id?: string) => {
+    if (id) {
+        await setInvoices(prev => prev.map(i => i.id === id ? { ...i, ...invoiceData } : i));
+    } else {
+        await setInvoices(prev => [...prev, { id: self.crypto.randomUUID(), ...invoiceData }]);
+    }
+  }, [setInvoices]);
+
+  const onRecordInvoicePayment = useCallback(async (invoice: Invoice, payment: { accountId: string; amount: number; date: string }) => {
+    await setInvoices(prev => prev.map(i => i.id === invoice.id ? { ...i, status: InvoiceStatus.PAID } : i));
+    
+    const incomeTx: Transaction = {
+        id: self.crypto.randomUUID(),
+        accountId: payment.accountId,
+        description: `Payment for Invoice #${invoice.invoiceNumber}`,
+        amount: payment.amount,
+        type: TransactionType.INCOME,
+        categoryId: findOrCreateCategory('Business / Product Sales', TransactionType.INCOME),
+        date: payment.date,
+    };
+    await setTransactions(prev => [incomeTx, ...prev]);
+  }, [setInvoices, setTransactions, findOrCreateCategory]);
+
+    const onRefreshPrices = useCallback(async () => {
+    // This is a placeholder for a real API call to get latest market prices.
+    // For now, we can simulate a small random change.
+    await setInvestmentHoldings(prev => prev.map(h => ({
+        ...h,
+        currentValue: h.currentValue * (1 + (Math.random() - 0.5) * 0.1) // +/- 5% change
+    })));
+  }, [setInvestmentHoldings]);
   
   const value = {
     isLoading,
@@ -278,7 +507,22 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
     onTransfer,
     onSaveRecurring,
     onSaveGoal,
+    onSettle,
     onSaveTrip,
+    onSaveTripExpense,
+    onUpdateTripExpense,
+    onSaveShop,
+    onSaveProduct,
+    onSaveEmployee,
+    onSaveShift,
+    onSaveRefund,
+    onSaveGlossaryEntry,
+    onBuyInvestment,
+    onSellInvestment,
+    onUpdateInvestmentValue,
+    onSaveInvoice,
+    onRecordInvoicePayment,
+    onRefreshPrices,
     onSaveContact,
     onSaveContactGroup,
     findOrCreateCategory,

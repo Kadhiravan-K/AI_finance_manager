@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo, useContext, useRef } from 'react';
+
+import React, { useState, useMemo, useContext, useRef, useEffect } from 'react';
 import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
@@ -30,7 +31,7 @@ type TripTab = 'dashboard' | 'expenses' | 'plan' | 'settle' | 'notes' | 'chat' |
 
 
 const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, categories, onAddExpense, onEditExpense, onDeleteExpense, onBack, onUpdateTrip, openModal, onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<TripTab>('plan');
+  const [activeTab, setActiveTab] = useState<TripTab>('dashboard');
   const dataContext = useContext(AppDataContext);
   
   const TabButton = ({ tab, label }: { tab: TripTab; label: string }) => (
@@ -55,7 +56,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, c
   return (
     <div className="h-full flex flex-col">
       <ModalHeader title={trip.name} onBack={onBack} onClose={onBack} icon="✈️" onSettingsClick={() => openModal('editTrip', { trip })} />
-      <div className="flex-shrink-0 border-b border-divider overflow-x-auto">
+      <div className="trip-details-tabs-container">
         <div className="flex">
           <TabButton tab="dashboard" label="Dashboard" />
           <TabButton tab="expenses" label="Expenses" />
@@ -88,7 +89,7 @@ const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories:
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Total Spent</p><p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p></div>
                 <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Trip Budget</p><p className="text-lg font-bold text-primary">{trip.budget ? formatCurrency(trip.budget) : 'Not Set'}</p></div>
-                <div className="p-3 bg-subtle rounded-lg text-center"><p className={`text-lg font-bold ${budgetRemaining !== null && budgetRemaining < 0 ? 'text-rose-400' : 'text-primary'}`}>{budgetRemaining !== null ? formatCurrency(budgetRemaining) : 'N/A'}</p></div>
+                <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Remaining</p><p className={`text-lg font-bold ${budgetRemaining !== null && budgetRemaining < 0 ? 'text-rose-400' : 'text-primary'}`}>{budgetRemaining !== null ? formatCurrency(budgetRemaining) : 'N/A'}</p></div>
             </div>
             {trip.budget && (
                 <div>
@@ -139,10 +140,16 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
     const [editingField, setEditingField] = useState<{ dayId: string; itemId: string; field: 'time' | 'activity' | 'icon' } | null>(null);
     const [aiPrompt, setAiPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [aiError, setAiError] = useState('');
 
     const dragItem = useRef<{ dayId: string; itemIndex: number } | null>(null);
     const dragOverItem = useRef<{ dayId: string; itemIndex: number } | null>(null);
     const [dropIndicator, setDropIndicator] = useState<{ dayId: string; index: number } | null>(null);
+
+    useEffect(() => {
+        setPlanState(trip.plan || []);
+        setIsDirty(false); // When prop changes, we assume it's clean
+    }, [trip.plan]);
 
     const updatePlan = (newPlan: TripDayPlan[]) => {
         setPlanState(newPlan);
@@ -152,12 +159,13 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
     const handleGeneratePlan = async () => {
         if (!aiPrompt.trim()) return;
         setIsGenerating(true);
+        setAiError('');
         try {
             const newPlan = await generateAITripPlan(aiPrompt, planState);
             updatePlan(newPlan);
         } catch (e) {
             console.error(e);
-            alert("Failed to generate plan. Please try again.");
+            setAiError(e instanceof Error ? e.message : "Failed to generate plan. Please try again.");
         } finally {
             setIsGenerating(false);
         }
@@ -194,7 +202,13 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
         const newPlan = planState.map(day => 
             day.id === dayId ? { ...day, items: day.items.map(item => item.id === itemId ? { ...item, [field]: value } : item) } : day
         );
-        updatePlan(newPlan);
+        
+        setPlanState(newPlan);
+        if (field === 'completed') {
+            onUpdateTrip({ ...trip, plan: newPlan });
+        } else {
+            setIsDirty(true);
+        }
     };
 
     const handleSaveChanges = () => {
@@ -258,6 +272,7 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
                     </div>
                 ) : (
                     <>
+                        {aiError && <p className="text-rose-400 text-center mb-4">{aiError}</p>}
                         <EmptyState
                             icon="🗺️"
                             title="No Itinerary Yet"

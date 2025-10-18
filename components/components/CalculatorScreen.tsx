@@ -392,7 +392,6 @@ const CalculatorScreen: React.FC<CalculatorScreenProps> = ({ appState }) => {
        </div>
        <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
          <div className="flex items-center gap-1">
-           {/* FIX: Add children to TabButton components */}
            <TabButton active={activeTab === 'basic'} onClick={() => setActiveTab('basic')}>Basic</TabButton>
            <TabButton active={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI</TabButton>
            <TabButton active={activeTab === 'currency'} onClick={() => setActiveTab('currency')}>Currency</TabButton>

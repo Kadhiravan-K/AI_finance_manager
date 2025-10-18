@@ -1,12 +1,10 @@
 
-
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
-import { ActiveScreen, AppState, ModalState, ActiveModal, ProcessingStatus, DateRange, CustomDateRange, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense } from '../types';
+import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange, USER_SELF_ID } from '../types';
 import FinanceDisplay from './FinanceDisplay';
-// Fix: Corrected import path for ReportsScreen
 import { ReportsScreen } from './ReportsScreen';
-import BudgetsScreen from './BudgetsModal';
-import GoalsScreen from './GoalsModal';
+import BudgetsScreen from './BudgetsScreen';
+import GoalsScreen from './GoalsScreen';
 import InvestmentsScreen from './InvestmentsScreen';
 import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
 import MoreScreen from './More';
@@ -30,7 +28,6 @@ import { calculateNextDueDate } from '../utils/date';
 import DebtManagerScreen from './DebtManagerScreen';
 import FaqScreen from './FaqScreen';
 import LiveFeedScreen from './LiveFeedScreen';
-import { USER_SELF_ID } from '../types';
 
 
 interface MainContentProps {
@@ -93,6 +90,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     setDebts,
     setBudgets,
     onSaveProduct,
+    onRefreshPrices,
   } = dataContext;
 
   const handleContributeToGoal = (goalId: string, amount: number, accountId: string) => {
@@ -252,7 +250,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         else setGoals(prev => [...prev, {id: self.crypto.randomUUID(), currentAmount: 0, ...goal}]);
       }} accounts={appState.accounts} onContribute={handleContributeToGoal} onDelete={(id) => deleteItem(id, 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} onUpdateGoal={(goal) => setGoals(p => p.map(g => g.id === goal.id ? goal : g))} openModal={openModal} />;
     case 'investments':
-      return <InvestmentsScreen accounts={appState.accounts} holdings={appState.investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={(holding) => openModal('sellInvestment', { holding })} onUpdateValue={(holding) => openModal('updateInvestment', { holding })} onRefresh={() => {}} />;
+      return <InvestmentsScreen accounts={appState.accounts} holdings={appState.investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={(holding) => openModal('sellInvestment', { holding })} onUpdateValue={(holding) => openModal('updateInvestment', { holding })} onRefresh={onRefreshPrices} />;
     case 'scheduled':
         return <ScheduledPaymentsScreen recurringTransactions={appState.recurringTransactions} categories={appState.categories} accounts={appState.accounts} onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} onDelete={(id) => deleteItem(id, 'recurringTransaction')} onUpdate={(item) => setRecurringTransactions(p => p.map(rt => rt.id === item.id ? item : rt))} openModal={openModal} />;
     case 'more':
@@ -270,7 +268,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     case 'refunds':
         return <RefundsScreen refunds={appState.refunds} contacts={appState.contacts} onAddRefund={() => openModal('refund')} onEditRefund={(refund) => openModal('refund', { refund })} onClaimRefund={(id) => setRefunds(prev => prev.map(r => r.id === id ? {...r, isClaimed: true, claimedDate: new Date().toISOString()} : r))} onDeleteRefund={(id) => deleteItem(id, 'refund')} openModal={openModal} />;
     case 'dataHub':
-        return <DataHubScreen {...appState} onAddTransaction={() => openModal('addTransaction')} onEditTransaction={(t) => openModal('editTransaction', {transaction:t})} onDeleteTransaction={(id) => deleteItem(id, 'transaction')} onAddAccount={()=>openModal('accounts')} onEditAccount={(a)=>openModal('editAccount',{account: a})} onDeleteAccount={(id)=>deleteItem(id,'account')} onAddCategory={()=>openModal('categories')} onEditCategory={(c)=>openModal('editCategory',{category:c})} onDeleteCategory={(id)=>deleteItem(id,'category')} onAddGoal={()=>openModal('editGoal')} onEditGoal={(g)=>openModal('editGoal',{goal:g})} onDeleteGoal={(id)=>deleteItem(id,'goal')} onAddShop={()=>openModal('editShop')} onEditShop={(s)=>openModal('editShop',{shop:s})} onDeleteShop={(id)=>deleteItem(id,'shop')} onAddTrip={()=>openModal('editTrip')} onEditTrip={(t)=>openModal('editTrip',{trip:t})} onDeleteTrip={(id)=>deleteItem(id,'trip')} onAddContact={()=>openModal('contacts')} onEditContact={(c)=>openModal('editContact',{contact:c})} onDeleteContact={(id)=>deleteItem(id,'contact')} />;
+        return <DataHubScreen {...appState} onAddTransaction={() => openModal('addTransaction')} onEditTransaction={(t) => openModal('editTransaction', {transaction:t})} onDeleteTransaction={(id) => deleteItem(id, 'transaction')} onAddAccount={()=>openModal('accounts')} onEditAccount={(a)=>openModal('editAccount',{account: a})} onDeleteAccount={(id)=>deleteItem(id,'account')} onAddCategory={()=>openModal('editCategory')} onEditCategory={(c)=>openModal('editCategory',{category:c})} onDeleteCategory={(id)=>deleteItem(id,'category')} onAddGoal={()=>openModal('editGoal')} onEditGoal={(g)=>openModal('editGoal',{goal:g})} onDeleteGoal={(id)=>deleteItem(id,'goal')} onAddShop={()=>openModal('editShop')} onEditShop={(s)=>openModal('editShop',{shop:s})} onDeleteShop={(id)=>deleteItem(id,'shop')} onAddTrip={()=>openModal('editTrip')} onEditTrip={(t)=>openModal('editTrip',{trip:t})} onDeleteTrip={(id)=>deleteItem(id,'trip')} onAddContact={()=>openModal('contacts')} onEditContact={(c)=>openModal('editContact',{contact:c})} onDeleteContact={(id)=>deleteItem(id,'contact')} />;
     case 'shop':
         return <ShopScreen shops={appState.shops} products={appState.shopProducts} sales={appState.shopSales} employees={appState.shopEmployees} shifts={appState.shopShifts} onSaveShop={(shop,id)=> id ? setShops(p=>p.map(s=>s.id===id ? {...s,...shop}:s)) : setShops(p=>[...p,{id:self.crypto.randomUUID(),...shop}])} onDeleteShop={(id)=>deleteItem(id,'shop')} onSaveProduct={onSaveProduct} onDeleteProduct={(id)=>deleteItem(id,'shopProduct')} onRecordSale={(shopId,sale)=>setShopSales(p=>[...p,{id:self.crypto.randomUUID(),shopId,...sale}])} onSaveEmployee={(shopId,emp,id)=>id?setShopEmployees(p=>p.map(e=>e.id===id?{...e,...emp}:e)):setShopEmployees(p=>[...p,{id:self.crypto.randomUUID(),shopId,...emp}])} onDeleteEmployee={(id)=>deleteItem(id,'shopEmployee')} onSaveShift={(shopId,shift,id)=>id?setShopShifts(p=>p.map(s=>s.id===id?{...s,...shift}:s)):setShopShifts(p=>[...p,{id:self.crypto.randomUUID(),shopId,...shift}])} onDeleteShift={(id)=>deleteItem(id,'shopShift')} openModal={openModal} />;
     case 'challenges':
