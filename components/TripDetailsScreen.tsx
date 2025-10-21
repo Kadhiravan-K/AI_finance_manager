@@ -1,7 +1,5 @@
-
-
 import React, { useState, useMemo, useContext, useRef, useEffect } from 'react';
-import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType } from '../types';
+import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType, TRIP_FUND_ID } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import { calculateTripSummary } from '../utils/calculations';
@@ -13,6 +11,7 @@ import CustomCheckbox from './CustomCheckbox';
 import EmptyState from './EmptyState';
 import LoadingSpinner from './LoadingSpinner';
 import { generateAITripPlan } from '../services/geminiService';
+import CustomSelect from './CustomSelect';
 
 interface TripDetailsScreenProps {
   trip: Trip;
@@ -44,7 +43,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, c
     switch (activeTab) {
       case 'dashboard': return <TripDashboard trip={trip} expenses={expenses} categories={categories} openModal={openModal} onUpdateTrip={onUpdateTrip} />;
       case 'expenses': return <TripExpensesList expenses={expenses} categories={categories} onEditExpense={onEditExpense} currency={trip.currency} />;
-      case 'plan': return <TripPlanView trip={trip} onUpdateTrip={onUpdateTrip} />;
+      case 'plan': return <TripPlanView trip={trip} onUpdateTrip={onUpdateTrip} categories={categories} openModal={openModal} />;
       case 'settle': return <TripSettleView trip={trip} expenses={expenses} />;
       case 'notes': return <TripNotesView trip={trip} onNavigate={onNavigate} />;
       case 'chat': return <TripChat />;
@@ -84,18 +83,40 @@ const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories:
     const budgetRemaining = trip.budget ? trip.budget - totalSpent : null;
     const budgetProgress = trip.budget ? (totalSpent / trip.budget) * 100 : 0;
     
+    const { totalCollected, spentFromFund, remainingInFund } = useMemo(() => {
+        const collected = trip.advances?.reduce((sum, adv) => sum + adv.amount, 0) || 0;
+        const spent = expenses.reduce((sum, exp) => {
+            const fromFund = exp.payers.find(p => p.contactId === TRIP_FUND_ID);
+            return sum + (fromFund?.amount || 0);
+        }, 0);
+        return { totalCollected: collected, spentFromFund: spent, remainingInFund: collected - spent };
+    }, [trip.advances, expenses]);
+    
     return (
         <div className="p-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Total Spent</p><p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p></div>
                 <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Trip Budget</p><p className="text-lg font-bold text-primary">{trip.budget ? formatCurrency(trip.budget) : 'Not Set'}</p></div>
-                <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Remaining</p><p className={`text-lg font-bold ${budgetRemaining !== null && budgetRemaining < 0 ? 'text-rose-400' : 'text-primary'}`}>{budgetRemaining !== null ? formatCurrency(budgetRemaining) : 'N/A'}</p></div>
+                <div className="p-3 bg-subtle rounded-lg text-center"><p className={`text-lg font-bold ${budgetRemaining !== null && budgetRemaining < 0 ? 'text-rose-400' : 'text-primary'}`}>{budgetRemaining !== null ? formatCurrency(budgetRemaining) : 'N/A'}</p></div>
             </div>
             {trip.budget && (
                 <div>
                     <div className="w-full bg-subtle rounded-full h-2.5 border border-divider"><div className="h-full rounded-full bg-emerald-500" style={{width: `${Math.min(budgetProgress, 100)}%`}}></div></div>
                 </div>
             )}
+            
+            <div className="p-3 bg-subtle rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                     <h4 className="font-semibold text-primary">💰 Trip Fund</h4>
+                     <button onClick={() => openModal('manageAdvances', { trip, onUpdateTrip })} className="button-secondary text-xs px-3 py-1">Manage Advances</button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                    <div><span className="text-xs text-secondary">Collected</span><p className="font-mono text-primary">{formatCurrency(totalCollected)}</p></div>
+                    <div><span className="text-xs text-secondary">Spent</span><p className="font-mono text-primary">{formatCurrency(spentFromFund)}</p></div>
+                    <div><span className="text-xs text-secondary">Remaining</span><p className="font-mono text-primary">{formatCurrency(remainingInFund)}</p></div>
+                </div>
+            </div>
+            
              <CategoryPieChart title="Spending by Category" transactions={expenses.map(e => ({...e, type: TransactionType.EXPENSE})) as any} categories={categories} type={TransactionType.EXPENSE} isVisible={true} currency={trip.currency} />
 
             <div className="p-3 bg-subtle rounded-lg">
@@ -134,10 +155,10 @@ const TripExpensesList: React.FC<{ expenses: TripExpense[]; categories: Category
     );
 };
 
-const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }> = ({ trip, onUpdateTrip }) => {
+const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void; categories: Category[]; openModal: (name: ActiveModal, props?: any) => void; }> = ({ trip, onUpdateTrip, categories, openModal }) => {
     const [planState, setPlanState] = useState<TripDayPlan[]>(trip.plan || []);
     const [isDirty, setIsDirty] = useState(false);
-    const [editingField, setEditingField] = useState<{ dayId: string; itemId: string; field: 'time' | 'activity' | 'icon' } | null>(null);
+    const [editingField, setEditingField] = useState<{ dayId: string; itemId: string; field: 'time' | 'activity' } | null>(null);
     const [aiPrompt, setAiPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [aiError, setAiError] = useState('');
@@ -189,7 +210,6 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
             id: self.crypto.randomUUID(),
             time: '09:00',
             activity: 'New Activity',
-            type: 'other',
             completed: false,
         };
         const newPlan = planState.map(day => 
@@ -198,7 +218,7 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
         updatePlan(newPlan);
     };
     
-    const handleFieldChange = (dayId: string, itemId: string, field: keyof TripDayPlanItem, value: any) => {
+    const handleFieldChange = (dayId: string, itemId: string, field: keyof Omit<TripDayPlanItem, 'categoryId'>, value: any) => {
         const newPlan = planState.map(day => 
             day.id === dayId ? { ...day, items: day.items.map(item => item.id === itemId ? { ...item, [field]: value } : item) } : day
         );
@@ -253,7 +273,7 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
         setDropIndicator(null);
     };
     
-    const handleKeyDown = (e: React.KeyboardEvent, dayId: string, itemId: string, field: 'time'|'activity'|'icon') => {
+    const handleKeyDown = (e: React.KeyboardEvent, dayId: string, itemId: string, field: 'time'|'activity') => {
         if (e.key === 'Enter') {
             handleFieldChange(dayId, itemId, field, (e.target as HTMLInputElement).value);
             setEditingField(null);
@@ -310,7 +330,8 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
                 <div key={day.id} className="timeline-container">
                     <h4 className="timeline-day-header">{day.title} <span className="font-normal text-sm text-secondary">- {new Date(day.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span></h4>
                     <div onDrop={() => handleDrop()} onDragOver={(e) => e.preventDefault()}>
-                        {day.items.map((item, index) => (
+                        {day.items.map((item, index) => {
+                            return (
                             <React.Fragment key={item.id}>
                                 {dropIndicator?.dayId === day.id && dropIndicator.index === index && <div className="drop-indicator" style={{marginLeft: '1.25rem'}} />}
                                 <div
@@ -320,19 +341,13 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
                                     onDragEnd={handleDragEnd}
                                     className={`timeline-item ${item.completed ? 'completed' : ''}`}
                                 >
-                                    <div className="timeline-item-icon">
-                                        {editingField?.itemId === item.id && editingField.field === 'icon' ? (
-                                             <input type="text" defaultValue={item.icon} onKeyDown={e => handleKeyDown(e, day.id, item.id, 'icon')} onBlur={() => setEditingField(null)} autoFocus className="timeline-icon-input" />
-                                        ) : ( <span onClick={() => setEditingField({dayId: day.id, itemId: item.id, field: 'icon'})}>{item.icon || '📌'}</span> )}
+                                    <div className="timeline-item-icon" onClick={() => openModal('timePicker', { initialTime: item.time, onSave: (time: string) => handleFieldChange(day.id, item.id, 'time', time) })}>
+                                        {item.time}
                                     </div>
                                     <div className="timeline-item-content flex items-start gap-3">
                                         <div className="pt-2"><CustomCheckbox id={`item-${item.id}`} checked={!!item.completed} onChange={c => handleFieldChange(day.id, item.id, 'completed', c)} label="" /></div>
-                                        <div className="flex-grow">
+                                        <div className="flex-grow space-y-2">
                                             <div className="flex items-center gap-2">
-                                                {editingField?.itemId === item.id && editingField.field === 'time' ? (
-                                                    <input type="text" defaultValue={item.time} onKeyDown={e => handleKeyDown(e, day.id, item.id, 'time')} onBlur={() => setEditingField(null)} autoFocus className="timeline-editable-input font-semibold w-16" />
-                                                ) : ( <span onClick={() => setEditingField({dayId: day.id, itemId: item.id, field: 'time'})} className="font-semibold text-primary">{item.time}</span> )}
-                                                - 
                                                 {editingField?.itemId === item.id && editingField.field === 'activity' ? (
                                                     <input type="text" defaultValue={item.activity} onKeyDown={e => handleKeyDown(e, day.id, item.id, 'activity')} onBlur={() => setEditingField(null)} autoFocus className="timeline-editable-input timeline-activity flex-grow" />
                                                 ) : ( <span onClick={() => setEditingField({dayId: day.id, itemId: item.id, field: 'activity'})} className="timeline-activity text-primary">{item.activity}</span> )}
@@ -343,7 +358,7 @@ const TripPlanView: React.FC<{ trip: Trip; onUpdateTrip: (trip: Trip) => void }>
                                     </div>
                                 </div>
                             </React.Fragment>
-                        ))}
+                        )})}
                         <button onClick={() => handleAddItem(day.id)} className="w-full text-center p-2 text-sm text-sky-400 hover:text-sky-300 ml-5 mt-2">+ Add Activity</button>
                     </div>
                 </div>

@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
-import { Contact, SplitDetail } from '../../types';
+// Fix: Corrected import paths and added missing types
+import { Contact, SplitDetail, USER_SELF_ID } from '../../types';
 import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
 import ModalHeader from '../ModalHeader';
 import { SettingsContext } from '../../contexts/SettingsContext';
-import { USER_SELF_ID } from '../../types';
 import CustomCheckbox from '../CustomCheckbox';
 
 const modalRoot = document.getElementById('modal-root')!;

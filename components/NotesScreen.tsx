@@ -1,6 +1,11 @@
 
+
+
+
+
 import React, { useState, useContext, useMemo } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
+// Fix: Corrected import paths and added missing types
 import { Note, ChecklistItem, ItemType, AppliedViewOptions, ViewOptions, ActiveModal, ActiveScreen, Priority } from '../types';
 import EmptyState from './EmptyState';
 import NoteDetailView from './NoteDetailView';
@@ -8,7 +13,7 @@ import ChecklistDetailView from './ChecklistDetailView';
 
 interface NoteListViewProps {
     onSelectNote: (id: string) => void;
-    onAddNote: (type: 'note' | 'checklist') => void;
+    onAddNote: (type: 'note' | 'checklist', tripId?: string) => void;
     onDeleteNote: (id: string) => void;
     onPinNote: (note: Note) => void;
     openModal: (name: ActiveModal, props?: Record<string, any>) => void;
@@ -21,35 +26,63 @@ const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, on
         sort: { key: 'updatedAt', direction: 'desc' },
         filters: {}
     });
+    const [activeTab, setActiveTab] = useState<'notes' | 'lists'>('notes');
 
     if (!dataContext) return null;
     const { notes = [], trips = [] } = dataContext;
 
     const tripMap = useMemo(() => new Map(trips.map(t => [t.id, t.name])), [trips]);
 
-    const sortedAndFilteredNotes = useMemo(() => {
-        let result = [...notes].filter(note => note.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    const { pinnedNotes, regularNotes, shoppingLists } = useMemo(() => {
+        const pinned: Note[] = [];
+        const regulars: Note[] = [];
+        const lists: Note[] = [];
+
+        for (const note of notes) {
+            const matchesSearch = note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                  (typeof note.content === 'string' && note.content.toLowerCase().includes(searchQuery.toLowerCase()));
+            
+            if (matchesSearch) {
+                if (note.isPinned) {
+                    pinned.push(note);
+                } else if (note.type === 'note') {
+                    regulars.push(note);
+                } else {
+                    lists.push(note);
+                }
+            }
+        }
         
         const { key, direction } = viewOptions.sort;
-
-        result.sort((a, b) => {
-            if (a.isPinned && !b.isPinned) return -1;
-            if (!a.isPinned && b.isPinned) return 1;
-
+        const sortFn = (a: Note, b: Note) => {
             let comparison = 0;
             switch(key) {
-                case 'title': comparison = a.title.localeCompare(b.title); break;
-                case 'createdAt': comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); break;
+                case 'title':
+                    comparison = a.title.localeCompare(b.title);
+                    return direction === 'asc' ? comparison : -comparison;
+                case 'createdAt':
+                    comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                    break;
                 case 'updatedAt':
-                default: comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(); break;
+                default:
+                    comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+                    break;
             }
-            return direction === 'asc' ? -comparison : comparison;
-        });
-        return result;
+            // For date sorts, descending is newest first
+            return direction === 'desc' ? -comparison : comparison;
+        };
+        
+        pinned.sort(sortFn);
+        regulars.sort(sortFn);
+        lists.sort(sortFn);
+
+        return { pinnedNotes: pinned, regularNotes: regulars, shoppingLists: lists };
     }, [notes, searchQuery, viewOptions]);
+    
+    const currentList = activeTab === 'notes' ? regularNotes : shoppingLists;
 
     const viewOptionsConfig: ViewOptions = {
-        sortOptions: [ { key: 'updatedAt', label: 'Last Updated' }, { key: 'createdAt', label: 'Date Created'}, { key: 'title', label: 'Title (A-Z)' }, ],
+        sortOptions: [ { key: 'updatedAt', label: 'Last Updated' }, { key: 'createdAt', label: 'Date Created'}, { key: 'title', label: 'Title' }, ],
         filterOptions: []
     };
     const isViewOptionsApplied = viewOptions.sort.key !== 'updatedAt' || viewOptions.sort.direction !== 'desc';
@@ -63,6 +96,29 @@ const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, on
         }
         return 'No content';
     }
+    
+    const renderNoteItem = (note: Note, index: number) => (
+        <div key={note.id} onClick={() => onSelectNote(note.id)} className={`note-list-item ${note.isPinned ? 'pinned' : ''} stagger-delay`} style={{'--stagger-index': index} as React.CSSProperties}>
+            <div className="note-list-item-icon">{note.type === 'checklist' ? '✅' : '📝'}</div>
+            <div className="note-list-item-content">
+                <p className="note-list-item-title">{note.title || 'Untitled'}</p>
+                <p className="note-list-item-snippet">{getSnippet(note)}</p>
+                {note.tripId && <span className="text-xs text-amber-400 bg-amber-900/50 px-2 py-0.5 rounded-full mt-2 inline-block">✈️ {tripMap.get(note.tripId)}</span>}
+            </div>
+            <div className="note-list-item-actions">
+                {/* FIX: Replaced emoji with an SVG to resolve potential rendering/type issues. */}
+                <button onClick={(e) => { e.stopPropagation(); onPinNote(note); }} className={`pin-button ${note.isPinned ? 'pinned' : ''}`} title={note.isPinned ? 'Unpin' : 'Pin'}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4h4m3 0H7c-1.1 0-2 .9-2 2v5c0 1.66 1.34 3 3 3h1v5l-2 2v1h8v-1l-2-2v-5h1c1.66 0 3-1.34 3-3V6c0-1.1-.9-2-2-2Z"/>
+                    </svg>
+                </button>
+                {/* FIX: Replaced &times; HTML entity with an SVG to prevent JSX parsing issues. */}
+                <button onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); }} className="p-2 text-rose-400/60 hover:text-rose-400 rounded-full" title="Delete">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+        </div>
+    );
 
     return (
         <div className="h-full flex flex-col">
@@ -76,40 +132,33 @@ const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, on
             <div className="p-4 flex-shrink-0 border-b border-divider">
                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search notes..." className="input-base w-full p-2 rounded-full" />
             </div>
-            <div className="flex-grow overflow-y-auto p-6 space-y-3">
-                {sortedAndFilteredNotes.length > 0 ? (
-                sortedAndFilteredNotes.map((note) => (
-                    <div key={note.id} onClick={() => onSelectNote(note.id)} className={`note-list-item ${note.isPinned ? 'pinned' : ''}`}>
-                        <div className="note-list-item-content">
-                            <p className="note-list-item-title">{note.title || 'Untitled'}</p>
-                            <p className="note-list-item-snippet">{getSnippet(note)}</p>
-                            {note.tripId && <span className="text-xs text-amber-400 bg-amber-900/50 px-2 py-0.5 rounded-full mt-2 inline-block">✈️ {tripMap.get(note.tripId)}</span>}
-                        </div>
-                        <div className="note-list-item-actions">
-                            {/* FIX: Replaced emoji with an SVG to resolve potential rendering/type issues. */}
-                            <button onClick={(e) => { e.stopPropagation(); onPinNote(note); }} className={`pin-button ${note.isPinned ? 'pinned' : ''}`} title={note.isPinned ? 'Unpin' : 'Pin'}>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5.068l3.758 3.759a1 1 0 01-1.414 1.414L11 11.243V17a1 1 0 11-2 0v-5.757L5.657 14.53a1 1 0 11-1.414-1.414L8 9.36V4a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); }} className="p-2 text-rose-400/60 hover:text-rose-400 rounded-full" title="Delete">
-                                &times;
-                            </button>
-                        </div>
+            <div className="notes-tabs-container">
+                <button onClick={() => setActiveTab('notes')} className={`notes-tab-button ${activeTab === 'notes' ? 'active' : ''}`}>Notes ({regularNotes.length})</button>
+                <button onClick={() => setActiveTab('lists')} className={`notes-tab-button ${activeTab === 'lists' ? 'active' : ''}`}>Shopping Lists ({shoppingLists.length})</button>
+            </div>
+            <div className="flex-grow overflow-y-auto">
+                {pinnedNotes.length > 0 && (
+                    <div className="pinned-notes-section">
+                        <h3 className="text-sm font-semibold text-sky-400 mb-2">Pinned</h3>
+                        <div className="space-y-3">{pinnedNotes.map(renderNoteItem)}</div>
                     </div>
-                ))
-                ) : (
-                    <EmptyState 
-                        icon="📝" 
-                        title={searchQuery ? "No Results Found" : "No Notes Yet"}
-                        message={searchQuery ? `No notes matched your search for "${searchQuery}".` : "Create your first note or checklist to keep track of important information."}
-                        actionText={searchQuery ? undefined : "Create New"}
-                        onAction={searchQuery ? undefined : () => openModal('addNoteType', { onAdd: onAddNote })}
-                    />
                 )}
+                <div className="p-4 space-y-3">
+                    {currentList.length > 0 ? (
+                        currentList.map(renderNoteItem)
+                    ) : (
+                         <div className="pt-8">
+                            <EmptyState 
+                                icon={activeTab === 'notes' ? '📝' : '✅'}
+                                title={searchQuery ? "No Results Found" : `No ${activeTab === 'notes' ? 'Notes' : 'Lists'} Yet`}
+                                message={searchQuery ? `No items matched your search for "${searchQuery}".` : `Create your first ${activeTab === 'notes' ? 'note' : 'list'} to keep track of important information.`}
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
              <div className="p-4 border-t border-divider flex-shrink-0">
-                <button onClick={() => openModal('addNoteType', { onAdd: onAddNote })} className="button-primary w-full py-2">+ Create New</button>
+                <button onClick={() => openModal('addNoteType')} className="button-primary w-full py-2">+ Create New</button>
             </div>
         </div>
     );

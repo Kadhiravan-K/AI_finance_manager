@@ -28,8 +28,8 @@ const AddNoteTypeModal: React.FC<AddNoteTypeModalProps> = ({ onClose, onSelect, 
           <button onClick={() => onSelect('checklist', tripId)} className="w-full text-left p-4 bg-subtle rounded-lg flex items-center gap-4 hover-bg-stronger transition-colors">
             <span className="text-3xl">✅</span>
             <div>
-              <h3 className="font-bold text-primary">Checklist</h3>
-              <p className="text-sm text-secondary">Track items for shopping or tasks.</p>
+              <h3 className="font-bold text-primary">Shopping List</h3>
+              <p className="text-sm text-secondary">Create a list for shopping or tasks.</p>
             </div>
           </button>
         </div>

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Trip, TripExpense } from '../types';
 import EmptyState from './EmptyState';

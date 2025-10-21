@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { ViewOptions, AppliedViewOptions } from '../types';
@@ -22,7 +21,9 @@ const ViewOptionsModal: React.FC<ViewOptionsModalProps> = ({ options, currentVal
     if (localSort.key === key) {
       setLocalSort({ key, direction: localSort.direction === 'asc' ? 'desc' : 'asc' });
     } else {
-      setLocalSort({ key, direction: 'desc' });
+      // Default to 'asc' for text-based sorts like 'title' or 'name'
+      const newDirection = key.toLowerCase().includes('title') || key.toLowerCase().includes('name') ? 'asc' : 'desc';
+      setLocalSort({ key, direction: newDirection });
     }
   };
   

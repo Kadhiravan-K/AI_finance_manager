@@ -1,5 +1,11 @@
 
+
+
+
+
+
 import React, { useState, useMemo, useContext } from 'react';
+// Fix: Corrected import paths and added missing types
 import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, InvoiceStatus } from '../../types';
 import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
 import { AppDataContext, SettingsContext } from '../../contexts/SettingsContext';
@@ -140,8 +146,8 @@ const ShopEmployeesScreen: React.FC<{
 const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDeleteShop'> & {shop: Shop}> = ({ shop, openModal, products, sales, employees, shifts, onDeleteProduct, onRecordSale, onDeleteEmployee, onDeleteShift }) => {
     const [activeTab, setActiveTab] = useState<ShopDetailsTab>('billing');
 
-    {/* FIX: Replaced React.FC with a standard functional component definition to resolve potential type issues. */}
-    const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+    // FIX: Changed component definition to use React.FC and explicitly include children in props to fix type error.
+    const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode; }> = ({ active, onClick, children }) => (
         <button type="button" onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
             {children}
         </button>

@@ -245,7 +245,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
             case 'progress':
                 const progressA = (a.currentAmount / a.targetAmount) * 100;
                 const progressB = (b.currentAmount / b.targetAmount) * 100;
-                comparison = progressB - progressA;
+                comparison = progressA - progressB;
                 break;
             case 'priority':
                 comparison = priorityOrder[a.priority || Priority.NONE] - priorityOrder[b.priority || Priority.NONE];
@@ -254,7 +254,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
         return direction === 'asc' ? comparison : -comparison;
     });
     return result;
-  }, [goals, viewOptions]);
+  }, [goals, viewOptions, priorityOrder]);
 
   const viewOptionsConfig: ViewOptions = {
     sortOptions: [

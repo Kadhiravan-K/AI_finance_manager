@@ -37,7 +37,7 @@ const RefundsScreen: React.FC<RefundsScreenProps> = ({ refunds, contacts, onAddR
                 comparison = dateA - dateB;
                 break;
             case 'amount':
-                comparison = b.amount - a.amount;
+                comparison = a.amount - b.amount;
                 break;
         }
         return direction === 'asc' ? comparison : -comparison;

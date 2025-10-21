@@ -48,11 +48,31 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
   };
   
   const handleInsert = () => {
-      const finalResult = parseFloat(result || expression);
-      if (!isNaN(finalResult)) {
-          onResult(finalResult);
-          onClose();
-      }
+    let finalResult: number;
+    // If a result is already calculated and valid, use it.
+    if (result && result !== 'Error') {
+        finalResult = parseFloat(result);
+    } else {
+        // Otherwise, try to evaluate the current expression.
+        try {
+            if (!expression) {
+                finalResult = 0;
+            } else {
+                const sanitized = expression.replace(/[^-()\d/*+.]/g, '');
+                finalResult = new Function('return ' + sanitized)();
+            }
+        } catch (error) {
+            finalResult = NaN;
+        }
+    }
+
+    if (!isNaN(finalResult) && isFinite(finalResult)) {
+        onResult(finalResult);
+        onClose();
+    } else {
+        // Show an error if the expression is invalid and couldn't be calculated.
+        setResult('Error');
+    }
   };
   
   const handleButtonClick = (btn: string) => {

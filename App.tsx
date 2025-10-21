@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppDataProvider, useAppContext } from './hooks/useAppContext';
 import MainContent from './components/MainContent';
@@ -69,6 +71,7 @@ import UpdateInvestmentModal from './components/UpdateInvestmentModal';
 import { SplitTransactionModal } from './components/SplitTransactionModal';
 import FeedbackModal from './components/FeedbackModal';
 import ManageToolsModal from './components/ManageToolsModal';
+import ManageAdvancesModal from './components/ManageAdvancesModal';
 
 
 const AppContainer: React.FC = () => {
@@ -227,10 +230,13 @@ const AppContainer: React.FC = () => {
       case 'globalSearch': return <GlobalSearchModal onClose={closeModal} onNavigate={onNavigate} />;
       case 'editTrip': return <EditTripModal onClose={closeModal} onSave={dataContext.onSaveTrip} {...props} onSaveContact={dataContext.onSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
       // Fix: Explicitly pass the 'trip' prop to satisfy AddTripExpenseModalProps requirements.
-      case 'addTripExpense': return <AddTripExpenseModal onClose={closeModal} onSave={dataContext.onSaveTripExpense} onUpdate={dataContext.onUpdateTripExpense} categories={appState.categories} findOrCreateCategory={dataContext.findOrCreateCategory} {...props} trip={props.trip} />;
+      // FIX: Add missing 'openModal' prop.
+      case 'addTripExpense': return <AddTripExpenseModal onClose={closeModal} onSave={dataContext.onSaveTripExpense} onUpdate={dataContext.onUpdateTripExpense} categories={appState.categories} findOrCreateCategory={dataContext.findOrCreateCategory} {...props} trip={props.trip} openModal={openModal} />;
       case 'tripSummary': return <GlobalTripSummaryModal onClose={closeModal} allExpenses={appState.tripExpenses} trips={appState.trips} settlements={appState.settlements} onSettle={dataContext.onSettle} />;
       // Fix: Explicitly pass 'trip' and 'onUpdateTrip' props to satisfy ManageTripMembersModalProps requirements.
       case 'manageTripMembers': return <ManageTripMembersModal onClose={closeModal} {...props} trip={props.trip} onUpdateTrip={props.onUpdateTrip} />;
+      // FIX: Pass required `trip` and `onUpdateTrip` props to `ManageAdvancesModal`.
+      case 'manageAdvances': return <ManageAdvancesModal onClose={closeModal} {...props} trip={props.trip} onUpdateTrip={props.onUpdateTrip} />;
       // Fix: Explicitly pass 'shop' prop and change 'onCancel' to 'onClose' to match component definition.
       case 'editShop': return <EditShopModal onCancel={closeModal} onSave={dataContext.onSaveShop} {...props} shop={props.shop} />;
       case 'editProduct': return <EditProductModal onClose={closeModal} onSave={(prod, id) => dataContext.onSaveProduct(props.shopId, prod, id)} {...props} />;

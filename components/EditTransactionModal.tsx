@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -165,8 +166,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                                     <div><label className="text-sm font-medium text-secondary mb-1">Type</label><CustomSelect options={[{value: 'expense', label: 'Expense'}, {value: 'income', label: 'Income'}]} value={type} onChange={val => { setType(val as TransactionType); setCategoryId(''); setSubCategoryId(''); }} /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="text-sm font-medium text-secondary mb-1">Category</label><CustomSelect options={topLevelCategoriesByType.map(c=>({value: c.id, label: c.name}))} value={categoryId} onChange={setCategoryId} placeholder="Select Category" /></div>
-                                    <div><label className="text-sm font-medium text-secondary mb-1">Subcategory</label><CustomSelect options={subCategories.map(c=>({value: c.id, label: c.name}))} value={subCategoryId} onChange={setSubCategoryId} placeholder="-" disabled={!categoryId || subCategories.length === 0} /></div>
+                                    <div><label className="text-sm font-medium text-secondary mb-1">Category</label><CustomSelect options={topLevelCategoriesByType.map(c=>({value: c.id, label: `${c.icon || '📁'} ${c.name}`}))} value={categoryId} onChange={setCategoryId} placeholder="Select Category" /></div>
+                                    <div><label className="text-sm font-medium text-secondary mb-1">Subcategory</label><CustomSelect options={subCategories.map(c=>({value: c.id, label: `${c.icon || '📁'} ${c.name}`}))} value={subCategoryId} onChange={setSubCategoryId} placeholder="-" disabled={!categoryId || subCategories.length === 0} /></div>
                                 </div>
                                 <div><label className="text-sm font-medium text-secondary mb-1">Description</label><input type="text" value={description} onChange={e=>setDescription(e.target.value)} className="input-base w-full p-2 rounded-lg" required /></div>
                                 <div><label className="text-sm font-medium text-secondary mb-1">Notes (Optional)</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} className="input-base w-full p-2 rounded-lg resize-none" /></div>
@@ -182,8 +183,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                                                 <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item Description`} className="input-base p-2 rounded-md w-full" required />
                                                 <div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
                                                 <div className="grid grid-cols-2 gap-2">
-                                                    <CustomSelect value={item.parentId || ''} onChange={val => handleItemChange(item.id, 'parentId', val)} options={[{value: '', label: 'Category'}, ...topLevelExpenseCategories.map(c => ({value: c.id, label: c.name}))]} />
-                                                    <CustomSelect value={item.categoryId || ''} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({value: c.id, label: c.name}))} placeholder="Subcategory" disabled={!item.parentId || itemSubCategories.length === 0} />
+                                                    <CustomSelect value={item.parentId || ''} onChange={val => handleItemChange(item.id, 'parentId', val)} options={[{value: '', label: 'Category'}, ...topLevelExpenseCategories.map(c => ({value: c.id, label: `${c.icon || '📁'} ${c.name}`))]} />
+                                                    <CustomSelect value={item.categoryId || ''} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({value: c.id, label: `${c.icon || '📁'} ${c.name}`}))} placeholder="Subcategory" disabled={!item.parentId || itemSubCategories.length === 0} />
                                                 </div>
                                             </div>
                                             {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-rose-400 hover:text-rose-300 rounded-full flex-shrink-0" aria-label="Remove item"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}

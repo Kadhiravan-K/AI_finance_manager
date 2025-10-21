@@ -1,7 +1,11 @@
 
 
+
+
+
 import React, { useState, useContext, useMemo } from 'react';
 import { AppDataContext } from '../../contexts/SettingsContext';
+// Fix: Corrected import paths and added missing types
 import { Note, ChecklistItem, ItemType, AppliedViewOptions, ViewOptions, ActiveModal, ActiveScreen, Priority } from '../../types';
 import EmptyState from '../EmptyState';
 import NoteDetailView from '../NoteDetailView';
@@ -89,12 +93,13 @@ const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, on
                         <div className="note-list-item-actions">
                             <button onClick={(e) => { e.stopPropagation(); onPinNote(note); }} className={`pin-button ${note.isPinned ? 'pinned' : ''}`} title={note.isPinned ? 'Unpin' : 'Pin'}>
                                 {/* FIX: Replaced emoji with an SVG to resolve potential rendering/type issues. */}
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5.068l3.758 3.759a1 1 0 01-1.414 1.414L11 11.243V17a1 1 0 11-2 0v-5.757L5.657 14.53a1 1 0 11-1.414-1.414L8 9.36V4a1 1 0 011-1z" clipRule="evenodd" />
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4h4m3 0H7c-1.1 0-2 .9-2 2v5c0 1.66 1.34 3 3 3h1v5l-2 2v1h8v-1l-2-2v-5h1c1.66 0 3-1.34 3-3V6c0-1.1-.9-2-2-2Z"/>
                                 </svg>
                             </button>
+                            {/* FIX: Replaced &times; HTML entity with an SVG to prevent JSX parsing issues. */}
                             <button onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); }} className="p-2 text-rose-400/60 hover:text-rose-400 rounded-full" title="Delete">
-                                &times;
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                     </div>

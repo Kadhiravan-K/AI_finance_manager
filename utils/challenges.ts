@@ -1,11 +1,12 @@
+
 import { Challenge, ChallengeType, AppState, PersonalizedChallenge } from '../types';
 import { generatePersonalizedChallenge } from '../services/geminiService';
 
 const FALLBACK_CHALLENGES: { type: ChallengeType; description: string }[] = [
-    { type: 'log_transaction', description: 'Log at least one expense or income transaction today.' },
-    { type: 'categorize_uncategorized', description: 'Find and categorize one uncategorized transaction.' },
-    { type: 'set_budget', description: 'Set or update a budget for any category this month.' },
-    { type: 'review_goals', description: 'Review your financial goals and add a contribution.' },
+    { type: ChallengeType.LOG_TRANSACTION, description: 'Log at least one expense or income transaction today.' },
+    { type: ChallengeType.CATEGORIZE_UNCATEGORIZED, description: 'Find and categorize one uncategorized transaction.' },
+    { type: ChallengeType.SET_BUDGET, description: 'Set or update a budget for any category this month.' },
+    { type: ChallengeType.REVIEW_GOALS, description: 'Review your financial goals and add a contribution.' },
 ];
 
 export async function getDailyChallenge(

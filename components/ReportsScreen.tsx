@@ -10,6 +10,7 @@ import CustomCheckbox from './CustomCheckbox';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import LiveFeedScreen from './LiveFeedScreen';
+import TimeSeriesLineChart from './TimeSeriesLineChart';
 
 interface ReportsScreenProps {
   appState: AppState;
@@ -210,6 +211,9 @@ const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>
   const [reportCurrency, setReportCurrency] = useState(baseCurrency);
   const formatCurrency = useCurrencyFormatter(undefined, reportCurrency);
 
+  const [breakdownChartType, setBreakdownChartType] = useState<'pie' | 'bar'>('pie');
+  const [trendChartType, setTrendChartType] = useState<'bar' | 'line'>('bar');
+
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [comparePeriodType, setComparePeriodType] = useState<ComparePeriodType>('previous');
   const [compareCustomDateRange, setCompareCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
@@ -304,19 +308,26 @@ const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>
   
   const ChartContainer: React.FC<{children: React.ReactNode}> = ({children}) => <div className={isCompareMode ? 'md:col-span-1' : 'md:col-span-2'}>{children}</div>;
   
-  const ReportDataView: React.FC<{txs: Transaction[], title: string}> = ({ txs, title }) => (
-    <div className="animate-fadeInUp">
-        {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
-        {reportType === 'breakdown' ? (
-        <>
-            <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} />
-            <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} />
-        </>
-        ) : (
-            <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} />
-        )}
-    </div>
-  );
+  const ReportChart: React.FC<{
+      txs: Transaction[];
+      title: string;
+  }> = ({ txs, title }) => {
+      return (
+          <div className="animate-fadeInUp">
+              {title && <h3 className="text-center font-semibold text-secondary mb-2">{title}</h3>}
+              {reportType === 'breakdown' && (
+                  breakdownChartType === 'pie' ? 
+                  <CategoryPieChart title="Category Overview" transactions={txs} categories={categories} type={transactionType} isVisible={true} currency={reportCurrency} /> :
+                  <CategoryBarChart title="Top-Level Categories" transactions={txs} categories={categories} type={transactionType} currency={reportCurrency} />
+              )}
+              {reportType === 'trend' && (
+                  trendChartType === 'bar' ?
+                  <TimeSeriesBarChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} currency={reportCurrency} /> :
+                  <TimeSeriesLineChart title="Trend Over Time" transactions={txs} period={period} type={transactionType} currency={reportCurrency} onPointClick={() => {}}/>
+              )}
+          </div>
+      );
+  };
 
   return (
     <div className="p-4 pr-2">
@@ -330,10 +341,27 @@ const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>
             <ReportAccountSelector accounts={accountsForCurrency} selectedIds={reportAccountIds} onChange={setReportAccountIds} />
         </div>
         <CategorySelector categories={categories.filter(c => c.type === transactionType)} selectedIds={categoryIds} onChange={setCategoryIds} />
-        <CustomSelect 
-            options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
-            value={period} onChange={(val) => setPeriod(val as DateRange)}
-        />
+        <div className="grid grid-cols-2 gap-4">
+            <CustomSelect 
+                options={[{value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}, {value: 'year', label: 'This Year'}, {value: 'custom', label: 'Custom'}]}
+                value={period} onChange={(val) => setPeriod(val as DateRange)}
+            />
+             <div>
+              {reportType === 'breakdown' ? (
+                <CustomSelect 
+                    options={[{value: 'pie', label: 'Pie Chart'}, {value: 'bar', label: 'Bar Chart'}]}
+                    value={breakdownChartType} 
+                    onChange={(val) => setBreakdownChartType(val as 'pie' | 'bar')}
+                />
+              ) : (
+                <CustomSelect 
+                    options={[{value: 'bar', label: 'Bar Chart'}, {value: 'line', label: 'Line Chart'}]}
+                    value={trendChartType} 
+                    onChange={(val) => setTrendChartType(val as 'bar' | 'line')}
+                />
+              )}
+            </div>
+        </div>
         {period === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-fadeInUp"><CustomDatePicker value={customDateRange.start} onChange={d => setCustomDateRange(p => ({...p, start: d}))} /><CustomDatePicker value={customDateRange.end} onChange={d => setCustomDateRange(p => ({...p, end: d}))} /></div>)}
         <div className="pt-2 border-t border-divider"><ToggleSwitch checked={isCompareMode} onChange={setIsCompareMode} label="Compare Periods" /></div>
         {isCompareMode && (
@@ -386,11 +414,11 @@ const ReportContent: React.FC<Omit<ReportsScreenProps, 'appState' | 'openModal'>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ChartContainer>
-          <ReportDataView txs={filteredTransactions} title={isCompareMode ? "Current Period" : ""} />
+          <ReportChart txs={filteredTransactions} title={isCompareMode ? "Current Period" : ""} />
         </ChartContainer>
         {isCompareMode && (
           <ChartContainer>
-            <ReportDataView txs={compareTransactions} title="Comparison Period" />
+            <ReportChart txs={compareTransactions} title="Comparison Period" />
           </ChartContainer>
         )}
       </div>
@@ -422,5 +450,3 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = (props) => {
         </div>
     );
 };
-
-export default ReportsScreen;

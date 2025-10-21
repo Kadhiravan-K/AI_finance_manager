@@ -1,6 +1,9 @@
 
 
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+// Fix: Corrected import path for types
 import { SplitDetail, TripParticipant, USER_SELF_ID } from '../../types';
 import CustomSelect from '../CustomSelect';
 import CustomCheckbox from '../CustomCheckbox';
@@ -121,10 +124,9 @@ export const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeC
         <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">{title}</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* FIX: Add children to TabButton components */}
-                {!isPayerManager && <TabButton active={mode === 'equally'} onClick={() => onModeChange('equally')}>Equally</TabButton>}
-                {!isPayerManager && <TabButton active={mode === 'percentage'} onClick={() => onModeChange('percentage')}>%</TabButton>}
-                {!isPayerManager && <TabButton active={mode === 'shares'} onClick={() => onModeChange('shares')}>Shares</TabButton>}
+                <TabButton active={mode === 'equally'} onClick={() => onModeChange('equally')}>Equally</TabButton>
+                <TabButton active={mode === 'percentage'} onClick={() => onModeChange('percentage')}>%</TabButton>
+                <TabButton active={mode === 'shares'} onClick={() => onModeChange('shares')}>Shares</TabButton>
                 <TabButton active={mode === 'manual'} onClick={() => onModeChange('manual')}>Manual</TabButton>
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto pr-1 mt-3">

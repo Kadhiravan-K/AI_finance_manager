@@ -1,4 +1,5 @@
 
+
 import React, { useMemo, useState } from 'react';
 import { RecurringTransaction, Category, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -38,7 +39,7 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
           comparison = new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
           break;
         case 'amount':
-          comparison = b.amount - a.amount;
+          comparison = a.amount - b.amount;
           break;
         case 'priority':
           comparison = priorityOrder[a.priority || Priority.NONE] - priorityOrder[b.priority || Priority.NONE];
@@ -47,7 +48,7 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
       return direction === 'asc' ? comparison : -comparison;
     });
     return result;
-  }, [recurringTransactions, viewOptions]);
+  }, [recurringTransactions, viewOptions, priorityOrder]);
   
   const viewOptionsConfig: ViewOptions = {
     sortOptions: [

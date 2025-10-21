@@ -1,6 +1,7 @@
 
+
 import { TripExpense, Trip, Settlement } from '../types';
-import { USER_SELF_ID } from '../types';
+import { USER_SELF_ID, TRIP_FUND_ID } from '../types';
 
 interface Balance {
     contactId: string;
@@ -62,9 +63,21 @@ export function calculateTripSummary(
                 balances[contactId] = { contactId, name: getParticipantName(contactId), balance: 0 };
             }
         };
+        
+        // Apply advances first
+        (trips || []).forEach(trip => {
+            if (trip.currency === currency) {
+                (trip.advances || []).forEach(advance => {
+                    ensureBalance(advance.contactId);
+                    balances[advance.contactId].balance += advance.amount;
+                });
+            }
+        });
+
 
         currencyExpenses.forEach(expense => {
             expense.payers.forEach(payer => {
+                if (payer.contactId === TRIP_FUND_ID) return; // Money from the trip fund doesn't credit an individual
                 ensureBalance(payer.contactId);
                 balances[payer.contactId].balance += payer.amount;
             });

@@ -1,7 +1,10 @@
 
 
+
+
 import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+// Fix: Corrected import path for types
 import { Goal, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '../../types';
 import { useCurrencyFormatter } from '../../hooks/useCurrencyFormatter';
 import CustomSelect from '../CustomSelect';
@@ -247,7 +250,8 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
             case 'progress':
                 const progressA = (a.currentAmount / a.targetAmount) * 100;
                 const progressB = (b.currentAmount / b.targetAmount) * 100;
-                comparison = progressB - progressA;
+                // Fix: Sorting should be ascending for correct application of direction.
+                comparison = progressA - progressB;
                 break;
             case 'priority':
                 comparison = priorityOrder[a.priority || Priority.NONE] - priorityOrder[b.priority || Priority.NONE];
@@ -256,7 +260,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
         return direction === 'asc' ? comparison : -comparison;
     });
     return result;
-  }, [goals, viewOptions]);
+  }, [goals, viewOptions, priorityOrder]);
 
   const viewOptionsConfig: ViewOptions = {
     sortOptions: [
