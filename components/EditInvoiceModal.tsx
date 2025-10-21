@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Invoice, Shop, Contact, InvoiceLineItem, ShopProduct, InvoiceStatus } from '../types';

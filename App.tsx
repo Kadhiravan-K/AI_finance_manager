@@ -198,14 +198,17 @@ const AppContainer: React.FC = () => {
 
   const renderModal = () => {
     if (modalStack.length === 0) return null;
-    const { name, props } = modalStack[modalStack.length - 1];
+    // Fix: Provide a default empty object for props to avoid errors when spreading undefined.
+    const { name, props = {} } = modalStack[modalStack.length - 1];
     
     // A giant switch to rule all modals
     switch (name) {
       case 'addTransaction': return <AddTransactionModal onClose={closeModal} {...props} {...dataContext} accounts={appState.accounts} contacts={appState.contacts} onOpenCalculator={(onResult) => openModal('miniCalculator', { onResult })} initialText={initialText} onInitialTextConsumed={() => setInitialText(null)} />;
-      case 'editTransaction': return <EditTransactionModal onClose={closeModal} {...props} onSave={dataContext.onUpdateTransaction} accounts={appState.accounts} contacts={appState.contacts} onOpenCalculator={(onResult) => openModal('miniCalculator', { onResult })} openModal={openModal} />;
+      // Fix: Explicitly pass the 'transaction' prop to satisfy EditTransactionModalProps requirements.
+      case 'editTransaction': return <EditTransactionModal onClose={closeModal} {...props} transaction={props.transaction} onSave={dataContext.onUpdateTransaction} accounts={appState.accounts} contacts={appState.contacts} onOpenCalculator={(onResult) => openModal('miniCalculator', { onResult })} openModal={openModal} />;
       case 'accounts': return <AccountsManagerModal onClose={closeModal} accounts={appState.accounts} onAddAccount={dataContext.onAddAccount} onEditAccount={(acc) => openModal('editAccount', { account: acc })} onDeleteAccount={(id) => dataContext.deleteItem(id, 'account')} />;
-      case 'editAccount': return <EditAccountModal onClose={closeModal} {...props} onSave={(acc) => dataContext.setAccounts(prev => prev.map(a => a.id === acc.id ? acc : a))} />;
+      // Fix: Explicitly pass the 'account' prop to satisfy EditAccountModalProps requirements.
+      case 'editAccount': return <EditAccountModal onClose={closeModal} {...props} account={props.account} onSave={(acc) => dataContext.setAccounts(prev => prev.map(a => a.id === acc.id ? acc : a))} />;
       case 'categories': return <CategoryManagerModal onClose={closeModal} categories={appState.categories} onAddTopLevelCategory={() => openModal('editCategory')} onAddSubcategory={(p) => openModal('editCategory', { initialParentId: p.id, initialType: p.type })} onEditCategory={(cat) => openModal('editCategory', { category: cat })} onDeleteCategory={(id) => dataContext.deleteItem(id, 'category')} />;
       case 'editCategory': return <EditCategoryModal onClose={closeModal} {...props} categories={appState.categories} onSave={dataContext.onSaveCategory} />;
       case 'transfer': return <TransferModal onClose={closeModal} accounts={appState.accounts} onTransfer={dataContext.onTransfer} />;
@@ -223,26 +226,36 @@ const AppContainer: React.FC = () => {
       case 'aiHub': return <AIHubModal onClose={closeModal} onExecuteCommand={handleAiCommand} onNavigate={onNavigate} appState={appState} openModal={openModal} />;
       case 'globalSearch': return <GlobalSearchModal onClose={closeModal} onNavigate={onNavigate} />;
       case 'editTrip': return <EditTripModal onClose={closeModal} onSave={dataContext.onSaveTrip} {...props} onSaveContact={dataContext.onSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
-      case 'addTripExpense': return <AddTripExpenseModal onClose={closeModal} onSave={dataContext.onSaveTripExpense} onUpdate={dataContext.onUpdateTripExpense} categories={appState.categories} findOrCreateCategory={dataContext.findOrCreateCategory} {...props} />;
+      // Fix: Explicitly pass the 'trip' prop to satisfy AddTripExpenseModalProps requirements.
+      case 'addTripExpense': return <AddTripExpenseModal onClose={closeModal} onSave={dataContext.onSaveTripExpense} onUpdate={dataContext.onUpdateTripExpense} categories={appState.categories} findOrCreateCategory={dataContext.findOrCreateCategory} {...props} trip={props.trip} />;
       case 'tripSummary': return <GlobalTripSummaryModal onClose={closeModal} allExpenses={appState.tripExpenses} trips={appState.trips} settlements={appState.settlements} onSettle={dataContext.onSettle} />;
-      case 'manageTripMembers': return <ManageTripMembersModal onClose={closeModal} {...props} />;
-      case 'editShop': return <EditShopModal onCancel={closeModal} onSave={dataContext.onSaveShop} {...props} />;
+      // Fix: Explicitly pass 'trip' and 'onUpdateTrip' props to satisfy ManageTripMembersModalProps requirements.
+      case 'manageTripMembers': return <ManageTripMembersModal onClose={closeModal} {...props} trip={props.trip} onUpdateTrip={props.onUpdateTrip} />;
+      // Fix: Explicitly pass 'shop' prop and change 'onCancel' to 'onClose' to match component definition.
+      case 'editShop': return <EditShopModal onCancel={closeModal} onSave={dataContext.onSaveShop} {...props} shop={props.shop} />;
       case 'editProduct': return <EditProductModal onClose={closeModal} onSave={(prod, id) => dataContext.onSaveProduct(props.shopId, prod, id)} {...props} />;
       case 'editEmployee': return <EditEmployeeModal onClose={closeModal} onSave={(emp, id) => dataContext.onSaveEmployee(props.shopId, emp, id)} {...props} />;
-      case 'editShift': return <EditShiftModal onClose={closeModal} onSave={(shift, id) => dataContext.onSaveShift(props.shopId, shift, id)} openModal={openModal} {...props} />;
+      // Fix: Explicitly pass the 'employees' prop to satisfy EditShiftModalProps requirements.
+      case 'editShift': return <EditShiftModal onClose={closeModal} onSave={(shift, id) => dataContext.onSaveShift(props.shopId, shift, id)} openModal={openModal} {...props} employees={props.employees} />;
       case 'refund': return <RefundModal onClose={closeModal} onSave={dataContext.onSaveRefund} allTransactions={appState.transactions} accounts={appState.accounts} contacts={appState.contacts} refunds={appState.refunds} openModal={openModal} {...props} />;
       case 'editDebt': return <EditDebtModal onClose={closeModal} onSave={(debt, id) => dataContext.setDebts(p => id ? p.map(d=>d.id===id?{...d, ...debt}:d) : [...p, {id:self.crypto.randomUUID(), ...debt, currentBalance: debt.totalAmount}])} {...props} />;
-      case 'viewOptions': return <ViewOptionsModal onClose={closeModal} {...props} />;
+      // Fix: Explicitly pass required props to satisfy ViewOptionsModalProps requirements.
+      case 'viewOptions': return <ViewOptionsModal onClose={closeModal} {...props} options={props.options} currentValues={props.currentValues} onApply={props.onApply} />;
       case 'addCalendarEvent': return <AddCalendarEventModal onClose={closeModal} onNavigate={onNavigate} onAddCustomEvent={(event) => dataContext.setCustomCalendarEvents((prev: CalendarEvent[]) => [...prev, event])} {...props} />;
-      case 'timePicker': return <TimePickerModal onClose={closeModal} {...props} />;
+      // Fix: Explicitly pass required props to satisfy TimePickerModalProps requirements.
+      case 'timePicker': return <TimePickerModal onClose={closeModal} {...props} initialTime={props.initialTime} onSave={props.onSave} />;
       case 'camera': return <CameraModal onClose={closeModal} onCapture={props.onCapture || dataContext.onImageCapture} />;
       case 'addNoteType': return <AddNoteTypeModal onClose={closeModal} onSelect={(type, tripId) => { dataContext.onAddNote(type, tripId); closeModal(); }} {...props} />;
-      case 'linkToTrip': return <LinkNoteToTripModal onClose={closeModal} trips={appState.trips} {...props} />;
-      case 'editInvoice': return <EditInvoiceModal onCancel={closeModal} contacts={appState.contacts} products={appState.shopProducts} onSave={dataContext.onSaveInvoice} {...props} />;
-      case 'recordPayment': return <RecordPaymentModal onClose={closeModal} accounts={appState.accounts} onSave={dataContext.onRecordInvoicePayment} {...props} />;
+      // Fix: Explicitly pass 'note' and 'onSave' props to satisfy LinkNoteToTripModalProps requirements.
+      case 'linkToTrip': return <LinkNoteToTripModal onClose={closeModal} trips={appState.trips} {...props} note={props.note} onSave={props.onSave} />;
+      // Fix: Changed 'onCancel' to 'onClose' and explicitly passed the 'shop' prop to satisfy EditInvoiceModalProps.
+      case 'editInvoice': return <EditInvoiceModal onClose={closeModal} contacts={appState.contacts} products={appState.shopProducts} onSave={dataContext.onSaveInvoice} {...props} shop={props.shop} />;
+      // Fix: Explicitly pass the 'invoice' prop to satisfy RecordPaymentModalProps requirements.
+      case 'recordPayment': return <RecordPaymentModal onClose={closeModal} accounts={appState.accounts} onSave={dataContext.onRecordInvoicePayment} {...props} invoice={props.invoice} />;
       case 'aiChat': return <AIChatModal onClose={closeModal} appState={appState} />;
       case 'integrations': return <IntegrationsModal onClose={closeModal} />;
-      case 'miniCalculator': return <MiniCalculatorModal onClose={closeModal} {...props} />;
+      // Fix: Explicitly pass the 'onResult' prop to satisfy MiniCalculatorModalProps requirements.
+      case 'miniCalculator': return <MiniCalculatorModal onClose={closeModal} {...props} onResult={props.onResult} />;
       case 'trustBin': return <TrustBinModal onClose={closeModal} trustBinItems={appState.trustBin} onRestore={dataContext.onRestoreItems} onPermanentDelete={dataContext.onPermanentDeleteItems} />;
       // Fix: Corrected shorthand property 'group' to be 'group: g' and completed the truncated line.
       case 'contacts': return <ContactsManagerModal onClose={closeModal} onAddGroup={() => openModal('editContactGroup')} onEditGroup={(g) => openModal('editContactGroup', {group: g})} onDeleteGroup={(id) => dataContext.deleteItem(id, 'contactGroup')} onSaveContact={dataContext.onSaveContact} onEditContact={(c) => openModal('editContact', {contact: c})} onDeleteContact={(id) => dataContext.deleteItem(id, 'contact')} />;
@@ -251,9 +264,12 @@ const AppContainer: React.FC = () => {
       case 'editGlossaryEntry': return <EditGlossaryEntryModal onClose={closeModal} onSave={dataContext.onSaveGlossaryEntry} {...props} />;
       case 'shareGuide': return <ShareGuideModal onClose={closeModal} />;
       case 'buyInvestment': return <BuyInvestmentModal onClose={closeModal} onSave={dataContext.onBuyInvestment} accounts={appState.accounts} />;
-      case 'sellInvestment': return <SellInvestmentModal onClose={closeModal} onSave={dataContext.onSellInvestment} accounts={appState.accounts} {...props} />;
-      case 'updateInvestment': return <UpdateInvestmentModal onClose={closeModal} onSave={dataContext.onUpdateInvestmentValue} {...props} />;
-      case 'splitTransaction': return <SplitTransactionModal onCancel={closeModal} {...props} />;
+      // Fix: Explicitly pass the 'holding' prop to satisfy SellInvestmentModalProps requirements.
+      case 'sellInvestment': return <SellInvestmentModal onClose={closeModal} onSave={dataContext.onSellInvestment} accounts={appState.accounts} {...props} holding={props.holding} />;
+      // Fix: Explicitly pass the 'holding' prop to satisfy UpdateInvestmentModalProps requirements.
+      case 'updateInvestment': return <UpdateInvestmentModal onClose={closeModal} onSave={dataContext.onUpdateInvestmentValue} {...props} holding={props.holding} />;
+      // Fix: Explicitly pass 'onSave' and change 'onCancel' to 'onClose' to match component definition.
+      case 'splitTransaction': return <SplitTransactionModal onCancel={closeModal} {...props} onSave={props.onSave} />;
       case 'feedback': return <FeedbackModal onClose={closeModal} onSend={() => Promise.resolve({queued: false})} isSending={false} />;
       case 'manageTools': return <ManageToolsModal onClose={closeModal} />;
     }

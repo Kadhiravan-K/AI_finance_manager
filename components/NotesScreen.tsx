@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo } from 'react';
 import { AppDataContext } from '../contexts/SettingsContext';
 import { Note, ChecklistItem, ItemType, AppliedViewOptions, ViewOptions, ActiveModal, ActiveScreen, Priority } from '../types';
@@ -85,8 +86,11 @@ const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, on
                             {note.tripId && <span className="text-xs text-amber-400 bg-amber-900/50 px-2 py-0.5 rounded-full mt-2 inline-block">✈️ {tripMap.get(note.tripId)}</span>}
                         </div>
                         <div className="note-list-item-actions">
-                            <button onClick={(e) => { e.stopPropagation(); onPinNote(note); }} className={`pin-button text-xl ${note.isPinned ? 'pinned' : ''}`} title={note.isPinned ? 'Unpin' : 'Pin'}>
-                                📌
+                            {/* FIX: Replaced emoji with an SVG to resolve potential rendering/type issues. */}
+                            <button onClick={(e) => { e.stopPropagation(); onPinNote(note); }} className={`pin-button ${note.isPinned ? 'pinned' : ''}`} title={note.isPinned ? 'Unpin' : 'Pin'}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5.068l3.758 3.759a1 1 0 01-1.414 1.414L11 11.243V17a1 1 0 11-2 0v-5.757L5.657 14.53a1 1 0 11-1.414-1.414L8 9.36V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); }} className="p-2 text-rose-400/60 hover:text-rose-400 rounded-full" title="Delete">
                                 &times;

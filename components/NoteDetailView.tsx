@@ -18,6 +18,68 @@ const MarkdownButton: React.FC<MarkdownButtonProps> = ({ onClick, children, titl
   </button>
 );
 
+const MarkdownPreview: React.FC<{ content: string; onCheckboxToggle: (lineIndex: number) => void }> = ({ content, onCheckboxToggle }) => {
+    const lines = useMemo(() => (content || '').split('\n'), [content]);
+
+    const renderInline = (text: string) => {
+      // Basic inline parsing for bold, italic, and strikethrough
+      return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/~~(.*?)~~/g, '<s>$1</s>');
+    };
+
+    return (
+        <div className="p-6 w-full h-full text-primary space-y-2">
+            {lines.map((line, index) => {
+                // H1
+                if (line.startsWith('# ')) {
+                    return <h1 key={index} className="text-3xl font-bold mt-4 pb-2 border-b border-divider">{line.substring(2)}</h1>;
+                }
+                // H2
+                if (line.startsWith('## ')) {
+                    return <h2 key={index} className="text-2xl font-bold mt-3 pb-1 border-b border-divider">{line.substring(3)}</h2>;
+                }
+                // Unchecked checkbox
+                if (line.startsWith('- [ ] ')) {
+                    return (
+                        <div key={index} className="flex items-center gap-3 my-2 cursor-pointer group" onClick={() => onCheckboxToggle(index)}>
+                            <div className="w-5 h-5 rounded border-2 border-divider bg-subtle flex-shrink-0 group-hover:border-accent-sky transition-colors"></div>
+                            <span dangerouslySetInnerHTML={{ __html: renderInline(line.substring(6)) }} />
+                        </div>
+                    );
+                }
+                // Checked checkbox
+                if (line.startsWith('- [x] ')) {
+                    return (
+                        <div key={index} className="flex items-center gap-3 my-2 cursor-pointer group" onClick={() => onCheckboxToggle(index)}>
+                            <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <s className="text-secondary" dangerouslySetInnerHTML={{ __html: renderInline(line.substring(6)) }} />
+                        </div>
+                    );
+                }
+                // Bullet list item
+                if (line.startsWith('- ')) {
+                    return <div key={index} className="flex items-start gap-2 pl-4"><span className="text-emerald-400 mt-1">•</span><p dangerouslySetInnerHTML={{ __html: renderInline(line.substring(2)) }} /></div>;
+                }
+                // Numbered list item
+                if (line.match(/^\d+\. /)) {
+                    return <div key={index} className="flex items-start gap-2 pl-4"><span className="text-secondary font-semibold">{line.match(/^\d+\./)?.[0]}</span><p dangerouslySetInnerHTML={{ __html: renderInline(line.substring(line.indexOf(' ') + 1)) }} /></div>;
+                }
+                // Empty line
+                if (line.trim() === '') {
+                    return <div key={index} className="h-2"></div>;
+                }
+
+                // Default paragraph with inline markdown
+                return <p key={index} dangerouslySetInnerHTML={{ __html: renderInline(line) }} />;
+            })}
+        </div>
+    );
+};
+
 
 interface NoteDetailViewProps {
   note: Note;
@@ -28,6 +90,7 @@ interface NoteDetailViewProps {
 
 const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, openModal }) => {
   const [currentNote, setCurrentNote] = useState<Note>(note);
+  const [isPreview, setIsPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -58,7 +121,6 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
 
     const { selectionStart, selectionEnd, value } = textarea;
     
-    // Logic for formatting an entire line (e.g., headers, list items)
     if (syntax.asLine) {
         let lineStart = selectionStart;
         while (lineStart > 0 && value[lineStart - 1] !== '\n') {
@@ -73,7 +135,6 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
         const after = value.substring(lineEnd);
         
         let newContent;
-        // Toggle: if syntax already exists, remove it
         if (line.startsWith(syntax.start)) {
             newContent = before + line.substring(syntax.start.length) + after;
         } else {
@@ -81,7 +142,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
         }
         setCurrentNote(p => ({ ...p, content: newContent }));
 
-    } else { // Logic for wrapping selected text
+    } else {
         const selectedText = value.substring(selectionStart, selectionEnd);
         const before = value.substring(0, selectionStart);
         const after = value.substring(selectionEnd);
@@ -90,12 +151,26 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
         const newContent = `${before}${syntax.start}${selectedText}${endSyntax}${after}`;
         setCurrentNote(p => ({ ...p, content: newContent }));
 
-        // Re-focus and adjust selection
         setTimeout(() => {
             textarea.focus();
             textarea.setSelectionRange(selectionStart + syntax.start.length, selectionEnd + syntax.start.length);
         }, 0);
     }
+  };
+
+  const handleCheckboxToggle = (lineIndex: number) => {
+    const content = typeof currentNote.content === 'string' ? currentNote.content : '';
+    const lines = content.split('\n');
+    const line = lines[lineIndex];
+
+    if (line.startsWith('- [ ] ')) {
+        lines[lineIndex] = line.replace('- [ ] ', '- [x] ');
+    } else if (line.startsWith('- [x] ')) {
+        lines[lineIndex] = line.replace('- [x] ', '- [ ] ');
+    }
+
+    const newContent = lines.join('\n');
+    setCurrentNote(p => ({ ...p, content: newContent, updatedAt: new Date().toISOString() }));
   };
 
   return (
@@ -151,15 +226,26 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
         <MarkdownButton onClick={() => applyMarkdown({ start: '- [ ] ', asLine: true })} title="Checkbox">
           <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5"><path d="M19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3M10,17L5,12L6.41,10.59L10,14.17L17.59,6.58L19,8L10,17Z"></path></svg>
         </MarkdownButton>
+        <div className="flex-grow"></div>
+        <button onClick={() => setIsPreview(!isPreview)} className={`p-2 rounded-md text-sm font-semibold ${isPreview ? 'bg-emerald-500 text-white' : 'text-secondary hover:bg-subtle'}`}>
+          {isPreview ? 'Edit' : 'Preview'}
+        </button>
       </div>
-      <div className="flex-grow flex flex-col">
-        <textarea
-          ref={textareaRef}
-          value={typeof currentNote.content === 'string' ? currentNote.content : ''}
-          onChange={(e) => setCurrentNote(p => ({ ...p, content: e.target.value, updatedAt: new Date().toISOString() }))}
-          placeholder="Start writing your note here..."
-          className="w-full h-full bg-transparent p-6 text-primary resize-none focus:outline-none flex-grow"
-        />
+      <div className="flex-grow flex flex-col overflow-y-auto">
+        {isPreview ? (
+          <MarkdownPreview 
+            content={typeof currentNote.content === 'string' ? currentNote.content : ''} 
+            onCheckboxToggle={handleCheckboxToggle} 
+          />
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={typeof currentNote.content === 'string' ? currentNote.content : ''}
+            onChange={(e) => setCurrentNote(p => ({ ...p, content: e.target.value, updatedAt: new Date().toISOString() }))}
+            placeholder="Start writing your note here... Use markdown for formatting!"
+            className="w-full h-full bg-transparent p-6 text-primary resize-none focus:outline-none flex-grow"
+          />
+        )}
       </div>
       <div className="p-2 border-t border-divider flex-shrink-0 text-xs text-secondary text-right">
         <span>{wordCount} words</span>

@@ -13,9 +13,17 @@ const UpcomingBills: React.FC<UpcomingBillsProps> = ({ recurringTransactions, on
 
   const upcomingBills = useMemo(() => {
     const today = new Date();
-    today.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
+
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    sevenDaysFromNow.setHours(23, 59, 59, 999);
+
     return recurringTransactions
-      .filter(rt => new Date(rt.nextDueDate) <= today)
+      .filter(rt => {
+        const dueDate = new Date(rt.nextDueDate);
+        return dueDate >= today && dueDate <= sevenDaysFromNow;
+      })
       .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
   }, [recurringTransactions]);
 
@@ -27,7 +35,7 @@ const UpcomingBills: React.FC<UpcomingBillsProps> = ({ recurringTransactions, on
 
   return (
     <div className="mb-6 p-4 rounded-xl glass-card animate-fadeInUp" style={{animationDelay: '250ms'}}>
-      <h3 className="font-bold text-lg mb-3 text-primary" style={{color: 'var(--color-accent-yellow)'}}>Upcoming / Due Bills</h3>
+      <h3 className="font-bold text-lg mb-3 text-primary" style={{color: 'var(--color-accent-yellow)'}}>Upcoming Bills</h3>
       <div className="space-y-3">
         {upcomingBills.map(bill => (
           <div key={bill.id} className="flex items-center justify-between p-2 bg-subtle rounded-lg">

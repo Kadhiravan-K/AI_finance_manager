@@ -485,6 +485,57 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
         currentValue: h.currentValue * (1 + (Math.random() - 0.5) * 0.1) // +/- 5% change
     })));
   }, [setInvestmentHoldings]);
+
+  const dataSetters: Record<ItemType, Function> = {
+    transaction: setTransactions, recurringTransaction: setRecurringTransactions, tripExpense: setTripExpenses, refund: setRefunds, settlement: setSettlements, account: setAccounts, category: setCategories, payee: setPayees, sender: setSenders, contact: setContacts, contactGroup: setContactGroups, trip: setTrips, shop: setShops, shopProduct: setShopProducts, shopEmployee: setShopEmployees, shopShift: setShopShifts, goal: setGoals, note: setNotes, glossaryEntry: setGlossaryEntries, debt: setDebts
+  };
+
+  const dataSources: Record<ItemType, any[]> = {
+    transaction: transactions, recurringTransaction: recurringTransactions, tripExpense: tripExpenses, refund: refunds, settlement: settlements, account: accounts, category: categories, payee: payees, sender: senders, contact: contacts, contactGroup: contactGroups, trip: trips, shop: shops, shopProduct: shopProducts, shopEmployee: shopEmployees, shopShift: shopShifts, goal: goals, note: notes, glossaryEntry: glossaryEntries, debt: debts
+  };
+  
+  const deleteItem = useCallback(async (id: string, itemType: ItemType) => {
+    const setter = dataSetters[itemType];
+    const source = dataSources[itemType];
+    
+    if (setter && source) {
+        const itemToDelete = source.find(item => item.id === id);
+        if (itemToDelete) {
+            const binItem: TrustBinItem = {
+                id: self.crypto.randomUUID(),
+                itemType,
+                item: itemToDelete,
+                deletedAt: new Date().toISOString(),
+            };
+            await setTrustBin(prev => [...prev, binItem]);
+            await setter((prev: any[]) => prev.filter(item => item.id !== id));
+        }
+    }
+  }, [dataSources, dataSetters, setTrustBin]);
+
+  const onRestoreItems = useCallback(async (itemIds: string[]) => {
+    const itemsToRestore = trustBin.filter(item => itemIds.includes(item.id));
+    if (itemsToRestore.length === 0) return;
+
+    const grouped = itemsToRestore.reduce((acc, item) => {
+        if (!acc[item.itemType]) acc[item.itemType] = [];
+        acc[item.itemType].push(item.item);
+        return acc;
+    }, {} as Record<ItemType, any[]>);
+
+    for (const type in grouped) {
+        const setter = dataSetters[type as ItemType];
+        if (setter) {
+            await setter((prev: any[]) => [...prev, ...grouped[type as ItemType]]);
+        }
+    }
+    
+    await setTrustBin(prev => prev.filter(item => !itemIds.includes(item.id)));
+  }, [trustBin, setTrustBin, dataSetters]);
+
+  const onPermanentDeleteItems = useCallback(async (itemIds: string[]) => {
+      await setTrustBin(prev => prev.filter(item => !itemIds.includes(item.id)));
+  }, [setTrustBin]);
   
   const value = {
     isLoading,
@@ -528,6 +579,9 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
     findOrCreateCategory,
     updateStreak,
     onAddNote,
+    deleteItem,
+    onRestoreItems,
+    onPermanentDeleteItems,
     // UI State
     selectedAccountIds,
     setSelectedAccountIds,

@@ -141,6 +141,15 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     const newVal = Math.max(0, currentVal + delta);
     handleDetailChange(id, field, String(newVal));
   };
+  
+  const handleRemovePerson = (id: string) => {
+    setSplitDetails(prev => prev.filter(p => p.id !== id));
+    setTempSelected(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+    });
+  };
 
   const handleConfirmSelection = () => {
     const newSelection = new Set(tempSelected);
@@ -166,6 +175,7 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
     onClose();
   };
 
+  // FIX: Added children to TabButton to resolve type error.
   const TabButton: React.FC<{ active: boolean; children: React.ReactNode; onClick: () => void; }> = ({ active, children, onClick }) => <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>{children}</button>;
 
   const modalContent = (
@@ -180,7 +190,6 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
           <div className="p-4 rounded-xl border border-divider bg-subtle">
             <h3 className="text-center font-bold text-emerald-400 mb-3">Split Between</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
-                {/* FIX: Add children to TabButton components */}
                 <TabButton active={mode === 'equally'} onClick={() => setMode('equally')}>Equally</TabButton>
                 <TabButton active={mode === 'percentage'} onClick={() => setMode('percentage')}>%</TabButton>
                 <TabButton active={mode === 'shares'} onClick={() => setMode('shares')}>Shares</TabButton>
