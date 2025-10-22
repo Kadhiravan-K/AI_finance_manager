@@ -262,6 +262,7 @@ export interface Note {
     updatedAt: string; // ISO string
     tripId?: string;
     isPinned?: boolean;
+    icon?: string;
 }
 
 export interface GlossaryEntry {

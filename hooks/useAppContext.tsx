@@ -182,6 +182,7 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
       createdAt: now,
       updatedAt: now,
       tripId: tripId,
+      icon: type === 'note' ? '📝' : '✅',
     };
     setNotes(prev => [...(prev || []), newNote]);
   }, [setNotes]);
@@ -299,6 +300,7 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
         const packingList: Note = {
           id: self.crypto.randomUUID(),
           title: "Packing List",
+          icon: '🧳',
           content: [
             { id: self.crypto.randomUUID(), name: 'Clothes', isPurchased: false, rate: 0, quantity: '1', priority: Priority.HIGH },
             { id: self.crypto.randomUUID(), name: 'Toiletries', isPurchased: false, rate: 0, quantity: '1', priority: Priority.HIGH },

@@ -93,7 +93,7 @@ const NoteListView: React.FC<NoteListViewProps> = ({ onSelectNote, onAddNote, on
     
     const renderNoteItem = (note: Note, index: number) => (
         <div key={note.id} onClick={() => onSelectNote(note.id)} className={`note-list-item ${note.isPinned ? 'pinned' : ''} stagger-delay`} style={{'--stagger-index': index} as React.CSSProperties}>
-            <div className="note-list-item-icon">{note.type === 'checklist' ? '✅' : '📝'}</div>
+            <div className="note-list-item-icon">{note.icon || (note.type === 'checklist' ? '✅' : '📝')}</div>
             <div className="note-list-item-content">
                 <p className="note-list-item-title">{note.title || 'Untitled'}</p>
                 <p className="note-list-item-snippet">{getSnippet(note)}</p>
@@ -187,6 +187,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = (props) => {
       createdAt: now,
       updatedAt: now,
       tripId: tripId,
+      icon: type === 'note' ? '📝' : '✅',
     };
     setNotes(prev => [...(prev || []), newNote]);
     onNavigate('notes', undefined, { noteId: newNote.id });

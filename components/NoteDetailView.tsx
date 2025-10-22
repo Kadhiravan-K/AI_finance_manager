@@ -22,60 +22,112 @@ const MarkdownPreview: React.FC<{ content: string; onCheckboxToggle: (lineIndex:
     const lines = useMemo(() => (content || '').split('\n'), [content]);
 
     const renderInline = (text: string) => {
-      // Basic inline parsing for bold, italic, and strikethrough
       return text
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/~~(.*?)~~/g, '<s>$1</s>');
     };
 
+    const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+        const [copied, setCopied] = useState(false);
+        const handleCopy = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(text.trim()).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            });
+        };
+        return (
+            <button
+                onClick={handleCopy}
+                className="absolute top-2 right-2 px-2 py-1 text-xs bg-card-strong rounded-md text-secondary opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+                {copied ? 'Copied!' : 'Copy'}
+            </button>
+        );
+    };
+
+    const renderElements = () => {
+        const elements: React.ReactNode[] = [];
+        let inCodeBlock = false;
+        let codeBlockContent = '';
+        let codeBlockStartIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (line.trim().startsWith('```')) {
+                if (inCodeBlock) {
+                    elements.push(
+                        <div key={`code-${codeBlockStartIndex}`} className="relative group my-2">
+                            <pre className="bg-subtle p-4 rounded-lg overflow-x-auto font-mono text-sm">
+                                <code>{codeBlockContent}</code>
+                            </pre>
+                            <CopyButton text={codeBlockContent} />
+                        </div>
+                    );
+                    inCodeBlock = false;
+                    codeBlockContent = '';
+                } else {
+                    inCodeBlock = true;
+                    codeBlockStartIndex = i;
+                }
+                continue;
+            }
+
+            if (inCodeBlock) {
+                codeBlockContent += line + '\n';
+                continue;
+            }
+            
+            if (line.startsWith('# ')) {
+                elements.push(<h1 key={i} className="text-3xl font-bold mt-4 pb-2 border-b border-divider">{line.substring(2)}</h1>);
+            } else if (line.startsWith('## ')) {
+                elements.push(<h2 key={i} className="text-2xl font-bold mt-3 pb-1 border-b border-divider">{line.substring(3)}</h2>);
+            } else if (line.startsWith('- [ ] ')) {
+                elements.push(
+                    <div key={i} className="flex items-center gap-3 my-2 cursor-pointer group" onClick={(e) => { e.stopPropagation(); onCheckboxToggle(i); }}>
+                        <div className="w-5 h-5 rounded border-2 border-divider bg-subtle flex-shrink-0 group-hover:border-accent-sky transition-colors"></div>
+                        <span dangerouslySetInnerHTML={{ __html: renderInline(line.substring(6)) }} />
+                    </div>
+                );
+            } else if (line.startsWith('- [x] ')) {
+                elements.push(
+                    <div key={i} className="flex items-center gap-3 my-2 cursor-pointer group" onClick={(e) => { e.stopPropagation(); onCheckboxToggle(i); }}>
+                        <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <s className="text-secondary" dangerouslySetInnerHTML={{ __html: renderInline(line.substring(6)) }} />
+                    </div>
+                );
+            } else if (line.startsWith('- ')) {
+                elements.push(<div key={i} className="flex items-start gap-2 pl-4"><span className="text-emerald-400 mt-1">•</span><p dangerouslySetInnerHTML={{ __html: renderInline(line.substring(2)) }} /></div>);
+            } else if (line.match(/^\d+\. /)) {
+                elements.push(<div key={i} className="flex items-start gap-2 pl-4"><span className="text-secondary font-semibold">{line.match(/^\d+\./)?.[0]}</span><p dangerouslySetInnerHTML={{ __html: renderInline(line.substring(line.indexOf(' ') + 1)) }} /></div>);
+            } else if (line.trim() === '') {
+                elements.push(<div key={i} className="h-2"></div>);
+            } else {
+                elements.push(<p key={i} dangerouslySetInnerHTML={{ __html: renderInline(line) }} />);
+            }
+        }
+        
+        if (inCodeBlock) {
+             elements.push(
+                <div key={`code-${codeBlockStartIndex}`} className="relative group my-2">
+                    <pre className="bg-subtle p-4 rounded-lg overflow-x-auto font-mono text-sm">
+                        <code>{codeBlockContent}</code>
+                    </pre>
+                    <CopyButton text={codeBlockContent} />
+                </div>
+            );
+        }
+
+        return elements;
+    };
+
     return (
         <div className="p-6 w-full h-full text-primary space-y-2">
-            {lines.map((line, index) => {
-                // H1
-                if (line.startsWith('# ')) {
-                    return <h1 key={index} className="text-3xl font-bold mt-4 pb-2 border-b border-divider">{line.substring(2)}</h1>;
-                }
-                // H2
-                if (line.startsWith('## ')) {
-                    return <h2 key={index} className="text-2xl font-bold mt-3 pb-1 border-b border-divider">{line.substring(3)}</h2>;
-                }
-                // Unchecked checkbox
-                if (line.startsWith('- [ ] ')) {
-                    return (
-                        <div key={index} className="flex items-center gap-3 my-2 cursor-pointer group" onClick={(e) => { e.stopPropagation(); onCheckboxToggle(index); }}>
-                            <div className="w-5 h-5 rounded border-2 border-divider bg-subtle flex-shrink-0 group-hover:border-accent-sky transition-colors"></div>
-                            <span dangerouslySetInnerHTML={{ __html: renderInline(line.substring(6)) }} />
-                        </div>
-                    );
-                }
-                // Checked checkbox
-                if (line.startsWith('- [x] ')) {
-                    return (
-                        <div key={index} className="flex items-center gap-3 my-2 cursor-pointer group" onClick={(e) => { e.stopPropagation(); onCheckboxToggle(index); }}>
-                            <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                            </div>
-                            <s className="text-secondary" dangerouslySetInnerHTML={{ __html: renderInline(line.substring(6)) }} />
-                        </div>
-                    );
-                }
-                // Bullet list item
-                if (line.startsWith('- ')) {
-                    return <div key={index} className="flex items-start gap-2 pl-4"><span className="text-emerald-400 mt-1">•</span><p dangerouslySetInnerHTML={{ __html: renderInline(line.substring(2)) }} /></div>;
-                }
-                // Numbered list item
-                if (line.match(/^\d+\. /)) {
-                    return <div key={index} className="flex items-start gap-2 pl-4"><span className="text-secondary font-semibold">{line.match(/^\d+\./)?.[0]}</span><p dangerouslySetInnerHTML={{ __html: renderInline(line.substring(line.indexOf(' ') + 1)) }} /></div>;
-                }
-                // Empty line
-                if (line.trim() === '') {
-                    return <div key={index} className="h-2"></div>;
-                }
-
-                // Default paragraph with inline markdown
-                return <p key={index} dangerouslySetInnerHTML={{ __html: renderInline(line) }} />;
-            })}
+            {renderElements()}
         </div>
     );
 };
@@ -91,7 +143,9 @@ interface NoteDetailViewProps {
 const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, openModal }) => {
   const [currentNote, setCurrentNote] = useState<Note>(note);
   const [isPreview, setIsPreview] = useState(true);
+  const [isEditingIcon, setIsEditingIcon] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const iconInputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCurrentNote(note);
@@ -103,6 +157,27 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
         textareaRef.current?.focus();
     }
   }, [isPreview]);
+  
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (iconInputRef.current && !iconInputRef.current.contains(event.target as Node)) {
+        setIsEditingIcon(false);
+      }
+    }
+    if (isEditingIcon) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isEditingIcon]);
+
+  useEffect(() => {
+    if (isEditingIcon) {
+        iconInputRef.current?.querySelector('input')?.focus();
+    }
+  }, [isEditingIcon]);
+
 
   const wordCount = useMemo(() => {
     if (typeof currentNote.content !== 'string') return 0;
@@ -176,6 +251,27 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
         }, 0);
     }
   };
+  
+  const handleContentChange = (content: string) => {
+    const commandMap: { [key: string]: string } = {
+        '/h1 ': '# ', '/h2 ': '## ', '/todo ': '- [ ] ', '/list ': '- ', '/num ': '1. ', '/-- ': '\n---\n',
+    };
+
+    let commandApplied = false;
+    for (const command in commandMap) {
+        if (content.endsWith(command)) {
+            const newContent = content.slice(0, -command.length) + commandMap[command];
+            setCurrentNote(p => ({ ...p, content: newContent, updatedAt: new Date().toISOString() }));
+            commandApplied = true;
+            break;
+        }
+    }
+    
+    if (!commandApplied) {
+        setCurrentNote(p => ({ ...p, content: content, updatedAt: new Date().toISOString() }));
+    }
+  };
+
 
   const handleCheckboxToggle = (lineIndex: number) => {
     const content = typeof currentNote.content === 'string' ? currentNote.content : '';
@@ -196,19 +292,39 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-grow min-w-0">
-          <button onClick={handleSaveAndBack} className="p-2 -ml-2 text-secondary hover:text-primary rounded-full flex-shrink-0">
+       <div className="p-4 border-b border-divider flex-shrink-0 flex items-start justify-between gap-4">
+        <div className="flex items-start gap-2 flex-grow min-w-0">
+          <button onClick={handleSaveAndBack} className="p-2 -ml-2 text-secondary hover:text-primary rounded-full flex-shrink-0 mt-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <input 
-            type="text" 
-            value={currentNote.title}
-            onChange={(e) => setCurrentNote(p => ({ ...p, title: e.target.value }))}
-            className="bg-transparent text-xl font-bold text-primary focus:outline-none w-full"
-          />
+          
+          <div className="flex flex-col gap-2 flex-grow">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button onClick={() => setIsEditingIcon(true)} className="text-4xl w-12 h-12 flex items-center justify-center rounded-lg hover:bg-subtle transition-colors">
+                  {currentNote.icon || '📝'}
+                </button>
+                {isEditingIcon && (
+                    <div ref={iconInputRef} className="absolute top-0 left-0 z-10 p-2 bg-card-strong rounded-lg shadow-lg border border-divider">
+                        <input
+                            type="text"
+                            value={currentNote.icon || ''}
+                            onChange={(e) => setCurrentNote(p => ({...p, icon: e.target.value.slice(0, 2)}))}
+                            className="w-16 text-4xl text-center bg-subtle rounded-md"
+                        />
+                    </div>
+                )}
+              </div>
+              <input 
+                type="text" 
+                value={currentNote.title}
+                onChange={(e) => setCurrentNote(p => ({ ...p, title: e.target.value, updatedAt: new Date().toISOString() }))}
+                className="bg-transparent text-xl font-bold text-primary focus:outline-none w-full"
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex-shrink-0 flex items-center gap-2">
+        <div className="flex-shrink-0 flex items-center gap-2 mt-2">
             <button onClick={togglePin} className={`pin-button ${currentNote.isPinned ? 'pinned' : ''}`} title={currentNote.isPinned ? 'Unpin' : 'Pin'}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path transform="rotate(45 12 12)" d="M16,12V4H17V2H7V4H8V12L6,14V16H11.5V22H12.5V16H18V14L16,12Z" />
@@ -216,9 +332,6 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
             </button>
             <button onClick={handleLinkToTrip} className="button-secondary p-2 rounded-full aspect-square" title="Link to Trip">
                 ✈️
-            </button>
-            <button onClick={handleSaveAndBack} className="button-primary px-4 py-2">
-                Save
             </button>
         </div>
       </div>
@@ -261,9 +374,14 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
         </MarkdownButton>
 
         <div className="flex-grow"></div>
-        <button onClick={() => setIsPreview(!isPreview)} className={`p-2 rounded-md text-sm font-semibold ${isPreview ? 'bg-emerald-500 text-white' : 'text-secondary hover:bg-subtle'}`}>
-          {isPreview ? 'Edit' : 'Preview'}
+        <button onClick={() => setIsPreview(!isPreview)} className={`p-2 rounded-md text-sm font-semibold ${isPreview ? 'bg-emerald-500/20 text-emerald-300' : 'text-secondary hover:bg-subtle'}`}>
+          {isPreview ? 'Write' : 'View'}
         </button>
+      </div>
+       <div className="flex-shrink-0 text-xs text-secondary text-right px-4 pb-2 border-b border-divider">
+        <span>{wordCount} words</span>
+        <span className="mx-2">•</span>
+        <span>Last updated: {new Date(currentNote.updatedAt).toLocaleDateString()}</span>
       </div>
       <div className="flex-grow flex flex-col overflow-y-auto">
         {isPreview ? (
@@ -271,6 +389,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
              {typeof currentNote.content !== 'string' || currentNote.content.trim() === '' ? (
                 <div className="p-6 text-secondary text-center">
                     <p>Click here to start writing...</p>
+                    <p className="text-xs mt-2">Type '/' for commands</p>
                 </div>
             ) : (
                 <MarkdownPreview 
@@ -283,16 +402,11 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({ note, onSave, onBack, o
           <textarea
             ref={textareaRef}
             value={typeof currentNote.content === 'string' ? currentNote.content : ''}
-            onChange={(e) => setCurrentNote(p => ({ ...p, content: e.target.value, updatedAt: new Date().toISOString() }))}
-            placeholder="Start writing your note here... Use markdown for formatting!"
+            onChange={(e) => handleContentChange(e.target.value)}
+            placeholder="Start writing... Type '/' for commands."
             className="w-full h-full bg-transparent p-6 text-primary resize-none focus:outline-none flex-grow"
           />
         )}
-      </div>
-      <div className="p-2 border-t border-divider flex-shrink-0 text-xs text-secondary text-right">
-        <span>{wordCount} words</span>
-        <span className="mx-2">•</span>
-        <span>Last updated: {new Date(currentNote.updatedAt).toLocaleString()}</span>
       </div>
     </div>
   );

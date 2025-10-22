@@ -85,6 +85,7 @@ export const createSurvivalNotesForTrip = (tripId: string): Note[] => {
             createdAt: now,
             updatedAt: now,
             tripId: tripId,
+            icon: '🌲',
         },
         {
             id: self.crypto.randomUUID(),
@@ -94,6 +95,7 @@ export const createSurvivalNotesForTrip = (tripId: string): Note[] => {
             createdAt: now,
             updatedAt: now,
             tripId: tripId,
+            icon: '⚠️',
         },
         {
             id: self.crypto.randomUUID(),
@@ -103,6 +105,7 @@ export const createSurvivalNotesForTrip = (tripId: string): Note[] => {
             createdAt: now,
             updatedAt: now,
             tripId: tripId,
+            icon: '🐻',
         }
     ];
 };
