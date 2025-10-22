@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { Trip, TripExpense } from '../types';
 import EmptyState from './EmptyState';
@@ -47,12 +46,10 @@ const TripManagementScreen: React.FC<TripManagementScreenProps> = ({ trips, trip
                   <p className="font-semibold text-primary">{trip.name}</p>
                   <p className="text-xs text-secondary">{new Date(trip.date).toLocaleDateString()} &bull; {trip.participants.length} members</p>
                 </div>
-                {/* FIX: The useCurrencyFormatter hook cannot be called inside a loop, and the returned function expects only one argument. Using getCurrencyFormatter utility instead. */}
                 <p className="font-semibold text-primary">{getCurrencyFormatter(trip.currency).format(totalExpenses)}</p>
               </div>
               <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={(e) => { e.stopPropagation(); onEditTrip(trip); }} className="text-xs px-2 py-1 text-sky-300">Edit</button>
-                {/* Fix: Corrected the call to onDeleteTrip to pass only the trip ID. */}
                 <button onClick={(e) => { e.stopPropagation(); onDeleteTrip(trip.id); }} className="text-xs px-2 py-1 text-rose-400">Delete</button>
               </div>
             </div>

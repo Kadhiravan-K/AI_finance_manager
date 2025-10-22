@@ -1,10 +1,6 @@
 
-
-
-
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
-// Fix: Added missing type imports
-import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange, USER_SELF_ID } from './types';
+import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange, USER_SELF_ID, Category, Contact, ContactGroup, Shop, ShopEmployee, ShopShift, Refund, GlossaryEntry, CalendarEvent } from './types';
 import FinanceDisplay from './components/FinanceDisplay';
 import { ReportsScreen } from './components/ReportsScreen';
 import BudgetsScreen from './components/BudgetsScreen';

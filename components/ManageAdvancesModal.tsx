@@ -28,7 +28,8 @@ const ManageAdvancesModal: React.FC<ManageAdvancesModalProps> = ({ onClose, trip
 
     const handleSave = () => {
         const newAdvances = Object.entries(advances)
-            .map(([contactId, amountStr]) => ({
+            // FIX: Explicitly type the arguments from Object.entries to resolve TS inference issue.
+            .map(([contactId, amountStr]: [string, string]) => ({
                 contactId,
                 amount: parseFloat(amountStr) || 0,
             }))
@@ -38,7 +39,8 @@ const ManageAdvancesModal: React.FC<ManageAdvancesModalProps> = ({ onClose, trip
         onClose();
     };
 
-    const totalCollected = Object.values(advances).reduce((sum, amount) => sum + (parseFloat(amount) || 0), 0);
+    // FIX: Explicitly type the 'sum' and 'amount' arguments in reduce to resolve TS inference issues.
+    const totalCollected = Object.values(advances).reduce((sum: number, amount: string) => sum + (parseFloat(amount) || 0), 0);
 
     const modalContent = (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-[55] p-4" onClick={onClose}>

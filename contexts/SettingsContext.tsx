@@ -1,3 +1,4 @@
+
 import { createContext } from 'react';
 import { AppState, Settings } from '../types';
 
@@ -63,5 +64,4 @@ export const AppDataContext = createContext<any>(null);
 
 // This file now primarily exports the context. 
 // The provider and hook logic have been moved to hooks/useAppContext.tsx for better organization.
-// Fix: Export SettingsContext as an alias for AppDataContext to resolve import errors.
 export const SettingsContext = AppDataContext;

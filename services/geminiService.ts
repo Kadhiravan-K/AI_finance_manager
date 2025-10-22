@@ -1,10 +1,5 @@
 
-
-
-
-
 import { GoogleGenAI, Type } from "@google/genai";
-// Fix: Added missing type imports
 import { TransactionType, Transaction, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan, GlossaryEntry } from "../types";
 
 if (!process.env.API_KEY) {
@@ -44,7 +39,6 @@ export async function parseTransactionText(text: string): Promise<ParsedTransact
   
   try {
     const response = await ai.models.generateContent({
-      // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
       model: 'gemini-2.5-flash',
       contents: `You are a financial transaction analysis expert with a specialization in spam and fraud detection. Analyze the following text.
 1. Determine if it is a legitimate financial transaction notification.
@@ -103,7 +97,6 @@ export async function parseReceiptImage(base64Image: string, mimeType: string): 
 
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: {
                 parts: [
@@ -153,7 +146,6 @@ export async function getCurrencyConversionRate(fromCurrency: string, toCurrency
 
   try {
     const response = await ai.models.generateContent({
-      // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
       model: 'gemini-2.5-flash',
       contents: `Provide the current exchange rate for converting 1 ${fromCurrency} into ${toCurrency}. Return only the numeric value.`,
       config: { responseMimeType: "application/json", responseSchema: currencyConversionSchema },
@@ -164,7 +156,6 @@ export async function getCurrencyConversionRate(fromCurrency: string, toCurrency
         result = JSON.parse(response.text);
     } catch (jsonError) {
         console.error("Failed to parse JSON from Gemini:", response.text, jsonError);
-        // Fix: Changed error message to be more specific.
         throw new Error("AI returned an invalid format for currency conversion.");
     }
     
@@ -192,7 +183,6 @@ export async function parseNaturalLanguageQuery(query: string): Promise<{ search
   try {
     const prompt = `You are an expert at parsing natural language into structured data. Analyze the user's query: "${query}". Extract the main search term, a date filter, and a potential category. Today's date is ${new Date().toISOString().split('T')[0]}. Return the result as JSON matching the provided schema.`;
     const response = await ai.models.generateContent({
-        // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: { responseMimeType: "application/json", responseSchema: nlpQuerySchema }
@@ -236,7 +226,6 @@ export async function getAIBudgetSuggestion(profile: AppState['financialProfile'
     const prompt = `A user has a monthly salary of ${profile?.monthlySalary} and fixed monthly costs of ${profile?.monthlyRent} (rent) + ${profile?.monthlyEmi} (loans/EMIs). Suggest a sensible monthly budget for the following top-level expense categories: ${expenseCategories}. Provide amounts that allow for a reasonable savings rate. Return the result as a JSON array matching the provided schema.`;
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: budgetSuggestionSchema }
@@ -363,7 +352,6 @@ export async function getAICoachAction(command: string, appState: AppState, chat
 
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: aiCoachActionSchema }
@@ -427,7 +415,6 @@ export async function parseTripExpenseText(text: string, participants: string[])
   
   try {
     const response = await ai.models.generateContent({
-      // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
       model: 'gemini-2.5-flash',
       contents: `You are an expert at parsing expense details for group trips. Analyze the following text and extract the details. The trip participants are: ${participants.join(', ')}.
 Text: "${text}"`,
@@ -502,7 +489,6 @@ export async function parseTripCreationText(text: string): Promise<{ tripName: s
   
   try {
     const response = await ai.models.generateContent({
-      // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
       model: 'gemini-2.5-flash',
       contents: `You are an expert at parsing trip details and creating itineraries. Analyze the following text. 
 1. Extract a trip name.
@@ -549,7 +535,6 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
     
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: fullPrompt,
             config: { responseMimeType: "application/json", responseSchema: structuredPlanSchema },
@@ -598,7 +583,6 @@ export async function getFinancialTopicExplanation(topic: string): Promise<{ exp
     
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: `You are a friendly and knowledgeable financial educator. Explain the topic "${topic}" in a simple and easy-to-understand way for a beginner. Provide a main explanation and a few actionable tips.`,
             config: { responseMimeType: "application/json", responseSchema: financialTopicSchema },
@@ -651,7 +635,6 @@ export async function getShopInsights(sales: ShopSale[] | undefined, products: S
     
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: shopInsightsSchema },
@@ -696,7 +679,6 @@ export async function getAIGoalSuggestion(transactions: AppState['transactions']
 
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: goalSuggestionSchema }
@@ -743,7 +725,6 @@ export async function parseNaturalLanguageCalculation(appState: AppState, query:
 
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: nlpCalcSchema }
@@ -832,7 +813,6 @@ export async function runFinancialScenario(appState: AppState, query: string): P
 
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: scenarioSchema }
@@ -896,7 +876,6 @@ export async function identifySubscriptions(transactions: Transaction[], categor
 
   try {
     const response = await ai.models.generateContent({
-      // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: { responseMimeType: "application/json", responseSchema: subscriptionSchema },
@@ -933,7 +912,6 @@ export async function generatePersonalizedChallenge(transactions: Transaction[])
 
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: personalizedChallengeSchema }
@@ -981,7 +959,6 @@ export async function getProactiveInsights(appState: AppState): Promise<Proactiv
 
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: proactiveInsightSchema }
@@ -1021,7 +998,6 @@ export async function generateGlossaryEntry(term: string): Promise<Omit<Glossary
     
     try {
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model instead of the deprecated gemini-1.5-flash
             model: 'gemini-2.5-flash',
             contents: `You are a financial educator. A user is searching for the term "${term}" in their personal finance app's glossary. 
             Generate a complete glossary entry for this term. The definition should be simple for a beginner. 

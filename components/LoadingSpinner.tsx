@@ -1,6 +1,6 @@
+
 import React from 'react';
 
-// Fix: Changed return type to React.ReactElement to resolve missing JSX namespace issue.
 const LoadingSpinner = (): React.ReactElement => (
   <svg
     className="animate-spin h-5 w-5 text-white"

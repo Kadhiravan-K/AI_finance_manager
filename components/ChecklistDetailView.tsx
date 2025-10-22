@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Note, ChecklistItem, Priority, ActiveModal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -18,7 +19,6 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
   const checklistItems = useMemo(() => {
     const items = Array.isArray(currentList.content) ? [...currentList.content] : [];
     
-    // Define priority order for sorting: High > Medium > Low > None
     const priorityOrder: Record<Priority, number> = {
       [Priority.HIGH]: 0,
       [Priority.MEDIUM]: 1,
@@ -26,8 +26,10 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
       [Priority.NONE]: 3,
     };
 
-    // Sort items by priority
     items.sort((a, b) => {
+      if (a.isPurchased !== b.isPurchased) {
+        return a.isPurchased ? 1 : -1;
+      }
       const priorityA = a.priority || Priority.NONE;
       const priorityB = b.priority || Priority.NONE;
       return priorityOrder[priorityA] - priorityOrder[priorityB];
@@ -137,7 +139,7 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
             <button onClick={togglePin} className={`pin-button ${currentList.isPinned ? 'pinned' : ''}`} title={currentList.isPinned ? 'Unpin' : 'Pin'}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4h4m3 0H7c-1.1 0-2 .9-2 2v5c0 1.66 1.34 3 3 3h1v5l-2 2v1h8v-1l-2-2v-5h1c1.66 0 3-1.34 3-3V6c0-1.1-.9-2-2-2Z"/>
               </svg>
             </button>
