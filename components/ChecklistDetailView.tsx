@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Note, ChecklistItem, Priority, ActiveModal } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -140,7 +139,7 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
         <div className="flex-shrink-0 flex items-center gap-2">
             <button onClick={togglePin} className={`pin-button ${currentList.isPinned ? 'pinned' : ''}`} title={currentList.isPinned ? 'Unpin' : 'Pin'}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4h4m3 0H7c-1.1 0-2 .9-2 2v5c0 1.66 1.34 3 3 3h1v5l-2 2v1h8v-1l-2-2v-5h1c1.66 0 3-1.34 3-3V6c0-1.1-.9-2-2-2Z"/>
+                <path transform="rotate(45 12 12)" d="M16,12V4H17V2H7V4H8V12L6,14V16H11.5V22H12.5V16H18V14L16,12Z" />
               </svg>
             </button>
             <button onClick={handleLinkToTrip} className="button-secondary p-2 rounded-full aspect-square" title="Link to Trip">
