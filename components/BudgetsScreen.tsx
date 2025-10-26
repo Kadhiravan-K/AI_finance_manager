@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType, FinancialProfile } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -13,14 +12,17 @@ interface BudgetsScreenProps {
   onAddBudget: () => void;
   financialProfile: FinancialProfile;
   findOrCreateCategory: (name: string, type: TransactionType) => string;
+  onSaveProfile: (profile: FinancialProfile) => void;
 }
 
-const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions, budgets, onSaveBudget, onAddBudget, financialProfile, findOrCreateCategory }) => {
+const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions, budgets, onSaveBudget, onAddBudget, financialProfile, findOrCreateCategory, onSaveProfile }) => {
   const [budgetAmounts, setBudgetAmounts] = useState<Record<string, string>>({});
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [aiSuggestions, setAiSuggestions] = useState<{ categoryName: string, amount: number, reasoning: string }[] | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<{ categoryName: string, amount: string, reasoning: string }[] | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const formatCurrency = useCurrencyFormatter();
+  const [isSalaryPromptVisible, setIsSalaryPromptVisible] = useState(false);
+  const [tempSalary, setTempSalary] = useState('');
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
@@ -71,16 +73,45 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
     });
   };
 
-  const handleGetAiSuggestions = async () => {
+  const fetchSuggestions = async (profile: FinancialProfile) => {
     setIsAiLoading(true);
     setAiSuggestions(null);
     try {
-        const suggestions = await getAIBudgetSuggestion(financialProfile, categories);
-        setAiSuggestions(suggestions);
+        const suggestions = await getAIBudgetSuggestion(profile, categories);
+        setAiSuggestions(suggestions.map(s => ({ ...s, amount: String(s.amount) })));
     } catch (error) {
-        alert("Could not fetch AI suggestions. Please ensure you've set your monthly income in the Financial Health section.");
+        alert("Could not fetch AI suggestions. Please ensure you've set your monthly income in your profile.");
     }
     setIsAiLoading(false);
+  }
+
+  const handleGetAiSuggestions = async () => {
+    if (!financialProfile || !financialProfile.monthlySalary || financialProfile.monthlySalary <= 0) {
+        setIsSalaryPromptVisible(true);
+        return;
+    }
+    fetchSuggestions(financialProfile);
+  };
+
+  const handleSaveSalaryAndSuggest = async () => {
+    const salary = parseFloat(tempSalary);
+    if (isNaN(salary) || salary <= 0) {
+        alert("Please enter a valid monthly salary.");
+        return;
+    }
+    const newProfile = { ...financialProfile, monthlySalary: salary };
+    await onSaveProfile(newProfile);
+    setIsSalaryPromptVisible(false);
+    setTempSalary('');
+    fetchSuggestions(newProfile);
+  };
+  
+  const handleSuggestionAmountChange = (index: number, value: string) => {
+    if (aiSuggestions) {
+      const newSuggestions = [...aiSuggestions];
+      newSuggestions[index] = { ...newSuggestions[index], amount: value };
+      setAiSuggestions(newSuggestions);
+    }
   };
   
   const handleApplySuggestion = (categoryName: string, amount: number) => {
@@ -174,15 +205,47 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
             <span>Get AI Suggestions</span>
         </button>
       </div>
+      
+      {isSalaryPromptVisible && (
+        <div className="p-4 mb-4 bg-sky-900/50 border border-sky-700 rounded-lg space-y-2 animate-fadeInUp">
+            <h4 className="font-semibold text-primary">Set Your Monthly Income</h4>
+            <p className="text-sm text-secondary">AI needs your monthly income to provide personalized budget suggestions.</p>
+            <div className="flex gap-2">
+                <input 
+                    type="number" 
+                    value={tempSalary} 
+                    onChange={e => setTempSalary(e.target.value)}
+                    placeholder="e.g., 50000"
+                    className="input-base w-full p-2 rounded-lg"
+                    autoFocus
+                />
+                <button onClick={handleSaveSalaryAndSuggest} className="button-primary px-4 py-2">Suggest</button>
+                <button onClick={() => setIsSalaryPromptVisible(false)} className="button-secondary px-4 py-2">Cancel</button>
+            </div>
+        </div>
+      )}
 
       {aiSuggestions && (
           <div className="p-4 mb-4 bg-violet-900/50 border border-violet-700 rounded-lg space-y-2 animate-fadeInUp">
               <h4 className="font-semibold text-primary">AI Budget Suggestions</h4>
-              {aiSuggestions.map(s => (
+              {aiSuggestions.map((s, index) => (
                   <div key={s.categoryName} className="p-2 bg-subtle rounded-md">
                       <div className="flex justify-between items-center">
-                          <p className="font-medium text-primary">{s.categoryName}: {formatCurrency(s.amount)}</p>
-                          <button onClick={() => handleApplySuggestion(s.categoryName, s.amount)} className="button-primary px-3 py-1 text-xs">Apply</button>
+                          <p className="font-medium text-primary">{s.categoryName}:</p>
+                          <div className="flex items-center gap-2">
+                              <input
+                                  type="number"
+                                  value={s.amount}
+                                  onChange={(e) => handleSuggestionAmountChange(index, e.target.value)}
+                                  className="input-base w-24 p-1 rounded-md text-right no-spinner"
+                              />
+                              <button 
+                                  onClick={() => handleApplySuggestion(s.categoryName, parseFloat(s.amount) || 0)} 
+                                  className="button-primary px-3 py-1 text-xs"
+                              >
+                                  Apply
+                              </button>
+                          </div>
                       </div>
                       <p className="text-xs text-secondary mt-1">{s.reasoning}</p>
                   </div>
@@ -190,7 +253,7 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
           </div>
       )}
       
-      {!hasBudgets && !aiSuggestions && !isAiLoading ? (
+      {!hasBudgets && !aiSuggestions && !isAiLoading && !isSalaryPromptVisible ? (
         <div className="text-center py-12">
           <p className="text-lg font-medium text-secondary">No budgets set for this month.</p>
           <p className="text-sm text-tertiary">Start by setting a budget for a category below, or ask the AI for suggestions.</p>

@@ -182,7 +182,7 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ onClose, appState
         onClick={e => e.stopPropagation()}
       >
         <ModalHeader title="Import/Export Data" onClose={onClose} icon="📄" />
-         <div className="flex border-b border-divider flex-shrink-0">
+         <div className="flex border-b border-divider flex-shrink:0">
             <TabButton active={activeTab === 'simple'} onClick={() => setActiveTab('simple')}>Simple (CSV)</TabButton>
             <TabButton active={activeTab === 'advanced'} onClick={() => setActiveTab('advanced')}>Advanced (JSON)</TabButton>
         </div>

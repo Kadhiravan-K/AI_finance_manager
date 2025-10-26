@@ -1,11 +1,13 @@
+
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 interface PrivacyConsentModalProps {
   onConsent: () => void;
 }
 
 const PrivacyConsentModal: React.FC<PrivacyConsentModalProps> = ({ onConsent }) => {
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-lg flex items-center justify-center z-50 p-4">
       <div className="glass-card rounded-xl shadow-2xl w-full max-w-md border border-slate-700/50 animate-scaleIn flex flex-col max-h-[90vh]">
         <div className="p-6 flex-shrink-0">
@@ -16,7 +18,7 @@ const PrivacyConsentModal: React.FC<PrivacyConsentModalProps> = ({ onConsent }) 
               <h2 className="text-2xl font-bold text-white">Your Privacy Matters</h2>
           </div>
         </div>
-        <div className="px-6 pb-6 text-sm text-slate-300 space-y-3 overflow-y-auto">
+        <div className="px-6 pb-6 text-sm text-slate-300 space-y-3 overflow-y-auto flex-grow min-h-0">
           <p>Welcome to your Personal Finance Hub! Before you begin, please review how your data is handled:</p>
           <ul className="list-disc pl-5 space-y-2 text-slate-400">
             <li>
@@ -42,6 +44,8 @@ const PrivacyConsentModal: React.FC<PrivacyConsentModalProps> = ({ onConsent }) 
       </div>
     </div>
   );
+  
+  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 export default PrivacyConsentModal;

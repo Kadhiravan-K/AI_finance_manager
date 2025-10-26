@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Shop, ShopType, BusinessType } from '../types';
@@ -45,9 +43,7 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, onSave, onCancel })
     };
     
     const currencyOptions = useMemo(() => currencies.map(c => ({ value: c.code, label: `${c.code} - ${c.name}`})), []);
-    // Fix: Ensure enum values are treated as strings for CustomSelect options.
     const shopTypeOptions = useMemo(() => Object.entries(ShopType).map(([key, value]) => ({ value: String(value), label: key.replace(/_/g, ' ') })), []);
-    // Fix: Ensure enum values are treated as strings for CustomSelect options.
     const businessTypeOptions = useMemo(() => Object.entries(BusinessType).map(([key, value]) => ({ value: String(value), label: value })), []);
 
     return ReactDOM.createPortal(

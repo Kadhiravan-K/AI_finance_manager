@@ -1,3 +1,7 @@
+
+
+
+
 import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
 import { Transaction, Contact, SplitDetail, USER_SELF_ID } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -167,6 +171,8 @@ export const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ tr
   }
 
   const availableToSelect = allAvailableParticipants.filter(p => !participants.some(pp => pp.id === p.contactId));
+  // FIX: The TabButton component was defined in a way that caused TypeScript errors.
+  // Replaced with a standard functional component definition that explicitly handles children.
   const TabButton: React.FC<{ active: boolean; children: React.ReactNode; onClick: () => void; }> = ({ active, children, onClick }) => (
     <button type="button" onClick={onClick} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors flex-grow ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
         {children}
@@ -211,6 +217,7 @@ export const SplitTransactionModal: React.FC<SplitTransactionModalProps> = ({ tr
                         <div className="overflow-y-auto">
                             {availableToSelect.map(p => <div className="p-1" key={p.id}><CustomCheckbox id={p.id} label={p.name} checked={tempSelected.has(p.id)} onChange={checked => setTempSelected(prev => { const n = new Set(prev); if(checked) n.add(p.id); else n.delete(p.id); return n; })}/></div>)}
                         </div>
+                        {/* FIX: Replaced call to non-existent 'handleConfirmSelection' with 'handleAddPeople'. */}
                         <button type="button" onClick={handleAddPeople} className="w-full text-center p-2 text-sm text-white rounded-b-lg sticky bottom-0 bg-emerald-500 mt-1">Add Selected</button>
                     </div>
                 )}

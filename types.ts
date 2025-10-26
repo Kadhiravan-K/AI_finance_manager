@@ -464,8 +464,6 @@ export interface Settings {
       connected: boolean;
   };
   financialProfile?: FinancialProfile;
-  fabGlowEffect?: boolean;
-  hubCursorGlowEffect?: boolean;
 }
 
 export interface AppState {

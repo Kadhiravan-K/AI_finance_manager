@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
@@ -73,8 +71,7 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
 
   const handleSelectAll = (isChecked: boolean) => {
     if (isChecked) {
-      // Fix: Ensure trustBinItems is an array before calling map
-      setSelectedIds(new Set((Array.isArray(trustBinItems) ? trustBinItems : []).map(item => item.id)));
+      setSelectedIds(new Set((trustBinItems || []).map(item => item.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -165,8 +162,7 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
   const allSelected = Array.isArray(trustBinItems) && trustBinItems.length > 0 && selectedIds.size === trustBinItems.length;
   
   const groupedItems = useMemo(() => {
-    // Fix: Ensure trustBinItems is an array before calling reduce
-    return (Array.isArray(trustBinItems) ? trustBinItems : []).reduce((acc, item) => {
+    return (trustBinItems || []).reduce((acc, item) => {
         const type = item.itemType.charAt(0).toUpperCase() + item.itemType.slice(1) + 's';
         if (!acc[type]) {
             acc[type] = [];
@@ -197,7 +193,6 @@ const TrustBinModal: React.FC<TrustBinModalProps> = ({ onClose, trustBinItems, o
             Object.entries(groupedItems).map(([type, items]) => (
               <div key={type}>
                 <h3 className="font-semibold text-primary mb-2">{type}</h3>
-                {/* Fix: Cast 'items' to TrustBinItem[] to resolve type inference issue. */}
                 {(items as TrustBinItem[]).map(item => (
                   <div key={item.id} className="p-2 bg-subtle rounded-lg flex items-center gap-2">
                     <CustomCheckbox

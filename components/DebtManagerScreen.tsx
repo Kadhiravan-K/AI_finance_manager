@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Debt } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -24,67 +25,58 @@ const DebtManagerScreen: React.FC<DebtManagerScreenProps> = ({ debts, onAddDebt,
     const payoffPlan = useMemo(() => {
         if (debts.length === 0) return { months: 0, totalInterest: 0, plan: [] };
 
-        let remainingDebts = debts.map(d => ({ ...d }));
-        
-        if (strategy === 'snowball') {
-            remainingDebts.sort((a, b) => a.currentBalance - b.currentBalance);
-        } else { // avalanche
-            remainingDebts.sort((a, b) => b.apr - a.apr);
-        }
+        let currentDebts = debts.map(d => ({ ...d }));
+        const initialTotalMinimum = currentDebts.reduce((sum, d) => sum + d.minimumPayment, 0);
+        let monthlyPayment = initialTotalMinimum + (parseFloat(extraPayment) || 0);
 
         const plan: { month: number; debtName: string; payment: number; interest: number; principal: number; remainingBalance: number }[] = [];
         let months = 0;
         let totalInterestPaid = 0;
-        const extra = parseFloat(extraPayment) || 0;
 
-        while (remainingDebts.some(d => d.currentBalance > 0) && months < 600) { // 50 year limit
+        while (currentDebts.some(d => d.currentBalance > 0) && months < 600) { // 50 year limit
             months++;
-            let monthlyExtra = extra;
-            const totalMinPaymentThisMonth = remainingDebts.reduce((sum, d) => d.minimumPayment, 0);
+            
+            currentDebts.sort((a, b) => strategy === 'snowball' ? a.currentBalance - b.currentBalance : b.apr - a.apr);
+            const targetDebtIndex = currentDebts.findIndex(d => d.currentBalance > 0);
 
-            for (let i = 0; i < remainingDebts.length; i++) {
-                const debt = remainingDebts[i];
+            if (targetDebtIndex === -1) break;
+
+            let remainingMonthlyPayment = monthlyPayment;
+
+            for (let i = 0; i < currentDebts.length; i++) {
+                const debt = currentDebts[i];
                 if (debt.currentBalance <= 0) continue;
 
-                const monthlyInterest = (debt.apr / 100 / 12) * debt.currentBalance;
-                totalInterestPaid += monthlyInterest;
+                const interest = (debt.apr / 100 / 12) * debt.currentBalance;
+                totalInterestPaid += interest;
 
-                let payment = debt.minimumPayment;
-                if (i === 0) { // Target the first debt in the sorted list
-                    payment += monthlyExtra;
+                let payment: number;
+                if (i === targetDebtIndex) {
+                    // The rest of the debts will take their minimums
+                    const otherMins = currentDebts.reduce((sum, d, idx) => (idx !== i && d.currentBalance > 0) ? sum + d.minimumPayment : sum, 0);
+                    payment = remainingMonthlyPayment - otherMins;
+                } else {
+                    payment = debt.minimumPayment;
                 }
                 
-                // Ensure payment covers at least the interest
-                payment = Math.max(payment, monthlyInterest);
-                // Ensure payment does not exceed remaining balance
-                payment = Math.min(payment, debt.currentBalance + monthlyInterest);
-
-                const principalPaid = payment - monthlyInterest;
-                const newBalance = debt.currentBalance - principalPaid;
-
-                plan.push({
-                    month: months,
-                    debtName: debt.name,
-                    payment: payment,
-                    interest: monthlyInterest,
-                    principal: principalPaid,
-                    remainingBalance: newBalance,
-                });
+                payment = Math.min(payment, debt.currentBalance + interest);
                 
-                debt.currentBalance = newBalance;
+                const principal = payment - interest;
+                debt.currentBalance -= principal;
+                remainingMonthlyPayment -= payment;
+                
+                if (months <= 12) {
+                     plan.push({ month: months, debtName: debt.name, payment, interest, principal, remainingBalance: debt.currentBalance });
+                }
             }
-            // After paying off a debt, its minimum payment becomes available for the next target
-            const paidOffThisMonth = remainingDebts.filter(d => d.currentBalance <= 0);
-            const freedUpPayments = paidOffThisMonth.reduce((sum, d) => sum + d.minimumPayment, 0);
-            if (freedUpPayments > 0) {
-                 setExtraPayment(prev => String((parseFloat(prev) || 0) + freedUpPayments));
-            }
-            
-            remainingDebts = remainingDebts.filter(d => d.currentBalance > 0);
+
+            const paidOffDebts = currentDebts.filter(d => d.currentBalance <= 0);
+            currentDebts = currentDebts.filter(d => d.currentBalance > 0);
         }
 
-        return { months, totalInterest: totalInterestPaid, plan: plan.slice(0, 12) }; // Show first year
+        return { months, totalInterest: totalInterestPaid, plan };
     }, [debts, strategy, extraPayment]);
+
 
     return (
         <div className="h-full flex flex-col">

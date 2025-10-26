@@ -33,15 +33,25 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange }) 
     });
   };
   
-  const changeYear = (offset: number) => {
-    setCurrentMonth(prev => {
-      const newDate = new Date(prev);
-      newDate.setFullYear(newDate.getFullYear() + offset);
-      return newDate;
-    });
+  const handleMonthSelect = (monthIndex: number) => {
+      setCurrentMonth(prev => {
+          const newDate = new Date(prev);
+          newDate.setMonth(monthIndex);
+          return newDate;
+      });
+  };
+
+  const handleYearSelect = (year: number) => {
+       setCurrentMonth(prev => {
+          const newDate = new Date(prev);
+          newDate.setFullYear(year);
+          return newDate;
+      });
   };
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('default', { month: 'long' }));
+  const years = Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i);
 
   return (
     <div className="relative w-full">
@@ -56,7 +66,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange }) 
 
       {isOpen && (
         <div 
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[700] p-4"
             onClick={() => setIsOpen(false)}
         >
             <div 
@@ -64,17 +74,20 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ value, onChange }) 
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between mb-4">
-                    <button onClick={() => changeYear(-1)} className="p-2 rounded-full hover-bg-stronger text-primary">{'«'}</button>
                     <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover-bg-stronger text-primary">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <p className="font-semibold text-lg text-primary">
-                        {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <select value={currentMonth.getMonth()} onChange={(e) => handleMonthSelect(parseInt(e.target.value, 10))} className="input-base rounded-md p-1 font-semibold text-primary bg-subtle">
+                            {months.map((month, index) => <option key={month} value={index}>{month}</option>)}
+                        </select>
+                         <select value={currentMonth.getFullYear()} onChange={(e) => handleYearSelect(parseInt(e.target.value, 10))} className="input-base rounded-md p-1 font-semibold text-primary bg-subtle">
+                            {years.map(year => <option key={year} value={year}>{year}</option>)}
+                        </select>
+                    </div>
                     <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover-bg-stronger text-primary">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                     </button>
-                     <button onClick={() => changeYear(1)} className="p-2 rounded-full hover-bg-stronger text-primary">{'»'}</button>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-center text-sm text-secondary mb-2">
                     {dayNames.map(day => <div key={day}>{day}</div>)}

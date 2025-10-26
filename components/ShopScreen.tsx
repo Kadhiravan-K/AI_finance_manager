@@ -1,8 +1,5 @@
 
 
-
-
-
 import React, { useState, useMemo, useContext } from 'react';
 import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, InvoiceStatus } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -144,15 +141,14 @@ const ShopEmployeesScreen: React.FC<{
 const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDeleteShop'> & {shop: Shop; onBack: () => void;}> = ({ shop, openModal, products, sales, employees, shifts, onDeleteProduct, onRecordSale, onDeleteEmployee, onDeleteShift, onBack }) => {
     const [activeTab, setActiveTab] = useState<ShopDetailsTab>('billing');
 
-    // FIX: Add children to TabButton to resolve type error.
     const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode; }> = ({ active, onClick, children }) => (
         <button type="button" onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap ${active ? 'bg-emerald-500 text-white' : 'bg-subtle text-primary hover-bg-stronger'}`}>
             {children}
         </button>
     );
     
-    const shopProducts = useMemo(() => products.filter(p => p.shopId === shop.id), [products, shop.id]);
-    const shopSales = useMemo(() => sales.filter(s => s.shopId === shop.id), [sales, shop.id]);
+    const shopProducts = useMemo(() => (products || []).filter(p => p.shopId === shop.id), [products, shop.id]);
+    const shopSales = useMemo(() => (sales || []).filter(s => s.shopId === shop.id), [sales, shop.id]);
 
     return (
         <div className="h-full flex flex-col">
@@ -210,7 +206,8 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...res
     const selectedShop = shops.find(s => s.id === selectedShopId);
 
     if (selectedShop) {
-        return <ShopDetails shop={selectedShop} openModal={openModal} onBack={() => setSelectedShopId(null)} {...rest} />;
+        const { onSaveShop, onDeleteShop, ...detailsProps } = rest;
+        return <ShopDetails shop={selectedShop} openModal={openModal} onBack={() => setSelectedShopId(null)} {...detailsProps} />;
     }
 
     return (

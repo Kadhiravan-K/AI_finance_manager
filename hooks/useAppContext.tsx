@@ -7,7 +7,8 @@ import {
   FinancialProfile,
   CalendarEvent,
   Settlement,
-  Priority
+  Priority,
+  ChecklistItem
 } from '../types';
 import { AppDataContext, DEFAULT_SETTINGS } from '../contexts/SettingsContext';
 import { DEFAULT_CATEGORIES } from '../utils/categories';
@@ -177,7 +178,7 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
     const newNote: Note = {
       id: self.crypto.randomUUID(),
       title: `Untitled ${type === 'note' ? 'Note' : 'Checklist'}`,
-      content: type === 'note' ? '' : [],
+      content: type === 'note' ? '' : [{ id: self.crypto.randomUUID(), name: '', rate: 0, isPurchased: false, priority: Priority.NONE, quantity: '1' }],
       type: type,
       createdAt: now,
       updatedAt: now,

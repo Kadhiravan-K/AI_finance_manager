@@ -33,14 +33,11 @@ export const exportTransactionsToCsv = (
     accounts: Account[],
     categories: Category[],
     senders: Sender[],
-    startDateStr: string,
-    endDateStr: string
+    startDate: Date | null,
+    endDate: Date | null
 ) => {
-    const startDate = startDateStr ? new Date(startDateStr) : null;
-    if(startDate) startDate.setHours(0, 0, 0, 0);
-
-    const endDate = endDateStr ? new Date(endDateStr) : null;
-    if(endDate) endDate.setHours(23, 59, 59, 999);
+    if (startDate) startDate.setHours(0, 0, 0, 0);
+    if (endDate) endDate.setHours(23, 59, 59, 999);
     
     const filteredTransactions = transactions.filter(t => {
         const transactionDate = new Date(t.date);
@@ -82,12 +79,47 @@ export const exportTransactionsToCsv = (
     }
 };
 
-export const exportSelectedDataToJson = (appState: AppState, keysToExport: (keyof AppState)[]) => {
+const dateKeyMap: Partial<Record<keyof AppState, string[]>> = {
+    transactions: ['date'],
+    recurringTransactions: ['nextDueDate'],
+    tripExpenses: ['date'],
+    shopSales: ['date'],
+    shopShifts: ['startTime', 'endTime'],
+    refunds: ['date', 'expectedDate'],
+    notes: ['createdAt', 'updatedAt'],
+    unlockedAchievements: ['date'],
+    challenges: ['date'],
+    invoices: ['issueDate', 'dueDate'],
+    customCalendarEvents: ['date'],
+};
+
+
+export const exportSelectedDataToJson = (appState: AppState, keysToExport: (keyof AppState)[], startDate: Date | null, endDate: Date | null) => {
   const dataToExport: Partial<AppState> = {};
+
+  if (startDate) startDate.setHours(0, 0, 0, 0);
+  if (endDate) endDate.setHours(23, 59, 59, 999);
   
   keysToExport.forEach(key => {
-    if (key in appState) {
-        (dataToExport as any)[key] = appState[key];
+    const data = appState[key];
+    const dateKeys = dateKeyMap[key];
+
+    if (Array.isArray(data) && dateKeys && (startDate || endDate)) {
+        const filteredData = data.filter(item => {
+            // Check if any of the date keys fall within the range
+            return dateKeys.some(dKey => {
+                const itemDateValue = item[dKey];
+                if (!itemDateValue) return false;
+                const itemDate = new Date(itemDateValue);
+                const afterStart = startDate ? itemDate >= startDate : true;
+                const beforeEnd = endDate ? itemDate <= endDate : true;
+                return afterStart && beforeEnd;
+            });
+        });
+        (dataToExport as any)[key] = filteredData;
+    } else {
+        // No date keys or no date range provided, export all
+        (dataToExport as any)[key] = data;
     }
   });
 

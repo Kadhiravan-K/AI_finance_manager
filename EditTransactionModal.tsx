@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -161,7 +162,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                                  <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-sm font-medium text-secondary mb-1">Amount ({settings.currency})</label>
-                                        <div className="relative"><input type="number" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required /><button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
+                                        <div className="relative"><input type="number" value={amount} onChange={e=>setAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required /><button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
                                     </div>
                                     <div><label className="text-sm font-medium text-secondary mb-1">Type</label><CustomSelect options={[{value: 'expense', label: 'Expense'}, {value: 'income', label: 'Income'}]} value={type} onChange={val => { setType(val as TransactionType); setCategoryId(''); setSubCategoryId(''); }} /></div>
                                 </div>

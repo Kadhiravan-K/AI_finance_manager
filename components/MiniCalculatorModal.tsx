@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
@@ -7,7 +8,7 @@ const modalRoot = document.getElementById('modal-root')!;
 
 interface MiniCalculatorModalProps {
   onClose: () => void;
-  onResult: (result: number) => void;
+  onResult?: (result: number) => void;
 }
 
 const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onResult }) => {
@@ -67,7 +68,7 @@ const MiniCalculatorModal: React.FC<MiniCalculatorModalProps> = ({ onClose, onRe
     }
 
     if (!isNaN(finalResult) && isFinite(finalResult)) {
-        onResult(finalResult);
+        onResult?.(finalResult);
         onClose();
     } else {
         // Show an error if the expression is invalid and couldn't be calculated.

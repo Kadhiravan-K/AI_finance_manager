@@ -7,7 +7,13 @@ const PBKDF2_ITERATIONS = 100000;
 
 // Helper to convert ArrayBuffer to Base64
 function bufferToBase64(buffer: ArrayBuffer): string {
-    return btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(buffer))));
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
 }
 
 // Helper to convert Base64 to ArrayBuffer

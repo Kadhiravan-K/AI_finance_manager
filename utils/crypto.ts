@@ -8,7 +8,6 @@ let keyPromise: Promise<CryptoKey> | null = null;
 
 // Helper to convert ArrayBuffer to Base64
 function bufferToBase64(buffer: ArrayBuffer): string {
-    // Switched to a more robust implementation that avoids "Maximum call stack size exceeded" with large data.
     let binary = '';
     const bytes = new Uint8Array(buffer);
     const len = bytes.byteLength;

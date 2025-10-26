@@ -1,10 +1,10 @@
-
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
-import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange, USER_SELF_ID } from '../types';
+import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange, USER_SELF_ID, Category, Contact, ContactGroup, Shop, ShopEmployee, ShopShift, Refund, GlossaryEntry, CalendarEvent, FinancialProfile } from '../types';
 import FinanceDisplay from './FinanceDisplay';
 import { ReportsScreen } from './ReportsScreen';
 import BudgetsScreen from './BudgetsScreen';
-import GoalsScreen from './GoalsScreen';
+// Fix: Corrected import path casing to resolve module resolution conflict.
+import GoalsScreen from './goalsScreen';
 import InvestmentsScreen from './InvestmentsScreen';
 import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
 import MoreScreen from './More';
@@ -46,21 +46,13 @@ interface MainContentProps {
   tripDetailsId: string | null;
   noteId: string | null;
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
+  onSaveProfile: (profile: FinancialProfile) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = (props) => {
-  const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId, noteId, openModal } = props;
+  const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId, noteId, openModal, onSaveProfile } = props;
 
   const dataContext = useContext(AppDataContext);
-  const [isResponsive, setIsResponsive] = useState(window.innerWidth >= 640 && window.matchMedia("(orientation: landscape)").matches);
-
-  useEffect(() => {
-    const checkResponsive = () => {
-      setIsResponsive(window.innerWidth >= 640 && window.matchMedia("(orientation: landscape)").matches);
-    };
-    window.addEventListener('resize', checkResponsive);
-    return () => window.removeEventListener('resize', checkResponsive);
-  }, []);
 
   if (!dataContext) {
     return null; // Or a loading spinner
@@ -165,10 +157,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     onUpdateTransaction,
   };
 
-  const mainContentClasses = `flex-grow overflow-y-auto relative ${
-    !isResponsive ? 'pb-[68px]' : ''
-  }`;
-
   const handleCreateExpenseFromList = (list: Note) => {
     if (list.type !== 'checklist' || !Array.isArray(list.content)) return;
 
@@ -243,18 +231,18 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             }
             return [...prev, { id: self.crypto.randomUUID(), categoryId, amount, month: currentMonth }];
         });
-      }} onAddBudget={() => {}} financialProfile={appState.financialProfile} findOrCreateCategory={findOrCreateCategory} />;
+      }} onAddBudget={() => {}} financialProfile={appState.financialProfile} findOrCreateCategory={findOrCreateCategory} onSaveProfile={onSaveProfile} />;
     case 'goals':
       return <GoalsScreen goals={appState.goals} onSaveGoal={(goal, id) => {
         if(id) setGoals(prev => prev.map(g => g.id === id ? {...g, ...goal} : g));
-        else setGoals(prev => [...prev, {id: self.crypto.randomUUID(), currentAmount: 0, ...goal}]);
+        else setGoals(prev => [...prev, {id:self.crypto.randomUUID(), currentAmount: 0, ...goal}]);
       }} accounts={appState.accounts} onContribute={handleContributeToGoal} onDelete={(id) => deleteItem(id, 'goal')} onEditGoal={(goal) => openModal('editGoal', { goal })} onGoalComplete={onGoalComplete} onUpdateGoal={(goal) => setGoals(p => p.map(g => g.id === goal.id ? goal : g))} openModal={openModal} />;
     case 'investments':
       return <InvestmentsScreen accounts={appState.accounts} holdings={appState.investmentHoldings} onBuy={() => openModal('buyInvestment')} onSell={(holding) => openModal('sellInvestment', { holding })} onUpdateValue={(holding) => openModal('updateInvestment', { holding })} onRefresh={onRefreshPrices} />;
     case 'scheduled':
         return <ScheduledPaymentsScreen recurringTransactions={appState.recurringTransactions} categories={appState.categories} accounts={appState.accounts} onAdd={() => openModal('editRecurring')} onEdit={(item) => openModal('editRecurring', { recurringTransaction: item })} onDelete={(id) => deleteItem(id, 'recurringTransaction')} onUpdate={(item) => setRecurringTransactions(p => p.map(rt => rt.id === item.id ? item : rt))} openModal={openModal} />;
     case 'more':
-      return <MoreScreen onNavigate={onNavigate} onResetApp={() => {}} />;
+      return <MoreScreen onNavigate={onNavigate} />;
     case 'tripManagement':
         return <TripManagementScreen trips={appState.trips} tripExpenses={appState.tripExpenses} onTripSelect={(tripId) => onNavigate('tripDetails', undefined, { tripId })} onAddTrip={() => openModal('editTrip')} onEditTrip={(trip) => openModal('editTrip', { trip })} onDeleteTrip={(id) => deleteItem(id, 'trip')} onShowSummary={() => openModal('tripSummary')} />;
     case 'tripDetails':

@@ -118,7 +118,7 @@ export const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeC
     const participantOptions = allParticipants.map(p => ({ value: p.contactId, label: p.name }));
     
     return (
-        <div className="p-4 rounded-xl border border-divider bg-subtle">
+        <div className="space-y-3">
             <h3 className="text-center font-bold text-emerald-400 mb-3">{title}</h3>
             <div className="flex items-center gap-2 p-1 rounded-full bg-subtle border border-divider">
                 <TabButton active={mode === 'equally'} onClick={() => onModeChange('equally')}>Equally</TabButton>
@@ -128,14 +128,16 @@ export const SplitManager: React.FC<SplitManagerProps> = ({ title, mode, onModeC
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto pr-1 mt-3">
             {participants.map(p => (
-              <div key={p.id} className="flex items-center gap-2 p-1.5 bg-subtle rounded-lg">
+              <div key={p.id} className="form-row">
                 {isPayerManager ? (
                     <div className="flex-grow z-10"><CustomSelect value={p.id} onChange={newId => handlePayerChange(p.id, newId)} options={participantOptions} /></div>
                 ) : ( <span className="font-semibold flex-grow truncate text-sm pl-1 text-primary">{p.personName}</span> )}
-                {mode === 'percentage' && <div className="relative w-24"><DebouncedNumericInput type="text" inputMode="decimal" value={p.percentage || ''} onCommit={(val: string) => handleDetailChange(p.id, 'percentage', val)} className="w-full text-right bg-transparent no-spinner pr-4 text-primary input-base" /><span className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary text-sm">%</span></div>}
+                {mode === 'percentage' && <div className="relative w-24"><DebouncedNumericInput type="text" inputMode="decimal" value={p.percentage || ''} onCommit={(val: string) => handleDetailChange(p.id, 'percentage', val)} className="w-full text-right bg-transparent no-spinner pr-4 text-primary input-base p-2" /><span className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary text-sm">%</span></div>}
                 {mode === 'shares' && <div className="flex items-center gap-1"><button type="button" onClick={() => handleNumericChange(p.id, 'shares', -0.5)} className="control-button control-button-minus">-</button><DebouncedNumericInput type="text" inputMode="decimal" value={p.shares || ''} onCommit={(val: string) => handleDetailChange(p.id, 'shares', val)} className="w-12 text-center bg-transparent no-spinner text-primary" /><button type="button" onClick={() => handleNumericChange(p.id, 'shares', 0.5)} className="control-button control-button-plus">+</button></div>}
-                <DebouncedNumericInput type="text" inputMode="decimal" value={mode === 'manual' ? p.amount || '' : (Number(p.amount) || 0).toFixed(2)} readOnly={mode !== 'manual'} onCommit={(val: string) => handleDetailChange(p.id, 'amount', val)} className="w-24 p-1 rounded-md text-right no-spinner input-base" />
-                <button type="button" onClick={() => handleRemovePerson(p.id)} className="text-rose-400 font-bold text-xl leading-none px-1 flex-shrink-0">&times;</button>
+                <DebouncedNumericInput type="text" inputMode="decimal" value={mode === 'manual' ? p.amount || '' : (Number(p.amount) || 0).toFixed(2)} readOnly={mode !== 'manual'} onCommit={(val: string) => handleDetailChange(p.id, 'amount', val)} className="w-24 p-2 rounded-lg text-right no-spinner input-base" />
+                <button type="button" onClick={() => handleRemovePerson(p.id)} className="text-rose-400/70 hover:text-rose-400 p-1 rounded-full flex-shrink-0" title="Remove">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                </button>
               </div>
             ))}
             </div>

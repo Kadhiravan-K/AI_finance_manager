@@ -1,3 +1,5 @@
+
+
 import React, { useMemo } from 'react';
 import { RecurringTransaction, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -19,8 +21,7 @@ const UpcomingBills: React.FC<UpcomingBillsProps> = ({ recurringTransactions, on
     sevenDaysFromNow.setDate(today.getDate() + 7);
     sevenDaysFromNow.setHours(23, 59, 59, 999);
 
-    return recurringTransactions
-      .filter(rt => {
+    return (recurringTransactions || []).filter(rt => {
         const dueDate = new Date(rt.nextDueDate);
         return dueDate >= today && dueDate <= sevenDaysFromNow;
       })

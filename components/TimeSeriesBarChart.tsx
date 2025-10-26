@@ -1,4 +1,5 @@
 
+
 import React, { useMemo } from 'react';
 import { Transaction, DateRange, TransactionType, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -17,7 +18,7 @@ const TimeSeriesBarChart: React.FC<TimeSeriesBarChartProps> = ({ title, transact
   const chartData = useMemo(() => {
     const dataMap: Record<string, number> = {};
     
-    transactions.forEach(t => {
+    (transactions || []).forEach(t => {
       const date = new Date(t.date);
       let key = '';
       if (period === 'year') {

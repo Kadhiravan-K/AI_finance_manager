@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { TransactionType, Transaction, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan, GlossaryEntry } from "../types";
 
@@ -40,12 +41,14 @@ export async function parseTransactionText(text: string): Promise<ParsedTransact
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are a financial transaction analysis expert with a specialization in spam and fraud detection. Analyze the following text.
+      contents: [{
+        parts: [{ text: `You are a financial transaction analysis expert with a specialization in spam and fraud detection. Analyze the following text.
 1. Determine if it is a legitimate financial transaction notification.
 2. Critically assess if the message is spam, a phishing attempt, an advertisement, or a forwarded message. Look for indicators like "Fwd:", unusual links, urgent language, or generic greetings. A forwarded message should be treated with high suspicion.
 3. If it is a transaction, extract all details according to the schema.
 4. Use a hierarchical category in "Parent / Child" format. Extract any unique identifiers like UPI IDs or partial account numbers.
-Text: "${text}"`,
+Text: "${text}"`}]
+      }],
       config: { responseMimeType: "application/json", responseSchema: transactionSchema },
     });
     
@@ -147,7 +150,9 @@ export async function getCurrencyConversionRate(fromCurrency: string, toCurrency
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Provide the current exchange rate for converting 1 ${fromCurrency} into ${toCurrency}. Return only the numeric value.`,
+      contents: [{
+        parts: [{ text: `Provide the current exchange rate for converting 1 ${fromCurrency} into ${toCurrency}. Return only the numeric value.` }]
+      }],
       config: { responseMimeType: "application/json", responseSchema: currencyConversionSchema },
     });
 
@@ -184,7 +189,7 @@ export async function parseNaturalLanguageQuery(query: string): Promise<{ search
     const prompt = `You are an expert at parsing natural language into structured data. Analyze the user's query: "${query}". Extract the main search term, a date filter, and a potential category. Today's date is ${new Date().toISOString().split('T')[0]}. Return the result as JSON matching the provided schema.`;
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: prompt,
+        contents: [{ parts: [{ text: prompt }] }],
         config: { responseMimeType: "application/json", responseSchema: nlpQuerySchema }
     });
     
@@ -227,7 +232,7 @@ export async function getAIBudgetSuggestion(profile: AppState['financialProfile'
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: budgetSuggestionSchema }
         });
         
@@ -246,7 +251,7 @@ export async function getAIBudgetSuggestion(profile: AppState['financialProfile'
 export async function getAIFinancialTips(healthScore: number, scoreBreakdown: any): Promise<string> {
     const prompt = `A user's financial health score is ${healthScore}/100. The breakdown is: ${JSON.stringify(scoreBreakdown)}. Provide 2-3 short, actionable, and encouraging tips to help them improve their score, focusing on their weakest areas. Do not use markdown.`;
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: [{ parts: [{ text: prompt }] }] });
         return response.text;
     } catch (error) {
         console.error("Error getting AI financial tips:", error);
@@ -280,7 +285,7 @@ export async function getDashboardInsights(transactions: Transaction[], categori
     Insight:`;
 
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: [{ parts: [{ text: prompt }] }] });
         return response.text;
     } catch (error) {
         console.error("Error getting dashboard insights:", error);
@@ -317,7 +322,7 @@ const aiCoachActionSchema = {
             description: "If you need more information to fulfill the request, ask the user a clear question here. If not, this MUST be null."
         }
     },
-    required: ["action", "payload"]
+    required: ["action"]
 };
 
 export async function getAICoachAction(command: string, appState: AppState, chatHistory: { role: 'user' | 'model', text: string }[]): Promise<any> {
@@ -353,7 +358,7 @@ export async function getAICoachAction(command: string, appState: AppState, chat
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: aiCoachActionSchema }
         });
         
@@ -388,7 +393,7 @@ export async function getAIChatResponse(appState: AppState, message: string, cha
     Your Response:`;
     
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: [{ parts: [{ text: prompt }] }] });
         
         return response.text;
     } catch (error) {
@@ -416,8 +421,10 @@ export async function parseTripExpenseText(text: string, participants: string[])
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are an expert at parsing expense details for group trips. Analyze the following text and extract the details. The trip participants are: ${participants.join(', ')}.
-Text: "${text}"`,
+      contents: [{
+        parts: [{ text: `You are an expert at parsing expense details for group trips. Analyze the following text and extract the details. The trip participants are: ${participants.join(', ')}.
+Text: "${text}"`}]
+      }],
       config: { responseMimeType: "application/json", responseSchema: tripExpenseSchema },
     });
     
@@ -490,11 +497,13 @@ export async function parseTripCreationText(text: string): Promise<{ tripName: s
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are an expert at parsing trip details and creating itineraries. Analyze the following text. 
+      contents: [{
+        parts: [{ text: `You are an expert at parsing trip details and creating itineraries. Analyze the following text. 
 1. Extract a trip name.
 2. Extract a list of participants. The user inputting the text is also a participant but should NOT be included in this list.
 3. If the user uses words like "plan", "suggest", or "itinerary", generate a detailed, structured plan for the trip, including specific times and meals like breakfast, lunch, and dinner.
-Text: "${text}"`,
+Text: "${text}"`}]
+      }],
       config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema },
     });
     
@@ -536,7 +545,7 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: fullPrompt,
+            contents: [{ parts: [{ text: fullPrompt }] }],
             config: { responseMimeType: "application/json", responseSchema: structuredPlanSchema },
         });
         
@@ -584,7 +593,9 @@ export async function getFinancialTopicExplanation(topic: string): Promise<{ exp
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: `You are a friendly and knowledgeable financial educator. Explain the topic "${topic}" in a simple and easy-to-understand way for a beginner. Provide a main explanation and a few actionable tips.`,
+            contents: [{
+              parts: [{ text: `You are a friendly and knowledgeable financial educator. Explain the topic "${topic}" in a simple and easy-to-understand way for a beginner. Provide a main explanation and a few actionable tips.` }]
+            }],
             config: { responseMimeType: "application/json", responseSchema: financialTopicSchema },
         });
         
@@ -636,7 +647,7 @@ export async function getShopInsights(sales: ShopSale[] | undefined, products: S
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: shopInsightsSchema },
         });
         
@@ -680,7 +691,7 @@ export async function getAIGoalSuggestion(transactions: AppState['transactions']
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: goalSuggestionSchema }
         });
         
@@ -726,7 +737,7 @@ export async function parseNaturalLanguageCalculation(appState: AppState, query:
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: nlpCalcSchema }
         });
         
@@ -814,7 +825,7 @@ export async function runFinancialScenario(appState: AppState, query: string): P
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: scenarioSchema }
         });
         
@@ -877,7 +888,7 @@ export async function identifySubscriptions(transactions: Transaction[], categor
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
+      contents: [{ parts: [{ text: prompt }] }],
       config: { responseMimeType: "application/json", responseSchema: subscriptionSchema },
     });
     
@@ -913,7 +924,7 @@ export async function generatePersonalizedChallenge(transactions: Transaction[])
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: personalizedChallengeSchema }
         });
         
@@ -960,7 +971,7 @@ export async function getProactiveInsights(appState: AppState): Promise<Proactiv
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: "application/json", responseSchema: proactiveInsightSchema }
         });
         
@@ -999,10 +1010,12 @@ export async function generateGlossaryEntry(term: string): Promise<Omit<Glossary
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: `You are a financial educator. A user is searching for the term "${term}" in their personal finance app's glossary. 
+            contents: [{
+              parts: [{ text: `You are a financial educator. A user is searching for the term "${term}" in their personal finance app's glossary. 
             Generate a complete glossary entry for this term. The definition should be simple for a beginner. 
             The 'usageLogic' should explain how the concept applies specifically within the context of this app.
-            Provide a relevant emoji, a simple example, and a few tags.`,
+            Provide a relevant emoji, a simple example, and a few tags.`}]
+            }],
             config: { responseMimeType: "application/json", responseSchema: glossaryEntrySchema },
         });
         
@@ -1015,5 +1028,32 @@ export async function generateGlossaryEntry(term: string): Promise<Omit<Glossary
     } catch (error) {
         console.error("Error generating glossary entry from Gemini API:", error);
         throw new Error(error instanceof Error ? `Failed to generate definition: ${error.message}` : "An unknown error occurred.");
+    }
+}
+
+export async function processNoteWithAI(text: string, prompt: string): Promise<string> {
+    if (!text || !prompt) throw new Error("Text and prompt cannot be empty for AI processing.");
+    
+    try {
+        const fullPrompt = `You are a helpful writing assistant. A user has provided text and a command. 
+        Your task is to apply the command to the text and return ONLY the modified text, without any preamble, explanation, or markdown formatting.
+
+        COMMAND: "${prompt}"
+
+        TEXT:
+        ---
+        ${text}
+        ---
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ parts: [{ text: fullPrompt }] }]
+        });
+
+        return response.text;
+    } catch (error) {
+        console.error("Error processing note with Gemini API:", error);
+        throw new Error(error instanceof Error ? `Failed to process note: ${error.message}` : "An unknown error occurred during AI processing.");
     }
 }

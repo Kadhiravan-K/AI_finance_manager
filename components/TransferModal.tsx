@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Account } from '../types';
@@ -79,6 +77,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTran
 
 
   const handleFromAmountChange = (value: string) => {
+    if (!/^\d*\.?\d*$/.test(value)) return;
     setFromAmount(value);
     const from = parseFloat(value);
     if (!isNaN(from) && from >= 0) {
@@ -89,6 +88,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ onClose, accounts, onTran
   };
   
   const handleToAmountChange = (value: string) => {
+      if (!/^\d*\.?\d*$/.test(value)) return;
       setToAmount(value);
       const to = parseFloat(value);
       if (!isNaN(to) && to >= 0 && rate > 0) {

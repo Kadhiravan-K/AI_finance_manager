@@ -142,15 +142,17 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
                         <TabButton active={settings.theme === 'light'} onClick={() => handleThemeChange('light')}>Light</TabButton>
                     </div>
                 </div>
-                <div className="mt-4"><ToggleSwitch label="FAB Glow Effect" checked={settings.fabGlowEffect ?? false} onChange={c => setSettings(p=>({...p, fabGlowEffect: c}))} /></div>
-                <div className="mt-2"><ToggleSwitch label="Hub Cursor Glow" checked={settings.hubCursorGlowEffect ?? false} onChange={c => setSettings(p=>({...p, hubCursorGlowEffect: c}))} /></div>
             </div>
             
             {/* Regional Section */}
              <div className="p-4 bg-subtle rounded-lg space-y-3">
                 <h4 className="font-semibold text-primary mb-3">Regional</h4>
                 <div><label className="text-sm font-medium text-secondary mb-1">Default Currency</label><CustomSelect options={currencyOptions} value={settings.currency} onChange={handleCurrencyChange} /></div>
-                <div><label className="text-sm font-medium text-secondary mb-1">Language</label><CustomSelect options={languageOptions} value={settings.language || 'en'} onChange={handleLanguageChange} /></div>
+                <div>
+                  <label className="text-sm font-medium text-secondary mb-1">Language</label>
+                  <CustomSelect options={languageOptions} value={settings.language || 'en'} onChange={handleLanguageChange} disabled={true} />
+                  <p className="text-xs text-tertiary mt-2">Language selection is a feature planned for a future update.</p>
+                </div>
             </div>
             
             {/* Data Management Section */}

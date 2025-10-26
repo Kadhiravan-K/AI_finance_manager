@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useContext, useMemo } from 'react';
 import { ActiveScreen } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -51,7 +46,7 @@ const Footer: React.FC<FooterProps> = ({ activeScreen, setActiveScreen, onAddCli
   };
 
   return (
-    <footer className="app-footer">
+    <footer className="app-footer lg:hidden">
       <nav className="footer-nav">
         <Tab screen={footerActions[0]} />
         <Tab screen={footerActions[1]} />

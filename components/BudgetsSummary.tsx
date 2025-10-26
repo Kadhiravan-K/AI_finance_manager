@@ -1,3 +1,5 @@
+
+
 import React, { useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -14,7 +16,7 @@ const BudgetsSummary: React.FC<BudgetsSummaryProps> = ({ budgets, transactions, 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   const budgetData = useMemo(() => {
-    const currentMonthBudgets = budgets.filter(b => b.month === currentMonth);
+    const currentMonthBudgets = (budgets || []).filter(b => b.month === currentMonth);
     if (currentMonthBudgets.length === 0) return [];
     
     const monthlySpending: Record<string, number> = {};

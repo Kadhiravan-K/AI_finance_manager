@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 // Fix: Corrected import path for types.
 import { Transaction, TransactionType, Category } from '../types';
@@ -31,7 +32,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ title, transactions
   const categoryData = useMemo(() => {
     const topLevelTotals: Record<string, { total: number; icon: string, name: string }> = {};
 
-    transactions.filter(t => t.type === type).forEach(t => {
+    (transactions || []).filter(t => t.type === type).forEach(t => {
       const topLevelCat = getTopLevelCategory(t.categoryId, categories);
       if (topLevelCat) {
         if (!topLevelTotals[topLevelCat.id]) {

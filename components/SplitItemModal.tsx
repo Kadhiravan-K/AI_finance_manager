@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Contact, SplitDetail } from '../types';
@@ -75,18 +76,18 @@ const SplitItemModal: React.FC<SplitItemModalProps> = ({ item, initialSplitDetai
   useEffect(() => {
     const initialParticipants = initialSplitDetails.length > 0
       ? initialSplitDetails
-      : allAvailableParticipants.map(p => ({
-          id: p.contactId,
-          personName: p.name,
+      : [{
+          id: USER_SELF_ID,
+          personName: 'You',
           amount: 0,
-          isSettled: p.contactId === USER_SELF_ID,
+          isSettled: true,
           shares: '1',
-          percentage: (100 / allAvailableParticipants.length).toFixed(2),
-        }));
+          percentage: '100',
+        }];
     
     setSplitDetails(initialParticipants);
     setTempSelected(new Set(initialParticipants.map(p => p.id)));
-  }, [initialSplitDetails, allAvailableParticipants]);
+  }, [initialSplitDetails]);
 
   useEffect(() => {
     const numParticipants = splitDetails.length;

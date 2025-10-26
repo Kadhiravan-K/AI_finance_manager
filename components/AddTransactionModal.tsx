@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Account, Contact, Transaction, TransactionType, ActiveModal, SpamWarning, ItemizedDetail, SplitDetail, ParsedTransactionData, Category, Sender, SenderType, USER_SELF_ID } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
@@ -10,9 +9,7 @@ import { SpamWarningCard } from './SpamWarningCard';
 import ModalHeader from './ModalHeader';
 import ToggleSwitch from './ToggleSwitch';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-// FIX: Corrected import paths for SplitManager.
 import { SplitManager } from './SplitManager';
-// FIX: Corrected import paths for SplitItemModal.
 import SplitItemModal from './SplitItemModal';
 
 interface Item {
@@ -189,6 +186,24 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     }
 }, [initialTransaction, isItemizedProp, categories, accounts]);
 
+useEffect(() => {
+  if (isItemized) {
+    // If switching to itemized view and the simple form has data,
+    // and the item list is in its default empty state, populate the first item.
+    if (manualAmount && manualDescription && manualCategoryId && items.length === 1 && !items[0].description && !items[0].amount) {
+      const newFirstItem: Item = {
+        id: items[0].id,
+        description: manualDescription,
+        amount: manualAmount,
+        parentId: manualCategoryId,
+        categoryId: manualSubCategoryId,
+        splitDetails: []
+      };
+      setItems([newFirstItem]);
+    }
+  }
+}, [isItemized, manualAmount, manualDescription, manualCategoryId, manualSubCategoryId, items]);
+
 
   const handleItemChange = (id: string, field: keyof Item, value: any) => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
@@ -284,6 +299,19 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     if (!itemToSplit) return;
     handleItemChange(itemToSplit.id, 'splitDetails', splits);
     setItemToSplit(null);
+  };
+  
+  const handleProceedToRefund = () => {
+    // Create a transaction-like object from the current form state
+    const transactionDataForRefund: Partial<Transaction> = {
+      description: manualDescription,
+      amount: parseFloat(manualAmount) || 0,
+      accountId: manualAccountId,
+      type: TransactionType.EXPENSE, // Refunds are for expenses
+      categoryId: manualSubCategoryId || manualCategoryId,
+      date: new Date().toISOString()
+    };
+    openModal('refund', { originalTransaction: transactionDataForRefund });
   };
   
   const selectedAccount = useMemo(() => accounts.find(a => a.id === manualAccountId), [accounts, manualAccountId]);
@@ -388,7 +416,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                         <div>
                             <label className="text-sm font-medium text-secondary mb-1">Amount ({selectedAccount?.currency})</label>
                             <div className="relative">
-                                <input type="text" inputMode="decimal" value={manualAmount} onChange={e => setManualAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required />
+                                <input type="number" step="0.01" value={manualAmount} onChange={e => setManualAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required />
                                 <button type="button" onClick={() => onOpenCalculator(res => setManualAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl" aria-label="Open calculator">🧮</button>
                             </div>
                         </div>
@@ -436,7 +464,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                       {items.map((item) => {
                           const itemSubCategories = subCategoryMap.get(item.parentId || '') || [];
                           return (
-                          <div key={item.id} className="itemized-item-card">
+                          <div key={item.id} className="p-3 bg-subtle rounded-lg">
                             <div className="flex items-start gap-2">
                                 <div className="flex-grow space-y-2">
                                     <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder="Item Description" className="input-base p-2 rounded-md w-full" required />
@@ -458,7 +486,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 )}
                 
                 <div className="pt-4 border-t border-divider space-y-3">
-                  <ToggleSwitch label="Itemize This Transaction" checked={isItemized} onChange={setIsItemized} />
+                  <ToggleSwitch label="Itemize & Split This Transaction" checked={isItemized} onChange={setIsItemized} />
                   {isItemized && <SplitManager title="Paid By" mode={payerMode} onModeChange={setPayerMode} participants={payers} onParticipantsChange={setPayers} totalAmount={itemizedTotal} allParticipants={allParticipants} formatCurrency={formatCurrency} isPayerManager />}
                 </div>
 
@@ -469,7 +497,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               </div>
 
               <div className="flex-shrink-0 p-4 border-t border-divider flex items-center justify-end gap-3">
-                 <button type="button" onClick={() => openModal('refund')} className="button-secondary text-sm mr-auto px-4 py-2">
+                 <button type="button" onClick={handleProceedToRefund} className="button-tertiary text-sm mr-auto px-4 py-2">
                     Proceed to Refund
                 </button>
                 <button type="button" onClick={onClose} className="button-secondary px-4 py-2">Cancel</button>

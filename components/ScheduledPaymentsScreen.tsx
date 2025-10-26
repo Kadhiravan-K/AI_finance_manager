@@ -26,7 +26,7 @@ const ScheduledPaymentsScreen: React.FC<ScheduledPaymentsScreenProps> = ({ recur
   const priorityOrder: Record<Priority, number> = { [Priority.HIGH]: 0, [Priority.MEDIUM]: 1, [Priority.LOW]: 2, [Priority.NONE]: 3 };
 
   const sortedAndFiltered = useMemo(() => {
-    let result = [...recurringTransactions];
+    let result = [...(recurringTransactions || [])];
 
     if (!viewOptions.filters.income) result = result.filter(t => t.type !== TransactionType.INCOME);
     if (!viewOptions.filters.expense) result = result.filter(t => t.type !== TransactionType.EXPENSE);

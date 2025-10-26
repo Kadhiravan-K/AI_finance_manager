@@ -9,7 +9,9 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ profile, openModal }) => {
   return (
     <header className="themed-header flex items-center justify-between p-4 flex-shrink-0">
-      <h1 className="text-xl font-bold">Finance Hub</h1>
+      <div className="flex items-center gap-4">
+        <h1 className="text-xl font-bold">Finance Hub</h1>
+      </div>
       <div className="flex items-center gap-1 sm:gap-2">
         <button
           onClick={() => openModal('globalSearch')}

@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Transaction, TransactionType, Category } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -21,7 +22,7 @@ const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ title, transactions
   const categoryData = useMemo(() => {
     const topLevelTotals: Record<string, { total: number; icon: string, name: string }> = {};
 
-    transactions.filter(t => t.type === type).forEach(t => {
+    (transactions || []).filter(t => t.type === type).forEach(t => {
       const topLevelCat = getTopLevelCategory(t.categoryId, categories);
       if (topLevelCat) {
         if (!topLevelTotals[topLevelCat.id]) {

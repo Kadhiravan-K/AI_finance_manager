@@ -51,8 +51,10 @@ const RefundModal: React.FC<RefundModalProps> = ({ refund, originalTransaction, 
             setExpectedTime(date.toTimeString().slice(0, 5));
         }
     } else if (originalTransaction) {
-        setLinkedTx(originalTransaction);
-        setAccountId(originalTransaction.accountId);
+        setLinkedTx(originalTransaction as Transaction);
+        setDescription(originalTransaction.description || '');
+        setAmount(String(originalTransaction.amount || ''));
+        setAccountId(originalTransaction.accountId || (accounts[0]?.id || ''));
     } else {
         setAccountId(accounts[0]?.id || '');
     }
