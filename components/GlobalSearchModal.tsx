@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { ActiveModal, ActiveScreen, AppState } from '../types';
@@ -35,7 +36,7 @@ const SearchResultItem: React.FC<{
     onClick: () => void;
 }> = ({ icon, title, subtitle, onClick }) => (
     <button onClick={onClick} className="w-full text-left p-3 flex items-center gap-4 rounded-lg hover-bg-stronger transition-colors">
-        <span className="text-2xl">{icon}</span>
+        <span className="text-2xl flex-shrink-0">{icon}</span>
         <div>
             <p className="font-semibold text-primary">{title}</p>
             <p className="text-xs text-secondary">{subtitle}</p>

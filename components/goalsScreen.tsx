@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Goal, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '../types';
@@ -22,7 +23,6 @@ interface GoalsScreenProps {
   onUpdateGoal: (goal: Goal) => void;
   openModal: (name: ActiveModal, props?: Record<string, any>) => void;
 }
-
 
 const AddFundsModal: React.FC<{
     goal: Goal;
@@ -60,6 +60,7 @@ const AddFundsModal: React.FC<{
                 placeholder="0.00"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
+                onWheel={e => (e.target as HTMLInputElement).blur()}
                 className="w-full input-base p-2 rounded-lg no-spinner"
                 required
                 autoFocus
@@ -83,7 +84,6 @@ const AddFundsModal: React.FC<{
       modalRoot
     );
 };
-
 
 const GoalCard: React.FC<{
     goal: Goal;
@@ -133,7 +133,7 @@ const GoalCard: React.FC<{
     }, []);
 
     return (
-        <div className={`glass-card p-4 rounded-xl relative overflow-hidden ${isCompleted ? 'goal-card-completed' : ''}`}>
+        <div className={`glass-card p-4 rounded-xl relative overflow-hidden ${isCompleted ? 'goal-card-completed' : ''} animate-fadeInUp`}>
             {isCompleted && <div className="absolute top-2 right-2 text-xs font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full">✓ Completed!</div>}
             <div className="flex items-center gap-4">
                 <div className="relative w-20 h-20 flex-shrink-0">
@@ -195,7 +195,6 @@ const GoalCard: React.FC<{
 };
 
 const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, onContribute, onDelete, onEditGoal, onGoalComplete, onUpdateGoal, openModal }) => {
-  const formatCurrency = useCurrencyFormatter();
   const [addFundsGoal, setAddFundsGoal] = useState<Goal | null>(null);
   const dataContext = useContext(AppDataContext);
   const settingsContext = useContext(SettingsContext);
@@ -220,16 +219,6 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
     }
   };
 
-  const handleAcceptSuggestion = () => {
-      if (!aiSuggestion) return;
-      onEditGoal({
-          name: aiSuggestion.name,
-          icon: '🎯',
-          targetAmount: aiSuggestion.targetAmount,
-      } as Goal);
-      setAiSuggestion(null);
-  };
-  
   const priorityOrder: Record<Priority, number> = { [Priority.HIGH]: 0, [Priority.MEDIUM]: 1, [Priority.LOW]: 2, [Priority.NONE]: 3 };
 
   const sortedAndFilteredGoals = useMemo(() => {
@@ -322,3 +311,4 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
 };
 
 export default GoalsScreen;
+    

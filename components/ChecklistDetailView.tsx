@@ -138,7 +138,7 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
             <button onClick={togglePin} className={`pin-button ${currentList.isPinned ? 'pinned' : ''}`} title={currentList.isPinned ? 'Unpin' : 'Pin'}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24" fill="currentColor">
                 <path transform="rotate(45 12 12)" d="M16,12V4H17V2H7V4H8V12L6,14V16H11.5V22H12.5V16H18V14L16,12Z" />
               </svg>
             </button>
@@ -163,7 +163,7 @@ const ChecklistDetailView: React.FC<ChecklistDetailViewProps> = ({ list, onSave,
                         <div className="flex items-center gap-1 text-sm text-secondary mt-1">
                             <input type="text" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="shopping-list-item-input text-center w-10 bg-transparent" placeholder="1" />
                             <span>x</span>
-                            <input type="text" inputMode="decimal" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value))} className="shopping-list-item-input w-16 bg-transparent" placeholder="0.00" />
+                            <input type="text" inputMode="decimal" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value))} onWheel={e => (e.target as HTMLInputElement).blur()} className="shopping-list-item-input w-16 bg-transparent" placeholder="0.00" />
                         </div>
                     </div>
 

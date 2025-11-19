@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -161,7 +162,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                                  <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-sm font-medium text-secondary mb-1">Amount ({settings.currency})</label>
-                                        <div className="relative"><input type="number" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required /><button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
+                                        <div className="relative"><input type="number" value={amount} onChange={e=>setAmount(e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg" required /><button type="button" onClick={() => onOpenCalculator(res => setAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
                                     </div>
                                     <div><label className="text-sm font-medium text-secondary mb-1">Type</label><CustomSelect options={[{value: 'expense', label: 'Expense'}, {value: 'income', label: 'Income'}]} value={type} onChange={val => { setType(val as TransactionType); setCategoryId(''); setSubCategoryId(''); }} /></div>
                                 </div>
@@ -181,7 +182,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                                         <div key={item.id} className="itemized-item-card flex items-start gap-2">
                                             <div className="flex-grow space-y-2">
                                                 <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder={`Item Description`} className="input-base p-2 rounded-md w-full" required />
-                                                <div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
+                                                <div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder="0" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div>
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <CustomSelect value={item.parentId || ''} onChange={val => handleItemChange(item.id, 'parentId', val)} options={[{value: '', label: 'Category'}, ...topLevelExpenseCategories.map(c => ({value: c.id, label: `${c.icon || '📁'} ${c.name}`))]} />
                                                     <CustomSelect value={item.categoryId || ''} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({value: c.id, label: `${c.icon || '📁'} ${c.name}`}))} placeholder="Subcategory" disabled={!item.parentId || itemSubCategories.length === 0} />

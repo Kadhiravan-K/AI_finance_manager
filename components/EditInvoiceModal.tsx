@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Invoice, Shop, Contact, InvoiceLineItem, ShopProduct, InvoiceStatus } from '../types';
@@ -99,8 +97,8 @@ const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({ invoice, shop, cont
                         {lineItems.map(item => (
                             <div key={item.id} className="grid grid-cols-[1fr_80px_100px_auto] gap-2 items-center">
                                 <CustomSelect options={productOptions} value={""} onChange={val => handleProductSelect(item.id, val)} />
-                                <input type="number" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)} className="input-base p-2 rounded-lg text-center no-spinner" min="1" />
-                                <input type="number" step="0.01" value={item.unitPrice} onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} className="input-base p-2 rounded-lg text-right no-spinner" />
+                                <input type="number" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base p-2 rounded-lg text-center no-spinner" min="1" />
+                                <input type="number" step="0.01" value={item.unitPrice} onChange={e => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base p-2 rounded-lg text-right no-spinner" />
                                 <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-rose-400 p-2">×</button>
                             </div>
                         ))}

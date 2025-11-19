@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Trip } from '../types';
@@ -56,6 +55,7 @@ const ManageAdvancesModal: React.FC<ManageAdvancesModalProps> = ({ onClose, trip
                                 step="0.01"
                                 value={advances[p.contactId] || ''}
                                 onChange={e => handleAmountChange(p.contactId, e.target.value)}
+                                onWheel={e => (e.target as HTMLInputElement).blur()}
                                 placeholder="0.00"
                                 className="input-base w-28 p-2 rounded-lg text-right no-spinner"
                             />

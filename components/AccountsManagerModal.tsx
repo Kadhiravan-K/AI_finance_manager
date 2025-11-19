@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Account, AccountType } from '../types';
@@ -146,6 +147,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onAddAccount, onEdit
               <label className="text-sm text-secondary mb-1 block">Opening Balance (Optional)</label>
               <input
                 type="number"
+                onWheel={e => e.currentTarget.blur()}
                 value={openingBalance}
                 onChange={e => setOpeningBalance(e.target.value)}
                 className="w-full input-base p-2 rounded-lg no-spinner"
@@ -158,6 +160,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onAddAccount, onEdit
               <label className="text-sm text-secondary mb-1 block">Credit Limit (Optional)</label>
               <input
                 type="number"
+                onWheel={e => e.currentTarget.blur()}
                 value={formData.creditLimit || ''}
                 onChange={e => setFormData(p => ({ ...p, creditLimit: parseFloat(e.target.value) || undefined }))}
                 className="w-full input-base p-2 rounded-lg no-spinner"

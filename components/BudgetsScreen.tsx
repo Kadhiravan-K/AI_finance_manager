@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType, FinancialProfile } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -143,7 +144,7 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
           onClick={() => toggleCategory(category.id)}
         >
           <span className="flex items-center gap-2 font-medium text-primary">
-            <span className="text-lg">{category.icon}</span>
+            <span className="text-lg flex-shrink-0">{category.icon}</span>
             {category.name}
           </span>
           <div className="flex items-center gap-2">
@@ -215,6 +216,7 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
                     type="number" 
                     value={tempSalary} 
                     onChange={e => setTempSalary(e.target.value)}
+                    onWheel={e => (e.target as HTMLInputElement).blur()}
                     placeholder="e.g., 50000"
                     className="input-base w-full p-2 rounded-lg"
                     autoFocus
@@ -237,6 +239,7 @@ const BudgetsScreen: React.FC<BudgetsScreenProps> = ({ categories, transactions,
                                   type="number"
                                   value={s.amount}
                                   onChange={(e) => handleSuggestionAmountChange(index, e.target.value)}
+                                  onWheel={e => (e.target as HTMLInputElement).blur()}
                                   className="input-base w-24 p-1 rounded-md text-right no-spinner"
                               />
                               <button 

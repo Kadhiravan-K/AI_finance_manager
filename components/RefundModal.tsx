@@ -185,7 +185,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ refund, originalTransaction, 
                 <label className="text-sm text-secondary mb-1 block">
                 Refund Amount {maxAmount !== Infinity && `(Max: ${formatCurrency(maxAmount)})`}
                 </label>
-                <input type="number" step="0.01" min="0.01" max={maxAmount === Infinity ? undefined : maxAmount} value={amount} onChange={e => setAmount(e.target.value)} className="w-full input-base p-2 rounded-md no-spinner" required disabled={isInvalidForRefund} />
+                <input type="number" step="0.01" min="0.01" max={maxAmount === Infinity ? undefined : maxAmount} value={amount} onChange={e => setAmount(e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="w-full input-base p-2 rounded-md no-spinner" required disabled={isInvalidForRefund} />
               </div>
             </div>
             {isInvalidForRefund && <p className="text-xs text-center text-rose-400">This transaction has been fully refunded.</p>}

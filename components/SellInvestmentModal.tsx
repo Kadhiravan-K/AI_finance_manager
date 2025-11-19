@@ -39,11 +39,11 @@ const SellInvestmentModal: React.FC<SellInvestmentModalProps> = ({ onClose, onSa
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Quantity to Sell</label>
-                <input type="number" step="any" value={formData.quantity} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(f => ({...f, quantity: parseFloat(e.target.value) || 0}))} className="input-base w-full rounded-lg py-2 px-3 no-spinner" max={holding.quantity} required autoFocus />
+                <input type="number" step="any" value={formData.quantity} onWheel={e => (e.target as HTMLInputElement).blur()} onChange={e => setFormData(f => ({...f, quantity: parseFloat(e.target.value) || 0}))} className="input-base w-full rounded-lg py-2 px-3 no-spinner" max={holding.quantity} required autoFocus />
               </div>
               <div>
                 <label className={labelStyle}>Price per unit</label>
-                <input type="number" step="0.01" value={formData.price} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(f => ({...f, price: e.target.value}))} placeholder="0.00" className="input-base w-full rounded-lg py-2 px-3 no-spinner" required />
+                <input type="number" step="0.01" value={formData.price} onWheel={e => (e.target as HTMLInputElement).blur()} onChange={e => setFormData(f => ({...f, price: e.target.value}))} placeholder="0.00" className="input-base w-full rounded-lg py-2 px-3 no-spinner" required />
               </div>
             </div>
              <div>

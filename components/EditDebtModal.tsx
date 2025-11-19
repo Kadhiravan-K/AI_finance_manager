@@ -56,16 +56,16 @@ const EditDebtModal: React.FC<EditDebtModalProps> = ({ debt, onSave, onClose }) 
                     </div>
                     <div>
                         <label htmlFor="totalAmount" className={labelStyle}>Current Balance</label>
-                        <input id="totalAmount" type="number" step="0.01" value={formData.totalAmount} onChange={e => handleChange('totalAmount', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
+                        <input id="totalAmount" type="number" step="0.01" value={formData.totalAmount} onChange={e => handleChange('totalAmount', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg no-spinner" required />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="minimumPayment" className={labelStyle}>Minimum Payment</label>
-                            <input id="minimumPayment" type="number" step="0.01" value={formData.minimumPayment} onChange={e => handleChange('minimumPayment', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
+                            <input id="minimumPayment" type="number" step="0.01" value={formData.minimumPayment} onChange={e => handleChange('minimumPayment', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg no-spinner" required />
                         </div>
                         <div>
                             <label htmlFor="apr" className={labelStyle}>Interest Rate (APR %)</label>
-                            <input id="apr" type="number" step="0.01" value={formData.apr} onChange={e => handleChange('apr', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
+                            <input id="apr" type="number" step="0.01" value={formData.apr} onChange={e => handleChange('apr', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg no-spinner" required />
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4">

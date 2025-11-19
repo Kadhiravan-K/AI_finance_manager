@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { ShopProduct } from '../types';
@@ -65,15 +63,15 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onSave, on
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                             <label htmlFor="costPrice" className={labelStyle}>Cost Price</label>
-                            <input id="costPrice" type="number" step="0.01" value={formData.costPrice} onChange={e => handleChange('costPrice', e.target.value)} placeholder="0.00" className="input-base w-full p-2 rounded-lg no-spinner" />
+                            <input id="costPrice" type="number" step="0.01" value={formData.costPrice} onChange={e => handleChange('costPrice', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder="0.00" className="input-base w-full p-2 rounded-lg no-spinner" />
                         </div>
                         <div>
                             <label htmlFor="price" className={labelStyle}>Selling Price</label>
-                            <input id="price" type="number" step="0.01" value={formData.price} onChange={e => handleChange('price', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
+                            <input id="price" type="number" step="0.01" value={formData.price} onChange={e => handleChange('price', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg no-spinner" required />
                         </div>
                         <div>
                             <label htmlFor="stock" className={labelStyle}>Stock</label>
-                            <input id="stock" type="number" step="1" value={formData.stock} onChange={e => handleChange('stock', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
+                            <input id="stock" type="number" step="1" value={formData.stock} onChange={e => handleChange('stock', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg no-spinner" required />
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4">

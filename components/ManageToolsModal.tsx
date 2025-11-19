@@ -1,3 +1,4 @@
+
 import React, { useContext } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
@@ -79,7 +80,7 @@ const ManageToolsModal: React.FC<ManageToolsModalProps> = ({ onClose }) => {
                     className="p-3 bg-subtle rounded-lg flex items-center justify-between group"
                   >
                       <div className="flex items-center gap-3">
-                          <span className="text-2xl">{tool.icon}</span>
+                          <span className="text-2xl flex-shrink-0">{tool.icon}</span>
                           <span className={`font-medium ${settings.enabledTools[tool.key] ? 'text-primary' : 'text-tertiary'}`}>{tool.name}</span>
                       </div>
                       <ToggleSwitch checked={settings.enabledTools[tool.key]} onChange={() => handleToggle(tool.key as ToggleableTool)} />

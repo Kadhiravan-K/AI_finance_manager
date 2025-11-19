@@ -1,3 +1,4 @@
+
 import React, { useContext } from 'react';
 import { ActiveModal, ActiveScreen, ToggleableTool } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -76,7 +77,7 @@ const MoreScreen: React.FC<MoreScreenProps> = ({ onNavigate }) => {
       onClick={() => handleNav(tool.screen, tool.modal)}
       className="p-3 bg-subtle rounded-xl flex flex-col items-center justify-center text-center gap-2 hover-bg-stronger transition-colors"
     >
-      <span className="text-3xl">{tool.icon}</span>
+      <span className="text-3xl flex-shrink-0">{tool.icon}</span>
       <span className="text-xs font-semibold text-primary">{tool.label}</span>
     </button>
   );

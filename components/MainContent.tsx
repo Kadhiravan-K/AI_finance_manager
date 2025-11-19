@@ -1,9 +1,9 @@
+
 import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
 import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange, USER_SELF_ID, Category, Contact, ContactGroup, Shop, ShopEmployee, ShopShift, Refund, GlossaryEntry, CalendarEvent, FinancialProfile } from '../types';
 import FinanceDisplay from './FinanceDisplay';
 import { ReportsScreen } from './ReportsScreen';
 import BudgetsScreen from './BudgetsScreen';
-// Fix: Corrected import path casing to resolve module resolution conflict.
 import GoalsScreen from './goalsScreen';
 import InvestmentsScreen from './InvestmentsScreen';
 import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
@@ -286,3 +286,4 @@ const MainContent: React.FC<MainContentProps> = (props) => {
 };
 
 export default MainContent;
+    

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { getFinancialTopicExplanation } from '../services/geminiService';
 import TopicModal from './TopicModal';
@@ -66,14 +67,14 @@ const LearnScreen: React.FC<LearnScreenProps> = ({ onOpenChat, onOpenGlossary })
             </div>
             <div className="flex-grow overflow-y-auto p-6 space-y-6">
                  <button onClick={onOpenChat} className="w-full text-left p-4 bg-violet-900/50 rounded-lg flex items-center gap-4 hover:bg-violet-900/80 transition-colors border border-violet-700 glow">
-                    <span className="text-3xl">🧠</span>
+                    <span className="text-3xl flex-shrink-0">🧠</span>
                     <div>
                         <h3 className="font-bold text-primary">Chat with AI Coach</h3>
                         <p className="text-sm text-secondary">Ask personalized questions about your financial situation.</p>
                     </div>
                 </button>
                 <button onClick={onOpenGlossary} className="w-full text-left p-4 bg-subtle rounded-lg flex items-center gap-4 hover-bg-stronger transition-colors border border-divider">
-                    <span className="text-3xl">📖</span>
+                    <span className="text-3xl flex-shrink-0">📖</span>
                     <div>
                         <h3 className="font-bold text-primary">Financial Glossary</h3>
                         <p className="text-sm text-secondary">Look up common financial terms and concepts.</p>
@@ -102,7 +103,7 @@ const LearnScreen: React.FC<LearnScreenProps> = ({ onOpenChat, onOpenGlossary })
                                 onClick={() => handleFetchTopic(topic.title)}
                                 className="management-tool-button p-4"
                             >
-                                <span className="icon text-3xl">{topic.icon}</span>
+                                <span className="icon text-3xl flex-shrink-0">{topic.icon}</span>
                                 <span className="text-xs font-semibold">{topic.title}</span>
                             </button>
                         ))}

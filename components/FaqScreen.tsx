@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 const FAQ_DATA = [
@@ -49,7 +50,7 @@ const FaqItem: React.FC<{ q: string; a: string; isOpen: boolean; onClick: () => 
         <div className={`faq-item ${isOpen ? 'open' : ''}`}>
             <button onClick={onClick} className="faq-question">
                 <span>{q}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-secondary transition-transform duration-300 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </button>
             <div className="faq-answer">
                 <p>{a}</p>

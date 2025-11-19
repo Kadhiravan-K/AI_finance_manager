@@ -39,19 +39,45 @@ const TripManagementScreen: React.FC<TripManagementScreenProps> = ({ trips, trip
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
         {trips.map(trip => {
           const totalExpenses = tripExpenses.filter(e => e.tripId === trip.id).reduce((sum, e) => sum + e.amount, 0);
+          const formattedExpenses = getCurrencyFormatter(trip.currency).format(totalExpenses);
+          const formattedBudget = trip.budget ? getCurrencyFormatter(trip.currency).format(trip.budget) : null;
+
           return (
-            <div key={trip.id} onClick={() => onTripSelect(trip.id)} className="p-4 bg-subtle rounded-lg group cursor-pointer hover-bg-stronger transition-colors">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold text-primary">{trip.name}</p>
-                  <p className="text-xs text-secondary">{new Date(trip.date).toLocaleDateString()} &bull; {trip.participants.length} members</p>
+            <div key={trip.id} onClick={() => onTripSelect(trip.id)} className="glass-card p-4 rounded-xl cursor-pointer hover:bg-card-hover transition-colors animate-fadeInUp group relative overflow-hidden">
+                <div className="flex justify-between items-start mb-2">
+                     <div className="flex items-center gap-3 flex-grow min-w-0">
+                         <span className="text-3xl flex-shrink-0">✈️</span>
+                         <div className="flex-grow min-w-0">
+                            <h3 className="text-lg font-bold text-primary truncate pr-2">{trip.name}</h3>
+                            <p className="text-xs text-secondary mt-0.5 flex items-center gap-1">
+                                <span>📅 {new Date(trip.date).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span>👥 {trip.participants.length} members</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                         <button onClick={(e) => { e.stopPropagation(); onEditTrip(trip); }} className="p-2 text-sky-400 hover:bg-sky-500/10 rounded-full" title="Edit">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteTrip(trip.id); }} className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-full" title="Delete">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
                 </div>
-                <p className="font-semibold text-primary">{getCurrencyFormatter(trip.currency).format(totalExpenses)}</p>
-              </div>
-              <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={(e) => { e.stopPropagation(); onEditTrip(trip); }} className="text-xs px-2 py-1 text-sky-300">Edit</button>
-                <button onClick={(e) => { e.stopPropagation(); onDeleteTrip(trip.id); }} className="text-xs px-2 py-1 text-rose-400">Delete</button>
-              </div>
+                
+                <div className="w-full h-px bg-divider my-3" />
+                
+                <div className="flex justify-between items-end">
+                     <div>
+                        <p className="text-xs text-secondary mb-0.5">Total Expenses</p>
+                        <p className="font-bold text-lg text-primary">{formattedExpenses}</p>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-xs text-secondary mb-0.5">Budget</p>
+                        <p className="font-semibold text-emerald-400">{formattedBudget || '—'}</p>
+                     </div>
+                </div>
             </div>
           );
         })}

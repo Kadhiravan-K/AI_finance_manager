@@ -28,6 +28,12 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   onOpenContactsManager
 }) => {
   const { settings, contacts, contactGroups } = useContext(SettingsContext);
+  
+  // Add a guard to ensure context is loaded
+  if (!settings || !contacts || !contactGroups) {
+    return null;
+  }
+
   const isCreating = !trip;
   
   const [addMode, setAddMode] = useState<AddMode>(isCreating ? 'auto' : 'manual');

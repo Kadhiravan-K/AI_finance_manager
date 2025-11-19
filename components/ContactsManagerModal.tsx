@@ -1,3 +1,4 @@
+
 import React, { useState, useContext } from 'react';
 import { Contact, ContactGroup } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -65,7 +66,7 @@ const ContactsManagerModal: React.FC<ContactsManagerModalProps> = ({
                 contactGroups.map(group => (
                     <div key={group.id} className="flex items-center justify-between p-2 bg-subtle rounded-lg group transition-all duration-200 hover-bg-stronger hover:scale-[1.02]">
                         <div onClick={() => handleGroupClick(group)} className="flex-grow flex items-center gap-3 cursor-pointer">
-                            <span className="text-xl w-6 text-center">{group.icon || '📁'}</span>
+                            <span className="text-xl w-6 text-center flex-shrink-0">{group.icon || '📁'}</span>
                             <span className="font-medium text-primary">{group.name}</span>
                         </div>
                         <div className="flex items-center space-x-1 flex-shrink-0">

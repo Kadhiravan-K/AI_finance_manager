@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AppDataProvider, useAppContext } from './hooks/useAppContext';
 import MainContent from './components/MainContent';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import { supabase } from './utils/supabase';
 import { ActiveScreen, ModalState, ActiveModal, AppState } from './types';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import OnboardingModal from './components/OnboardingModal';
@@ -13,7 +12,7 @@ import Confetti from './components/Confetti';
 import OnboardingGuide from './components/OnboardingGuide';
 import Sidebar from './components/Sidebar';
 
-// MODALS - A central place to import and manage all modals
+// MODALS
 import AddTransactionModal from './components/AddTransactionModal';
 import EditTransactionModal from './components/EditTransactionModal';
 import TransferModal from './components/TransferModal';
@@ -84,6 +83,7 @@ const AppContainer: React.FC = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
   const [showPrivacyConsent, setShowPrivacyConsent] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // State for specific screen contexts
   const [tripDetailsId, setTripDetailsId] = useState<string | null>(null);
@@ -147,6 +147,7 @@ const AppContainer: React.FC = () => {
     if (modal) {
         openModal(modal, modalProps);
     }
+    setIsSidebarOpen(false);
   }, [openModal]);
   
   const handleGoalComplete = () => {
@@ -165,7 +166,6 @@ const AppContainer: React.FC = () => {
         openModal,
     };
     
-    // Using a simplified switch case for brevity in this thought process. Actual code has all cases.
     switch (currentModal.name) {
         case 'addTransaction': return <AddTransactionModal {...modalProps} {...dataContext} onOpenCalculator={openCalculator} initialText={initialText} onInitialTextConsumed={onSharedTextConsumed} />;
         case 'editTransaction': return <EditTransactionModal {...modalProps} {...dataContext} onOpenCalculator={openCalculator} />;
@@ -227,9 +227,18 @@ const AppContainer: React.FC = () => {
 
   return (
     <div className={`theme-${settings.theme} ${isOnline ? 'online' : 'offline'} h-full w-full lg:flex`}>
-      <Sidebar onNavigate={onNavigate} activeScreen={activeScreen} />
+      <Sidebar 
+        onNavigate={onNavigate} 
+        activeScreen={activeScreen}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       <div className="main-content-area app-container">
-          <Header profile={profile} openModal={openModal} />
+          <Header 
+            profile={profile} 
+            openModal={openModal} 
+            onMenuClick={() => setIsSidebarOpen(true)}
+          />
           <main className="flex-grow overflow-y-auto">
             <MainContent 
               activeScreen={activeScreen}

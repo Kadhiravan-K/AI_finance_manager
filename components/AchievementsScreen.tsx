@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { UnlockedAchievement } from '../types';
 import { ALL_ACHIEVEMENTS } from '../utils/achievements';
@@ -26,7 +27,7 @@ const AchievementsScreen: React.FC<AchievementsScreenProps> = ({ unlockedAchieve
                 key={achievement.id}
                 className={`achievement-item ${isUnlocked ? 'unlocked' : 'locked'}`}
               >
-                <div className="achievement-icon">{achievement.icon}</div>
+                <div className="achievement-icon flex-shrink-0">{achievement.icon}</div>
                 <div className="achievement-details">
                     <p className="name">{achievement.name}</p>
                     <p className="description">{achievement.description}</p>

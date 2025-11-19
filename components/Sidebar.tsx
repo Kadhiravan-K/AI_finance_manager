@@ -67,8 +67,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, activeScreen, isOpen, onC
 
   return (
     <>
-        <div className="sidebar-backdrop lg:hidden" onClick={onClose}></div>
-        <aside className="sidebar">
+        <div className={`sidebar-backdrop lg:hidden ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={onClose}></div>
+        <aside className={`sidebar ${isOpen ? '!translate-x-0' : ''}`}>
             <div className="p-4 flex justify-between items-center flex-shrink-0">
                 <h1 className="text-xl font-bold">Finance Hub</h1>
                 <button onClick={onClose} className="p-2 -mr-2 rounded-full hover-bg-stronger lg:hidden">
@@ -86,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, activeScreen, isOpen, onC
                                     onClick={() => handleNav(tool.screen as ActiveScreen, tool.modal as ActiveModal)}
                                     className={`sidebar-item ${activeScreen === tool.screen ? 'active' : ''}`}
                                 >
-                                    <span className="icon">{tool.icon}</span>
+                                    <span className="icon flex-shrink-0">{tool.icon}</span>
                                     <span>{tool.label}</span>
                                 </button>
                             ))}

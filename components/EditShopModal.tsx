@@ -72,7 +72,7 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, onSave, onCancel })
                         </div>
                         <div>
                             <label className="text-sm font-medium text-secondary mb-1">Tax Rate (%)</label>
-                            <input type="number" step="0.01" value={formState.taxRate} onChange={e => handleChange('taxRate', e.target.value)} placeholder="e.g. 5" className="w-full input-base p-2 rounded-lg no-spinner" />
+                            <input type="number" step="0.01" value={formState.taxRate} onChange={e => handleChange('taxRate', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder="e.g. 5" className="w-full input-base p-2 rounded-lg no-spinner" />
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4">

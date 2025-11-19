@@ -416,7 +416,7 @@ useEffect(() => {
                         <div>
                             <label className="text-sm font-medium text-secondary mb-1">Amount ({selectedAccount?.currency})</label>
                             <div className="relative">
-                                <input type="number" step="0.01" value={manualAmount} onChange={e => setManualAmount(e.target.value)} className="input-base w-full p-2 rounded-lg" required />
+                                <input type="number" step="0.01" value={manualAmount} onChange={e => setManualAmount(e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg" required />
                                 <button type="button" onClick={() => onOpenCalculator(res => setManualAmount(String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl" aria-label="Open calculator">🧮</button>
                             </div>
                         </div>
@@ -468,7 +468,7 @@ useEffect(() => {
                             <div className="flex items-start gap-2">
                                 <div className="flex-grow space-y-2">
                                     <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder="Item Description" className="input-base p-2 rounded-md w-full" required />
-                                    <div className="grid grid-cols-[1fr_auto_1fr] gap-2"><div className="relative"><input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0.00" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div><span className="p-2 text-center text-secondary">in</span><CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', ''); }} options={[{value: '', label: 'Category'}, ...topLevelExpenseCategories.map(c => ({value: c.id, label: `${c.icon || '📁'} ${c.name}`))]} /></div>
+                                    <div className="grid grid-cols-[1fr_auto_1fr] gap-2"><div className="relative"><input type="number" step="0.01" value={item.amount} onWheel={e => (e.target as HTMLInputElement).blur()} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0.00" className="input-base p-2 rounded-md w-full no-spinner" required /><button type="button" onClick={() => onOpenCalculator(res => handleItemChange(item.id, 'amount', String(res)))} className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">🧮</button></div><span className="p-2 text-center text-secondary">in</span><CustomSelect value={item.parentId || ''} onChange={val => { handleItemChange(item.id, 'parentId', val); handleItemChange(item.id, 'categoryId', ''); }} options={[{value: '', label: 'Category'}, ...topLevelExpenseCategories.map(c => ({value: c.id, label: `${c.icon || '📁'} ${c.name}`))]} /></div>
                                     {item.parentId && itemSubCategories.length > 0 && (
                                         <CustomSelect value={item.categoryId || ''} onChange={val => handleItemChange(item.id, 'categoryId', val)} options={itemSubCategories.map(c => ({value: c.id, label: `${c.icon || '📁'} ${c.name}`}))} placeholder="Subcategory" />
                                     )}

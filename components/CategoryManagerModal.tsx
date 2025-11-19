@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 // Fix: Corrected import path for types.
@@ -41,7 +42,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
     return topLevel.map(parent => (
         <div key={parent.id} className="flex items-center justify-between p-2 bg-subtle rounded-lg group transition-colors hover-bg-stronger">
             <div onClick={() => handleParentClick(parent)} className="flex-grow flex items-center gap-3 cursor-pointer">
-                <span className="text-xl w-6 text-center">{parent.icon || '📁'}</span>
+                <span className="text-xl w-6 text-center flex-shrink-0">{parent.icon || '📁'}</span>
                 <span className="font-medium text-primary">{parent.name}</span>
             </div>
             <div className="flex items-center space-x-1 flex-shrink-0">
@@ -100,7 +101,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                     <h3 className="font-semibold text-secondary mb-2">Subcategories</h3>
                     {categories.filter(c => c.parentId === selectedParent.id).map(child => (
                         <div key={child.id} className="flex items-center justify-between p-2 bg-subtle rounded-lg group">
-                            <span className="flex items-center gap-3"><span className="text-xl w-6 text-center">{child.icon || '📁'}</span><span className="font-medium text-primary">{child.name}</span></span>
+                            <span className="flex items-center gap-3"><span className="text-xl w-6 text-center flex-shrink-0">{child.icon || '📁'}</span><span className="font-medium text-primary">{child.name}</span></span>
                             <div className="space-x-2 opacity-0 group-hover:opacity-100">
                                 <button onClick={() => onEditCategory(child)} className="text-xs text-secondary hover:text-primary px-2">Edit</button>
                                 <button onClick={() => onDeleteCategory(child.id)} className="text-xs text-[var(--color-accent-rose)] hover:brightness-125 px-2">Delete</button>

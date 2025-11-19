@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect, useContext } from 'react';
 // Fix: Added missing type imports
 import { Transaction, TransactionType, DateRange, CustomDateRange, DashboardWidget, AppState, ActiveModal, Category, Account } from '../types';
@@ -152,7 +153,7 @@ const TransactionItem: React.FC<{transaction: Transaction, onEdit: (t: Transacti
     return (
         <button onClick={() => onEdit(t)} style={style} className="w-full text-left p-3 glass-card rounded-lg stagger-delay flex justify-between items-center">
             <div className="flex items-center gap-3">
-                <span className="text-xl">{category?.icon || '📁'}</span>
+                <span className="text-xl flex-shrink-0">{category?.icon || '📁'}</span>
                 <div>
                     <p className="font-semibold text-primary">{t.description}</p>
                     <p className="text-xs text-secondary">{getCategoryPath(t.categoryId, categories)}</p>

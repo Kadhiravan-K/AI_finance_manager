@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useContext } from 'react';
 import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, InvoiceStatus } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
@@ -50,12 +49,12 @@ const InvoicesList: React.FC<{ shop: Shop; openModal: (name: ActiveModal, props?
              {shopInvoices.map(invoice => (
                 <div key={invoice.id} className="p-3 bg-subtle rounded-lg group">
                     <div className="flex justify-between items-start">
-                        <div>
-                            <p className="font-semibold text-primary">Invoice #{invoice.invoiceNumber}</p>
-                            <p className="text-xs text-secondary">To: {contactMap.get(invoice.contactId) || 'Unknown'}</p>
+                        <div className="flex-grow min-w-0 pr-2">
+                            <p className="font-semibold text-primary truncate">Invoice #{invoice.invoiceNumber}</p>
+                            <p className="text-xs text-secondary truncate">To: {contactMap.get(invoice.contactId) || 'Unknown'}</p>
                             <p className="text-xs text-tertiary">Due: {new Date(invoice.dueDate).toLocaleDateString()}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                             <p className="font-semibold text-primary">{formatCurrency(invoice.totalAmount)}</p>
                             <div className="flex items-center justify-end gap-2 mt-1">
                                 <span className={`px-2 py-0.5 text-xs font-semibold text-white rounded-full ${statusColors[invoice.status]}`}>{invoice.status}</span>
@@ -157,8 +156,8 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <h2 className="text-2xl font-bold text-primary truncate">{shop.name}</h2>
-                <button onClick={() => openModal('editShop', { shop: shop })} className="button-secondary text-sm p-2 rounded-full aspect-square">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <button onClick={() => openModal('editShop', { shop: shop })} className="button-secondary text-sm p-2 rounded-full aspect-square flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 </button>
             </div>
             <div className="flex-shrink-0 p-2 overflow-x-auto border-b border-divider">
@@ -188,6 +187,7 @@ const ShopDetails: React.FC<Omit<ShopScreenProps, 'shops' | 'onSaveShop' | 'onDe
 
 export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...rest }) => {
     const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+    const { onDeleteShop } = rest;
 
     if (shops.length === 0) {
         return (
@@ -220,13 +220,26 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...res
             </div>
             <div className="flex-grow overflow-y-auto p-6 space-y-3">
                 {shops.map(shop => (
-                    <button key={shop.id} onClick={() => setSelectedShopId(shop.id)} className="w-full text-left p-4 bg-subtle rounded-lg flex justify-between items-center hover-bg-stronger transition-colors">
-                        <div>
-                            <p className="font-semibold text-primary">{shop.name}</p>
-                            <p className="text-xs text-secondary">{shop.type}</p>
+                    <div key={shop.id} onClick={() => setSelectedShopId(shop.id)} className="glass-card p-4 rounded-xl group cursor-pointer hover:bg-card-hover transition-colors animate-fadeInUp relative overflow-hidden">
+                        <div className="flex justify-between items-start mb-2">
+                             <div className="flex items-center gap-3 flex-grow min-w-0">
+                                <span className="text-3xl flex-shrink-0">🏪</span>
+                                <div className="flex-grow min-w-0">
+                                    <h3 className="text-lg font-bold text-primary truncate pr-2">{shop.name}</h3>
+                                    <p className="text-xs text-secondary">{shop.type.replace(/_/g, ' ')}</p>
+                                </div>
+                             </div>
+                             <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <button onClick={(e) => { e.stopPropagation(); openModal('editShop', { shop }); }} className="p-2 text-sky-400 hover:bg-sky-500/10 rounded-full" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                <button onClick={(e) => { e.stopPropagation(); onDeleteShop(shop.id); }} className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-full" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                             </div>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-                    </button>
+                        <div className="w-full h-px bg-divider my-3" />
+                        <div className="flex justify-between items-center text-sm">
+                             <span className="text-secondary">Currency</span>
+                             <span className="font-mono text-primary">{shop.currency}</span>
+                        </div>
+                    </div>
                 ))}
             </div>
         </div>

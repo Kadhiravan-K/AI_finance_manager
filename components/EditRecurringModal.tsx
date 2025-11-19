@@ -106,12 +106,12 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ recurringTransa
             </div>
              <div className="grid grid-cols-3 gap-2 items-end">
                 <span className="text-secondary text-sm self-center">Frequency: Every</span>
-                <input type="number" value={formData.interval} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(p => ({...p, interval: e.target.value}))} className="input-base w-full p-2 rounded-lg no-spinner" />
+                <input type="number" value={formData.interval} onWheel={e => (e.target as HTMLInputElement).blur()} onChange={e => setFormData(p => ({...p, interval: e.target.value}))} className="input-base w-full p-2 rounded-lg no-spinner" />
                 <CustomSelect options={frequencyOptions} value={formData.frequencyUnit} onChange={v => setFormData(p => ({...p, frequencyUnit: v as any}))} />
            </div>
            <div className="grid grid-cols-2 gap-4">
                 <div><label className="text-sm text-secondary mb-1 block">Account</label><CustomSelect options={accountOptions} value={formData.accountId} onChange={v => setFormData(p => ({...p, accountId: v}))} /></div>
-                <div><label className="text-sm text-secondary mb-1 block">Amount</label><input type="number" step="0.01" value={formData.amount} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(p => ({...p, amount: e.target.value}))} placeholder="Amount" className="input-base w-full p-2 rounded-lg no-spinner" required/></div>
+                <div><label className="text-sm text-secondary mb-1 block">Amount</label><input type="number" step="0.01" value={formData.amount} onWheel={e => (e.target as HTMLInputElement).blur()} onChange={e => setFormData(p => ({...p, amount: e.target.value}))} placeholder="Amount" className="input-base w-full p-2 rounded-lg no-spinner" required/></div>
            </div>
             <input type="text" value={formData.description} onChange={e => setFormData(p => ({...p, description: e.target.value}))} placeholder="Description (e.g., Rent)" className="input-base w-full p-2 rounded-lg" required autoFocus/>
             <div className="grid grid-cols-2 gap-4">
@@ -123,7 +123,7 @@ const EditRecurringModal: React.FC<EditRecurringModalProps> = ({ recurringTransa
                 {formData.reminders.map((reminder, index) => (
                     <div key={index} className="grid grid-cols-[auto_1fr_1fr_auto_auto] gap-2 items-center">
                         <span className="text-sm text-secondary">Remind</span>
-                        <input type="number" value={reminder.value} onWheel={e => e.currentTarget.blur()} onChange={e => handleReminderChange(index, 'value', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" />
+                        <input type="number" value={reminder.value} onWheel={e => (e.target as HTMLInputElement).blur()} onChange={e => handleReminderChange(index, 'value', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" />
                         <CustomSelect options={reminderUnitOptions} value={reminder.unit} onChange={v => handleReminderChange(index, 'unit', v)} />
                         <span className="text-sm text-secondary">before</span>
                         <button type="button" onClick={() => removeReminder(index)} className="text-rose-400 p-1">&times;</button>

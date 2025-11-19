@@ -219,7 +219,7 @@ const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
                                <div className="flex items-start gap-2">
                                    <div className="flex-grow grid grid-cols-[1fr_auto] gap-2">
                                        <input type="text" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder="Item Description" className="input-base p-2 rounded-md w-full" required />
-                                       <input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} placeholder="0.00" className="input-base p-2 rounded-md w-full no-spinner" required />
+                                       <input type="number" step="0.01" value={item.amount} onChange={e => handleItemChange(item.id, 'amount', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder="0.00" className="input-base p-2 rounded-md w-full no-spinner" required />
                                    </div>
                                    {items.length > 1 && <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-rose-400 hover:text-rose-300 rounded-full flex-shrink-0" aria-label="Remove item"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
                                </div>

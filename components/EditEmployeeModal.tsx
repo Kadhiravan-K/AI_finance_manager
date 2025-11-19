@@ -56,7 +56,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({ employee, onSave,
                         </div>
                         <div>
                             <label htmlFor="wage" className={labelStyle}>Wage (per hour)</label>
-                            <input id="wage" type="number" step="0.01" value={formData.wage} onChange={e => handleChange('wage', e.target.value)} className="input-base w-full p-2 rounded-lg no-spinner" required />
+                            <input id="wage" type="number" step="0.01" value={formData.wage} onChange={e => handleChange('wage', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} className="input-base w-full p-2 rounded-lg no-spinner" required />
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4">

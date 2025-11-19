@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
@@ -29,7 +30,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ onClose, notifi
           ) : (
             notifications.map(notification => (
               <div key={notification.id} className="p-3 bg-subtle rounded-lg flex items-start gap-4">
-                <div className="text-2xl mt-1">{notification.icon}</div>
+                <div className="text-2xl mt-1 flex-shrink-0">{notification.icon}</div>
                 <div>
                   <p className="font-semibold text-primary">{notification.title}</p>
                   <p className="text-sm text-secondary">{notification.message}</p>

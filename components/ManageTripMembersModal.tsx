@@ -16,10 +16,16 @@ interface ManageTripMembersModalProps {
 
 const ManageTripMembersModal: React.FC<ManageTripMembersModalProps> = ({ onClose, trip, onUpdateTrip }) => {
     const { contacts, contactGroups } = useContext(SettingsContext);
-    const [participants, setParticipants] = useState<TripParticipant[]>(trip.participants);
+    
+    // Add a guard to ensure context is loaded
+    if (!contacts || !contactGroups) {
+        return null;
+    }
+
+    const [participants, setParticipants] = useState<TripParticipant[]>(trip.participants || []);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     
-    const [tempSelected, setTempSelected] = useState(new Set(trip.participants.map(p => p.contactId)));
+    const [tempSelected, setTempSelected] = useState(new Set((trip.participants || []).map(p => p.contactId)));
 
     const handleSave = () => {
         onUpdateTrip({ ...trip, participants });

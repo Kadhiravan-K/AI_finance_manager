@@ -57,7 +57,7 @@ const BuyInvestmentModal: React.FC<BuyInvestmentModalProps> = ({ onClose, onSave
               </div>
               <div>
                 <label className={labelStyle}>Price per unit</label>
-                <input type="number" step="0.01" value={formData.price} onWheel={e => e.currentTarget.blur()} onChange={e => setFormData(f => ({...f, price: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3 no-spinner" required />
+                <input type="number" step="0.01" value={formData.price} onWheel={e => (e.target as HTMLInputElement).blur()} onChange={e => setFormData(f => ({...f, price: e.target.value}))} className="input-base w-full rounded-lg py-2 px-3 no-spinner" required />
               </div>
             </div>
              <div>
