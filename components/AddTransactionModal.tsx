@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import { Account, Contact, Transaction, TransactionType, ActiveModal, SpamWarning, ItemizedDetail, SplitDetail, ParsedTransactionData, Category, Sender, SenderType, USER_SELF_ID } from '../types';
 import { AppDataContext, SettingsContext } from '../contexts/SettingsContext';
-import { parseTransactionText } from '../services/geminiService';
+import { parseTransactionText, parseReceiptImage } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -47,7 +47,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   if (!settingsContext) {
       throw new Error("SettingsContext not found in AddTransactionModal");
   }
-  const { categories, settings, senders, setSenders } = settingsContext;
+  const { categories, settings, senders, setSenders, findOrCreateCategory } = settingsContext;
 
   const dataContext = useContext(AppDataContext);
   const formatCurrency = useCurrencyFormatter();
@@ -57,6 +57,8 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [isParsing, setIsParsing] = useState(false);
   const [spamWarning, setSpamWarning] = useState<SpamWarning | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || '');
+  const [attachedFile, setAttachedFile] = useState<{base64: string, mimeType: string, preview: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Manual Tab State
   const [isItemized, setIsItemized] = useState(isItemizedProp || false);
@@ -210,22 +212,107 @@ useEffect(() => {
   };
   const handleAddItem = () => setItems(prev => [...prev, { id: self.crypto.randomUUID(), description: '', amount: '', categoryId: '', parentId: null, splitDetails: [] }]);
   const handleRemoveItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            const base64Data = dataUrl.split(',')[1];
+            if (base64Data) {
+                setAttachedFile({ base64: base64Data, mimeType: file.type, preview: dataUrl });
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+    if (event.target) event.target.value = ''; // reset
+  };
 
   const handleParseText = async () => {
-    if (!autoText.trim() || !selectedAccountId) return;
+    if ((!autoText.trim() && !attachedFile) || !selectedAccountId) return;
     setIsParsing(true);
     setSpamWarning(null);
     try {
-      const parsedData = await parseTransactionText(autoText);
-      if (parsedData) {
-        if (parsedData.isSpam) {
-          setSpamWarning({ rawText: autoText, parsedData });
-        } else {
-          await onSaveAuto(parsedData, selectedAccountId);
-          onClose();
-        }
+      if (attachedFile) {
+          const receiptData = await parseReceiptImage(attachedFile.base64, attachedFile.mimeType);
+          if (receiptData) {
+             // Map receipt data to ParsedTransactionData
+             const categoryId = findOrCreateCategory('Shopping / General', TransactionType.EXPENSE);
+             const category = categories.find(c => c.id === categoryId);
+             
+             const itemizedDetails: ItemizedDetail[] = receiptData.lineItems.map(item => ({
+                 description: item.description,
+                 amount: item.amount,
+                 categoryId: categoryId,
+             }));
+
+             const parsedData: ParsedTransactionData = {
+                 id: self.crypto.randomUUID(),
+                 description: receiptData.merchantName,
+                 amount: receiptData.totalAmount,
+                 type: TransactionType.EXPENSE,
+                 categoryName: category?.name || 'Shopping',
+                 date: receiptData.transactionDate,
+                 isSpam: false,
+                 spamConfidence: 0,
+                 isForwarded: false,
+                 itemizedDetails: itemizedDetails.length > 0 ? itemizedDetails : undefined
+             };
+             
+             // If items are present, we might want to switch to manual edit mode to let user categorize items
+             // But for "Auto" mode, we just save. 
+             // Actually, let's allow editing if it's complex.
+             if (itemizedDetails.length > 0) {
+                  const manualTx: Partial<Transaction> = {
+                    description: parsedData.description,
+                    amount: parsedData.amount,
+                    date: parsedData.date,
+                    type: TransactionType.EXPENSE,
+                    accountId: selectedAccountId,
+                    itemizedDetails: itemizedDetails,
+                    categoryId: categoryId
+                 };
+                 // Switch to manual mode with data populated
+                 if (window.confirm("Receipt parsed! Do you want to review itemized details?")) {
+                    // Populate manual form
+                    setActiveTab('manual');
+                    setManualDescription(manualTx.description || '');
+                    setManualAmount(String(manualTx.amount));
+                    setManualDate(new Date(manualTx.date || Date.now()));
+                    setManualAccountId(selectedAccountId);
+                    setIsItemized(true);
+                    setItems(itemizedDetails.map(d => ({
+                        id: self.crypto.randomUUID(),
+                        description: d.description,
+                        amount: String(d.amount),
+                        categoryId: d.categoryId,
+                        parentId: category?.parentId || categoryId,
+                        splitDetails: []
+                    })));
+                    setAttachedFile(null); // Clear file
+                    setIsParsing(false);
+                    return;
+                 }
+             }
+             
+             await onSaveAuto(parsedData, selectedAccountId);
+             onClose();
+          } else {
+              alert("Could not parse receipt image.");
+          }
       } else {
-        alert("Could not understand the transaction from the text provided.");
+          const parsedData = await parseTransactionText(autoText);
+          if (parsedData) {
+            if (parsedData.isSpam) {
+              setSpamWarning({ rawText: autoText, parsedData });
+            } else {
+              await onSaveAuto(parsedData, selectedAccountId);
+              onClose();
+            }
+          } else {
+            alert("Could not understand the transaction from the text provided.");
+          }
       }
     } catch (error) {
       alert(error instanceof Error ? error.message : "An error occurred during parsing.");
@@ -367,18 +454,37 @@ useEffect(() => {
                 ) : (
                 <>
                     <p className="text-sm text-secondary">
-                    Paste a transaction SMS or type a simple phrase like "coffee for 500".
-                    The AI will do the rest.
+                    Paste a transaction SMS, type a phrase like "coffee for 500", or upload a bill/receipt image.
                     </p>
                     <textarea
                     value={autoText}
                     onChange={(e) => setAutoText(e.target.value)}
                     placeholder="e.g., INR 250 was spent on Amazon..."
-                    rows={5}
+                    rows={4}
                     className="w-full themed-textarea"
                     disabled={isParsing}
                     autoFocus
                     />
+                    
+                    {/* File Upload Area */}
+                     <div className="flex items-center gap-3">
+                        <button 
+                            type="button" 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="button-secondary px-3 py-2 flex items-center gap-2 text-sm"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                            Upload Bill
+                        </button>
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
+                        {attachedFile && (
+                            <div className="flex items-center gap-2 bg-subtle px-3 py-1 rounded-full border border-divider">
+                                <span className="text-xs text-primary max-w-[150px] truncate">Image attached</span>
+                                <button onClick={() => setAttachedFile(null)} className="text-rose-400 font-bold">&times;</button>
+                            </div>
+                        )}
+                    </div>
+
                     <div>
                     <label className="text-sm font-medium text-secondary mb-1">Account</label>
                     <CustomSelect
@@ -389,7 +495,7 @@ useEffect(() => {
                     </div>
                     <button
                     onClick={handleParseText}
-                    disabled={isParsing || !autoText.trim()}
+                    disabled={isParsing || (!autoText.trim() && !attachedFile)}
                     className="button-primary w-full py-2 flex items-center justify-center"
                     >
                     {isParsing ? <LoadingSpinner /> : 'Parse with AI'}

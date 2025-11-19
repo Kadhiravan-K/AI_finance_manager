@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useContext, useRef, useEffect } from 'react';
-import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType, TRIP_FUND_ID } from '../types';
+import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType, TRIP_FUND_ID, TripMessage } from '../types';
 import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
 import ModalHeader from './ModalHeader';
 import { calculateTripSummary } from '../utils/calculations';
@@ -12,6 +13,7 @@ import EmptyState from './EmptyState';
 import LoadingSpinner from './LoadingSpinner';
 import { generateAITripPlan } from '../services/geminiService';
 import CustomSelect from './CustomSelect';
+import TripSOSModal from './TripSOSModal';
 
 interface TripDetailsScreenProps {
   trip: Trip;
@@ -28,41 +30,174 @@ interface TripDetailsScreenProps {
 
 type TripTab = 'dashboard' | 'expenses' | 'plan' | 'settle' | 'notes' | 'chat' | 'history';
 
+const PowerSaverView: React.FC<{
+    trip: Trip;
+    onExit: () => void;
+    messages: TripMessage[];
+    onSendMessage: (msg: TripMessage) => void;
+    onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void;
+}> = ({ trip, onExit, messages, onSendMessage, onNavigate }) => {
+    const [battery, setBattery] = useState<{ level: number; charging: boolean } | null>(null);
+    const [activeView, setActiveView] = useState<'home' | 'chat' | 'notes'>('home');
+    const { notes } = useContext(AppDataContext);
+    const tripNotes = useMemo(() => (notes || []).filter(n => n.tripId === trip.id), [notes, trip.id]);
+
+    useEffect(() => {
+        const nav = navigator as any;
+        if (nav.getBattery) {
+            nav.getBattery().then((bat: any) => {
+                const updateBattery = () => {
+                    setBattery({ level: bat.level * 100, charging: bat.charging });
+                };
+                updateBattery();
+                bat.addEventListener('levelchange', updateBattery);
+                bat.addEventListener('chargingchange', updateBattery);
+                return () => {
+                    bat.removeEventListener('levelchange', updateBattery);
+                    bat.removeEventListener('chargingchange', updateBattery);
+                };
+            });
+        }
+    }, []);
+
+    const renderHome = () => (
+        <div className="space-y-6">
+            <div className="text-center space-y-2 border-b border-gray-800 pb-6">
+                <p className="text-gray-400 text-sm">POWER SAVER ACTIVE</p>
+                <div className="text-6xl font-mono font-bold text-emerald-500">
+                    {battery ? `${Math.round(battery.level)}%` : '--%'}
+                </div>
+                {battery?.charging && <p className="text-yellow-500 text-xs">⚡ CHARGING</p>}
+                <p className="text-xl font-bold text-white mt-2">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => setActiveView('chat')} className="p-6 border border-gray-800 rounded-none bg-black hover:bg-gray-900 transition-colors flex flex-col items-center gap-2">
+                    <span className="text-3xl">💬</span>
+                    <span className="font-mono text-emerald-500">CHAT</span>
+                </button>
+                <button onClick={() => setActiveView('notes')} className="p-6 border border-gray-800 rounded-none bg-black hover:bg-gray-900 transition-colors flex flex-col items-center gap-2">
+                    <span className="text-3xl">📝</span>
+                    <span className="font-mono text-emerald-500">NOTES</span>
+                </button>
+            </div>
+
+            <div className="p-4 border border-gray-800 bg-black text-gray-300 font-mono text-sm">
+                <p className="text-xs text-gray-500 mb-2">TRIP INFO</p>
+                <p>DEST: {trip.location || 'Unknown'}</p>
+                <p>MEMBERS: {trip.participants.length}</p>
+            </div>
+        </div>
+    );
+
+    const renderNotes = () => (
+        <div className="h-full flex flex-col">
+            <button onClick={() => setActiveView('home')} className="p-3 text-left text-emerald-500 font-mono border-b border-gray-800">
+                &lt; BACK
+            </button>
+            <div className="flex-grow overflow-y-auto p-4 space-y-2">
+                {tripNotes.length === 0 && <p className="text-gray-500 text-center mt-10 font-mono">NO NOTES FOUND</p>}
+                {tripNotes.map(note => (
+                    <div key={note.id} className="p-3 border border-gray-800 bg-black">
+                        <p className="font-bold text-white font-mono">{note.icon} {note.title}</p>
+                        <div className="text-gray-400 text-sm mt-1 font-mono whitespace-pre-wrap">
+                            {typeof note.content === 'string' ? note.content : `${(note.content as any[]).length} items`}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    // Simplified Chat Wrapper to override styles
+    const renderChat = () => (
+        <div className="h-full flex flex-col relative bg-black">
+            <button onClick={() => setActiveView('home')} className="p-3 text-left text-emerald-500 font-mono border-b border-gray-800 flex-shrink-0">
+                &lt; BACK
+            </button>
+            <div className="flex-grow relative isolate">
+                {/* Force high contrast styles via wrapper class logic or inline overrides */}
+                <div className="absolute inset-0 [&_.bg-subtle]:bg-black [&_.bg-subtle]:border [&_.bg-subtle]:border-gray-800 [&_.text-primary]:text-white [&_.text-secondary]:text-gray-400 [&_input]:bg-gray-900 [&_input]:text-white [&_input]:border-gray-700">
+                    <TripChat trip={trip} messages={messages} onSendMessage={onSendMessage} />
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black text-white flex flex-col">
+            {activeView === 'home' ? (
+                <>
+                    <div className="flex-grow p-6 flex flex-col justify-center max-w-md mx-auto w-full">
+                        {renderHome()}
+                    </div>
+                    <button 
+                        onClick={onExit}
+                        className="p-6 bg-gray-900 text-white font-bold tracking-widest border-t border-gray-800 hover:bg-gray-800 transition-colors"
+                    >
+                        EXIT POWER SAVER
+                    </button>
+                </>
+            ) : (
+                activeView === 'chat' ? renderChat() : renderNotes()
+            )}
+        </div>
+    );
+};
 
 const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, categories, onAddExpense, onEditExpense, onDeleteExpense, onBack, onUpdateTrip, openModal, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<TripTab>('dashboard');
-  const dataContext = useContext(AppDataContext);
-  
+  const { tripMessages, setTripMessages } = useContext(AppDataContext);
+  const [isSOSOpen, setIsSOSOpen] = useState(false);
+  const [isPowerSaver, setIsPowerSaver] = useState(false);
+
   const TabButton = ({ tab, label }: { tab: TripTab; label: string }) => (
     <button onClick={() => setActiveTab(tab)} className={`trip-details-tab px-4 font-semibold text-sm ${activeTab === tab ? 'active' : ''}`}>
       {label}
     </button>
   );
 
+  const sosAction = {
+      icon: <span className="text-xl">🆘</span>,
+      onClick: () => setIsSOSOpen(true),
+      label: "SOS Mode"
+  };
+
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <TripDashboard trip={trip} expenses={expenses} categories={categories} openModal={openModal} onUpdateTrip={onUpdateTrip} />;
+      case 'dashboard': return <TripDashboard trip={trip} expenses={expenses} categories={categories} openModal={openModal} onUpdateTrip={onUpdateTrip} onEnablePowerSaver={() => setIsPowerSaver(true)} />;
       case 'expenses': return <TripExpensesList expenses={expenses} categories={categories} onEditExpense={onEditExpense} currency={trip.currency} />;
       case 'plan': return <TripPlanView trip={trip} onUpdateTrip={onUpdateTrip} categories={categories} openModal={openModal} />;
       case 'settle': return <TripSettleView trip={trip} expenses={expenses} />;
       case 'notes': return <TripNotesView trip={trip} onNavigate={onNavigate} />;
-      case 'chat': return <TripChat />;
+      case 'chat': return <TripChat trip={trip} messages={tripMessages.filter(m => m.tripId === trip.id)} onSendMessage={(msg) => setTripMessages(prev => [...prev, msg])} />;
       case 'history': return <TripHistory trip={trip} expenses={expenses} />;
       default: return null;
     }
   };
 
+  if (isPowerSaver) {
+      return <PowerSaverView 
+        trip={trip} 
+        onExit={() => setIsPowerSaver(false)} 
+        messages={tripMessages.filter(m => m.tripId === trip.id)} 
+        onSendMessage={(msg) => setTripMessages(prev => [...prev, msg])}
+        onNavigate={onNavigate}
+      />;
+  }
+
   return (
     <div className="h-full flex flex-col">
-      <ModalHeader title={trip.name} onBack={onBack} onClose={onBack} icon="✈️" onSettingsClick={() => openModal('editTrip', { trip })} />
+      <ModalHeader title={trip.name} onBack={onBack} onClose={onBack} icon="✈️" onSettingsClick={() => openModal('editTrip', { trip })} secondaryAction={sosAction} />
+      {isSOSOpen && <TripSOSModal onClose={() => setIsSOSOpen(false)} />}
       <div className="trip-details-tabs-container">
         <div className="flex">
           <TabButton tab="dashboard" label="Dashboard" />
+          <TabButton tab="chat" label="Comms" />
           <TabButton tab="expenses" label="Expenses" />
           <TabButton tab="plan" label="Plan" />
           <TabButton tab="settle" label="Settle" />
           <TabButton tab="notes" label="Notes" />
-          <TabButton tab="chat" label="Chat" />
           <TabButton tab="history" label="History" />
         </div>
       </div>
@@ -77,7 +212,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ trip, expenses, c
 };
 
 
-const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories: Category[]; openModal: (name: ActiveModal, props?: any) => void; onUpdateTrip: (trip: Trip) => void; }> = ({ trip, expenses, categories, openModal, onUpdateTrip }) => {
+const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories: Category[]; openModal: (name: ActiveModal, props?: any) => void; onUpdateTrip: (trip: Trip) => void; onEnablePowerSaver: () => void; }> = ({ trip, expenses, categories, openModal, onUpdateTrip, onEnablePowerSaver }) => {
     const formatCurrency = useCurrencyFormatter(undefined, trip.currency);
     const totalSpent = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
     const budgetRemaining = trip.budget ? trip.budget - totalSpent : null;
@@ -94,6 +229,13 @@ const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories:
     
     return (
         <div className="p-4 space-y-4">
+            <button 
+                onClick={onEnablePowerSaver} 
+                className="w-full py-2 px-4 bg-emerald-900/30 border border-emerald-800 text-emerald-400 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-emerald-900/50 transition-colors"
+            >
+                ⚡ Enable Power Saver Mode
+            </button>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Total Spent</p><p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p></div>
                 <div className="p-3 bg-subtle rounded-lg text-center"><p className="text-xs text-secondary">Trip Budget</p><p className="text-lg font-bold text-primary">{trip.budget ? formatCurrency(trip.budget) : 'Not Set'}</p></div>

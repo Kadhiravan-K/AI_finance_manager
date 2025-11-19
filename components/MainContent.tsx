@@ -286,4 +286,3 @@ const MainContent: React.FC<MainContentProps> = (props) => {
 };
 
 export default MainContent;
-    

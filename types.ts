@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 // Using placeholder credentials for local development.
@@ -143,12 +144,24 @@ export interface TripDayPlan {
 export interface Trip {
     id: string;
     name: string;
+    location?: string;
     date: string; // ISO string
     participants: TripParticipant[];
     currency: string;
     budget?: number;
     plan?: TripDayPlan[];
     advances?: { contactId: string, amount: number }[];
+}
+
+export interface TripMessage {
+    id: string;
+    tripId: string;
+    senderId: string;
+    senderName: string;
+    text?: string;
+    audioData?: string; // Base64 encoded audio
+    timestamp: string;
+    type: 'text' | 'audio';
 }
 
 export interface Contact {
@@ -165,8 +178,11 @@ export interface ContactGroup {
 
 export enum ShopType {
     PHYSICAL_RETAIL = 'physical_retail',
+    WHOLESALE = 'wholesale',
     ONLINE_STORE = 'online_store',
     SERVICE_BUSINESS = 'service_business',
+    SERVICE_REPAIR = 'service_repair',
+    SERVICE_XEROX = 'service_xerox',
     RESTAURANT_CAFE = 'restaurant_cafe',
 }
 
@@ -199,7 +215,7 @@ export interface ShopProduct {
 export interface ShopSale {
     id: string;
     shopId: string;
-    items: { productId: string; quantity: number; price: number }[];
+    items: { productId: string; quantity: number; price: number; name?: string }[]; // Added optional name for custom items
     totalAmount: number;
     profit: number;
     date: string; // ISO string
@@ -305,7 +321,8 @@ export type ActiveModal =
   | 'miniCalculator' | 'trustBin' | 'contacts' | 'editContactGroup'
   | 'editContact' | 'editGlossaryEntry' | 'shareGuide' | 'aiHub'
   | 'buyInvestment' | 'sellInvestment' | 'updateInvestment'
-  | 'splitTransaction' | 'feedback' | 'manageTools' | 'manageAdvances';
+  | 'splitTransaction' | 'feedback' | 'manageTools' | 'manageAdvances'
+  | 'tripSOS';
 
 export interface ModalState {
   name: ActiveModal;
@@ -479,6 +496,7 @@ export interface AppState {
   contactGroups: ContactGroup[];
   trips: Trip[];
   tripExpenses: TripExpense[];
+  tripMessages: TripMessage[];
   shops: Shop[];
   shopProducts: ShopProduct[];
   shopSales: ShopSale[];
@@ -526,6 +544,7 @@ export interface ParsedTransactionData {
   spamConfidence: number;
   senderName?: string;
   isForwarded: boolean;
+  itemizedDetails?: ItemizedDetail[];
 }
 
 export interface SpamWarning {

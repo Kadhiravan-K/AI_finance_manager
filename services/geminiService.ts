@@ -476,6 +476,7 @@ const tripDetailsSchema = {
     type: Type.OBJECT,
     properties: {
         tripName: { type: Type.STRING, description: "A concise and descriptive name for the trip, like 'Goa Vacation' or 'Team Offsite'." },
+        location: { type: Type.STRING, description: "The primary destination or location of the trip, e.g., 'Goa, India', 'Paris, France'. Identify this from the text using available context." },
         participants: { 
             type: Type.ARRAY, 
             items: { type: Type.STRING },
@@ -489,7 +490,7 @@ const tripDetailsSchema = {
     required: ["tripName", "participants"]
 };
 
-export async function parseTripCreationText(text: string): Promise<{ tripName: string; participants: string[]; plan?: TripDayPlan[] } | null> {
+export async function parseTripCreationText(text: string): Promise<{ tripName: string; location?: string; participants: string[]; plan?: TripDayPlan[] } | null> {
   if (!text) throw new Error("Input text cannot be empty.");
   
   try {
@@ -498,11 +499,12 @@ export async function parseTripCreationText(text: string): Promise<{ tripName: s
       contents: [{
         parts: [{ text: `You are an expert at parsing trip details and creating itineraries. Analyze the following text. 
 1. Extract a trip name.
-2. Extract a list of participants. The user inputting the text is also a participant but should NOT be included in this list.
-3. If the user uses words like "plan", "suggest", or "itinerary", generate a detailed, structured plan for the trip, including specific times and meals like breakfast, lunch, and dinner.
+2. Identify the location/destination using Google Maps data if possible, or best inference.
+3. Extract a list of participants. The user inputting the text is also a participant but should NOT be included in this list.
+4. If the user uses words like "plan", "suggest", or "itinerary", generate a detailed, structured plan for the trip, including specific times and meals like breakfast, lunch, and dinner.
 Text: "${text}"`}]
       }],
-      config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema },
+      config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema, tools: [{ googleMaps: {} }] },
     });
     
     let result;
@@ -521,6 +523,7 @@ Text: "${text}"`}]
         })) : undefined;
       return {
         tripName: result.tripName,
+        location: result.location,
         participants: result.participants || [],
         plan
       };
@@ -537,6 +540,7 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
 
     const fullPrompt = `You are an expert travel agent. A user needs a trip plan. 
     Analyze their request and generate a structured plan with a day-by-day itinerary. Include specific times and meals (breakfast, lunch, dinner).
+    Use Google Maps to find real, top-rated places, restaurants, and activities for the itinerary.
     ${existingPlan ? `They have an existing plan they might want to modify. Existing Plan:\n${JSON.stringify(existingPlan)}` : ''}
     User's Request: "${prompt}"`;
     
@@ -544,7 +548,11 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [{ parts: [{ text: fullPrompt }] }],
-            config: { responseMimeType: "application/json", responseSchema: structuredPlanSchema },
+            config: { 
+                responseMimeType: "application/json", 
+                responseSchema: structuredPlanSchema,
+                tools: [{ googleMaps: {} }]
+            },
         });
         
         let result;

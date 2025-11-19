@@ -1,5 +1,3 @@
-
-
 import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
 import { Trip, Contact, TripParticipant, ContactGroup, TripDayPlan, USER_SELF_ID } from '../types';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -43,6 +41,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   const [planResult, setPlanResult] = useState<TripDayPlan[] | undefined>(trip?.plan || undefined);
   
   const [name, setName] = useState(trip?.name || '');
+  const [location, setLocation] = useState(trip?.location || '');
   const [currency, setCurrency] = useState(trip?.currency || settings.currency);
   const [budget, setBudget] = useState(trip?.budget?.toString() || '');
   const [showParticipantPicker, setShowParticipantPicker] = useState(false);
@@ -122,6 +121,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
         const result = await parseTripCreationText(aiText);
         if (result) {
             setName(result.tripName);
+            if (result.location) setLocation(result.location);
             setPlanResult(result.plan || undefined);
             
             const lowerCaseContacts = contacts.map(c => ({...c, lowerName: c.name.toLowerCase()}));
@@ -153,7 +153,14 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && participants.length > 0) {
-      onSave({ name: name.trim(), participants, currency, plan: planResult, budget: parseFloat(budget) || undefined }, trip?.id);
+      onSave({ 
+          name: name.trim(), 
+          location: location.trim() || undefined,
+          participants, 
+          currency, 
+          plan: planResult, 
+          budget: parseFloat(budget) || undefined 
+      }, trip?.id);
       onClose();
     }
   };
@@ -305,6 +312,14 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
                 <input
                 type="text" value={name} onChange={e => setName(e.target.value)}
                 className="w-full input-base p-2 rounded-md" required autoFocus={!isCreating}
+                />
+            </div>
+            <div>
+                <label className="text-sm text-secondary mb-1 block">Location (Optional)</label>
+                <input
+                type="text" value={location} onChange={e => setLocation(e.target.value)}
+                placeholder="e.g. Paris, France"
+                className="w-full input-base p-2 rounded-md"
                 />
             </div>
             <div className="grid grid-cols-2 gap-4">

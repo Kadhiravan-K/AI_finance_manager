@@ -8,7 +8,8 @@ import {
   CalendarEvent,
   Settlement,
   Priority,
-  ChecklistItem
+  ChecklistItem,
+  TripMessage
 } from '../types';
 import { AppDataContext, DEFAULT_SETTINGS } from '../contexts/SettingsContext';
 import { DEFAULT_CATEGORIES } from '../utils/categories';
@@ -103,6 +104,7 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   ]);
   const [trips, setTrips] = useLocalStorage<Trip[]>('trips', []);
   const [tripExpenses, setTripExpenses] = useLocalStorage<TripExpense[]>('tripExpenses', []);
+  const [tripMessages, setTripMessages] = useLocalStorage<TripMessage[]>('tripMessages', []);
   const [shops, setShops] = useLocalStorage<Shop[]>('shops', []);
   const [shopProducts, setShopProducts] = useLocalStorage<ShopProduct[]>('shopProducts', []);
   const [shopSales, setShopSales] = useLocalStorage<ShopSale[]>('shopSales', []);
@@ -545,12 +547,12 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
     isLoading,
     profile,
     // Full AppState
-    settings, transactions, accounts, categories, budgets, goals, recurringTransactions, investmentHoldings, contacts, contactGroups, trips, tripExpenses, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, debts, notes, glossaryEntries, unlockedAchievements, challenges, streaks, invoices, payees, senders,
+    settings, transactions, accounts, categories, budgets, goals, recurringTransactions, investmentHoldings, contacts, contactGroups, trips, tripExpenses, tripMessages, shops, shopProducts, shopSales, shopEmployees, shopShifts, refunds, settlements, debts, notes, glossaryEntries, unlockedAchievements, challenges, streaks, invoices, payees, senders,
     customCalendarEvents,
     financialProfile,
     trustBin,
     // Setters
-    setSettings, setFinancialProfile, setTransactions, setAccounts, setCategories, setBudgets, setGoals, setRecurringTransactions, setInvestmentHoldings, setContacts, setContactGroups, setTrips, setTripExpenses, setShops, setShopProducts, setShopSales, setShopEmployees, setShopShifts, setRefunds, setSettlements, setDebts, setNotes, setGlossaryEntries, setUnlockedAchievements, setChallenges, setStreaks, setInvoices, setPayees, setSenders, setCustomCalendarEvents,
+    setSettings, setFinancialProfile, setTransactions, setAccounts, setCategories, setBudgets, setGoals, setRecurringTransactions, setInvestmentHoldings, setContacts, setContactGroups, setTrips, setTripExpenses, setTripMessages, setShops, setShopProducts, setShopSales, setShopEmployees, setShopShifts, setRefunds, setSettlements, setDebts, setNotes, setGlossaryEntries, setUnlockedAchievements, setChallenges, setStreaks, setInvoices, setPayees, setSenders, setCustomCalendarEvents,
     // Business Logic
     saveSettings,
     saveAccount,

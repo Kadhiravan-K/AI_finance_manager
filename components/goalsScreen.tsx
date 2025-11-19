@@ -311,4 +311,3 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ goals, onSaveGoal, accounts, 
 };
 
 export default GoalsScreen;
-    

@@ -49,7 +49,8 @@ const TripManagementScreen: React.FC<TripManagementScreenProps> = ({ trips, trip
                          <span className="text-3xl flex-shrink-0">✈️</span>
                          <div className="flex-grow min-w-0">
                             <h3 className="text-lg font-bold text-primary truncate pr-2">{trip.name}</h3>
-                            <p className="text-xs text-secondary mt-0.5 flex items-center gap-1">
+                            <p className="text-xs text-secondary mt-0.5 flex flex-wrap items-center gap-1">
+                                {trip.location && <span className="font-semibold text-accent-sky">{trip.location} •</span>}
                                 <span>📅 {new Date(trip.date).toLocaleDateString()}</span>
                                 <span>•</span>
                                 <span>👥 {trip.participants.length} members</span>

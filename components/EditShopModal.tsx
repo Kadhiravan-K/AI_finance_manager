@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { Shop, ShopType, BusinessType } from '../types';
@@ -43,7 +44,17 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, onSave, onCancel })
     };
     
     const currencyOptions = useMemo(() => currencies.map(c => ({ value: c.code, label: `${c.code} - ${c.name}`})), []);
-    const shopTypeOptions = useMemo(() => Object.entries(ShopType).map(([key, value]) => ({ value: String(value), label: key.replace(/_/g, ' ') })), []);
+    
+    const shopTypeOptions = useMemo(() => [
+        { value: ShopType.PHYSICAL_RETAIL, label: 'Retail Store' },
+        { value: ShopType.WHOLESALE, label: 'Wholesale / Distribution' },
+        { value: ShopType.ONLINE_STORE, label: 'Online Store' },
+        { value: ShopType.SERVICE_BUSINESS, label: 'Service Based (Generic)' },
+        { value: ShopType.SERVICE_REPAIR, label: 'Repair Shop (Parts & Labor)' },
+        { value: ShopType.SERVICE_XEROX, label: 'Xerox / Printing / Browsing' },
+        { value: ShopType.RESTAURANT_CAFE, label: 'Restaurant / Cafe' },
+    ], []);
+
     const businessTypeOptions = useMemo(() => Object.entries(BusinessType).map(([key, value]) => ({ value: String(value), label: value })), []);
 
     return ReactDOM.createPortal(
