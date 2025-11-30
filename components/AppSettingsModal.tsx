@@ -1,5 +1,4 @@
 
-
 import React, { useContext, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { SettingsContext, DEFAULT_SETTINGS } from '../contexts/SettingsContext';
@@ -150,8 +149,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
                 <div><label className="text-sm font-medium text-secondary mb-1">Default Currency</label><CustomSelect options={currencyOptions} value={settings.currency} onChange={handleCurrencyChange} /></div>
                 <div>
                   <label className="text-sm font-medium text-secondary mb-1">Language</label>
-                  <CustomSelect options={languageOptions} value={settings.language || 'en'} onChange={handleLanguageChange} disabled={true} />
-                  <p className="text-xs text-tertiary mt-2">Language selection is a feature planned for a future update.</p>
+                  <CustomSelect options={languageOptions} value={settings.language || 'en'} onChange={handleLanguageChange} />
                 </div>
             </div>
             

@@ -1,3 +1,4 @@
+
 import React, { useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { SettingsContext } from '../contexts/SettingsContext';
@@ -47,7 +48,7 @@ const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ onClose }) => {
                     </button>
                 </div>
                  <p className="text-xs text-tertiary mt-3 pt-3 border-t border-divider">
-                    Connect your Google Calendar to automatically add due dates for scheduled payments and expected refund dates as events. This is a demo and does not connect to a real Google account.
+                    Automatically sync due dates for scheduled payments, expected refunds, and trip itineraries to your Google Calendar.
                 </p>
             </div>
         </div>

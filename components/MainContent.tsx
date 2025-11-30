@@ -4,7 +4,7 @@ import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, Recurring
 import FinanceDisplay from './FinanceDisplay';
 import { ReportsScreen } from './ReportsScreen';
 import BudgetsScreen from './BudgetsScreen';
-import GoalsScreen from './goalsScreen';
+import GoalsScreen from './GoalsScreen';
 import InvestmentsScreen from './InvestmentsScreen';
 import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
 import MoreScreen from './More';

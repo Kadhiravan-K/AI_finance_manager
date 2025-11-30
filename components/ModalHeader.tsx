@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface ModalHeaderProps {
@@ -16,37 +17,37 @@ interface ModalHeaderProps {
 const ModalHeader: React.FC<ModalHeaderProps> = ({ title, onClose, onBack, icon, onSettingsClick, secondaryAction }) => {
   return (
     <div className="p-4 border-b border-divider flex-shrink-0 flex items-center justify-between relative themed-header sticky top-0 z-10 h-[69px]">
-      <div className="absolute left-2 top-1/2 -translate-y-1/2">
+      <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center z-20">
         {onBack && (
-          <button onClick={onBack} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor">
+          <button onClick={onBack} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
         )}
       </div>
       
-      <div className="flex-grow flex items-center justify-center gap-2 text-center px-12 min-w-0">
-          {icon && <span className="text-2xl">{icon}</span>}
+      <div className="flex-grow flex items-center justify-center gap-2 text-center px-12 min-w-0 w-full">
+          {icon && <span className="text-2xl flex-shrink-0">{icon}</span>}
           <h2 className="text-xl font-bold text-primary truncate">{title}</h2>
       </div>
 
-       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-20 flex-shrink-0">
         {secondaryAction && (
-          <button onClick={secondaryAction.onClick} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors" aria-label={secondaryAction.label} title={secondaryAction.label}>
+          <button onClick={secondaryAction.onClick} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors flex-shrink-0" aria-label={secondaryAction.label} title={secondaryAction.label}>
               {typeof secondaryAction.icon === 'string' ? <span className="text-xl">{secondaryAction.icon}</span> : secondaryAction.icon}
           </button>
         )}
         {onSettingsClick && (
-            <button onClick={onSettingsClick} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors" aria-label="Open settings">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
+            <button onClick={onSettingsClick} className="p-2 text-secondary hover:text-primary hover:bg-subtle rounded-full transition-colors flex-shrink-0" aria-label="Open settings">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
             </button>
         )}
-        <button onClick={onClose} className="p-2 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors close-button">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor">
+        <button onClick={onClose} className="p-2 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors close-button flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </button>

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { TransactionType, Transaction, AppState, ParsedTransactionData, ParsedTripExpense, ShopSale, ShopProduct, ParsedReceiptData, FinancialScenarioResult, IdentifiedSubscription, Category, PersonalizedChallenge, ProactiveInsight, TripDayPlan, GlossaryEntry } from "../types";
 
@@ -499,12 +500,12 @@ export async function parseTripCreationText(text: string): Promise<{ tripName: s
       contents: [{
         parts: [{ text: `You are an expert at parsing trip details and creating itineraries. Analyze the following text. 
 1. Extract a trip name.
-2. Identify the location/destination using Google Maps data if possible, or best inference.
+2. Identify the location/destination.
 3. Extract a list of participants. The user inputting the text is also a participant but should NOT be included in this list.
 4. If the user uses words like "plan", "suggest", or "itinerary", generate a detailed, structured plan for the trip, including specific times and meals like breakfast, lunch, and dinner.
 Text: "${text}"`}]
       }],
-      config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema, tools: [{ googleMaps: {} }] },
+      config: { responseMimeType: "application/json", responseSchema: tripDetailsSchema },
     });
     
     let result;
@@ -540,7 +541,7 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
 
     const fullPrompt = `You are an expert travel agent. A user needs a trip plan. 
     Analyze their request and generate a structured plan with a day-by-day itinerary. Include specific times and meals (breakfast, lunch, dinner).
-    Use Google Maps to find real, top-rated places, restaurants, and activities for the itinerary.
+    Suggest real places and activities based on your knowledge.
     ${existingPlan ? `They have an existing plan they might want to modify. Existing Plan:\n${JSON.stringify(existingPlan)}` : ''}
     User's Request: "${prompt}"`;
     
@@ -550,8 +551,7 @@ export async function generateAITripPlan(prompt: string, existingPlan?: TripDayP
             contents: [{ parts: [{ text: fullPrompt }] }],
             config: { 
                 responseMimeType: "application/json", 
-                responseSchema: structuredPlanSchema,
-                tools: [{ googleMaps: {} }]
+                responseSchema: structuredPlanSchema
             },
         });
         
