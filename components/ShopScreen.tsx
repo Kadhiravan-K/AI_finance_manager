@@ -30,12 +30,13 @@ interface ShopScreenProps {
 type ShopDetailsTab = 'billing' | 'products' | 'invoices' | 'analytics' | 'employees';
 
 const InvoicesList: React.FC<{ shop: Shop; openModal: (name: ActiveModal, props?: any) => void }> = ({ shop, openModal }) => {
-    const { invoices } = useContext(AppDataContext);
-    const { contacts } = useContext(SettingsContext);
+    // Fix: Explicitly cast context to resolve type inference issues that lead to 'unknown' errors.
+    const { invoices } = (useContext(AppDataContext) || {}) as { invoices: Invoice[] };
+    const { contacts } = (useContext(SettingsContext) || {}) as { contacts: any[] };
     const formatCurrency = useCurrencyFormatter(undefined, shop.currency);
 
     const shopInvoices = useMemo(() => (invoices || []).filter(inv => inv.shopId === shop.id), [invoices, shop.id]);
-    const contactMap = useMemo(() => new Map(contacts.map(c => [c.id, c.name])), [contacts]);
+    const contactMap = useMemo(() => new Map((contacts || []).map(c => [c.id, c.name])), [contacts]);
 
     const statusColors: Record<Invoice['status'], string> = {
         [InvoiceStatus.DRAFT]: 'bg-slate-500', 
@@ -46,7 +47,8 @@ const InvoicesList: React.FC<{ shop: Shop; openModal: (name: ActiveModal, props?
     
     return (
         <div className="space-y-3">
-             {shopInvoices.map(invoice => (
+             {/* Fix: Explicitly cast to any[] or Invoice[] to ensure the map result is assignable to ReactNode. */}
+             {(shopInvoices as Invoice[]).map((invoice: Invoice) => (
                 <div key={invoice.id} className="p-3 bg-subtle rounded-lg group">
                     <div className="flex justify-between items-start">
                         <div className="flex-grow min-w-0 pr-2">
@@ -220,7 +222,7 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ shops, openModal, ...res
             </div>
             <div className="flex-grow overflow-y-auto p-6 space-y-3">
                 {shops.map(shop => (
-                    <div key={shop.id} onClick={() => setSelectedShopId(shop.id)} className="glass-card p-4 rounded-xl group cursor-pointer hover:bg-card-hover transition-colors animate-fadeInUp relative overflow-hidden">
+                    <div key={shop.id} onClick={() => setSelectedShopId(shop.id)} className="glass-card p-4 rounded-xl group cursor-pointer hover-bg-stronger transition-colors animate-fadeInUp relative overflow-hidden">
                         <div className="flex justify-between items-start mb-2">
                              <div className="flex items-center gap-3 flex-grow min-w-0">
                                 <span className="text-3xl flex-shrink-0">🏪</span>

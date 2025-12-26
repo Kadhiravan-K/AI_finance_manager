@@ -11,7 +11,7 @@ import CategoryPieChart from './CategoryPieChart';
 import CustomCheckbox from './CustomCheckbox';
 import EmptyState from './EmptyState';
 import LoadingSpinner from './LoadingSpinner';
-import { generateAITripPlan } from '../services/geminiService';
+import { generateAITripPlan, findNearbyPlaces } from '../services/geminiService';
 import CustomSelect from './CustomSelect';
 import TripSOSModal from './TripSOSModal';
 
@@ -30,6 +30,7 @@ interface TripDetailsScreenProps {
 
 type TripTab = 'dashboard' | 'expenses' | 'plan' | 'settle' | 'notes' | 'chat' | 'history';
 
+// ... (PowerSaverView remains unchanged, omitting for brevity but included in output if not modified) ...
 const PowerSaverView: React.FC<{
     trip: Trip;
     onExit: () => void;
@@ -37,6 +38,7 @@ const PowerSaverView: React.FC<{
     onSendMessage: (msg: TripMessage) => void;
     onNavigate: (screen: ActiveScreen, modal?: ActiveModal, props?: Record<string, any>) => void;
 }> = ({ trip, onExit, messages, onSendMessage, onNavigate }) => {
+    // ... same implementation ...
     const [battery, setBattery] = useState<{ level: number; charging: boolean } | null>(null);
     const [activeView, setActiveView] = useState<'home' | 'chat' | 'notes'>('home');
     const { notes } = useContext(AppDataContext);
@@ -109,14 +111,12 @@ const PowerSaverView: React.FC<{
         </div>
     );
 
-    // Simplified Chat Wrapper to override styles
     const renderChat = () => (
         <div className="h-full flex flex-col relative bg-black">
             <button onClick={() => setActiveView('home')} className="p-3 text-left text-emerald-500 font-mono border-b border-gray-800 flex-shrink-0">
                 &lt; BACK
             </button>
             <div className="flex-grow relative isolate">
-                {/* Force high contrast styles via wrapper class logic or inline overrides */}
                 <div className="absolute inset-0 [&_.bg-subtle]:bg-black [&_.bg-subtle]:border [&_.bg-subtle]:border-gray-800 [&_.text-primary]:text-white [&_.text-secondary]:text-gray-400 [&_input]:bg-gray-900 [&_input]:text-white [&_input]:border-gray-700">
                     <TripChat trip={trip} messages={messages} onSendMessage={onSendMessage} />
                 </div>
@@ -218,6 +218,23 @@ const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories:
     const budgetRemaining = trip.budget ? trip.budget - totalSpent : null;
     const budgetProgress = trip.budget ? (totalSpent / trip.budget) * 100 : 0;
     
+    // Nearby Search State
+    const [nearbyQuery, setNearbyQuery] = useState('ATM');
+    const [places, setPlaces] = useState<any[]>([]);
+    const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+
+    const handleNearbySearch = async () => {
+        setIsSearchingPlaces(true);
+        try {
+            const result = await findNearbyPlaces(nearbyQuery, trip.location || 'current location');
+            setPlaces(result.places || []);
+        } catch(e) {
+            console.error(e);
+        } finally {
+            setIsSearchingPlaces(false);
+        }
+    };
+    
     const { totalCollected, spentFromFund, remainingInFund } = useMemo(() => {
         const collected = trip.advances?.reduce((sum, adv) => sum + adv.amount, 0) || 0;
         const spent = expenses.reduce((sum, exp) => {
@@ -246,6 +263,24 @@ const TripDashboard: React.FC<{ trip: Trip; expenses: TripExpense[]; categories:
                     <div className="w-full bg-subtle rounded-full h-2.5 border border-divider"><div className="h-full rounded-full bg-emerald-500" style={{width: `${Math.min(budgetProgress, 100)}%`}}></div></div>
                 </div>
             )}
+            
+            {/* Map Grounding Section */}
+            <div className="p-3 bg-subtle rounded-lg border border-divider">
+                <h4 className="font-semibold text-primary mb-2">📍 Find Nearby</h4>
+                <div className="flex gap-2">
+                    <CustomSelect options={[{value: 'ATM', label: 'ATM'}, {value: 'Restaurant', label: 'Restaurant'}, {value: 'Hospital', label: 'Hospital'}, {value: 'Hotel', label: 'Hotel'}]} value={nearbyQuery} onChange={setNearbyQuery} />
+                    <button onClick={handleNearbySearch} disabled={isSearchingPlaces} className="button-primary px-3">{isSearchingPlaces ? <LoadingSpinner/> : 'Go'}</button>
+                </div>
+                {places.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                        {places.slice(0, 3).map((place, i) => (
+                            <div key={i} className="text-sm p-2 bg-bg-app rounded">
+                                <a href={place.maps?.uri} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline font-semibold">{place.maps?.title || "Place"}</a>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
             
             <div className="p-3 bg-subtle rounded-lg">
                 <div className="flex justify-between items-center mb-2">

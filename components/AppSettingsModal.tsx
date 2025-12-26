@@ -5,9 +5,8 @@ import { SettingsContext, DEFAULT_SETTINGS } from '../contexts/SettingsContext';
 import { currencies } from '../utils/currency';
 import ModalHeader from './ModalHeader';
 import CustomSelect from './CustomSelect';
-import { AppState, Theme, TrustBinDeletionPeriodUnit, ActiveScreen } from '../types';
+import { AppState, Theme, TrustBinDeletionPeriodUnit } from '../types';
 import { createBackup, restoreBackup } from '../utils/backup';
-import ToggleSwitch from './ToggleSwitch';
 import ConfirmationDialog from './ConfirmationDialog';
 
 const modalRoot = document.getElementById('modal-root')!;
@@ -80,7 +79,6 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
               }
           }
       }
-      // Reset file input
       if(fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -130,8 +128,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="glass-card rounded-xl shadow-2xl w-full max-w-md p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
           <ModalHeader title="App Settings" onClose={onClose} icon="⚙️" />
-          <div className="p-6 space-y-6 overflow-y-auto">
-            {/* Appearance Section */}
+          <div className="p-6 space-y-6 overflow-y-auto flex-grow">
             <div className="p-4 bg-subtle rounded-lg">
                 <h4 className="font-semibold text-primary mb-3">Appearance</h4>
                 <div className="flex items-center justify-between">
@@ -143,7 +140,6 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
                 </div>
             </div>
             
-            {/* Regional Section */}
              <div className="p-4 bg-subtle rounded-lg space-y-3">
                 <h4 className="font-semibold text-primary mb-3">Regional</h4>
                 <div><label className="text-sm font-medium text-secondary mb-1">Default Currency</label><CustomSelect options={currencyOptions} value={settings.currency} onChange={handleCurrencyChange} /></div>
@@ -153,31 +149,34 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({ onClose, app
                 </div>
             </div>
             
-            {/* Data Management Section */}
             <div className="p-4 bg-subtle rounded-lg space-y-3">
                 <h4 className="font-semibold text-primary mb-3">Data Management</h4>
                 <div className="grid grid-cols-2 gap-3">
-                    <button onClick={handleCreateBackup} className="button-secondary w-full py-2">Create Encrypted Backup</button>
-                    <button onClick={handleRestoreClick} className="button-secondary w-full py-2">Restore from Backup</button>
+                    <button onClick={handleCreateBackup} className="button-secondary w-full py-2">Create Backup</button>
+                    <button onClick={handleRestoreClick} className="button-secondary w-full py-2">Restore Backup</button>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pfh" className="hidden" />
                 </div>
                 <div>
-                    <label className="text-sm font-medium text-secondary mb-1">Auto-delete from Trust Bin after:</label>
+                    <label className="text-sm font-medium text-secondary mb-1">Trust Bin Period</label>
                     <div className="grid grid-cols-2 gap-2">
                         <input type="number" onWheel={e => e.currentTarget.blur()} value={settings.trustBinDeletionPeriod.value} onChange={e => handleTrustBinPeriodChange('value', e.target.value)} className="input-base w-full p-2 rounded-lg" />
                         <CustomSelect options={trustBinUnitOptions} value={settings.trustBinDeletionPeriod.unit} onChange={v => handleTrustBinPeriodChange('unit', v)} />
                     </div>
                 </div>
             </div>
-            {/* Danger Zone */}
-            <div className="p-4 rounded-lg bg-rose-900/50 border border-rose-500/50 space-y-2">
+
+            <div className="p-4 rounded-lg bg-rose-900/20 border border-rose-500/30 space-y-2">
                 <h4 className="font-semibold text-rose-300">Reset to Default</h4>
-                <p className="text-xs text-rose-300/80">This will restore all appearance, regional, and tool settings to their original defaults. Your financial data will NOT be affected.</p>
-                <div className="text-right pt-2">
-                    <button type="button" onClick={() => setIsResetDialogOpen(true)} className="button-secondary bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/40">
-                        Reset Settings
+                <div className="text-right">
+                    <button type="button" onClick={() => setIsResetDialogOpen(true)} className="text-xs font-bold text-rose-400 hover:underline">
+                        Reset All Settings
                     </button>
                 </div>
+            </div>
+
+            <div className="text-center pt-8 pb-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-blue-500">Created by Kadhiravan</p>
+                <p className="text-[10px] text-tertiary mt-1">Finance Hub v2.1.0</p>
             </div>
           </div>
         </div>

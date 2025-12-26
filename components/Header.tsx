@@ -1,5 +1,9 @@
+
+
 import React from 'react';
-import { Profile, ActiveModal } from '../types';
+// Fix: Import User as a type from types.ts to avoid resolution errors.
+import { Profile, ActiveModal, User } from '../types';
+import { useAppContext } from '../hooks/useAppContext';
 
 interface HeaderProps {
   profile: Profile | null;
@@ -8,6 +12,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ profile, openModal, onMenuClick }) => {
+  const { user, isCloudSynced } = useAppContext();
+
   return (
     <header className="themed-header flex items-center justify-between p-4 flex-shrink-0">
       <div className="flex items-center gap-4">
@@ -20,19 +26,29 @@ const Header: React.FC<HeaderProps> = ({ profile, openModal, onMenuClick }) => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
            </svg>
         </button>
-        <h1 className="text-xl font-bold">Finance Hub</h1>
+        <div className="flex items-baseline gap-2">
+            <h1 className="text-xl font-bold">Finance Hub</h1>
+            {user && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${isCloudSynced ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400 animate-pulse'}`}>
+                    {isCloudSynced ? 'Cloud Synced' : 'Syncing...'}
+                </span>
+            )}
+        </div>
       </div>
       <div className="flex items-center gap-1 sm:gap-2">
         <button
-          onClick={() => openModal('globalSearch')}
-          className="p-2 rounded-full hover-bg-stronger text-secondary transition-colors"
-          aria-label="Open global search"
-          title="Search"
+          onClick={() => openModal(user ? 'appSettings' : 'auth')}
+          className="flex items-center gap-2 p-1 pr-3 rounded-full hover-bg-stronger text-secondary transition-colors border border-divider"
+          aria-label="User profile"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <div className="w-8 h-8 rounded-full bg-subtle flex items-center justify-center text-sm border border-divider overflow-hidden">
+             {user ? (user.email?.[0].toUpperCase()) : '👤'}
+          </div>
+          <span className="text-xs font-semibold hidden sm:inline">{user ? "My Account" : "Sign In"}</span>
         </button>
+        
+        <div className="h-6 w-px bg-divider mx-1 hidden sm:block"></div>
+
         <button
           onClick={() => openModal('aiHub')}
           className="p-2 rounded-full hover-bg-stronger text-secondary transition-colors"
@@ -41,16 +57,6 @@ const Header: React.FC<HeaderProps> = ({ profile, openModal, onMenuClick }) => {
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-          </svg>
-        </button>
-        <button
-          onClick={() => openModal('transfer')}
-          className="p-2 rounded-full hover-bg-stronger text-secondary transition-colors"
-          aria-label="Transfer funds"
-          title="Transfer Funds"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
         </button>
       </div>

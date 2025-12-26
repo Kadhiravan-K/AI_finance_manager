@@ -1,6 +1,5 @@
 
-import React, { useMemo, useState, useEffect, useContext } from 'react';
-// Fix: Added missing type imports
+import React, { useMemo, useState, useContext } from 'react';
 import { Transaction, TransactionType, DateRange, CustomDateRange, DashboardWidget, AppState, ActiveModal, Category, Account } from '../types';
 import TransactionFilters from './TransactionFilters';
 import BudgetsSummary from './BudgetsSummary';
@@ -18,6 +17,7 @@ import { getCategoryPath } from '../utils/categories';
 import { parseNaturalLanguageQuery } from '../services/geminiService';
 import NetWorthTrendChart from './NetWorthTrendChart';
 import CategoryPieChart from './CategoryPieChart';
+import BalanceForecast from './BalanceForecast';
 
 interface FinanceDisplayProps {
   transactions: Transaction[];
@@ -46,8 +46,6 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = (props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<DateRange>('month');
   const [customDateRange, setCustomDateRange] = useState<CustomDateRange>({ start: null, end: null });
-  const formatCurrency = useCurrencyFormatter();
-  const dataContext = useContext(AppDataContext);
   
   const onNaturalLanguageSearch = async () => {
       try {
@@ -85,7 +83,12 @@ const FinanceDisplay: React.FC<FinanceDisplayProps> = (props) => {
       case 'portfolio': return <PortfolioSummary key={widget.id} holdings={props.investmentHoldings} isVisible={true} />;
       case 'goals': return <GoalsSummary key={widget.id} goals={props.goals} isVisible={true} />;
       case 'budgets': return <BudgetsSummary key={widget.id} budgets={props.budgets} transactions={allTransactions} categories={categories} isVisible={true} />;
-      case 'upcoming': return <UpcomingBills key={widget.id} recurringTransactions={props.recurringTransactions} onPay={props.onPayRecurring} categories={categories} />;
+      case 'upcoming': return (
+        <React.Fragment key={widget.id}>
+            <BalanceForecast transactions={allTransactions} accounts={accounts} recurring={props.recurringTransactions} isVisible={true} />
+            <UpcomingBills recurringTransactions={props.recurringTransactions} onPay={props.onPayRecurring} categories={categories} />
+        </React.Fragment>
+      );
       case 'debts': return <DebtsSummary key={widget.id} transactions={allTransactions} accounts={accounts} onSettle={props.onSettleDebt} isVisible={true} />;
       case 'netWorthTrend': return <NetWorthTrendChart key={widget.id} transactions={allTransactions} accounts={accounts} currency={props.baseCurrency} />;
       case 'charts': return <CategoryPieChart key={widget.id} title="Expense Breakdown" transactions={filteredTransactions} categories={categories} type={TransactionType.EXPENSE} isVisible={true} />;
@@ -151,7 +154,7 @@ const TransactionItem: React.FC<{transaction: Transaction, onEdit: (t: Transacti
     const formatCurrency = useCurrencyFormatter(undefined, account?.currency);
     const category = categories.find(c => c.id === t.categoryId);
     return (
-        <button onClick={() => onEdit(t)} style={style} className="w-full text-left p-3 glass-card rounded-lg stagger-delay flex justify-between items-center">
+        <button onClick={() => onEdit(t)} style={style} className="w-full text-left p-3 glass-card rounded-lg stagger-delay flex justify-between items-center transition-all hover:translate-x-1 active:scale-[0.99]">
             <div className="flex items-center gap-3">
                 <span className="text-xl flex-shrink-0">{category?.icon || '📁'}</span>
                 <div>

@@ -1,20 +1,36 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AI Finance Tracker (Finance Hub)
 
-# Run and deploy your AI Studio app
+An ultra-modern, full-stack personal finance application powered by **Google Gemini AI** and **Supabase**. This app combines a sleek aurora glassmorphism UI with powerful automation to make financial tracking effortless.
 
-This contains everything you need to run your app locally.
+## 🌟 Key Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1DEfI4GJr4YdUJcpGzbuhKMA71Now11Oe
+- **AI-Powered Quick Add**: Paste bank SMS or type natural language (e.g., "spent 500 on coffee") to automatically categorize and log transactions.
+- **Full-Stack Sync**: Powered by Supabase for real-time cloud synchronization and secure PostgreSQL storage.
+- **Local-First Architecture**: Works offline using encrypted LocalStorage and syncs to the cloud once a session is active.
+- **Shop Hub**: Integrated POS system for small business owners, featuring inventory management and AI-driven profit analytics.
+- **Trip Management**: Plan itineraries with AI and manage shared group expenses with automatic "who owes whom" settlement logic.
+- **Financial Health Score**: A dynamic 0-100 score based on savings rates, debt-to-income ratios, and budget adherence.
+- **Secure Backup**: Create and restore password-protected `.pfh` backup files.
 
-## Run Locally
+## 🛠 Tech Stack
 
-**Prerequisites:**  Node.js
+- **Frontend**: React 19, TypeScript, Tailwind CSS.
+- **Backend/Database**: Supabase (Auth, PostgreSQL, Real-time).
+- **Intelligence**: Google Gemini API (Flash 2.5/3.0 series).
+- **Icons/UI**: Custom Glassmorphism & Aurora Background.
 
+## 🚀 Quick Start
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1.  **Environment Variables**:
+    - `API_KEY`: Your Google Gemini API Key.
+    - `SUPABASE_URL`: Your Supabase Project URL.
+    - `SUPABASE_ANON_KEY`: Your Supabase Anonymous Key.
+
+2.  **Authentication**:
+    - Use the "Sign In" button in the header to create an account or log in to enable cloud synchronization.
+
+3.  **Local Development**:
+    - The app is built with ES Modules. Ensure your environment supports modern browser features like Web Crypto and Service Workers for full functionality.
+
+---
+*Developed as part of Phase 0.*

@@ -1,8 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import ModalHeader from './ModalHeader';
 import LoadingSpinner from './LoadingSpinner';
 import { ActiveModal, ActiveScreen } from '../types';
+import { transcribeAudio } from '../services/geminiService';
 
 const modalRoot = document.getElementById('modal-root')!;
 
@@ -20,8 +22,10 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<any>(null);
-  const [isListening, setIsListening] = useState(false);
+  
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,46 +35,50 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
     inputRef.current?.focus();
   }, []);
   
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setCommand(prev => prev ? `${prev} ${transcript}` : transcript);
-    };
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-    };
-    recognitionRef.current = recognition;
-  }, []);
-  
-  const handleListen = async () => {
-    if (!recognitionRef.current) {
-        alert("Speech recognition is not supported by your browser.");
-        return;
-    }
+  const handleStartRecording = async () => {
     try {
-        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-        if (permissionStatus.state === 'denied') {
-            alert("Microphone access is denied. Please enable it in your browser settings to use voice input.");
-            return;
-        }
-        if (isListening) {
-            recognitionRef.current.stop();
-        } else {
-            recognitionRef.current.start();
-            setIsListening(true);
-        }
-    } catch (error) {
-        console.error("Could not check microphone permission:", error);
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunksRef.current.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = async () => {
+                const base64Audio = (reader.result as string).split(',')[1];
+                setIsLoading(true);
+                try {
+                    const text = await transcribeAudio(base64Audio, 'audio/webm');
+                    setCommand(prev => prev ? `${prev} ${text}` : text);
+                } catch (err) {
+                    console.error("Transcription failed", err);
+                    alert("Failed to transcribe audio.");
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+    } catch (err) {
+        console.error("Microphone error:", err);
+        alert("Could not access microphone.");
     }
+  };
+
+  const handleStopRecording = () => {
+      if (mediaRecorderRef.current && isRecording) {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+      }
   };
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,7 +94,6 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
                 inputRef.current?.focus();
             }
         };
-        reader.onerror = (error) => console.error("Error reading file:", error);
         reader.readAsDataURL(selectedFile);
     }
     if (event.target) event.target.value = '';
@@ -108,7 +115,6 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
       const response = await onSendCommand(userCommand, attachedFile);
       setHistory(prev => [...prev, { role: 'model', text: response }]);
 
-      // Simple navigation heuristic
       if (response.toLowerCase().includes("opening") || response.toLowerCase().includes("navigating")) {
         const screens: ActiveScreen[] = ['dashboard', 'reports', 'budgets', 'goals', 'investments', 'shop', 'tripManagement'];
         for (const screen of screens) {
@@ -135,8 +141,8 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
         <div className="flex-grow overflow-y-auto p-4 space-y-4">
           {history.length === 0 && (
             <div className="text-center text-secondary p-4">
-              <p>Ask me to do anything.</p>
-              <p className="text-xs mt-2">Examples: "add 500 for lunch", "go to reports", "create a savings account"</p>
+              <p>Ask me to do anything. Use the microphone to speak naturally.</p>
+              <p className="text-xs mt-2">Examples: "add 500 for lunch", "analyze this receipt"</p>
             </div>
           )}
           {history.map((entry, index) => (
@@ -169,12 +175,20 @@ const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand,
         )}
 
         <form onSubmit={handleSubmit} className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-2">
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0" aria-label="Attach file">
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
             </button>
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*"/>
 
-            <button type="button" onClick={handleListen} className={`button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0 ${isListening ? 'bg-rose-500/80 text-white animate-pulse' : ''}`} aria-label="Use voice command">
+            <button 
+                type="button" 
+                onMouseDown={handleStartRecording} 
+                onMouseUp={handleStopRecording}
+                onMouseLeave={handleStopRecording}
+                onTouchStart={(e) => { e.preventDefault(); handleStartRecording(); }}
+                onTouchEnd={(e) => { e.preventDefault(); handleStopRecording(); }}
+                className={`button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0 ${isRecording ? 'bg-rose-500/80 text-white animate-pulse' : ''}`}
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" /></svg>
             </button>
             

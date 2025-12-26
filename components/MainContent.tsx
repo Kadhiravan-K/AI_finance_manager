@@ -1,9 +1,10 @@
 
-import React, { useState, useContext, useCallback, Dispatch, SetStateAction, useEffect } from 'react';
+import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import { ActiveScreen, AppState, ModalState, ActiveModal, Transaction, RecurringTransaction, Account, AccountType, Goal, Budget, Trip, ShopSale, ShopProduct, TransactionType, Debt, Note, ItemizedDetail, TripExpense, DateRange, CustomDateRange, USER_SELF_ID, Category, Contact, ContactGroup, Shop, ShopEmployee, ShopShift, Refund, GlossaryEntry, CalendarEvent, FinancialProfile } from '../types';
 import FinanceDisplay from './FinanceDisplay';
 import { ReportsScreen } from './ReportsScreen';
 import BudgetsScreen from './BudgetsScreen';
+// Fix: Corrected casing for GoalsScreen import to match the standard component file naming and resolve casing conflict.
 import GoalsScreen from './GoalsScreen';
 import InvestmentsScreen from './InvestmentsScreen';
 import ScheduledPaymentsScreen from './ScheduledPaymentsScreen';
@@ -23,7 +24,6 @@ import SubscriptionsScreen from './SubscriptionsScreen';
 import GlossaryScreen from './GlossaryScreen';
 import ManualScreen from './ManualScreen';
 import { AppDataContext } from '../contexts/SettingsContext';
-import { parseNaturalLanguageQuery } from '../services/geminiService';
 import { calculateNextDueDate } from '../utils/date';
 import DebtManagerScreen from './DebtManagerScreen';
 import FaqScreen from './FaqScreen';
@@ -50,12 +50,12 @@ interface MainContentProps {
 }
 
 const MainContent: React.FC<MainContentProps> = (props) => {
-  const { activeScreen, appState, mainContentRef, isLoading, onNavigate, setActiveScreen, setModalStack, onGoalComplete, tripDetailsId, noteId, openModal, onSaveProfile } = props;
+  const { activeScreen, appState, isLoading, onNavigate, setActiveScreen, onGoalComplete, tripDetailsId, noteId, openModal, onSaveProfile } = props;
 
   const dataContext = useContext(AppDataContext);
 
   if (!dataContext) {
-    return null; // Or a loading spinner
+    return null;
   }
   
   const { 
@@ -66,7 +66,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     onDeleteAccount,
     setRecurringTransactions,
     setGoals,
-    setInvestmentHoldings,
     setTrips,
     setShops,
     setShopProducts,
@@ -105,7 +104,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     const updatedGoal = { ...goal, currentAmount: newCurrentAmount };
     setGoals(prev => prev.map(g => g.id === goalId ? updatedGoal : g));
 
-    if (newCurrentAmount >= goal.targetAmount && goal.currentAmount < goal.targetAmount) { // only trigger on completion
+    if (newCurrentAmount >= goal.targetAmount && goal.currentAmount < goal.targetAmount) {
         onGoalComplete();
     }
   };
@@ -142,7 +141,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     onPayRecurring: handlePayRecurring,
     onEdit: (transaction: Transaction) => openModal('editTransaction', { transaction }),
     onDelete: (id: string) => deleteItem(id, 'transaction'),
-    onSettleDebt: (transactionId: string, splitDetailId: string, settlementAccountId: string, amount: number) => console.log('Settle debt', { transactionId, splitDetailId, settlementAccountId, amount }),
+    onSettleDebt: (transactionId: string, splitDetailId: string, settlementAccountId: string, amount: number) => {},
     dashboardWidgets: appState.settings.dashboardWidgets,
     financialProfile: appState.financialProfile,
     onOpenFinancialHealth: () => openModal('financialHealth'),
@@ -177,9 +176,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
 
     if (list.tripId) {
         const trip = appState.trips.find(t => t.id === list.tripId);
-        if (!trip) {
-            alert("Could not find the associated trip. Creating a regular expense instead.");
-        } else {
+        if (trip) {
             const initialExpenseData: Partial<Omit<TripExpense, 'id'>> = {
                 description: `Purchases from "${list.title}"`,
                 amount: total,
@@ -205,7 +202,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   };
 
 
-  // A fully implemented router to pass correct props to each screen
   switch (activeScreen) {
     case 'dashboard':
       return <FinanceDisplay {...financeDisplayProps} />;

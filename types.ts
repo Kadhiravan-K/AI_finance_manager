@@ -1,16 +1,14 @@
 
 import { createClient } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 
-// Using placeholder credentials for local development.
-// For production, these should be replaced with environment variables.
-const supabaseUrl = 'https://xyz.supabase.co';
-const supabaseAnonKey = 'your-anon-key';
+// Supabase configuration using process.env for security
+const supabaseUrl = process.env.SUPABASE_URL || 'https://your-project.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'your-anon-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase configuration is missing. Please provide SUPABASE_URL and SUPABASE_ANON_KEY.");
-}
-
+// Fix: Correctly initialize and export supabase client and types for global use.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export type { Session, User };
 
 export const USER_SELF_ID = 'user_self';
 export const TRIP_FUND_ID = 'trip_fund';
@@ -21,9 +19,9 @@ export enum TransactionType {
 }
 
 export enum AccountType {
-  DEPOSITORY = 'depository', // Bank, cash
-  CREDIT = 'credit',       // Credit Card
-  INVESTMENT = 'investment', // Investment account
+  DEPOSITORY = 'depository', 
+  CREDIT = 'credit',       
+  INVESTMENT = 'investment',
 }
 
 export enum Priority {
@@ -34,13 +32,13 @@ export enum Priority {
 }
 
 export interface SplitDetail {
-    id: string; // contactId
+    id: string;
     personName: string;
     amount: number;
     isSettled: boolean;
     shares?: string;
     percentage?: string;
-    contactId?: string; // from ManageAdvancesModal in App.tsx
+    contactId?: string;
 }
 
 export interface ItemizedDetail {
@@ -57,12 +55,13 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   categoryId: string;
-  date: string; // ISO string
+  date: string; 
   notes?: string;
   senderId?: string;
   itemizedDetails?: ItemizedDetail[];
   splitDetails?: SplitDetail[];
   payers?: { contactId: string; amount: number }[];
+  user_id?: string;
 }
 
 export interface Reminder {
@@ -79,10 +78,11 @@ export interface RecurringTransaction {
   accountId: string;
   frequencyUnit: 'days' | 'weeks' | 'months' | 'years';
   interval: number;
-  nextDueDate: string; // ISO string
+  nextDueDate: string;
   reminders?: Reminder[];
   priority?: Priority;
   startTime?: string;
+  user_id?: string;
 }
 
 export interface Account {
@@ -91,6 +91,7 @@ export interface Account {
   accountType: AccountType;
   currency: string;
   creditLimit?: number;
+  user_id?: string;
 }
 
 export interface Category {
@@ -99,6 +100,7 @@ export interface Category {
   type: TransactionType;
   parentId: string | null;
   icon?: string;
+  user_id?: string;
 }
 
 export interface Goal {
@@ -109,13 +111,28 @@ export interface Goal {
   currentAmount: number;
   productLink?: string;
   priority?: Priority;
+  user_id?: string;
 }
 
 export interface Budget {
   id: string;
   categoryId: string;
   amount: number;
-  month: string; // YYYY-MM
+  month: string;
+  user_id?: string;
+}
+
+export interface Trip {
+    id: string;
+    name: string;
+    location?: string;
+    date: string;
+    participants: TripParticipant[];
+    currency: string;
+    budget?: number;
+    plan?: TripDayPlan[];
+    advances?: { contactId: string, amount: number }[];
+    user_id?: string;
 }
 
 export interface TripParticipant {
@@ -126,7 +143,7 @@ export interface TripParticipant {
 
 export interface TripDayPlanItem {
     id: string;
-    time: string; // HH:MM
+    time: string;
     activity: string;
     type?: 'travel' | 'food' | 'activity' | 'lodging' | 'other';
     notes?: string;
@@ -136,21 +153,9 @@ export interface TripDayPlanItem {
 
 export interface TripDayPlan {
     id: string;
-    date: string; // YYYY-MM-DD
+    date: string;
     title: string;
     items: TripDayPlanItem[];
-}
-
-export interface Trip {
-    id: string;
-    name: string;
-    location?: string;
-    date: string; // ISO string
-    participants: TripParticipant[];
-    currency: string;
-    budget?: number;
-    plan?: TripDayPlan[];
-    advances?: { contactId: string, amount: number }[];
 }
 
 export interface TripMessage {
@@ -159,21 +164,24 @@ export interface TripMessage {
     senderId: string;
     senderName: string;
     text?: string;
-    audioData?: string; // Base64 encoded audio
+    audioData?: string;
     timestamp: string;
     type: 'text' | 'audio';
+    user_id?: string;
 }
 
 export interface Contact {
     id: string;
     name: string;
     groupId: string;
+    user_id?: string;
 }
 
 export interface ContactGroup {
     id: string;
     name: string;
     icon?: string;
+    user_id?: string;
 }
 
 export enum ShopType {
@@ -200,6 +208,7 @@ export interface Shop {
     type: ShopType;
     businessType?: BusinessType;
     taxRate?: number;
+    user_id?: string;
 }
 
 export interface ShopProduct {
@@ -210,15 +219,17 @@ export interface ShopProduct {
     costPrice?: number;
     stock: number;
     category?: string;
+    user_id?: string;
 }
 
 export interface ShopSale {
     id: string;
     shopId: string;
-    items: { productId: string; quantity: number; price: number; name?: string }[]; // Added optional name for custom items
+    items: { productId: string; quantity: number; price: number; name?: string }[];
     totalAmount: number;
     profit: number;
-    date: string; // ISO string
+    date: string;
+    user_id?: string;
 }
 
 export interface ShopEmployee {
@@ -226,29 +237,32 @@ export interface ShopEmployee {
     shopId: string;
     name: string;
     role: string;
-    wage: number; // per hour
+    wage: number;
+    user_id?: string;
 }
 
 export interface ShopShift {
     id: string;
     shopId: string;
     employeeId: string;
-    startTime: string; // ISO string
-    endTime: string; // ISO string
+    startTime: string;
+    endTime: string;
+    user_id?: string;
 }
 
 export interface Refund {
     id: string;
     description: string;
     amount: number;
-    date: string; // ISO string
+    date: string;
     accountId: string;
     originalTransactionId?: string;
     contactId?: string;
     notes?: string;
     isClaimed: boolean;
-    claimedDate?: string; // ISO string
+    claimedDate?: string;
     expectedDate?: string;
+    user_id?: string;
 }
 
 export interface Debt {
@@ -257,7 +271,8 @@ export interface Debt {
     totalAmount: number;
     currentBalance: number;
     minimumPayment: number;
-    apr: number; // Annual Percentage Rate
+    apr: number;
+    user_id?: string;
 }
 
 export interface ChecklistItem {
@@ -274,11 +289,12 @@ export interface Note {
     title: string;
     content: string | ChecklistItem[];
     type: 'note' | 'checklist';
-    createdAt: string; // ISO string
-    updatedAt: string; // ISO string
+    createdAt: string;
+    updatedAt: string;
     tripId?: string;
     isPinned?: boolean;
     icon?: string;
+    user_id?: string;
 }
 
 export interface GlossaryEntry {
@@ -289,6 +305,7 @@ export interface GlossaryEntry {
     usageLogic: string;
     example: string;
     tags: string[];
+    user_id?: string;
 }
 
 export interface CalendarEvent {
@@ -298,6 +315,7 @@ export interface CalendarEvent {
     type: 'bill' | 'refund' | 'trip' | 'goal' | 'custom';
     color: 'rose' | 'sky' | 'amber' | 'violet';
     data: any;
+    user_id?: string;
 }
 
 export type ActiveScreen = 
@@ -322,7 +340,7 @@ export type ActiveModal =
   | 'editContact' | 'editGlossaryEntry' | 'shareGuide' | 'aiHub'
   | 'buyInvestment' | 'sellInvestment' | 'updateInvestment'
   | 'splitTransaction' | 'feedback' | 'manageTools' | 'manageAdvances'
-  | 'tripSOS';
+  | 'tripSOS' | 'auth';
 
 export interface ModalState {
   name: ActiveModal;
@@ -336,11 +354,13 @@ export interface InvestmentHolding {
     quantity: number;
     averageCost: number;
     currentValue: number;
+    user_id?: string;
 }
 
 export interface UnlockedAchievement {
     achievementId: string;
-    date: string; // ISO string
+    date: string;
+    user_id?: string;
 }
 
 export enum ChallengeType {
@@ -352,17 +372,19 @@ export enum ChallengeType {
 }
 export interface Challenge {
     id: string;
-    date: string; // YYYY-MM-DD
+    date: string;
     type: ChallengeType | 'custom_savings';
     description: string;
     isCompleted: boolean;
+    user_id?: string;
 }
 
 export interface UserStreak {
     currentStreak: number;
     longestStreak: number;
-    lastActivityDate: string; // YYYY-MM-DD
+    lastActivityDate: string;
     streakFreezes: number;
+    user_id?: string;
 }
 
 export enum InvoiceStatus {
@@ -384,13 +406,14 @@ export interface Invoice {
     invoiceNumber: string;
     shopId: string;
     contactId: string;
-    issueDate: string; // ISO string
-    dueDate: string; // ISO string
+    issueDate: string;
+    dueDate: string;
     lineItems: InvoiceLineItem[];
     taxRate: number;
     totalAmount: number;
     status: InvoiceStatus;
     notes?: string;
+    user_id?: string;
 }
 
 export interface Payee {
@@ -398,6 +421,7 @@ export interface Payee {
     identifier: string;
     name: string;
     defaultCategoryId: string;
+    user_id?: string;
 }
 
 export enum SenderType {
@@ -410,6 +434,7 @@ export interface Sender {
     identifier: string;
     name: string;
     type: SenderType;
+    user_id?: string;
 }
 
 export interface Settlement {
@@ -418,8 +443,9 @@ export interface Settlement {
     toContactId: string;
     amount: number;
     currency: string;
-    date: string; // ISO string
+    date: string;
     tripId?: string;
+    user_id?: string;
 }
 
 export interface FinancialProfile {
@@ -427,6 +453,7 @@ export interface FinancialProfile {
     monthlyRent: number;
     monthlyEmi: number;
     emergencyFundGoal: number;
+    user_id?: string;
 }
 
 export type ItemType = 'transaction' | 'recurringTransaction' | 'tripExpense' | 'refund' | 'settlement' | 'account' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'trip' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'goal' | 'note' | 'glossaryEntry' | 'debt';
@@ -435,7 +462,8 @@ export interface TrustBinItem {
   id: string;
   itemType: ItemType;
   item: any;
-  deletedAt: string; // ISO string
+  deletedAt: string;
+  user_id?: string;
 }
 
 export type Theme = 'light' | 'dark';
@@ -481,6 +509,7 @@ export interface Settings {
       connected: boolean;
   };
   financialProfile?: FinancialProfile;
+  user_id?: string;
 }
 
 export interface AppState {
@@ -522,6 +551,7 @@ export interface Profile {
   id: string;
   username: string;
   avatar_url?: string;
+  email?: string;
 }
 
 export type DateRange = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
@@ -626,7 +656,7 @@ export interface TripExpense {
     description: string;
     amount: number;
     categoryId: string;
-    date: string; // ISO string
+    date: string;
     notes?: string;
     payers: { contactId: string; amount: number }[];
     splitDetails: SplitDetail[];

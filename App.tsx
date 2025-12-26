@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AppDataProvider, useAppContext } from './hooks/useAppContext';
 import MainContent from './components/MainContent';
@@ -11,6 +13,7 @@ import AchievementToast from './components/AchievementToast';
 import Confetti from './components/Confetti';
 import OnboardingGuide from './components/OnboardingGuide';
 import Sidebar from './components/Sidebar';
+import AuthModal from './components/AuthModal';
 
 // MODALS
 import AddTransactionModal from './components/AddTransactionModal';
@@ -75,7 +78,7 @@ const AppContainer: React.FC = () => {
       settings, isLoading, profile, ...appData 
   } = dataContext;
 
-  const appState: AppState = { settings, ...appData };
+  const appState: AppState = { settings, ...appData } as any;
 
   // UI State
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
@@ -124,7 +127,7 @@ const AppContainer: React.FC = () => {
       setShowOnboarding(true);
     } else if (!isLoading && settings.isSetupComplete && !settings.hasSeenOnboarding) {
        setShowWelcomeGuide(true);
-       dataContext.saveSettings({...settings, hasSeenOnboarding: true });
+       dataContext.setSettings({...settings, hasSeenOnboarding: true });
     }
   }, [isLoading, settings, dataContext]);
 
@@ -160,6 +163,7 @@ const AppContainer: React.FC = () => {
     const currentModal = modalStack[modalStack.length - 1];
     if (!currentModal) return null;
 
+    // Fix: Explicitly type and cast modalProps to resolve missing property errors in the switch statement.
     const modalProps = {
         ...currentModal.props,
         onClose: closeModal,
@@ -167,60 +171,61 @@ const AppContainer: React.FC = () => {
     };
     
     switch (currentModal.name) {
-        case 'addTransaction': return <AddTransactionModal {...modalProps} {...dataContext} onOpenCalculator={openCalculator} initialText={initialText} onInitialTextConsumed={onSharedTextConsumed} />;
-        case 'editTransaction': return <EditTransactionModal {...modalProps} {...dataContext} onOpenCalculator={openCalculator} />;
-        case 'transfer': return <TransferModal {...modalProps} accounts={appState.accounts} onTransfer={dataContext.onTransfer} />;
-        case 'accounts': return <AccountsManagerModal {...modalProps} accounts={appState.accounts} onAddAccount={dataContext.onAddAccount} onEditAccount={(acc) => openModal('editAccount', { account: acc })} onDeleteAccount={(id) => dataContext.deleteItem(id, 'account')} />;
-        case 'editAccount': return <EditAccountModal {...modalProps} onSave={(acc) => dataContext.setAccounts(p => p.map(a => a.id === acc.id ? acc : a))} />;
-        case 'categories': return <CategoryManagerModal {...modalProps} categories={appState.categories} onAddTopLevelCategory={() => openModal('editCategory')} onAddSubcategory={(parent) => openModal('editCategory', { initialParentId: parent.id, initialType: parent.type })} onEditCategory={(cat) => openModal('editCategory', { category: cat })} onDeleteCategory={(id) => dataContext.deleteItem(id, 'category')} />;
-        case 'editCategory': return <EditCategoryModal {...modalProps} categories={appState.categories} onSave={dataContext.onSaveCategory} />;
-        case 'senderManager': return <SenderManagerModal {...modalProps} onDelete={(id) => dataContext.deleteItem(id, 'sender')} />;
-        case 'payees': return <PayeesModal {...modalProps} payees={appState.payees} setPayees={dataContext.setPayees} categories={appState.categories} onDelete={(id) => dataContext.deleteItem(id, 'payee')} />;
-        case 'appSettings': return <AppSettingsModal {...modalProps} appState={appState} onRestore={() => {}} />;
-        case 'privacyConsent': return <PrivacyConsentModal {...modalProps} onConsent={() => { dataContext.saveSettings({...settings, hasSeenPrivacy: true }); setShowPrivacyConsent(false); }} />;
-        case 'editRecurring': return <EditRecurringModal {...modalProps} onSave={dataContext.onSaveRecurring} accounts={appState.accounts} categories={appState.categories} openModal={openModal} />;
-        case 'editGoal': return <EditGoalModal {...modalProps} onSave={dataContext.onSaveGoal} />;
-        case 'financialHealth': return <FinancialHealthModal {...modalProps} appState={appState} onSaveProfile={dataContext.setFinancialProfile} onSaveBudget={(catId, amt) => dataContext.setBudgets(p => [...p, {id: self.crypto.randomUUID(), categoryId: catId, amount: amt, month: new Date().toISOString().slice(0, 7)}])} />;
-        case 'importExport': return <ImportExportModal {...modalProps} appState={appState} />;
-        case 'dashboardSettings': return <DashboardSettingsModal {...modalProps} />;
-        case 'footerCustomization': return <FooterCustomizationModal {...modalProps} />;
-        case 'notificationSettings': return <NotificationSettingsModal {...modalProps} budgets={appState.budgets} categories={appState.categories} />;
-        case 'globalSearch': return <GlobalSearchModal {...modalProps} onNavigate={onNavigate} />;
-        case 'editTrip': return <EditTripModal {...modalProps} onSave={dataContext.onSaveTrip} onSaveContact={dataContext.onSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
-        case 'addTripExpense': return <AddTripExpenseModal {...modalProps} onSave={(exp) => dataContext.onSaveTripExpense({...exp, tripId: modalProps.trip.id})} onUpdate={dataContext.onUpdateTripExpense} {...dataContext} />;
-        case 'tripSummary': return <GlobalTripSummaryModal {...modalProps} allExpenses={appState.tripExpenses} trips={appState.trips} settlements={appState.settlements} onSettle={dataContext.onSettle} />;
-        case 'manageTripMembers': return <ManageTripMembersModal {...modalProps} onUpdateTrip={dataContext.setTrips} />;
-        case 'editShop': return <EditShopModal {...modalProps} onSave={dataContext.onSaveShop} onCancel={closeModal} />;
-        case 'editProduct': return <EditProductModal {...modalProps} onSave={(prod, id) => dataContext.onSaveProduct(modalProps.shopId, prod, id)} />;
-        case 'editEmployee': return <EditEmployeeModal {...modalProps} onSave={(emp, id) => dataContext.onSaveEmployee(modalProps.shopId, emp, id)} />;
-        case 'editShift': return <EditShiftModal {...modalProps} onSave={(shift, id) => dataContext.onSaveShift(modalProps.shopId, shift, id)} employees={appState.shopEmployees.filter(e => e.shopId === modalProps.shopId)} />;
-        case 'refund': return <RefundModal {...modalProps} {...dataContext} />;
-        case 'editDebt': return <EditDebtModal {...modalProps} onSave={(debt, id) => id ? dataContext.setDebts(p => p.map(d => d.id === id ? {...d, ...debt} : d)) : dataContext.setDebts(p => [...p, {id:self.crypto.randomUUID(), currentBalance: debt.totalAmount, ...debt}])} />;
-        case 'viewOptions': return <ViewOptionsModal {...modalProps} />;
-        case 'addCalendarEvent': return <AddCalendarEventModal {...modalProps} onNavigate={onNavigate} onAddCustomEvent={(event) => dataContext.setCustomCalendarEvents(p => [...p, {id: self.crypto.randomUUID(), ...event}])} />;
-        case 'timePicker': return <TimePickerModal {...modalProps} />;
-        case 'camera': return <CameraModal {...modalProps} />;
-        case 'addNoteType': return <AddNoteTypeModal {...modalProps} onSelect={dataContext.onAddNote} />;
-        case 'linkToTrip': return <LinkNoteToTripModal {...modalProps} trips={appState.trips} onSave={(note) => dataContext.setNotes(p => p.map(n => n.id === note.id ? note : n))} />;
-        case 'editInvoice': return <EditInvoiceModal {...modalProps} contacts={appState.contacts} products={appState.shopProducts} onSave={dataContext.onSaveInvoice} />;
-        case 'recordPayment': return <RecordPaymentModal {...modalProps} accounts={appState.accounts} onSave={dataContext.onRecordInvoicePayment} />;
-        case 'aiChat': return <AIChatModal {...modalProps} appState={appState} />;
-        case 'integrations': return <IntegrationsModal {...modalProps} />;
-        case 'miniCalculator': return <MiniCalculatorModal {...modalProps} />;
-        case 'trustBin': return <TrustBinModal {...modalProps} trustBinItems={appState.trustBin} onRestore={dataContext.onRestoreItems} onPermanentDelete={dataContext.onPermanentDeleteItems} />;
-        case 'contacts': return <ContactsManagerModal {...modalProps} onAddGroup={() => openModal('editContactGroup')} onEditGroup={(group) => openModal('editContactGroup', { group })} onDeleteGroup={(id) => dataContext.deleteItem(id, 'contactGroup')} onSaveContact={dataContext.onSaveContact} onEditContact={(contact) => openModal('editContact', { contact })} onDeleteContact={(id) => dataContext.deleteItem(id, 'contact')} />;
-        case 'editContactGroup': return <EditContactGroupModal {...modalProps} onSave={dataContext.onSaveContactGroup} />;
-        case 'editContact': return <EditContactModal {...modalProps} onSave={dataContext.onSaveContact} />;
-        case 'editGlossaryEntry': return <EditGlossaryEntryModal {...modalProps} onSave={dataContext.onSaveGlossaryEntry} />;
-        case 'shareGuide': return <ShareGuideModal {...modalProps} />;
-        case 'aiHub': return <AIHubModal {...modalProps} onExecuteCommand={() => Promise.resolve("")} onNavigate={onNavigate} appState={appState} openModal={openModal} />;
-        case 'buyInvestment': return <BuyInvestmentModal {...modalProps} accounts={appState.accounts} onSave={dataContext.onBuyInvestment} />;
-        case 'sellInvestment': return <SellInvestmentModal {...modalProps} accounts={appState.accounts} onSave={dataContext.onSellInvestment} />;
-        case 'updateInvestment': return <UpdateInvestmentModal {...modalProps} onSave={dataContext.onUpdateInvestmentValue} />;
-        case 'splitTransaction': return <SplitTransactionModal {...modalProps} onCancel={closeModal} />;
-        case 'feedback': return <FeedbackModal {...modalProps} onSend={() => Promise.resolve({queued: false})} isSending={false} />;
-        case 'manageTools': return <ManageToolsModal {...modalProps} />;
-        case 'manageAdvances': return <ManageAdvancesModal {...modalProps} onUpdateTrip={(trip) => dataContext.setTrips(p => p.map(t => t.id === trip.id ? trip : t))} />;
+        case 'auth': return <AuthModal {...modalProps} onSuccess={() => {}} />;
+        case 'addTransaction': return <AddTransactionModal {...(modalProps as any)} {...dataContext} onOpenCalculator={openCalculator} initialText={initialText} onInitialTextConsumed={onSharedTextConsumed} />;
+        case 'editTransaction': return <EditTransactionModal {...(modalProps as any)} {...dataContext} onOpenCalculator={openCalculator} />;
+        case 'transfer': return <TransferModal {...(modalProps as any)} accounts={appState.accounts} onTransfer={dataContext.onTransfer} />;
+        case 'accounts': return <AccountsManagerModal {...(modalProps as any)} accounts={appState.accounts} onAddAccount={dataContext.onAddAccount} onEditAccount={(acc) => openModal('editAccount', { account: acc })} onDeleteAccount={(id) => dataContext.deleteItem(id, 'account')} />;
+        case 'editAccount': return <EditAccountModal {...(modalProps as any)} onSave={(acc) => dataContext.setAccounts(p => p.map(a => a.id === acc.id ? acc : a))} />;
+        case 'categories': return <CategoryManagerModal {...(modalProps as any)} categories={appState.categories} onAddTopLevelCategory={() => openModal('editCategory')} onAddSubcategory={(parent) => openModal('editCategory', { initialParentId: parent.id, initialType: parent.type })} onEditCategory={(cat) => openModal('editCategory', { category: cat })} onDeleteCategory={(id) => dataContext.deleteItem(id, 'category')} />;
+        case 'editCategory': return <EditCategoryModal {...(modalProps as any)} categories={appState.categories} onSave={dataContext.onSaveCategory} />;
+        case 'senderManager': return <SenderManagerModal {...(modalProps as any)} onDelete={(id) => dataContext.deleteItem(id, 'sender')} />;
+        case 'payees': return <PayeesModal {...(modalProps as any)} payees={appState.payees} setPayees={dataContext.setPayees} categories={appState.categories} onDelete={(id) => dataContext.deleteItem(id, 'payee')} />;
+        case 'appSettings': return <AppSettingsModal {...(modalProps as any)} appState={appState} onRestore={() => {}} />;
+        case 'privacyConsent': return <PrivacyConsentModal {...(modalProps as any)} onConsent={() => { dataContext.setSettings({...settings, hasSeenPrivacy: true }); setShowPrivacyConsent(false); }} />;
+        case 'editRecurring': return <EditRecurringModal {...(modalProps as any)} onSave={dataContext.onSaveRecurring} accounts={appState.accounts} categories={appState.categories} openModal={openModal} />;
+        case 'editGoal': return <EditGoalModal {...(modalProps as any)} onSave={dataContext.onSaveGoal} />;
+        case 'financialHealth': return <FinancialHealthModal {...(modalProps as any)} appState={appState} onSaveProfile={dataContext.setFinancialProfile} onSaveBudget={(catId, amt) => dataContext.setBudgets(p => [...p, {id: self.crypto.randomUUID(), categoryId: catId, amount: amt, month: new Date().toISOString().slice(0, 7)}])} />;
+        case 'importExport': return <ImportExportModal {...(modalProps as any)} appState={appState} />;
+        case 'dashboardSettings': return <DashboardSettingsModal {...(modalProps as any)} />;
+        case 'footerCustomization': return <FooterCustomizationModal {...(modalProps as any)} />;
+        case 'notificationSettings': return <NotificationSettingsModal {...(modalProps as any)} budgets={appState.budgets} categories={appState.categories} />;
+        case 'globalSearch': return <GlobalSearchModal {...(modalProps as any)} onNavigate={onNavigate} />;
+        case 'editTrip': return <EditTripModal {...(modalProps as any)} onSave={dataContext.onSaveTrip} onSaveContact={dataContext.onSaveContact} onOpenContactsManager={() => openModal('contacts')} />;
+        case 'addTripExpense': return <AddTripExpenseModal {...(modalProps as any)} onSave={(exp) => dataContext.onSaveTripExpense({...exp, tripId: (modalProps as any).trip.id})} onUpdate={dataContext.onUpdateTripExpense} {...dataContext} />;
+        case 'tripSummary': return <GlobalTripSummaryModal {...(modalProps as any)} allExpenses={appState.tripExpenses} trips={appState.trips} settlements={appState.settlements} onSettle={dataContext.onSettle} />;
+        case 'manageTripMembers': return <ManageTripMembersModal {...(modalProps as any)} onUpdateTrip={dataContext.setTrips} />;
+        case 'editShop': return <EditShopModal {...(modalProps as any)} onSave={dataContext.onSaveShop} onCancel={closeModal} />;
+        case 'editProduct': return <EditProductModal {...(modalProps as any)} onSave={(prod, id) => dataContext.onSaveProduct((modalProps as any).shopId, prod, id)} />;
+        case 'editEmployee': return <EditEmployeeModal {...(modalProps as any)} onSave={(emp, id) => dataContext.onSaveEmployee((modalProps as any).shopId, emp, id)} />;
+        case 'editShift': return <EditShiftModal {...(modalProps as any)} onSave={(shift, id) => dataContext.onSaveShift((modalProps as any).shopId, shift, id)} employees={appState.shopEmployees.filter(e => e.shopId === (modalProps as any).shopId)} />;
+        case 'refund': return <RefundModal {...(modalProps as any)} {...dataContext} />;
+        case 'editDebt': return <EditDebtModal {...(modalProps as any)} onSave={(debt, id) => id ? dataContext.setDebts(p => p.map(d => d.id === id ? {...d, ...debt} : d)) : dataContext.setDebts(p => [...p, {id:self.crypto.randomUUID(), currentBalance: debt.totalAmount, ...debt}])} />;
+        case 'viewOptions': return <ViewOptionsModal {...(modalProps as any)} />;
+        case 'addCalendarEvent': return <AddCalendarEventModal {...(modalProps as any)} onNavigate={onNavigate} onAddCustomEvent={(event) => dataContext.setCustomCalendarEvents(p => [...p, {id: self.crypto.randomUUID(), ...event}])} />;
+        case 'timePicker': return <TimePickerModal {...(modalProps as any)} />;
+        case 'camera': return <CameraModal {...(modalProps as any)} />;
+        case 'addNoteType': return <AddNoteTypeModal {...(modalProps as any)} onSelect={dataContext.onAddNote} />;
+        case 'linkToTrip': return <LinkNoteToTripModal {...(modalProps as any)} trips={appState.trips} onSave={(note) => dataContext.setNotes(p => p.map(n => n.id === note.id ? note : n))} />;
+        case 'editInvoice': return <EditInvoiceModal {...(modalProps as any)} contacts={appState.contacts} products={appState.shopProducts} onSave={dataContext.onSaveInvoice} />;
+        case 'recordPayment': return <RecordPaymentModal {...(modalProps as any)} accounts={appState.accounts} onSave={dataContext.onRecordInvoicePayment} />;
+        case 'aiChat': return <AIChatModal {...(modalProps as any)} appState={appState} />;
+        case 'integrations': return <IntegrationsModal {...(modalProps as any)} />;
+        case 'miniCalculator': return <MiniCalculatorModal {...(modalProps as any)} />;
+        case 'trustBin': return <TrustBinModal {...(modalProps as any)} trustBinItems={appState.trustBin} onRestore={dataContext.onRestoreItems} onPermanentDelete={dataContext.onPermanentDeleteItems} />;
+        case 'contacts': return <ContactsManagerModal {...(modalProps as any)} onAddGroup={() => openModal('editContactGroup')} onEditGroup={(group) => openModal('editContactGroup', { group })} onDeleteGroup={(id) => dataContext.deleteItem(id, 'contactGroup')} onSaveContact={dataContext.onSaveContact} onEditContact={(contact) => openModal('editContact', { contact })} onDeleteContact={(id) => dataContext.deleteItem(id, 'contact')} />;
+        case 'editContactGroup': return <EditContactGroupModal {...(modalProps as any)} onSave={dataContext.onSaveContactGroup} />;
+        case 'editContact': return <EditContactModal {...(modalProps as any)} onSave={dataContext.onSaveContact} />;
+        case 'editGlossaryEntry': return <EditGlossaryEntryModal {...(modalProps as any)} onSave={dataContext.onSaveGlossaryEntry} />;
+        case 'shareGuide': return <ShareGuideModal {...(modalProps as any)} />;
+        case 'aiHub': return <AIHubModal {...(modalProps as any)} onExecuteCommand={() => Promise.resolve("")} onNavigate={onNavigate} appState={appState} openModal={openModal} />;
+        case 'buyInvestment': return <BuyInvestmentModal {...(modalProps as any)} accounts={appState.accounts} onSave={dataContext.onBuyInvestment} />;
+        case 'sellInvestment': return <SellInvestmentModal {...(modalProps as any)} accounts={appState.accounts} onSave={dataContext.onSellInvestment} />;
+        case 'updateInvestment': return <UpdateInvestmentModal {...(modalProps as any)} onSave={dataContext.onUpdateInvestmentValue} />;
+        case 'splitTransaction': return <SplitTransactionModal {...(modalProps as any)} onCancel={closeModal} onSave={(modalProps as any).onSave} />;
+        case 'feedback': return <FeedbackModal {...(modalProps as any)} onSend={() => Promise.resolve({queued: false})} isSending={false} />;
+        case 'manageTools': return <ManageToolsModal {...(modalProps as any)} />;
+        case 'manageAdvances': return <ManageAdvancesModal {...(modalProps as any)} onUpdateTrip={(trip) => dataContext.setTrips(p => p.map(t => t.id === trip.id ? trip : t))} />;
         default: return null;
     }
   };
@@ -263,7 +268,7 @@ const AppContainer: React.FC = () => {
       </div>
 
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
-      {showPrivacyConsent && <PrivacyConsentModal onConsent={() => { dataContext.saveSettings({...settings, hasSeenPrivacy: true }); setShowPrivacyConsent(false); }} />}
+      {showPrivacyConsent && <PrivacyConsentModal onConsent={() => { dataContext.setSettings({...settings, hasSeenPrivacy: true }); setShowPrivacyConsent(false); }} />}
       {showWelcomeGuide && <OnboardingGuide onFinish={() => setShowWelcomeGuide(false)} />}
       {renderModal()}
       {lastUnlockedAchievement && (
