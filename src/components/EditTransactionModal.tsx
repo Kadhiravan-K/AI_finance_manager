@@ -1,12 +1,12 @@
 
 import React, { useState, useMemo, useContext, useEffect } from 'react';
-import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '../types';
-import { SettingsContext } from '../contexts/SettingsContext';
-import CustomSelect from './CustomSelect';
-import CustomDatePicker from './CustomDatePicker';
-import ToggleSwitch from './ToggleSwitch';
-import { useCurrencyFormatter } from '../hooks/useCurrencyFormatter';
-import ModalHeader from './ModalHeader';
+import { Transaction, Account, Contact, TransactionType, Category, ActiveModal, ItemizedDetail, SplitDetail } from '@/types';
+import { SettingsContext } from '@/contexts/SettingsContext';
+import CustomSelect from '@/components/CustomSelect';
+import CustomDatePicker from '@/components/CustomDatePicker';
+import ToggleSwitch from '@/components/ToggleSwitch';
+import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
+import ModalHeader from '@/components/ModalHeader';
 
 interface Item {
     id: string;
