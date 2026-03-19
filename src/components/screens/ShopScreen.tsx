@@ -3,11 +3,11 @@ import React, { useState, useMemo, useContext } from 'react';
 import { Shop, ShopProduct, ShopSale, ShopEmployee, ShopShift, ActiveModal, Invoice, InvoiceStatus } from '@/types';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
 import { AppDataContext, SettingsContext } from '@/contexts/SettingsContext';
-import EmptyState from '@/components/EmptyState';
-import ShopPOSScreen from '@/components/screens/ShopPOSScreen';
-import ShopProductsScreen from '@/components/screens/ShopProductsScreen';
-import ShopAnalyticsScreen from '@/components/screens/ShopAnalyticsScreen';
-import CustomSelect from '@/components/CustomSelect';
+import EmptyState from '@/components/common/EmptyState';
+import ShopPOSScreen from '@/components/shop/ShopPOSScreen';
+import ShopProductsScreen from '@/components/shop/ShopProductsScreen';
+import ShopAnalyticsScreen from '@/components/shop/ShopAnalyticsScreen';
+import CustomSelect from '@/components/common/CustomSelect';
 
 interface ShopScreenProps {
   shops: Shop[];

@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { getFinancialTopicExplanation, searchFinancialInfo } from '@/services/geminiService';
-import TopicModal from '@/components/TopicModal';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import TopicModal from '@/components/modals/TopicModal';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 const SUGGESTED_TOPICS = [
     { title: "Budgeting 101", icon: "🧾" },

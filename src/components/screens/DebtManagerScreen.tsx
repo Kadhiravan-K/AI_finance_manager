@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Debt } from '@/types';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
-import EmptyState from '@/components/EmptyState';
+import EmptyState from '@/components/common/EmptyState';
 
 interface DebtManagerScreenProps {
     debts: Debt[];

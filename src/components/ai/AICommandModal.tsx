@@ -1,0 +1,221 @@
+
+import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import ModalHeader from '@/components/common/ModalHeader';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { ActiveModal, ActiveScreen } from '@/types';
+import { transcribeAudio } from '@/services/geminiService';
+
+const modalRoot = document.getElementById('modal-root')!;
+
+interface AICommandModalProps {
+  onClose: () => void;
+  onSendCommand: (command: string, file?: {name: string, type: string, data: string}) => Promise<string>;
+  onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;
+}
+
+const AICommandModal: React.FC<AICommandModalProps> = ({ onClose, onSendCommand, onNavigate }) => {
+  const [command, setCommand] = useState('');
+  const [history, setHistory] = useState<{ role: 'user' | 'model', text: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [file, setFile] = useState<{name: string, type: string, data: string, preview: string} | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [history]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+  
+  const handleStartRecording = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunksRef.current.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = async () => {
+                const base64Audio = (reader.result as string).split(',')[1];
+                setIsLoading(true);
+                try {
+                    const text = await transcribeAudio(base64Audio, 'audio/webm');
+                    setCommand(prev => prev ? `${prev} ${text}` : text);
+                } catch (err) {
+                    console.error("Transcription failed", err);
+                    alert("Failed to transcribe audio.");
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+    } catch (err) {
+        console.error("Microphone error:", err);
+        alert("Could not access microphone.");
+    }
+  };
+
+  const handleStopRecording = () => {
+      if (mediaRecorderRef.current && isRecording) {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+      }
+  };
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+        setHistory(prev => [...prev, { role: 'model', text: `Selected file: ${selectedFile.name}. What would you like to know or do with it?` }]);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            const base64Data = dataUrl.split(',')[1];
+            if (base64Data) {
+                setFile({ name: selectedFile.name, type: selectedFile.type, data: base64Data, preview: dataUrl });
+                inputRef.current?.focus();
+            }
+        };
+        reader.readAsDataURL(selectedFile);
+    }
+    if (event.target) event.target.value = '';
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!command.trim() && !file) || isLoading) return;
+
+    const userCommand = command || (file ? "Analyze this receipt" : "");
+    const attachedFile = file ? { name: file.name, type: file.type, data: file.data } : undefined;
+    
+    setHistory(prev => [...prev, { role: 'user', text: userCommand }]);
+    setCommand('');
+    setFile(null);
+    setIsLoading(true);
+
+    try {
+      const response = await onSendCommand(userCommand, attachedFile);
+      setHistory(prev => [...prev, { role: 'model', text: response }]);
+
+      if (response.toLowerCase().includes("opening") || response.toLowerCase().includes("navigating")) {
+        const screens: ActiveScreen[] = ['dashboard', 'reports', 'budgets', 'goals', 'investments', 'shop', 'tripManagement'];
+        for (const screen of screens) {
+            if(userCommand.toLowerCase().includes(screen)) {
+                onNavigate(screen);
+                break;
+            }
+        }
+      }
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setHistory(prev => [...prev, { role: 'model', text: `Error: ${errorMessage}` }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const modalContent = (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="glass-card rounded-xl shadow-2xl w-full max-w-lg p-0 max-h-[90vh] flex flex-col border border-divider animate-scaleIn" onClick={e => e.stopPropagation()}>
+        <ModalHeader title="AI Command Center" onClose={onClose} icon="✨" />
+        
+        <div className="flex-grow overflow-y-auto p-4 space-y-4">
+          {history.length === 0 && (
+            <div className="text-center text-secondary p-4">
+              <p>Ask me to do anything. Use the microphone to speak naturally.</p>
+              <p className="text-xs mt-2">Examples: "add 500 for lunch", "analyze this receipt"</p>
+            </div>
+          )}
+          {history.map((entry, index) => (
+            <div key={index} className={`flex ${entry.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`p-3 rounded-xl max-w-[80%] ${entry.role === 'user' ? 'bg-sky-800/70' : 'bg-subtle'}`}>
+                <p className="text-sm text-primary whitespace-pre-wrap">{entry.text}</p>
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+             <div className="flex justify-start">
+              <div className="p-3 rounded-xl bg-subtle">
+                <LoadingSpinner />
+              </div>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        {file && (
+            <div className="p-2 border-t border-divider">
+                <div className="bg-subtle p-2 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <img src={file.preview} alt="upload preview" className="w-10 h-10 rounded object-cover"/>
+                        <span className="text-xs text-secondary">{file.name}</span>
+                    </div>
+                    <button onClick={() => setFile(null)} className="p-1 text-rose-400">&times;</button>
+                </div>
+            </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="flex-shrink-0 p-4 border-t border-divider flex items-center gap-2">
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+            </button>
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*"/>
+
+            <button 
+                type="button" 
+                onMouseDown={handleStartRecording} 
+                onMouseUp={handleStopRecording}
+                onMouseLeave={handleStopRecording}
+                onTouchStart={(e) => { e.preventDefault(); handleStartRecording(); }}
+                onTouchEnd={(e) => { e.preventDefault(); handleStopRecording(); }}
+                className={`button-secondary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0 ${isRecording ? 'bg-rose-500/80 text-white animate-pulse' : ''}`}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" /></svg>
+            </button>
+            
+            <textarea 
+                ref={inputRef}
+                value={command}
+                onChange={e => setCommand(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+                placeholder="Type, speak, or attach receipt..."
+                className="w-full input-base rounded-2xl py-2 px-4 resize-none h-12"
+                rows={1}
+                disabled={isLoading}
+            />
+            <button type="submit" disabled={isLoading || (!command.trim() && !file)} className="button-primary p-3 aspect-square rounded-full flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+            </button>
+        </form>
+      </div>
+    </div>
+  );
+
+  return ReactDOM.createPortal(modalContent, modalRoot);
+};
+
+export default AICommandModal;

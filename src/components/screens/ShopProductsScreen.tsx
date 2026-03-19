@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Shop, ShopProduct, ActiveModal, ShopType } from '@/types';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
-import EmptyState from '@/components/EmptyState';
+import EmptyState from '@/components/common/EmptyState';
 
 interface ShopProductsScreenProps {
     shop: Shop;

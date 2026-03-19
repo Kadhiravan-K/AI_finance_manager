@@ -4,9 +4,9 @@ import React, { useState, useContext } from 'react';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
 import { AppState } from '@/types';
 import { parseNaturalLanguageCalculation, getCurrencyConversionRate } from '@/services/geminiService';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { currencies, getCurrencyFormatter } from '@/utils/currency';
-import CustomSelect from '@/components/CustomSelect';
+import CustomSelect from '@/components/common/CustomSelect';
 
 type CalculatorType = 'basic' | 'ai' | 'currency' | 'emi' | 'sip' | 'goal' | 'swp';
 

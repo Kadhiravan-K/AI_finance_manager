@@ -2,18 +2,18 @@
 import React, { useState, useMemo, useContext, useRef, useEffect } from 'react';
 import { Trip, TripExpense, Category, ActiveModal, ActiveScreen, TripDayPlan, Note, TripDayPlanItem, TransactionType, TRIP_FUND_ID, TripMessage } from '@/types';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
-import ModalHeader from '@/components/ModalHeader';
+import ModalHeader from '@/components/common/ModalHeader';
 import { calculateTripSummary } from '@/utils/calculations';
 import { AppDataContext } from '@/contexts/SettingsContext';
-import TripChat from '@/components/TripChat';
-import TripHistory from '@/components/TripHistory';
+import TripChat from '@/components/trip/TripChat';
+import TripHistory from '@/components/trip/TripHistory';
 import CategoryPieChart from '@/components/charts/CategoryPieChart';
-import CustomCheckbox from '@/components/CustomCheckbox';
-import EmptyState from '@/components/EmptyState';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import CustomCheckbox from '@/components/common/CustomCheckbox';
+import EmptyState from '@/components/common/EmptyState';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { generateAITripPlan, findNearbyPlaces } from '@/services/geminiService';
-import CustomSelect from '@/components/CustomSelect';
-import TripSOSModal from './TripSOSModal';
+import CustomSelect from '@/components/common/CustomSelect';
+import TripSOSModal from '@/components/trip/TripSOSModal';
 
 interface TripDetailsScreenProps {
   trip: Trip;

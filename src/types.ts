@@ -1,664 +1,554 @@
-
-import { createClient } from '@supabase/supabase-js';
-import type { Session, User } from '@supabase/supabase-js';
-
-// Supabase configuration using process.env for security
-const supabaseUrl = process.env.SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'your-anon-key';
-
-// Fix: Correctly initialize and export supabase client and types for global use.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-export type { Session, User };
-
-export const USER_SELF_ID = 'user_self';
-export const TRIP_FUND_ID = 'trip_fund';
-
-export enum TransactionType {
-  INCOME = 'income',
-  EXPENSE = 'expense',
-}
-
-export enum AccountType {
-  DEPOSITORY = 'depository', 
-  CREDIT = 'credit',       
-  INVESTMENT = 'investment',
-}
-
-export enum Priority {
-    HIGH = 'High',
-    MEDIUM = 'Medium',
-    LOW = 'Low',
-    NONE = 'None',
-}
-
-export interface SplitDetail {
-    id: string;
-    personName: string;
-    amount: number;
-    isSettled: boolean;
-    shares?: string;
-    percentage?: string;
-    contactId?: string;
-}
-
-export interface ItemizedDetail {
-    description: string;
-    amount: number;
-    categoryId: string;
-    splitDetails?: SplitDetail[];
-}
-
-export interface Transaction {
-  id: string;
-  accountId: string;
-  description: string;
-  amount: number;
-  type: TransactionType;
-  categoryId: string;
-  date: string; 
-  notes?: string;
-  senderId?: string;
-  itemizedDetails?: ItemizedDetail[];
-  splitDetails?: SplitDetail[];
-  payers?: { contactId: string; amount: number }[];
-  user_id?: string;
-}
-
-export interface Reminder {
-    value: number;
-    unit: 'hours' | 'days' | 'weeks';
-}
-
-export interface RecurringTransaction {
-  id: string;
-  description: string;
-  amount: number;
-  type: TransactionType;
-  categoryId: string;
-  accountId: string;
-  frequencyUnit: 'days' | 'weeks' | 'months' | 'years';
-  interval: number;
-  nextDueDate: string;
-  reminders?: Reminder[];
-  priority?: Priority;
-  startTime?: string;
-  user_id?: string;
-}
-
-export interface Account {
-  id: string;
-  name: string;
-  accountType: AccountType;
-  currency: string;
-  creditLimit?: number;
-  user_id?: string;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  type: TransactionType;
-  parentId: string | null;
-  icon?: string;
-  user_id?: string;
-}
-
-export interface Goal {
-  id: string;
-  name: string;
-  icon: string;
-  targetAmount: number;
-  currentAmount: number;
-  productLink?: string;
-  priority?: Priority;
-  user_id?: string;
-}
-
-export interface Budget {
-  id: string;
-  categoryId: string;
-  amount: number;
-  month: string;
-  user_id?: string;
-}
-
-export interface Trip {
-    id: string;
-    name: string;
-    location?: string;
-    date: string;
-    participants: TripParticipant[];
-    currency: string;
-    budget?: number;
-    plan?: TripDayPlan[];
-    advances?: { contactId: string, amount: number }[];
-    user_id?: string;
-}
-
-export interface TripParticipant {
-    contactId: string;
-    name: string;
-    role: 'admin' | 'member';
-}
-
-export interface TripDayPlanItem {
-    id: string;
-    time: string;
-    activity: string;
-    type?: 'travel' | 'food' | 'activity' | 'lodging' | 'other';
-    notes?: string;
-    completed?: boolean;
-    categoryId?: string;
-}
-
-export interface TripDayPlan {
-    id: string;
-    date: string;
-    title: string;
-    items: TripDayPlanItem[];
-}
-
-export interface TripMessage {
-    id: string;
-    tripId: string;
-    senderId: string;
-    senderName: string;
-    text?: string;
-    audioData?: string;
-    timestamp: string;
-    type: 'text' | 'audio';
-    user_id?: string;
-}
-
-export interface Contact {
-    id: string;
-    name: string;
-    groupId: string;
-    user_id?: string;
-}
-
-export interface ContactGroup {
-    id: string;
-    name: string;
-    icon?: string;
-    user_id?: string;
-}
-
-export enum ShopType {
-    PHYSICAL_RETAIL = 'physical_retail',
-    WHOLESALE = 'wholesale',
-    ONLINE_STORE = 'online_store',
-    SERVICE_BUSINESS = 'service_business',
-    SERVICE_REPAIR = 'service_repair',
-    SERVICE_XEROX = 'service_xerox',
-    RESTAURANT_CAFE = 'restaurant_cafe',
-}
-
-export enum BusinessType {
-    SOLE_PROPRIETORSHIP = 'Sole Proprietorship',
-    PARTNERSHIP = 'Partnership',
-    LLC = 'LLC',
-    CORPORATION = 'Corporation'
-}
-
-export interface Shop {
-    id: string;
-    name: string;
-    currency: string;
-    type: ShopType;
-    businessType?: BusinessType;
-    taxRate?: number;
-    user_id?: string;
-}
-
-export interface ShopProduct {
-    id: string;
-    shopId: string;
-    name: string;
-    price: number;
-    costPrice?: number;
-    stock: number;
-    category?: string;
-    user_id?: string;
-}
-
-export interface ShopSale {
-    id: string;
-    shopId: string;
-    items: { productId: string; quantity: number; price: number; name?: string }[];
-    totalAmount: number;
-    profit: number;
-    date: string;
-    user_id?: string;
-}
-
-export interface ShopEmployee {
-    id: string;
-    shopId: string;
-    name: string;
-    role: string;
-    wage: number;
-    user_id?: string;
-}
-
-export interface ShopShift {
-    id: string;
-    shopId: string;
-    employeeId: string;
-    startTime: string;
-    endTime: string;
-    user_id?: string;
-}
-
-export interface Refund {
-    id: string;
-    description: string;
-    amount: number;
-    date: string;
-    accountId: string;
-    originalTransactionId?: string;
-    contactId?: string;
-    notes?: string;
-    isClaimed: boolean;
-    claimedDate?: string;
-    expectedDate?: string;
-    user_id?: string;
-}
-
-export interface Debt {
-    id: string;
-    name: string;
-    totalAmount: number;
-    currentBalance: number;
-    minimumPayment: number;
-    apr: number;
-    user_id?: string;
-}
-
-export interface ChecklistItem {
-    id: string;
-    name: string;
-    isPurchased: boolean;
-    rate: number;
-    quantity: string;
-    priority: Priority;
-}
-
-export interface Note {
-    id: string;
-    title: string;
-    content: string | ChecklistItem[];
-    type: 'note' | 'checklist';
-    createdAt: string;
-    updatedAt: string;
-    tripId?: string;
-    isPinned?: boolean;
-    icon?: string;
-    user_id?: string;
-}
-
-export interface GlossaryEntry {
-    id: string;
-    term: string;
-    emoji: string;
-    definition: string;
-    usageLogic: string;
-    example: string;
-    tags: string[];
-    user_id?: string;
-}
-
-export interface CalendarEvent {
-    id: string;
-    date: Date;
-    title: string;
-    type: 'bill' | 'refund' | 'trip' | 'goal' | 'custom';
-    color: 'rose' | 'sky' | 'amber' | 'violet';
-    data: any;
-    user_id?: string;
-}
-
 export type ActiveScreen = 
-  | 'dashboard' | 'reports' | 'budgets' | 'goals' | 'investments' 
-  | 'scheduled' | 'more' | 'tripManagement' | 'tripDetails' 
-  | 'calculator' | 'achievements' | 'refunds' | 'dataHub' | 'shop'
-  | 'challenges' | 'learn' | 'calendar' | 'notes' | 'subscriptions'
-  | 'glossary' | 'manual' | 'debtManager' | 'faq' | 'live';
+  | 'dashboard' 
+  | 'finance' 
+  | 'trips' 
+  | 'shop' 
+  | 'notes' 
+  | 'calendar' 
+  | 'reports' 
+  | 'settings' 
+  | 'goals' 
+  | 'investments' 
+  | 'subscriptions' 
+  | 'debts' 
+  | 'calculator' 
+  | 'faq' 
+  | 'glossary' 
+  | 'manual' 
+  | 'liveFeed' 
+  | 'challenges' 
+  | 'learn'
+  | 'scheduled'
+  | 'refunds'
+  | 'dataHub'
+  | 'tripManagement'
+  | 'tripDetails'
+  | 'achievements'
+  | 'more'
+  | 'debtManager';
 
 export type ActiveModal = 
-  | 'addTransaction' | 'editTransaction' | 'transfer' | 'accounts'
-  | 'editAccount' | 'categories' | 'editCategory' | 'senderManager'
-  | 'payees' | 'appSettings' | 'privacyConsent' | 'editRecurring'
-  | 'editGoal' | 'financialHealth' | 'importExport' | 'dashboardSettings'
-  | 'footerCustomization' | 'notificationSettings' | 'globalSearch'
-  | 'editTrip' | 'addTripExpense' | 'tripSummary' | 'manageTripMembers'
-  | 'editShop' | 'editProduct' | 'editEmployee' | 'editShift'
-  | 'refund' | 'editDebt' | 'viewOptions' | 'addCalendarEvent'
-  | 'timePicker' | 'camera' | 'addNoteType' | 'linkToTrip'
-  | 'editInvoice' | 'recordPayment' | 'aiChat' | 'integrations'
-  | 'miniCalculator' | 'trustBin' | 'contacts' | 'editContactGroup'
-  | 'editContact' | 'editGlossaryEntry' | 'shareGuide' | 'aiHub'
-  | 'buyInvestment' | 'sellInvestment' | 'updateInvestment'
-  | 'splitTransaction' | 'feedback' | 'manageTools' | 'manageAdvances'
-  | 'tripSOS' | 'auth';
+  | 'auth' 
+  | 'addTransaction' 
+  | 'editTransaction' 
+  | 'transfer' 
+  | 'accounts' 
+  | 'editAccount' 
+  | 'categories' 
+  | 'editCategory' 
+  | 'senderManager' 
+  | 'payees' 
+  | 'appSettings' 
+  | 'privacyConsent' 
+  | 'editRecurring' 
+  | 'editGoal' 
+  | 'financialHealth' 
+  | 'importExport' 
+  | 'dashboardSettings' 
+  | 'footerCustomization' 
+  | 'notificationSettings' 
+  | 'globalSearch' 
+  | 'editTrip' 
+  | 'addTripExpense' 
+  | 'tripSummary' 
+  | 'manageTripMembers' 
+  | 'editShop' 
+  | 'editProduct' 
+  | 'editEmployee' 
+  | 'editShift' 
+  | 'refund' 
+  | 'editDebt' 
+  | 'viewOptions' 
+  | 'addCalendarEvent' 
+  | 'timePicker' 
+  | 'camera' 
+  | 'addNoteType' 
+  | 'linkToTrip' 
+  | 'editInvoice' 
+  | 'recordPayment' 
+  | 'aiChat' 
+  | 'integrations' 
+  | 'miniCalculator' 
+  | 'trustBin' 
+  | 'contacts' 
+  | 'editContactGroup' 
+  | 'editContact' 
+  | 'editGlossaryEntry' 
+  | 'shareGuide' 
+  | 'aiHub' 
+  | 'buyInvestment' 
+  | 'sellInvestment' 
+  | 'updateInvestment' 
+  | 'splitTransaction' 
+  | 'feedback' 
+  | 'manageTools' 
+  | 'manageAdvances';
 
 export interface ModalState {
   name: ActiveModal;
   props?: Record<string, any>;
 }
 
-export interface InvestmentHolding {
-    id: string;
-    accountId: string;
-    name: string;
-    quantity: number;
-    averageCost: number;
-    currentValue: number;
-    user_id?: string;
-}
-
-export interface UnlockedAchievement {
-    achievementId: string;
-    date: string;
-    user_id?: string;
-}
-
-export enum ChallengeType {
-    LOG_TRANSACTION = 'log_transaction',
-    CATEGORIZE_UNCATEGORIZED = 'categorize_uncategorized',
-    SET_BUDGET = 'set_budget',
-    REVIEW_GOALS = 'review_goals',
-    CUSTOM_SAVINGS = 'custom_savings'
-}
-export interface Challenge {
-    id: string;
-    date: string;
-    type: ChallengeType | 'custom_savings';
-    description: string;
-    isCompleted: boolean;
-    user_id?: string;
-}
-
-export interface UserStreak {
-    currentStreak: number;
-    longestStreak: number;
-    lastActivityDate: string;
-    streakFreezes: number;
-    user_id?: string;
-}
-
-export enum InvoiceStatus {
-    DRAFT = 'Draft',
-    SENT = 'Sent',
-    PAID = 'Paid',
-    OVERDUE = 'Overdue'
-}
-
-export interface InvoiceLineItem {
-    id: string;
-    description: string;
-    quantity: number;
-    unitPrice: number;
-}
-
-export interface Invoice {
-    id: string;
-    invoiceNumber: string;
-    shopId: string;
-    contactId: string;
-    issueDate: string;
-    dueDate: string;
-    lineItems: InvoiceLineItem[];
-    taxRate: number;
-    totalAmount: number;
-    status: InvoiceStatus;
-    notes?: string;
-    user_id?: string;
-}
-
-export interface Payee {
-    id: string;
-    identifier: string;
-    name: string;
-    defaultCategoryId: string;
-    user_id?: string;
-}
-
-export enum SenderType {
-    TRUSTED = 'trusted',
-    BLOCKED = 'blocked'
-}
-
-export interface Sender {
-    id: string;
-    identifier: string;
-    name: string;
-    type: SenderType;
-    user_id?: string;
-}
-
-export interface Settlement {
-    id: string;
-    fromContactId: string;
-    toContactId: string;
-    amount: number;
-    currency: string;
-    date: string;
-    tripId?: string;
-    user_id?: string;
-}
-
-export interface FinancialProfile {
-    monthlySalary: number;
-    monthlyRent: number;
-    monthlyEmi: number;
-    emergencyFundGoal: number;
-    user_id?: string;
-}
-
-export type ItemType = 'transaction' | 'recurringTransaction' | 'tripExpense' | 'refund' | 'settlement' | 'account' | 'category' | 'payee' | 'sender' | 'contact' | 'contactGroup' | 'trip' | 'shop' | 'shopProduct' | 'shopEmployee' | 'shopShift' | 'goal' | 'note' | 'glossaryEntry' | 'debt';
-
-export interface TrustBinItem {
-  id: string;
-  itemType: ItemType;
-  item: any;
-  deletedAt: string;
-  user_id?: string;
-}
-
 export type Theme = 'light' | 'dark';
-export type TrustBinDeletionPeriodUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
+export type TrustBinDeletionPeriodUnit = 'days' | 'weeks' | 'months';
 
-export type ToggleableTool = 
-  | 'investments' | 'tripManagement' | 'shop' | 'refunds' | 'achievements' 
-  | 'challenges' | 'learn' | 'calendar' | 'notes' | 'calculator' 
-  | 'scheduledPayments' | 'accountTransfer' | 'budgets' | 'goals' 
-  | 'payees' | 'senders' | 'aiHub' | 'dataHub' | 'feedback' | 'faq' 
-  | 'subscriptions' | 'debtManager';
-
-export interface NotificationSettings {
-    enabled: boolean;
-    bills: { enabled: boolean };
-    budgets: { enabled: boolean; categories: Record<string, boolean> };
-    largeTransaction: { enabled: boolean; amount: number };
-    goals: { enabled: boolean };
-}
-
-export interface DashboardWidget {
-    id: string;
-    name: string;
-    visible: boolean;
-}
-
-export interface Settings {
-  currency: string;
+export interface AppSettings {
   theme: Theme;
-  language: string;
+  hasSeenPrivacy: boolean;
   isSetupComplete: boolean;
   hasSeenOnboarding: boolean;
-  hasSeenPrivacy?: boolean;
-  trustBinDeletionPeriod: {
-    value: number;
-    unit: TrustBinDeletionPeriodUnit;
-  };
-  notificationSettings: NotificationSettings;
-  dashboardWidgets: DashboardWidget[];
-  footerActions: ActiveScreen[];
-  enabledTools: Record<ToggleableTool, boolean>;
-  googleCalendar?: {
-      connected: boolean;
-  };
-  financialProfile?: FinancialProfile;
-  user_id?: string;
+  currency?: string;
+  dashboardWidgets?: string[];
+  trustBinDeletionPeriod?: number;
+  trustBinDeletionPeriodUnit?: TrustBinDeletionPeriodUnit;
+  [key: string]: any;
 }
 
-export interface AppState {
-  settings: Settings;
-  transactions: Transaction[];
-  accounts: Account[];
-  categories: Category[];
-  budgets: Budget[];
-  recurringTransactions: RecurringTransaction[];
-  goals: Goal[];
-  investmentHoldings: InvestmentHolding[];
-  contacts: Contact[];
-  contactGroups: ContactGroup[];
-  trips: Trip[];
-  tripExpenses: TripExpense[];
-  tripMessages: TripMessage[];
-  shops: Shop[];
-  shopProducts: ShopProduct[];
-  shopSales: ShopSale[];
-  shopEmployees: ShopEmployee[];
-  shopShifts: ShopShift[];
-  refunds: Refund[];
-  settlements: Settlement[];
-  debts: Debt[];
-  notes: Note[];
-  glossaryEntries: GlossaryEntry[];
-  unlockedAchievements: UnlockedAchievement[];
-  challenges: Challenge[];
-  streaks: UserStreak;
-  financialProfile: FinancialProfile;
-  invoices: Invoice[];
-  payees: Payee[];
-  senders: Sender[];
-  trustBin: TrustBinItem[];
-  customCalendarEvents: CalendarEvent[];
-}
-
-export interface Profile {
+export interface User {
   id: string;
-  username: string;
-  avatar_url?: string;
+  email: string;
+  name?: string;
+  photoURL?: string;
+}
+
+export interface Profile extends User {
+  bio?: string;
+}
+
+export type TransactionType = 'income' | 'expense' | 'transfer';
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  type: TransactionType;
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  balance: number;
+  currency: string;
+  color: string;
+  icon: string;
+}
+
+export type AccountType = 'cash' | 'bank' | 'credit' | 'investment' | 'other';
+
+export interface Transaction {
+  id: string;
+  amount: number;
+  type: TransactionType;
+  categoryId: string;
+  accountId: string;
+  date: string;
+  note?: string;
+  payeeId?: string;
+  senderId?: string;
+  isRecurring?: boolean;
+  recurringId?: string;
+  itemizedDetails?: ItemizedDetail[];
+  splitDetails?: SplitDetail[];
+}
+
+export interface ItemizedDetail {
+  id: string;
+  name: string;
+  amount: number;
+  categoryId?: string;
+}
+
+export interface SplitDetail {
+  id: string;
+  contactId: string;
+  amount: number;
+  isPaid: boolean;
+}
+
+export interface RecurringTransaction {
+  id: string;
+  amount: number;
+  type: TransactionType;
+  categoryId: string;
+  accountId: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  startDate: string;
+  endDate?: string;
+  nextDate: string;
+  note?: string;
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline?: string;
+  categoryId?: string;
+  priority: Priority;
+  status: 'active' | 'completed' | 'paused';
+}
+
+export type Priority = 'low' | 'medium' | 'high';
+
+export interface Budget {
+  id: string;
+  categoryId: string;
+  amount: number;
+  period: 'monthly' | 'weekly';
+  spent: number;
+}
+
+export interface InvestmentHolding {
+  id: string;
+  accountId: string;
+  symbol: string;
+  name: string;
+  shares: number;
+  purchasePrice: number;
+  currentPrice: number;
+}
+
+export interface Debt {
+  id: string;
+  name: string;
+  amount: number;
+  interestRate: number;
+  dueDate?: string;
+  accountId?: string;
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  type: ItemType;
+  createdAt: string;
+  updatedAt: string;
+  tripId?: string;
+  checklistItems?: ChecklistItem[];
+}
+
+export type ItemType = 'text' | 'checklist';
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  isCompleted: boolean;
+  priority?: Priority;
+}
+
+export interface Trip {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  budget: number;
+  participants: TripParticipant[];
+  expenses: TripExpense[];
+}
+
+export interface TripParticipant {
+  id: string;
+  name: string;
   email?: string;
 }
 
-export type DateRange = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
-
-export interface CustomDateRange {
-  start: Date | null;
-  end: Date | null;
+export interface TripExpense {
+  id: string;
+  tripId: string;
+  amount: number;
+  categoryId: string;
+  date: string;
+  paidById: string;
+  splitDetails: SplitDetail[];
 }
 
-export interface ParsedTransactionData {
+export interface Shop {
+  id: string;
+  name: string;
+  type: ShopType;
+  businessType: BusinessType;
+}
+
+export type ShopType = 'physical' | 'online';
+export type BusinessType = 'retail' | 'service' | 'other';
+
+export interface ShopProduct {
+  id: string;
+  shopId: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
+export interface ShopEmployee {
+  id: string;
+  shopId: string;
+  name: string;
+  role: string;
+}
+
+export interface ShopShift {
+  id: string;
+  shopId: string;
+  employeeId: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface ShopSale {
+  id: string;
+  shopId: string;
+  amount: number;
+  date: string;
+  items: { productId: string; quantity: number; price: number }[];
+}
+
+export interface Invoice {
+  id: string;
+  shopId: string;
+  contactId: string;
+  amount: number;
+  dueDate: string;
+  status: InvoiceStatus;
+  items: InvoiceLineItem[];
+}
+
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue';
+
+export interface InvoiceLineItem {
   id: string;
   description: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Refund {
+  id: string;
+  transactionId: string;
   amount: number;
-  type: TransactionType;
-  categoryName: string;
   date: string;
-  notes?: string;
-  payeeIdentifier?: string;
-  isSpam: boolean;
-  spamConfidence: number;
-  senderName?: string;
-  isForwarded: boolean;
-  itemizedDetails?: ItemizedDetail[];
+  status: 'pending' | 'completed';
 }
 
-export interface SpamWarning {
-  rawText: string;
-  parsedData: ParsedTransactionData;
+export interface GlossaryEntry {
+  id: string;
+  term: string;
+  definition: string;
+  tags: string[];
 }
 
-export interface ParsedTripExpense {
-  description: string;
-  amount: number;
-  categoryName: string;
-  payerName?: string;
-}
-
-export interface ParsedReceiptData {
-  merchantName: string;
-  transactionDate: string;
-  totalAmount: number;
-  lineItems: { description: string; amount: number }[];
-}
-
-export interface FinancialScenarioResult {
-  summary: string;
-  keyMetrics: {
-    metric: string;
-    oldValue: string;
-    newValue: string;
-    changeDescription: string;
-  }[];
-  goalImpacts?: {
-    goalName: string;
-    impact: string;
-  }[];
-  conclusion: string;
-}
-
-export interface IdentifiedSubscription {
-  vendorName: string;
-  averageAmount: number;
-  frequency: 'monthly' | 'yearly' | 'weekly' | 'irregular';
-  transactionCount: number;
-  category: string;
-}
-
-export interface PersonalizedChallenge {
-  description: string;
-  estimatedSavings: number;
-}
-
-export interface ProactiveInsight {
-    insightType: 'anomaly' | 'forecast' | 'subscription_suggestion' | 'generic';
-    title: string;
-    message: string;
-}
-
-export interface AppliedViewOptions {
-    sort: {
-        key: string;
-        direction: 'asc' | 'desc';
-    };
-    filters: Record<string, boolean>;
-}
-
-export interface ViewOptions {
-    sortOptions: { key: string; label: string }[];
-    filterOptions: { key: string; label: string; type: 'toggle' }[];
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay?: boolean;
+  color?: string;
 }
 
 export interface Achievement {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt?: string;
 }
 
-export interface TripExpense {
-    id: string;
-    tripId: string;
-    description: string;
-    amount: number;
-    categoryId: string;
-    date: string;
-    notes?: string;
-    payers: { contactId: string; amount: number }[];
-    splitDetails: SplitDetail[];
-    itemizedDetails?: ItemizedDetail[];
+export interface UnlockedAchievement {
+  achievementId: string;
+  unlockedAt: string;
+}
+
+export interface UserStreak {
+  currentStreak: number;
+  longestStreak: number;
+  lastActive: string;
+}
+
+export interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  type: ChallengeType;
+  target: number;
+  current: number;
+  deadline: string;
+}
+
+export type ChallengeType = 'saving' | 'spending' | 'other';
+
+export interface SpamWarning {
+  id: string;
+  message: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+export interface FinancialProfile {
+  netWorth: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  savingsRate: number;
+}
+
+export interface FinancialScenarioResult {
+  name: string;
+  description: string;
+  impact: number;
+}
+
+export interface ParsedReceiptData {
+  merchant: string;
+  date: string;
+  total: number;
+  items: ItemizedDetail[];
+}
+
+export interface ParsedTransactionData {
+  amount: number;
+  date: string;
+  note?: string;
+  categoryId?: string;
+}
+
+export interface ParsedTripExpense extends ParsedTransactionData {
+  tripId: string;
+}
+
+export interface ProactiveInsight {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'success';
+}
+
+export interface Contact {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface ContactGroup {
+  id: string;
+  name: string;
+  contactIds: string[];
+}
+
+export interface Sender {
+  id: string;
+  name: string;
+  type: SenderType;
+}
+
+export type SenderType = 'person' | 'organization';
+
+export interface Settlement {
+  id: string;
+  fromId: string;
+  toId: string;
+  amount: number;
+  date: string;
+}
+
+export interface TripMessage {
+  id: string;
+  tripId: string;
+  senderId: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface TripDayPlan {
+  id: string;
+  tripId: string;
+  date: string;
+  items: TripDayPlanItem[];
+}
+
+export interface TripDayPlanItem {
+  id: string;
+  time: string;
+  activity: string;
+  location?: string;
+}
+
+export interface ToggleableTool {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
+export interface TrustBinItem {
+  id: string;
+  type: string;
+  data: any;
+  deletedAt: string;
+}
+
+export interface IdentifiedSubscription {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: string;
+}
+
+export interface ViewOptions {
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+  filterBy?: string;
+}
+
+export interface AppliedViewOptions extends ViewOptions {
+  active: boolean;
+}
+
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+export interface CustomDateRange extends DateRange {
+  label: string;
+}
+
+export const USER_SELF_ID = 'self';
+export const TRIP_FUND_ID = 'trip_fund';
+
+export interface AppState {
+  settings: AppSettings;
+  accounts: Account[];
+  categories: Category[];
+  payees: Payee[];
+  budgets: Budget[];
+  tripExpenses: TripExpense[];
+  trips: Trip[];
+  settlements: Settlement[];
+  shopEmployees: ShopEmployee[];
+  shopProducts: ShopProduct[];
+  trustBin: TrustBinItem[];
+  contacts: Contact[];
+  notes: Note[];
+  transactions: Transaction[];
+  recurringTransactions: RecurringTransaction[];
+  goals: Goal[];
+  debts: Debt[];
+  investmentHoldings: InvestmentHolding[];
+  financialProfile: FinancialProfile;
+  glossaryEntries: GlossaryEntry[];
+  customCalendarEvents: CalendarEvent[];
+  shopSales: ShopSale[];
+  shopShifts: ShopShift[];
+  challenges: Challenge[];
+  refunds: Refund[];
+  [key: string]: any;
+}
+
+export interface Payee {
+  id: string;
+  name: string;
+  defaultCategoryId?: string;
 }

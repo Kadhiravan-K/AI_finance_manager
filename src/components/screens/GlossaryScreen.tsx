@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { AppDataContext } from '@/contexts/SettingsContext';
 import { GlossaryEntry } from '@/types';
 import { generateGlossaryEntry } from '@/services/geminiService';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 interface GlossaryScreenProps {
   onAdd: () => void;

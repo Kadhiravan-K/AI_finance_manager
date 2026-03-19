@@ -3,7 +3,7 @@ import React, { useState, useMemo, useContext } from 'react';
 import { CalendarEvent, ActiveScreen, ActiveModal } from '@/types';
 import { AppDataContext, SettingsContext } from '@/contexts/SettingsContext';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
-import EmptyState from '@/components/EmptyState';
+import EmptyState from '@/components/common/EmptyState';
 
 interface CalendarScreenProps {
   onNavigate: (screen: ActiveScreen, modal?: ActiveModal, modalProps?: Record<string, any>) => void;

@@ -3,12 +3,12 @@ import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Goal, Account, Priority, ActiveModal, AppliedViewOptions, ViewOptions } from '@/types';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
-import CustomSelect from '@/components/CustomSelect';
+import CustomSelect from '@/components/common/CustomSelect';
 import { getAIGoalSuggestion } from '@/services/geminiService';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { AppDataContext, SettingsContext } from '@/contexts/SettingsContext';
-import EmptyState from '@/components/EmptyState';
-import ModalHeader from './ModalHeader';
+import EmptyState from '@/components/common/EmptyState';
+import ModalHeader from '@/components/common/ModalHeader';
 
 const modalRoot = document.getElementById('modal-root')!;
 

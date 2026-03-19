@@ -4,8 +4,8 @@ import { AppDataContext, SettingsContext } from '@/contexts/SettingsContext';
 import { IdentifiedSubscription, RecurringTransaction, TransactionType } from '@/types';
 import { identifySubscriptions } from '@/services/geminiService';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import EmptyState from '@/components/EmptyState';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import EmptyState from '@/components/common/EmptyState';
 
 interface SubscriptionsScreenProps {
     onAddRecurring: (data: Partial<RecurringTransaction>) => void;

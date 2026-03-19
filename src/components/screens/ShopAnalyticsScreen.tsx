@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Shop, ShopSale, ShopProduct } from '@/types';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
 import { getShopInsights } from '@/services/geminiService';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 interface ShopAnalyticsScreenProps {
     shop: Shop;

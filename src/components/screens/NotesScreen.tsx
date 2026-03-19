@@ -2,9 +2,9 @@
 import React, { useState, useContext, useMemo } from 'react';
 import { AppDataContext } from '@/contexts/SettingsContext';
 import { Note, ChecklistItem, ItemType, AppliedViewOptions, ViewOptions, ActiveModal, ActiveScreen, Priority, Trip } from '@/types';
-import EmptyState from '@/components/EmptyState';
-import NoteDetailView from '@/components/NoteDetailView';
-import ChecklistDetailView from '@/components/ChecklistDetailView';
+import EmptyState from '@/components/common/EmptyState';
+import NoteDetailView from '@/components/notes/NoteDetailView';
+import ChecklistDetailView from '@/components/notes/ChecklistDetailView';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
 
 

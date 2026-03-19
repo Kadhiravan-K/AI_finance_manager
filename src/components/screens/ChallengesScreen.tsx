@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserStreak, Challenge, AppState, ChallengeType } from '@/types';
 import { getDailyChallenge } from '@/utils/challenges';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 interface ChallengesScreenProps {
   appState: AppState;

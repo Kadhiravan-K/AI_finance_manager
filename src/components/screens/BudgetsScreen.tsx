@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Budget, Category, Transaction, TransactionType, FinancialProfile } from '@/types';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
 import { getAIBudgetSuggestion } from '@/services/geminiService';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 interface BudgetsScreenProps {
   categories: Category[];

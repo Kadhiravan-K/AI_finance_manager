@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Trip, TripExpense } from '@/types';
-import EmptyState from '@/components/EmptyState';
+import EmptyState from '@/components/common/EmptyState';
 import { getCurrencyFormatter } from '@/utils/currency';
 
 interface TripManagementScreenProps {

@@ -2,7 +2,7 @@ import React, { useMemo, useContext } from 'react';
 import { AppState, ActiveModal, Transaction, Goal, RecurringTransaction, UnlockedAchievement, Challenge, TransactionType } from '@/types';
 import { AppDataContext, SettingsContext } from '@/contexts/SettingsContext';
 import { useCurrencyFormatter } from '@/hooks/useCurrencyFormatter';
-import EmptyState from '@/components/EmptyState';
+import EmptyState from '@/components/common/EmptyState';
 import { ALL_ACHIEVEMENTS } from '@/utils/achievements';
 import { getCategoryPath } from '@/utils/categories';
 
